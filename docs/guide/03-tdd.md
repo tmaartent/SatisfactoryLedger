@@ -23,6 +23,15 @@ Pick the simplest one, make it pass, then the next. The design of `SupplyLineAna
 
 ## Naming and structure
 
+**.NET conventions (files, classes, folders):**
+- Tests are ordinary `.cs` files in a test project. xUnit finds every **public** class with `[Fact]` or `[Theory]` methods. No name pattern is required for discovery.
+- Test project = `<ProjectUnderTest>.Tests` (e.g. `SatisfactoryLedger.FactoryNetwork.Domain.Tests`).
+- Test class name ends in `Tests` (plural is the .NET norm): `RateTests`, `PriorityMergerTests`.
+- One public class per file, **file name = class name** (`RateTests.cs`). Rider warns when they differ.
+- Folders mirror the project under test. The namespace follows the folders.
+- `tests/.editorconfig` switches off analyzer rule CA1707 (no underscores in names) for test code only, so sentence-style test names compile despite warnings-as-errors.
+
+**Content conventions:**
 - One test class per behaviour or concept (`PriorityMergerTests`, `StackHeightTests`), not one per production class.
 - Name tests after behaviour in domain language: `Injection_draws_secondary_only_up_to_free_capacity` or `BR_S4_…`. A failing test name should tell the story without opening the file.
 - **Arrange / Act / Assert**, with a single act. Several asserts are fine when they describe one outcome.

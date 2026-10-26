@@ -2,6 +2,10 @@
 
 You write the code. These chapters tell you **what** to build in which order, **why**, and **which practices** a senior reviewer would expect to see. Each chapter ends with a *Done when* checklist. Don't move on until it's ticked.
 
+> **Coming from Java/Spring?** Start with [From Java/Spring to .NET](from-java-spring.md): a translation table from what you know to what it's called here.
+>
+> **New to a term?** The [primer](primer.md) explains every technical term used in this guide in plain language, with where you'll meet it.
+
 ## Chapters (by discipline)
 
 | # | Chapter | You'll practise |
