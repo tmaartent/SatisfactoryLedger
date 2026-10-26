@@ -1,0 +1,3 @@
+﻿namespace SatisfactoryLedger.BlueprintDesign.Contracts;
+
+public static class BlueprintDesignContractsAssembly;
