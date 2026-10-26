@@ -1,10 +1,12 @@
 # Satisfactory Ledger
 
+[![CI](https://github.com/tmaartent/SatisfactoryLedger/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tmaartent/SatisfactoryLedger/actions/workflows/ci.yml)
+
 An offline ledger of a Satisfactory world. It keeps blueprints, stacked factories and the supply lines between them balanced, and replaces a hand-maintained spreadsheet.
 
 It is also a deliberate learning and portfolio project. It shows Domain-Driven Design, Test-Driven Development, API design and a modern .NET + Angular stack, built as a modular monolith that can be split into services later.
 
-> **Status:** scaffold only. No domain code yet. Follow the [learning guide](docs/guide/README.md).
+> **Status:** scaffold with architecture tests and CI. No domain code yet. Follow the [learning guide](docs/guide/README.md).
 
 ## What it does (target)
 
