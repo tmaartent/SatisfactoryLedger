@@ -3,6 +3,12 @@ root = true
 # All files
 [*]
 indent_style = space
+# Same as .gitattributes, so the editor never writes CRLF into LF files
+end_of_line = lf
+
+# Windows scripts stay CRLF (see .gitattributes)
+[*.{cmd,bat,ps1}]
+end_of_line = crlf
 
 # Xml files
 [*.xml]
