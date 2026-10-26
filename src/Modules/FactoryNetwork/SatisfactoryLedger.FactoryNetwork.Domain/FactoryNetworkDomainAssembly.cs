@@ -1,6 +1,3 @@
 ﻿namespace SatisfactoryLedger.FactoryNetwork.Domain;
 
-public class FactoryNetworkDomainAssembly
-{
-    
-}
+public static class FactoryNetworkDomainAssembly;

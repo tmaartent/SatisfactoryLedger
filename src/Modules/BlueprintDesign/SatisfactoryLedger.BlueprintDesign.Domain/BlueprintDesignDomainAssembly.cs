@@ -1,6 +1,3 @@
 ﻿namespace SatisfactoryLedger.BlueprintDesign.Domain;
 
-public class BlueprintDesignDomainAssembly
-{
-    
-}
+public static class BlueprintDesignDomainAssembly;

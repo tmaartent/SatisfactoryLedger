@@ -3,50 +3,46 @@ using ArchUnitNET.Fluent;
 using ArchUnitNET.Loader;
 using ArchUnitNET.xUnitV3;
 
-using static ArchUnitNET.Fluent.ArchRuleDefinition; // gives you Types(), Classes(), ...
+using static ArchUnitNET.Fluent.ArchRuleDefinition;
 
 namespace SatisfactoryLedger.ArchitectureTests;
+    
 
-
-public class LayerRulesTests
+public class ModuleBoundaryTests
 {
-    // 1. LOAD — once, static. Load every assembly that appears in a rule:
-    //    both the code you check AND the code it must not touch.
+    
     private static readonly Architecture Architecture = new ArchLoader()
-        .LoadAssemblies(
-            typeof(BlueprintDesign.Domain.BlueprintDesignDomainAssembly).Assembly,
-            typeof(Catalog.Domain.CatalogDomainAssembly).Assembly,
-            typeof(FactoryNetwork.Domain.FactoryNetworkDomainAssembly).Assembly
-            )
+        .LoadAssemblies(SolutionAssemblies.All)
         .Build();
 
-    // Reusable selections. As(...) is the name shown in failure messages.
     private static readonly IObjectProvider<IType> DomainLayers =
         Types().That()
-            .ResideInNamespace("SatisfactoryLedger.BlueprintDesign.Domain")
-            .Or()
-            .ResideInNamespace("SatisfactoryLedger.Catalog.Domain")
-            .Or()
-            .ResideInNamespace("SatisfactoryLedger.FactoryNetwork.Domain")
+            .ResideInAssembly(SolutionAssemblies.All[0], SolutionAssemblies.All[1..])
             .As("Domain layers");
     
     private static readonly IObjectProvider<IType> EntityFrameworkCore =
-        Types().That().ResideInNamespace("Microsoft.EntityFrameworkCore").As("Entity Framework Core layer");
+        Types(true).That().ResideInNamespaceMatching(@"^Microsoft\.EntityFrameworkCore(\.|$)").As("Entity Framework Core layer");
     
-    private static readonly IObjectProvider<IType> ASPNETCore =
-        Types().That().ResideInNamespace("Microsoft.AspNetCore").As("ASP.NET Core layer");
+    private static readonly IObjectProvider<IType> AspNetCore =
+        Types(true).That().ResideInNamespaceMatching(@"^Microsoft\.AspNetCore(\.|$)").As("ASP.NET Core layer");
+
+    
 
     [Fact]
-    public void Domain_layer_does_not_use_the_EntityFramework()
+    public void Domain_layers_do_not_use_the_EntityFramework()
     {
-        Types(true).That().Are(DomainLayers)
+        Types().That().Are(DomainLayers)
             .Should().NotDependOnAny(EntityFrameworkCore)
-            .Because("the domain layer should not use the EntityFramework Core or ASP.NET Core layer")
+            .Because("the domain layers should not use the EntityFramework Core")
             .Check(Architecture);
-        
-        Types(true).That().Are(DomainLayers)
-            .Should().NotDependOnAny(EntityFrameworkCore)
-            .Because("the domain layer should not use the EntityFramework Core or ASP.NET Core layer")
+    }
+    
+    [Fact]
+    public void Domain_layers_do_not_use_the_ASPNETCore()
+    {
+        Types().That().Are(DomainLayers)
+            .Should().NotDependOnAny(AspNetCore)
+            .Because("the domain layers should not use ASP.NET Core")
             .Check(Architecture);
     }
 }
