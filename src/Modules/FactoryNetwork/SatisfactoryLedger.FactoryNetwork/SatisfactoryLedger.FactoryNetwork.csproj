@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SatisfactoryLedger.FactoryNetwork.Domain\SatisfactoryLedger.FactoryNetwork.Domain.csproj" />
+    <ProjectReference Include="..\SatisfactoryLedger.FactoryNetwork.Contracts\SatisfactoryLedger.FactoryNetwork.Contracts.csproj" />
+    <ProjectReference Include="..\..\BlueprintDesign\SatisfactoryLedger.BlueprintDesign.Contracts\SatisfactoryLedger.BlueprintDesign.Contracts.csproj" />
+    <ProjectReference Include="..\..\Catalog\SatisfactoryLedger.Catalog.Contracts\SatisfactoryLedger.Catalog.Contracts.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+  </PropertyGroup>
+
+</Project>

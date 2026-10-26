@@ -1,0 +1,13 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.4">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SatisfactoryLedger.Api\SatisfactoryLedger.Api.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>91b4945d-320f-4ba2-a3ee-e7ae930fa069</UserSecretsId>
+  </PropertyGroup>
+
+</Project>
