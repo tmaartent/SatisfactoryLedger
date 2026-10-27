@@ -1,4 +1,6 @@
-﻿namespace SatisfactoryLedger.SharedKernel.Tests;
+﻿using System.Globalization;
+
+namespace SatisfactoryLedger.SharedKernel.Tests;
 
 public class RateTests
 {
@@ -78,9 +80,45 @@ public class RateTests
     }
 
     [Fact]
-    public void ToString_prints_out_the_numerator_and_denominator()
+    public void ToString_prints_the_decimal_value()
     {
-        Assert.Equal("Numerator: -45, Denominator: 8", Rate.Of(-45, 8).ToString());
+        Assert.Equal("5.625", Rate.Of(45, 8).ToString());
+    }
+    
+    [Fact]
+    public void ToString_prints_the_decimal_rounded_to_three_decimals()
+    {
+        Assert.Equal("6.667", Rate.Of(20, 3).ToString());
+    }
+    
+    [Fact]
+    public void ToString_prints_the_sign_when_rate_is_negative()
+    {
+        Assert.Equal("-6.667", Rate.Of(-20, 3).ToString());
+    }
+    
+    [Fact]
+    public void ToString_prints_culture_independent()
+    {
+        var culture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("nl-BE");
+
+            Assert.Equal("0.125", Rate.Of(1, 8).ToString());
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
+    }
+
+    [Fact]
+    public void ToString_prints_the_decimal_rounded_away_from_zero()
+    {
+        Assert.Equal("1.235", Rate.PerMinute(1.2345m).ToString());
+        Assert.Equal("-1.235", Rate.PerMinute(-1.2345m).ToString());
     }
 
     [Fact]

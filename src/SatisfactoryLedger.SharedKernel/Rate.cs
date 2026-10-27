@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Globalization;
+using System.Numerics;
 
 namespace SatisfactoryLedger.SharedKernel;
 
@@ -102,8 +103,14 @@ public record Rate: IComparable<Rate> {
         return other != null ? (this.Numerator * other.Denominator).CompareTo(other.Numerator * this.Denominator) : 1;
     }
 
+    public decimal ToDecimal()
+    {
+        return (decimal)Numerator / (decimal)Denominator;
+    }
+
     public override string ToString()
     {
-        return $"{nameof(Numerator)}: {Numerator}, {nameof(Denominator)}: {Denominator}";
+        var x = Math.Round(this.ToDecimal(), 3, MidpointRounding.AwayFromZero);
+        return x.ToString(CultureInfo.InvariantCulture);
     }
 }
