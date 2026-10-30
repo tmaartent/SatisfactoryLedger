@@ -4,7 +4,7 @@ namespace SatisfactoryLedger.Catalog.Domain;
 
 public class Recipe
 {
-    private Recipe(RecipeId id, string name, BuildingId buildingId, int cycleSeconds, RecipeIngredient[] inputs,
+    private Recipe(RecipeId id, string name, BuildingId buildingId, decimal cycleSeconds, RecipeIngredient[] inputs,
         RecipeIngredient[] outputs, bool isAlternate)
     {
         Id = id;
@@ -16,13 +16,13 @@ public class Recipe
         IsAlternate = isAlternate;
     }
 
-    public static Recipe Create(RecipeId id, string name, BuildingId buildingId, int cycleSeconds,
+    public static Recipe Create(RecipeId id, string name, BuildingId buildingId, decimal cycleSeconds,
         RecipeIngredient[] inputs,
         RecipeIngredient[] outputs, bool isAlternate)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cycleSeconds);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArrayArgumentException.ThrowIfLessThan(inputs, 1);
+        ArrayArgumentException.ThrowIfLessThan(inputs, 0);
         ArrayArgumentException.ThrowIfMoreThan(inputs, 4);
         ArrayArgumentException.ThrowIfLessThan(outputs, 1);
         ArrayArgumentException.ThrowIfMoreThan(outputs, 2);
@@ -51,7 +51,7 @@ public class Recipe
 
     public BuildingId BuildingId { get; }
 
-    public int CycleSeconds { get; }
+    public decimal CycleSeconds { get; }
 
     public RecipeIngredient[] Inputs { get; }
     

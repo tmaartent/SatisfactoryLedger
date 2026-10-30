@@ -11,11 +11,14 @@ public record Rate: IComparable<Rate> {
         this._fraction  = new Fraction(numerator, denominator);
     }
 
-    public static Rate FromRecipe(int amount, int cycleSeconds)
+    public static Rate FromRecipe(decimal amount, decimal cycleSeconds)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cycleSeconds);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
-        return new Rate(new BigInteger(amount) * 60, cycleSeconds);
+        var amountFraction = Fraction.FromDecimal(amount * 60);
+        var cycleSecondsFraction = Fraction.FromDecimal(cycleSeconds);
+        
+        return new Rate(amountFraction.Numerator, cycleSecondsFraction.Numerator);
     }
 
     public static Rate Of(BigInteger numerator, BigInteger denominator)

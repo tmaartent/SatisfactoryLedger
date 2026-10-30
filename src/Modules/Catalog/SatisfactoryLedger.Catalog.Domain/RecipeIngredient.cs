@@ -1,8 +1,8 @@
 ﻿namespace SatisfactoryLedger.Catalog.Domain;
 
-public record RecipeIngredient(ItemId ItemId, int Amount)
+public record RecipeIngredient(ItemId ItemId, decimal Amount)
 {
-    public static RecipeIngredient Of(ItemId itemId, int amount)
+    public static RecipeIngredient Of(ItemId itemId, decimal amount)
     {
         return new RecipeIngredient(itemId, amount);
     }

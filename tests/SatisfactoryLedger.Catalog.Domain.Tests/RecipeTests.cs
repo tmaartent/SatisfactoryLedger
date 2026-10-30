@@ -155,22 +155,6 @@ public class RecipeTests
         ));
     }
     
-    [Fact]
-    public void Throws_if_inputs_less_than_one()
-    {
-        Assert.Throws<ArrayArgumentException>(() => Recipe.Create(
-            RecipeId.Of("IronPlates20"),
-            "Foo",
-            BuildingId.Of("Constructor1"),
-            1,
-            [
-            ],
-            [
-                RecipeIngredient.Of(TestCatalog.Items.IronPlate.Id, 2)
-            ],
-            false
-        ));
-    }
     
     [Fact]
     public void Throws_if_inputs_more_than_four()
@@ -183,8 +167,8 @@ public class RecipeTests
             [
                 RecipeIngredient.Of(TestCatalog.Items.IronIngot.Id, 3),
                 RecipeIngredient.Of(TestCatalog.Items.IronOre.Id, 3),
-                RecipeIngredient.Of(TestCatalog.Items.IronWire.Id, 3),
-                RecipeIngredient.Of(TestCatalog.Items.StitchedIronPlate.Id, 3),
+                RecipeIngredient.Of(TestCatalog.Items.Wire.Id, 3),
+                RecipeIngredient.Of(TestCatalog.Items.ReinforcedIronPlate.Id, 3),
                 RecipeIngredient.Of(TestCatalog.Items.IronPlate.Id, 3)
             ],
             [
@@ -224,8 +208,8 @@ public class RecipeTests
             ],
             [
                 RecipeIngredient.Of(TestCatalog.Items.IronPlate.Id, 2),
-                RecipeIngredient.Of(TestCatalog.Items.IronWire.Id, 2),
-                RecipeIngredient.Of(TestCatalog.Items.StitchedIronPlate.Id, 2)
+                RecipeIngredient.Of(TestCatalog.Items.Wire.Id, 2),
+                RecipeIngredient.Of(TestCatalog.Items.ReinforcedIronPlate.Id, 2)
             ],
             false
         ));

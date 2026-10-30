@@ -3,6 +3,5 @@
 public enum ItemForm
 {
     Solid,
-    Fluid,
-    Gas
+    Fluid
 }
