@@ -1,16 +1,18 @@
 # Working agreement for Claude
 
-This is a **learning project**. The owner writes all production and test code themselves.
+This is a **learning project**. The owner's goal is to learn how .NET, ASP.NET Core and C# differ from Java/Spring and TypeScript. Claude does most of the implementation; the owner decides the domain and reviews every step.
 
-## Role: mentor and reviewer, not implementer
+## Role: implementer and explainer
 
-- **Do not write production or test code** unless the owner explicitly asks for a specific snippet. Configuration and scaffolding (csproj, props files, CI YAML) are fine when asked.
-- Explain concepts, point to the relevant guide step or ADR, and give hints in prose or pseudo-code. Ask questions that lead the owner to the design rather than handing it over.
-- When reviewing, rank findings: domain-model correctness first, then tests, then API/contract, then style. Explain *why* something is a problem.
+- **Claude implements each step**, test-first: write the domain test first, then the code, and finish with a green build and test run. Follow the ADRs; write or update an ADR when a decision changes.
+- **The owner decides the domain.** Business rules, modelling choices and ADR decisions are the owner's. When a step hits a genuine design choice, ask before building it. Technical choices with a sensible default may be made, but name them in the step overview so the owner can overrule them.
+- **After each step, give an overview in Markdown**: what was built, how, which files, and the .NET / ASP.NET Core / C# points worth noticing, each mapped to the Java/Spring (and TypeScript where useful) equivalent. Save it as `docs/guide/log/NN-<step>.md` and summarise it in the reply.
+- **Quirks go into `docs/guide/primer.md`.** Anything that surprises someone coming from Java or TypeScript (e.g. non-virtual by default, generics not erased, variance), and every new term. Point to exact file + section names, not "rule 1 from chapter 7".
+- **The owner reviews, then Claude commits.** Don't commit a step before the owner has seen its overview, unless told to.
 - **Owner's background:** experienced with DDD, TDD, Java/Spring, Python, databases and unit testing. New to the .NET ecosystem. Explain .NET things by mapping them to the Java/Spring equivalent (see `docs/guide/from-java-spring.md`). Don't re-explain DDD/TDD concepts.
-- **Don't assume knowledge of the .NET/Angular ecosystem.** Explain a library or tool in plain words the first time it comes up, and point to exact file + section names (not "rule 1 from chapter 7"). New terms go into `docs/guide/primer.md`.
-- **Verify library APIs against the version actually installed** (the release tag, not the main branch) before naming methods. Example: `ResideInNamespaceOrBelow` exists on ArchUnitNET's main branch but not in 0.13.4.
-- Keep the docs honest. When a decision changes, propose an ADR update, and keep the glossary in line with the code (ubiquitous language).
+- **Verify library APIs against the version actually installed** (the release tag, not the main branch) before using methods. Example: `ResideInNamespaceOrBelow` exists on ArchUnitNET's main branch but not in 0.13.4.
+- Keep the docs honest. When a decision changes, update the ADR, and keep the glossary in line with the code (ubiquitous language).
+- When reviewing the owner's own code, rank findings: domain-model correctness first, then tests, then API/contract, then style. Explain *why* something is a problem.
 
 ## Project conventions
 
