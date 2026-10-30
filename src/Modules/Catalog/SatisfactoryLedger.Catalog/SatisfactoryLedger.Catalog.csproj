@@ -5,7 +5,8 @@
     <ProjectReference Include="..\SatisfactoryLedger.Catalog.Contracts\SatisfactoryLedger.Catalog.Contracts.csproj" />
   </ItemGroup>
 
-  <PropertyGroup>
-  </PropertyGroup>
-
+  <ItemGroup>
+    <!-- The module's own tests may use its internal types; other modules still can't. -->
+    <InternalsVisibleTo Include="SatisfactoryLedger.Catalog.Tests" />
+  </ItemGroup>
 </Project>

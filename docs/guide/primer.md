@@ -14,6 +14,7 @@ Every technical term in the guide, in plain language: what it is, and where you'
 | **Solution (`.slnx`)** | A list of projects that belong together, the file you open in Rider. `.slnx` is the new, readable XML format. | `SatisfactoryLedger.slnx` |
 | **Project reference** | "Project A may use the code of project B." Without a reference, the compiler refuses. That's how we enforce part of the architecture. | Already set up between the modules |
 | **Assembly** | The compiled output of a project. Architecture tests inspect assemblies. | — |
+| **`internal` / `InternalsVisibleTo`** | `internal` means "visible only inside this assembly" (.NET has no package-private). `InternalsVisibleTo` in a `.csproj` names a friend assembly, usually the project's own tests, that may use those internal types too. | `SatisfactoryLedger.Catalog.csproj` → `Catalog.Tests` |
 | **NuGet / package** | .NET's library store, like npm for JavaScript or Maven for Java. | `dotnet add package <Name>` |
 | **Central Package Management** | All package versions in one file instead of in each project. | `Directory.Packages.props` |
 | **`Directory.Build.props`** | Settings that automatically apply to every project in the folder tree. | Root of the repo |
@@ -21,6 +22,9 @@ Every technical term in the guide, in plain language: what it is, and where you'
 | **Warnings as errors** | Every compiler warning fails the build. Strict, but it keeps the code clean. | On everywhere |
 | **Analyzers** | Extra code checks that run during the build (style, common mistakes). | `AnalysisLevel` in `Directory.Build.props` |
 | **`record`** | A short C# way to define a type that's compared by its *values* instead of its identity. Ideal for value objects. | `Rate`, `ClockSpeed` (M1) |
+| **Non-virtual by default (`virtual`/`override` vs `new`)** | In Java every method is virtual. In C# methods and properties are not, unless the base marks them `virtual` and the subclass `override`s them. A subclass member marked `new` *hides* the base member instead: there are two separate members, and which one runs depends on the variable's declared type, like a field with the same name in a Java subclass. | `ResourceItemGroupDto` (`Items` was hidden, so the base list stayed empty) |
+| **Generic constraint (`where T : Base`)** | Limits a type parameter to `Base` or its subclasses, like Java's `<T extends Base>`. Unlike Java, generics are not erased: `Group<BeltDto>` and `Group<PipeDto>` are different types at runtime, with no shared base. `OfType<Group>()` without a type argument doesn't compile. | `TransportTierGroupDto<TTier> where TTier : TransportTierDto` |
+| **Variance (`List<T>` vs `IEnumerable<out T>`)** | `List<Child>` is not a `List<Parent>`, and neither is `Dictionary<string, Child>`, just like in Java. `IEnumerable<out T>` is *covariant*, so an `IEnumerable<Child>` can be used as an `IEnumerable<Parent>`, roughly Java's `? extends`. Use `.Cast<Parent>()` to convert explicitly. Only interfaces and delegates can be variant, never classes: `Group<BeltDto>` is not a `Group<TransportTierDto>`, so `OfType<Group<TransportTierDto>>()` finds nothing. | Combining belt and pipe DTOs in one collection |
 
 ## Backend
 
@@ -28,6 +32,11 @@ Every technical term in the guide, in plain language: what it is, and where you'
 |---|---|---|
 | **ASP.NET Core** | The .NET framework for websites and web APIs. Receives HTTP requests and sends responses. | `SatisfactoryLedger.Api` |
 | **Web API** | A program that the frontend talks to over HTTP with JSON, rather than a page you look at directly. | The backend as a whole |
+| **System.Text.Json (STJ)** | .NET's built-in JSON library, the counterpart of Jackson. `JsonSerializer.Deserialize<T>(json)` turns JSON into objects. Attributes such as `[JsonPropertyName("x")]` work like Jackson's annotations. | Catalog importer (M2) |
+| **STJ only sees public properties** | By default STJ reads and writes only **public** properties. Any other property is skipped silently, without an error. Unlike Jackson's `@JsonProperty`, `[JsonPropertyName]` only renames a property and does not include it. To include a non-public property, add `[JsonInclude]` (works on non-public properties since .NET 8), or make the property public. On an `internal` DTO class, public properties are still invisible outside the assembly. | `Catalog/Importer/*Dto.cs` |
+| **STJ polymorphism (`[JsonPolymorphic]`, `[JsonDerivedType]`)** | Lets STJ pick a subclass from a *type discriminator* field in the JSON, like Jackson's `@JsonTypeInfo` + `@JsonSubTypes`. On the base class, `[JsonPolymorphic]` names the field and each `[JsonDerivedType]` maps one value to one subclass. | `GameDataGroupDto`, on the `NativeClass` field |
+| **Unknown discriminators always throw** | When reading JSON, a discriminator value that isn't registered with `[JsonDerivedType]` throws `JsonException: Read unrecognized type discriminator id`. The option `UnknownDerivedTypeHandling = FallBackToBaseType` sounds like the fix, but it only affects *serialization* (writing a subtype that isn't registered). It does nothing for deserialization (checked on .NET 10). To skip unknown entries, filter them out first, e.g. with a `JsonDocument`. | `SatisfactoryImporter.DeserializeSupportedGroups` |
+| **STJ creates the declared type** | STJ creates objects of exactly the declared property type. `List<TransportTierDto>` gives plain `TransportTierDto`s, never subclasses, and properties that only the subclass has (`mSpeed`) are dropped silently. `[JsonPolymorphic]` on a group class doesn't carry over to the group's elements. Fix it in the type: make the group generic, so each subclass declares its element type. Jackson behaves the same way without `@JsonTypeInfo`. | `BeltGroupDto : TransportTierGroupDto<BeltDto>` |
 | **Minimal APIs** | The compact ASP.NET Core style: one line per endpoint (`app.MapGet("/items", ...)`) instead of controller classes. | All endpoints (M2+) |
 | **Endpoint** | One URL + HTTP method combination, e.g. `GET /api/v1/blueprints`. | Chapter 05 |
 | **Dependency injection (DI)** | Classes ask for what they need in their constructor, and the framework supplies it. That makes them swappable and testable. | Built into ASP.NET Core |
@@ -49,6 +58,7 @@ Every technical term in the guide, in plain language: what it is, and where you'
 | **xUnit (v3)** | The test framework: you write methods marked `[Fact]` (one case) or `[Theory]` (the same test with several data rows). | All test projects |
 | **Microsoft Testing Platform (MTP)** | The new engine that runs .NET tests. It's what `dotnet test` and Rider use underneath. | — |
 | **Exit code 8** | MTP's signal for "no tests found". It fails the run on purpose, so an empty test project doesn't look like a success. | Until your first tests exist |
+| **Fixture (test data file)** | A small, checked-in file a test reads as input, like a JSON file under `src/test/resources` in Java. .NET has no such convention folder, so the `.csproj` copies it next to the test DLL (`CopyToOutputDirectory`). Not the same as an xUnit *fixture* (`IClassFixture<T>`), which is shared setup. | `tests/SatisfactoryLedger.Catalog.Tests/Fixtures/` (M2) |
 | **Unit test** | Tests a small piece of logic in isolation, in milliseconds. | `*.Domain.Tests` |
 | **Integration test** | Tests several parts together for real (API + database). | `Api.IntegrationTests` (M2+) |
 | **Architecture test** | A test that checks the *structure* of the code (who may reference whom) instead of its behaviour. | `ArchitectureTests` (M0) |

@@ -32,6 +32,7 @@
     <Project Path="tests/SatisfactoryLedger.ArchitectureTests/SatisfactoryLedger.ArchitectureTests.csproj" />
     <Project Path="tests/SatisfactoryLedger.BlueprintDesign.Domain.Tests/SatisfactoryLedger.BlueprintDesign.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.Catalog.Domain.Tests/SatisfactoryLedger.Catalog.Domain.Tests.csproj" />
+    <Project Path="tests/SatisfactoryLedger.Catalog.Tests/SatisfactoryLedger.Catalog.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.FactoryNetwork.Domain.Tests/SatisfactoryLedger.FactoryNetwork.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.SharedKernel.Tests/SatisfactoryLedger.SharedKernel.Tests.csproj" />
   </Folder>
