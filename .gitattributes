@@ -2,3 +2,6 @@
 *.{cmd,bat,ps1} text eol=crlf
 *.png binary
 *.ico binary
+# The game's Docs file and its UTF-16 sample: keep the bytes exactly as the game writes them.
+tests/SatisfactoryLedger.Catalog.Tests/Fixtures/en-US.json binary
+tests/SatisfactoryLedger.Catalog.Tests/Fixtures/*.utf16.json binary
