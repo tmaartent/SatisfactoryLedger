@@ -35,8 +35,7 @@ src/
   SatisfactoryLedger.SharedKernel/     Tiny set of concepts shared by all contexts (e.g. Rate)
   Modules/
     Catalog/            game data: items, recipes, buildings, belt/pipe tiers
-    BlueprintDesign/    blueprints and their production steps
-    FactoryNetwork/     factories, supply lines, balancing (core domain)
+    World/              the world from the save file, factories, analysis (core domain)
       *.Domain          pure domain model, no framework references
       *                 application + infrastructure + endpoints (internal)
       *.Contracts       the only thing other modules may reference

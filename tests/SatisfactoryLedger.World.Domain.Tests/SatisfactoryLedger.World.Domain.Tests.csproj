@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Modules\BlueprintDesign\SatisfactoryLedger.BlueprintDesign.Domain\SatisfactoryLedger.BlueprintDesign.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World.Domain\SatisfactoryLedger.World.Domain.csproj" />
   </ItemGroup>
 
 </Project>

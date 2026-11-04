@@ -38,4 +38,4 @@ cd web && npm test                                   # Vitest, 2 passing templat
 | Module projects | Empty, with references already following the [dependency rules](../architecture/overview.md#dependency-rules-enforced-in-testssatisfactoryledgerarchitecturetests) | The compiler prevents wrong references |
 
 ## Exercise
-Open `SatisfactoryLedger.slnx` in your IDE and look at the project references of `SatisfactoryLedger.FactoryNetwork`. Explain to yourself why it may see `BlueprintDesign.Contracts` but not `BlueprintDesign.Domain`. If you can, you understand the architecture.
+Open `SatisfactoryLedger.slnx` in your IDE and look at the project references of `SatisfactoryLedger.World`. Explain to yourself why it may see `Catalog.Contracts` but not `Catalog.Domain`. If you can, you understand the architecture.

@@ -4,7 +4,4 @@
     <ProjectReference Include="..\..\..\SatisfactoryLedger.SharedKernel\SatisfactoryLedger.SharedKernel.csproj" />
   </ItemGroup>
 
-  <PropertyGroup>
-  </PropertyGroup>
-
 </Project>

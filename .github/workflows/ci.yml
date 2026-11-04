@@ -53,14 +53,11 @@ jobs:
             exit 1
           fi
 
-      # --ignore-exit-code 8: exit code 8 means "zero tests ran". The BlueprintDesign and
-      # FactoryNetwork *.Domain.Tests projects are still empty. Remove this flag once every test
-      # project has tests, so a project that silently loses all its tests fails the build.
+      # Every test project has tests, so "zero tests ran" (exit code 8) fails the build (ADR-0014).
       # Api.IntegrationTests starts PostgreSQL with Testcontainers; ubuntu-latest has Docker.
       - name: Test
         run: >
           dotnet test --no-build --configuration Release
-          --ignore-exit-code 8
           --report-xunit-trx --results-directory TestResults
 
       - name: Upload test results

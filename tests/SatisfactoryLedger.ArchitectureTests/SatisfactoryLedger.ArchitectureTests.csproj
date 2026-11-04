@@ -20,8 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Catalog\SatisfactoryLedger.Catalog\SatisfactoryLedger.Catalog.csproj" />
-    <ProjectReference Include="..\..\src\Modules\BlueprintDesign\SatisfactoryLedger.BlueprintDesign\SatisfactoryLedger.BlueprintDesign.csproj" />
-    <ProjectReference Include="..\..\src\Modules\FactoryNetwork\SatisfactoryLedger.FactoryNetwork\SatisfactoryLedger.FactoryNetwork.csproj" />
+    <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World\SatisfactoryLedger.World.csproj" />
     <ProjectReference Include="..\..\src\SatisfactoryLedger.Api\SatisfactoryLedger.Api.csproj" />
   </ItemGroup>
 

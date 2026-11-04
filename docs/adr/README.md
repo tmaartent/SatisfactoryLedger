@@ -19,5 +19,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0011](0011-catalog-handlers-use-dbcontext.md) | Catalog handlers use the module's DbContext directly, without repositories | Proposed |
 | [0012](0012-diagnose-the-world-from-the-save-file.md) | Diagnose the world from the game's save file; planning comes later | Accepted |
 | [0013](0013-read-the-save-with-satisfactorysavenet.md) | Read the save file with SatisfactorySaveNet's v1.2 branch, behind an anti-corruption layer | Accepted |
+| [0014](0014-world-module-replaces-blueprint-and-network.md) | A World module replaces BlueprintDesign and FactoryNetwork | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

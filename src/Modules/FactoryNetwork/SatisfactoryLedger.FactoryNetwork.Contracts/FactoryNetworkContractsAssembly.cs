@@ -1,3 +1,0 @@
-﻿namespace SatisfactoryLedger.FactoryNetwork.Contracts;
-
-public static class FactoryNetworkContractsAssembly;

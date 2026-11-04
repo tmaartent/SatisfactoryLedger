@@ -25,7 +25,7 @@ Pick the simplest one, make it pass, then the next. The design of `SupplyLineAna
 
 **.NET conventions (files, classes, folders):**
 - Tests are ordinary `.cs` files in a test project. xUnit finds every **public** class with `[Fact]` or `[Theory]` methods. No name pattern is required for discovery.
-- Test project = `<ProjectUnderTest>.Tests` (e.g. `SatisfactoryLedger.FactoryNetwork.Domain.Tests`).
+- Test project = `<ProjectUnderTest>.Tests` (e.g. `SatisfactoryLedger.World.Domain.Tests`).
 - Test class name ends in `Tests` (plural is the .NET norm): `RateTests`, `PriorityMergerTests`.
 - One public class per file, **file name = class name** (`RateTests.cs`). Rider warns when they differ.
 - Folders mirror the project under test. The namespace follows the folders.
@@ -66,7 +66,7 @@ When a property fails, CsCheck shrinks the input to the smallest failing example
 
 ## Speed
 
-Domain tests must run in well under a few seconds in total. Use `dotnet watch test --project tests/SatisfactoryLedger.FactoryNetwork.Domain.Tests` (or your IDE's continuous testing) so feedback is immediate.
+Domain tests must run in well under a few seconds in total. Use `dotnet watch test --project tests/SatisfactoryLedger.World.Domain.Tests` (or your IDE's continuous testing) so feedback is immediate.
 
 ## Done when (per feature)
 - [ ] Every business rule ID touched has at least one test named after it

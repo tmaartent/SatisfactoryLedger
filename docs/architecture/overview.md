@@ -17,14 +17,14 @@ Constraints: a single developer, a learning project, and a game-data source (`Do
 
 ```mermaid
 flowchart LR
-    player([Player<br/>plans and tracks the world])
+    player([Player<br/>diagnoses and tracks the world])
     ledger[Satisfactory Ledger]
     docs[(Game data file<br/>CommunityResources/Docs)]
-    save[(Save file .sav<br/>future)]
+    save[(Save file .sav)]
 
-    player -- "designs blueprints,<br/>places factories,<br/>checks balance" --> ledger
+    player -- "imports saves,<br/>defines factories,<br/>reads findings" --> ledger
     ledger -- "imports items,<br/>recipes, buildings" --> docs
-    ledger -. "imports world state<br/>(future)" .-> save
+    ledger -- "imports the world<br/>(ADR-0012, ADR-0013)" --> save
 ```
 
 ## 3. Containers (C4 level 2)
@@ -60,28 +60,22 @@ flowchart TB
         cat[Items · Recipes · Buildings · Belt/Pipe tiers<br/>import from Docs.json]
     end
 
-    subgraph Blueprint[BlueprintDesign module · core]
-        bp[Blueprint aggregate<br/>production steps, derived I/O,<br/>internal balance]
-    end
-
-    subgraph Network[FactoryNetwork module · core]
-        fn[Factory aggregate · SupplyLine aggregate<br/>ResourceSupply<br/>line analysis + layout suggestions]
+    subgraph World[World module · core]
+        wd[World graph from the save<br/>factory definitions and their members<br/>flow analysis and findings]
+        ws[World.SaveFile<br/>anti-corruption layer, ADR-0013]
     end
 
     host --> Catalog
-    host --> Blueprint
-    host --> Network
+    host --> World
 
-    Blueprint -- "Catalog.Contracts<br/>(recipe lookup)" --> Catalog
-    Network -- "BlueprintDesign.Contracts<br/>(per-copy I/O)" --> Blueprint
-    Network -- "Catalog.Contracts<br/>(belt/pipe capacity)" --> Catalog
+    World -- "Catalog.Contracts<br/>(recipes, belt/pipe capacity)" --> Catalog
 ```
 
-Dependencies only point **downstream** (Network → Blueprint → Catalog) and only through `*.Contracts`. See the [context map](../domain/context-map.md) for the DDD relationships.
+Dependencies only point **downstream** (World → Catalog) and only through `*.Contracts`. The World module replaced BlueprintDesign and FactoryNetwork (ADR-0014). See the [context map](../domain/context-map.md) for the DDD relationships.
 
 ### Inside a module
 
-Each module consists of three projects (ADR-0003):
+Each module consists of three projects (ADR-0003). World adds a fourth for the save-file adapter (ADR-0013):
 
 ```
 SatisfactoryLedger.<Module>.Domain      entities, value objects, domain services, domain events
@@ -106,28 +100,9 @@ This is *vertical slices across modules, clean layering within a module*. The `D
 
 ## 5. Runtime view: two key flows
 
-**Designing a blueprint (command):**
+**Importing a save (command, planned):** the endpoint receives the `.sav` → the `World.SaveFile` adapter reads it and translates it into a `WorldGraph` (buildables and connections) → recipes are resolved through `Catalog.Contracts` → the snapshot is stored as a new version of the world.
 
-```mermaid
-sequenceDiagram
-    participant UI as Angular
-    participant EP as BlueprintDesign endpoint
-    participant H as AddProductionStep handler
-    participant C as Catalog (via Contracts)
-    participant BP as Blueprint aggregate
-    participant DB as DbContext
-
-    UI->>EP: POST /api/v1/blueprints/{id}/steps
-    EP->>H: AddProductionStep(command)
-    H->>C: get recipe rates
-    H->>DB: load Blueprint
-    H->>BP: AddStep(recipe, machineCount)
-    BP-->>BP: check invariants, raise ProductionStepAdded
-    H->>DB: SaveChanges (aggregate + outbox in one transaction)
-    EP-->>UI: 201 Created + Location, updated balance
-```
-
-**Analysing a supply line (query):** load the `SupplyLine` with its taps and injections → ask Blueprint contracts for each tapped factory's per-copy demand × stack height → the `SupplyLineAnalyzer` domain service walks the belt segment by segment → return the segments with flow, remaining capacity, deficit, stranded and overflow amounts.
+**Diagnosing a factory (query):** load the world graph and the player's `FactoryDefinition` → `TraceMembers` finds the factory's machines and logistics (BR-W3, BR-W4) → the flow analysis (planned) computes what each machine receives → return the findings.
 
 ## 6. Cross-cutting concerns
 
@@ -138,12 +113,12 @@ sequenceDiagram
 | Concurrency | Optimistic: row version → `ETag` / `If-Match` (412 on conflict). |
 | Observability | OpenTelemetry via ServiceDefaults; traces and logs in the Aspire dashboard. |
 | Module communication | Synchronous: query interfaces in Contracts. Asynchronous: integration events through an outbox (introduced when first needed). |
-| Time and IDs | Inject `TimeProvider`. Strongly typed IDs (`BlueprintId`, `FactoryId`) to prevent mix-ups. |
+| Time and IDs | Inject `TimeProvider`. Strongly typed IDs (`BuildableId`, `ItemId`) to prevent mix-ups. |
 
 ## 7. Evolution path
 
 1. **Now:** modular monolith, in-process module calls.
-2. **When a real reason appears:** introduce an in-process event bus and an outbox for integration events. A candidate trigger is FactoryNetwork reacting to a changed blueprint.
+2. **When a real reason appears:** introduce an in-process event bus and an outbox for integration events. A candidate trigger is re-analysing the world when a new save is imported.
 3. **Extraction showcase:** move **Catalog** into its own service. It's read-mostly and has a clean contract, so it's the lowest-risk candidate. Contracts become HTTP and messages, Aspire wires both services, and an ADR documents the before/after.
 
 Microservices are a means, not a goal. See [guide step 8](../guide/08-towards-microservices.md).

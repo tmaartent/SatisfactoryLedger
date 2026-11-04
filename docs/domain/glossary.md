@@ -25,15 +25,19 @@ These terms are used **identically** in conversation, docs, code (class and meth
 
 | Term | Definition | Code |
 |---|---|---|
-| **World Snapshot** | The world as read from one save file: buildings, their settings, and how they're connected. Never changed after import. | `WorldSnapshot` (planned) |
-| **Machine** | A building that runs a recipe: smelter, constructor, assembler, refinery, … Has a recipe, a clock speed and somersloops. | `Machine` (planned) |
-| **Provider** | A building that brings items into the network from outside: miner, oil, water or resource well extractor, train, truck or drone station. Never part of a factory. Can supply several factories (BR-W1). | (planned) |
-| **Factory** | A group of machines **the player defines** by its input items and its output belt. Its machines are found by tracing upstream from the output belt (BR-W2, BR-W3). A machine can be shared by several factories. Replaces the earlier "blueprint placed in the world" meaning. | (planned) |
-| **Output Belt** | The belt (or pipe) where a factory's merged output leaves it. Marked by the player. | (planned) |
-| **Factory Input** | An item the player declares as entering a factory. The input line starts at a splitter (BR-W4). | (planned) |
-| **Consumer** | A building that takes items out of the network: AWESOME Sink, dimensional depot uploader, power generator, a station that loads. Never part of a factory (BR-W8). | (planned) |
+| **World Graph** | The world as read from one save file: its buildables and how they're connected. Never changed after import. Later stored per import as a snapshot. | `WorldGraph` |
+| **Buildable** | Anything built in the world that items move through: a machine, provider, consumer or piece of logistics. Identified by its id in the save, which stays the same from save to save. The game's own term. | `Buildable`, `BuildableId` |
+| **Connection** | Items moving from one buildable's output to another buildable's input. | `Connection` |
+| **Upstream / Downstream** | Upstream of a buildable is what feeds it; downstream is what it feeds. | `WorldGraph.Upstream`, `Downstream` |
+| **Machine** | A building that runs a recipe: smelter, constructor, assembler, refinery, … Has a recipe, a clock speed and somersloops. | `Machine` |
+| **Provider** | A building that brings items into the network from outside: miner, oil, water or resource well extractor, train, truck or drone station. Never part of a factory. Can supply several factories (BR-W1). | `Provider` |
+| **Factory** | A group of machines **the player defines** by its input items and its output belt. Its machines are found by tracing upstream from the output belt (BR-W2, BR-W3). A machine can be shared by several factories. Replaces the earlier "blueprint placed in the world" meaning. | `FactoryDefinition` |
+| **Output Belt** | The belt (or pipe) where a factory's merged output leaves it. Marked by the player. | `FactoryDefinition.OutputBelt` |
+| **Factory Members** | The machines and logistics that belong to a factory, traced from its output belt. | `FactoryMembers` |
+| **Factory Input** | An item the player declares as entering a factory. The input line starts at a splitter (BR-W4). | `FactoryDefinition.InputItems` |
+| **Consumer** | A building that takes items out of the network: AWESOME Sink, dimensional depot uploader, power generator, a station that loads. Never part of a factory (BR-W8). | `Consumer` |
 | **Undeclared Output** | An item other than the output item that leaves a factory, to a sink or elsewhere. A finding (BR-W7). | (planned) |
-| **Logistics** | Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers. | (planned) |
+| **Logistics** | Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers. | `Logistics`, `LogisticsKind` |
 
 ## Blueprint Design
 

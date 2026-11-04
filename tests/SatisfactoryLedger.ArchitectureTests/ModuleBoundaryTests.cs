@@ -49,8 +49,7 @@ public class ModuleBoundaryTests
 
     [Theory]
     [InlineData(typeof(Catalog.Contracts.CatalogContractsAssembly))]
-    [InlineData(typeof(BlueprintDesign.Contracts.BlueprintDesignContractsAssembly))]
-    [InlineData(typeof(FactoryNetwork.Contracts.FactoryNetworkContractsAssembly))]
+    [InlineData(typeof(World.Contracts.WorldContractsAssembly))]
     public void Contract_Layers_have_no_dependencies_on_other_project_assemblies(Type contractsMarker)
     {
         var contracts = contractsMarker.Assembly;
@@ -67,8 +66,7 @@ public class ModuleBoundaryTests
 
     [Theory]
     [InlineData(typeof(Catalog.CatalogModule))]
-    [InlineData(typeof(BlueprintDesign.BlueprintDesignModule))]
-    [InlineData(typeof(FactoryNetwork.FactoryNetworkModule))]
+    [InlineData(typeof(World.WorldModule))]
     public void Implementation_types_are_not_public_except_the_module_entry_point(Type implementationMarker) 
     {
         var implementations = implementationMarker.Assembly;
@@ -86,8 +84,7 @@ public class ModuleBoundaryTests
     
     [Theory]
     [InlineData(typeof(Catalog.CatalogModule), typeof(Catalog.Domain.CatalogDomainAssembly))]
-    [InlineData(typeof(BlueprintDesign.BlueprintDesignModule), typeof(BlueprintDesign.Domain.BlueprintDesignDomainAssembly))]
-    [InlineData(typeof(FactoryNetwork.FactoryNetworkModule), typeof(FactoryNetwork.Domain.FactoryNetworkDomainAssembly))]
+    [InlineData(typeof(World.WorldModule), typeof(World.Domain.WorldDomainAssembly))]
     public void Implementation_modules_only_depend_on_other_modules_contracts(Type implementationMarker, Type domainMarker) 
     {
         var ownImplementations = implementationMarker.Assembly;

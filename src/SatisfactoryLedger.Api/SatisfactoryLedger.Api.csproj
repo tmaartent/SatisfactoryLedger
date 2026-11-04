@@ -31,8 +31,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Modules\Catalog\SatisfactoryLedger.Catalog\SatisfactoryLedger.Catalog.csproj" />
-    <ProjectReference Include="..\Modules\BlueprintDesign\SatisfactoryLedger.BlueprintDesign\SatisfactoryLedger.BlueprintDesign.csproj" />
-    <ProjectReference Include="..\Modules\FactoryNetwork\SatisfactoryLedger.FactoryNetwork\SatisfactoryLedger.FactoryNetwork.csproj" />
+    <ProjectReference Include="..\Modules\World\SatisfactoryLedger.World\SatisfactoryLedger.World.csproj" />
     <ProjectReference Include="..\SatisfactoryLedger.ServiceDefaults\SatisfactoryLedger.ServiceDefaults.csproj" />
   </ItemGroup>
 

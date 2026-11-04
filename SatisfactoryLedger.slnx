@@ -17,23 +17,17 @@
     <Project Path="src/Modules/Catalog/SatisfactoryLedger.Catalog.Domain/SatisfactoryLedger.Catalog.Domain.csproj" />
     <Project Path="src/Modules/Catalog/SatisfactoryLedger.Catalog/SatisfactoryLedger.Catalog.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/BlueprintDesign/">
-    <Project Path="src/Modules/BlueprintDesign/SatisfactoryLedger.BlueprintDesign.Contracts/SatisfactoryLedger.BlueprintDesign.Contracts.csproj" />
-    <Project Path="src/Modules/BlueprintDesign/SatisfactoryLedger.BlueprintDesign.Domain/SatisfactoryLedger.BlueprintDesign.Domain.csproj" />
-    <Project Path="src/Modules/BlueprintDesign/SatisfactoryLedger.BlueprintDesign/SatisfactoryLedger.BlueprintDesign.csproj" />
-  </Folder>
-  <Folder Name="/src/Modules/FactoryNetwork/">
-    <Project Path="src/Modules/FactoryNetwork/SatisfactoryLedger.FactoryNetwork.Contracts/SatisfactoryLedger.FactoryNetwork.Contracts.csproj" />
-    <Project Path="src/Modules/FactoryNetwork/SatisfactoryLedger.FactoryNetwork.Domain/SatisfactoryLedger.FactoryNetwork.Domain.csproj" />
-    <Project Path="src/Modules/FactoryNetwork/SatisfactoryLedger.FactoryNetwork/SatisfactoryLedger.FactoryNetwork.csproj" />
+  <Folder Name="/src/Modules/World/">
+    <Project Path="src/Modules/World/SatisfactoryLedger.World.Contracts/SatisfactoryLedger.World.Contracts.csproj" />
+    <Project Path="src/Modules/World/SatisfactoryLedger.World.Domain/SatisfactoryLedger.World.Domain.csproj" />
+    <Project Path="src/Modules/World/SatisfactoryLedger.World/SatisfactoryLedger.World.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SatisfactoryLedger.Api.IntegrationTests/SatisfactoryLedger.Api.IntegrationTests.csproj" />
     <Project Path="tests/SatisfactoryLedger.ArchitectureTests/SatisfactoryLedger.ArchitectureTests.csproj" />
-    <Project Path="tests/SatisfactoryLedger.BlueprintDesign.Domain.Tests/SatisfactoryLedger.BlueprintDesign.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.Catalog.Domain.Tests/SatisfactoryLedger.Catalog.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.Catalog.Tests/SatisfactoryLedger.Catalog.Tests.csproj" />
-    <Project Path="tests/SatisfactoryLedger.FactoryNetwork.Domain.Tests/SatisfactoryLedger.FactoryNetwork.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.SharedKernel.Tests/SatisfactoryLedger.SharedKernel.Tests.csproj" />
+    <Project Path="tests/SatisfactoryLedger.World.Domain.Tests/SatisfactoryLedger.World.Domain.Tests.csproj" />
   </Folder>
 </Solution>

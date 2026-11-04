@@ -4,7 +4,7 @@ Splitting off a service is the **last** milestone for a reason. Good boundaries 
 
 ## Step 1: asynchronous communication inside the monolith
 
-Introduce this only once there's a real need. The first real need is already in the rules: **BR-F6/F7. A blueprint edit must flag or unflag the factories built from it, and hand them new inputs and outputs once it's balanced again.** That crosses from BlueprintDesign to FactoryNetwork, so it should not be one transaction.
+Introduce this only once there's a real need. *(The example below is on hold with the blueprint rules, ADR-0012. A current candidate is re-analysing factories when a new save is imported.)* The first real need was in the rules: **BR-F6/F7. A blueprint edit must flag or unflag the factories built from it, and hand them new inputs and outputs once it's balanced again.** That crosses from BlueprintDesign to FactoryNetwork, so it should not be one transaction.
 
 - The Blueprint module publishes an **integration event** (`BlueprintOutputsChanged`, defined in `BlueprintDesign.Contracts`). That's different from the internal domain event: it's a stable public contract with only the data consumers need.
 - **Transactional outbox:** the event is stored in the module's schema in the *same transaction* as the aggregate change. A background dispatcher delivers it. This prevents "saved but never published" and "published but rolled back".
