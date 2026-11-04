@@ -29,13 +29,20 @@ public sealed class LedgerApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("ConnectionStrings:ledger", _postgres.GetConnectionString());
     }
 
-    /// <summary>Empties the catalog so each test starts from nothing.</summary>
+    /// <summary>
+    /// Empties the catalog so each test starts from nothing. The tables come from EF's model, not a hand-written
+    /// list, so a new entity can't be forgotten here (the extractors table once was).
+    /// </summary>
     public async Task ResetCatalogAsync()
     {
         await using AsyncServiceScope scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
-        await db.Database.ExecuteSqlRawAsync(
-            "TRUNCATE catalog.items, catalog.buildings, catalog.transport_tiers, catalog.recipes, catalog.imports");
+        string tables = string.Join(", ", db.Model.GetEntityTypes()
+            .Select(entity => $"\"{entity.GetSchema()}\".\"{entity.GetTableName()}\"")
+            .Distinct());
+        // Table names can't be SQL parameters. These come from EF's model, not from input, so raw SQL is safe here.
+        string truncate = "TRUNCATE " + tables;
+        await db.Database.ExecuteSqlRawAsync(truncate);
     }
 
     public override async ValueTask DisposeAsync()

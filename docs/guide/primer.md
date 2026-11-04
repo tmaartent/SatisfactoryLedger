@@ -62,6 +62,7 @@ Every technical term in the guide, in plain language: what it is, and where you'
 | **Endpoint** | One URL + HTTP method combination, e.g. `GET /api/v1/blueprints`. | Chapter 05 |
 | **Dependency injection (DI)** | Classes ask for what they need in their constructor, and the framework supplies it. That makes them swappable and testable. | Built into ASP.NET Core |
 | **EF Core (Entity Framework Core)** | Microsoft's ORM: saves and loads C# objects to and from a database without hand-written SQL. | Persistence, from M2 |
+| **EF1002: interpolated strings in raw SQL** | EF Core ships an analyzer that fails the build when you pass `$"…{x}…"` to `ExecuteSqlRawAsync`, the classic SQL-injection mistake. Use `ExecuteSqlAsync($"…{x}…")` instead: EF turns each `{x}` into a SQL parameter, like a JDBC `PreparedStatement`. Identifiers such as table names can't be parameters, so for those, build the text yourself from trusted values. | `LedgerApiFactory.ResetCatalogAsync` (table names from EF's model) |
 | **ORM** | Object-Relational Mapper: translates between objects (code) and tables (database). | EF Core is one |
 | **`DbContext`** | The EF Core class that represents a database connection plus a set of tables. We give each module its own. | M2 |
 | **Migration** | A generated script that changes the database structure (adds a table or column) when your model changes. | M2+ |
