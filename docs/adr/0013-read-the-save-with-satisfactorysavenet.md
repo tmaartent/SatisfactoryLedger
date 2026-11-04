@@ -18,6 +18,7 @@ We will read the save with **SatisfactorySaveNet at commit `dd994a6`**, built fr
 - **Boundary:** only one adapter project references the library. It's a separate project, not a folder, so the compiler stops other code from using the library. That's one project more than ADR-0003's three per module, accepted for a large, unreviewed dependency. An architecture test checks that no other assembly uses the `SatisfactorySaveNet` namespace. The adapter translates the save into our own read-only model (buildings, connectors, links, settings), applying the rules from log 03: a missing property means the default, clock speeds are rounded to 4 decimals before they become exact rationals, and links must agree on both ends. No library type crosses the adapter.
 - **Tests:** the adapter is tested against a small 1.2 save committed as a fixture, like the Docs-file fixtures. If a save can't be read, the import fails with a clear error, never with a partial world.
 - **Upstream:** when a stable release reads 1.2 saves, we switch to the NuGet package and drop the submodule.
+- *Amended 2026-11-04:* the pin moved to **`b329a9b`** on the fork: our own one-line fix on top of `dd994a6`. Saves of game build 517554 lack the persistent level custom version, the library adds it to a fixed-size array, and that threw. Fixes like this go on the fork's `fix/v1.2` branch, so the pin always points at a commit that exists there.
 
 ## Alternatives considered
 - **4.0.0-alpha.3 from NuGet:** the simplest option, but it can't read the owner's saves.
