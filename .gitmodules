@@ -1,0 +1,4 @@
+[submodule "external/SatisfactorySaveNet"]
+	path = external/SatisfactorySaveNet
+	url = https://github.com/tmaartent/SatisfactorySaveNet.git
+	branch = fix/v1.2

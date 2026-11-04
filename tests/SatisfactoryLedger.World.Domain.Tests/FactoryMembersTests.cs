@@ -142,6 +142,27 @@ public class FactoryMembersTests
     }
 
     [Fact]
+    public void A_manifold_that_feeds_machines_of_two_factories_is_supply_for_both()
+    {
+        // main → s1 → (x1, s2); s2 → (x2, continued → y1). x1 and x2 are factory X, y1 is factory Y.
+        var world = new TestWorld()
+            .Miner("miner").Belt("main").Splitter("s1").Splitter("s2").Belt("continued")
+            .Machine("x1", Items.IronOre, Items.IronIngot).Machine("x2", Items.IronOre, Items.IronIngot)
+            .Machine("y1", Items.IronOre, Items.IronIngot)
+            .Merger("merge").Belt("x output").Belt("y output")
+            .Connect("miner", "main", "s1", "x1", "merge", "x output")
+            .Connect("s1", "s2", "x2", "merge")
+            .Connect("s2", "continued", "y1", "y output")
+            .Build();
+
+        var factoryX = Trace(world, "x output", Items.IronOre);
+        var factoryY = Trace(world, "y output", Items.IronOre);
+
+        Ids.AssertSet(factoryX.Logistics, "merge", "x output");
+        Ids.AssertSet(factoryY.Logistics, "y output");
+    }
+
+    [Fact]
     public void A_machine_can_be_part_of_two_factories()
     {
         var world = new TestWorld()
