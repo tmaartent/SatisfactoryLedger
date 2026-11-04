@@ -1,6 +1,6 @@
 ﻿namespace SatisfactoryLedger.Catalog.Domain;
 
-public class Building
+public class Building : ICatalogEntry<Building>
 {
     private Building(BuildingId id, string name, int somersloopSlots) {
         Id = id;
@@ -34,7 +34,28 @@ public class Building
 
     public BuildingId Id { get; }
 
-    public string Name { get; }
+    public string Name { get; private set; }
 
-    public int SomersloopSlots { get; }
+    public int SomersloopSlots { get; private set; }
+
+    public bool IsInGame { get; private set; } = true;
+
+    public void UpdateFromGame(Building fromGame)
+    {
+        if (!Equals(fromGame))
+        {
+            throw new ArgumentException($"{fromGame} is a different building than {this}", nameof(fromGame));
+        }
+
+        Name = fromGame.Name;
+        SomersloopSlots = fromGame.SomersloopSlots;
+        IsInGame = true;
+    }
+
+    public void MarkNoLongerInGame()
+    {
+        IsInGame = false;
+    }
+
+    public override string ToString() => Id.Id;
 }

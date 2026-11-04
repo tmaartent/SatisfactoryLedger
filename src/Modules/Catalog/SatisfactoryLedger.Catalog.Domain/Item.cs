@@ -1,6 +1,6 @@
 ﻿namespace SatisfactoryLedger.Catalog.Domain;
 
-public class Item
+public class Item : ICatalogEntry<Item>
 {
     private Item(ItemId id, string name, ItemForm itemForm, bool isRawResource)
     {
@@ -33,11 +33,31 @@ public class Item
 
     public ItemId Id { get; }
 
-    public string Name { get; }
+    public string Name { get; private set; }
 
-    public ItemForm ItemForm { get; }
+    public ItemForm ItemForm { get; private set; }
     
-    public bool IsRawResource { get; }
-    
-    
+    public bool IsRawResource { get; private set; }
+
+    public bool IsInGame { get; private set; } = true;
+
+    public void UpdateFromGame(Item fromGame)
+    {
+        if (!Equals(fromGame))
+        {
+            throw new ArgumentException($"{fromGame} is a different item than {this}", nameof(fromGame));
+        }
+
+        Name = fromGame.Name;
+        ItemForm = fromGame.ItemForm;
+        IsRawResource = fromGame.IsRawResource;
+        IsInGame = true;
+    }
+
+    public void MarkNoLongerInGame()
+    {
+        IsInGame = false;
+    }
+
+    public override string ToString() => Id.Id;
 }

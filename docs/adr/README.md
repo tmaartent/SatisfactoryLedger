@@ -14,5 +14,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0006](0006-rest-openapi-generated-client.md) | REST + OpenAPI, generated TypeScript client | Proposed |
 | [0007](0007-postgresql-ef-core.md) | PostgreSQL with EF Core, schema per module | Proposed |
 | [0008](0008-testing-strategy.md) | Testing strategy | Proposed |
+| [0009](0009-catalog-reimport-upsert-and-mark.md) | A catalog re-import updates by class name and keeps entries the game dropped | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

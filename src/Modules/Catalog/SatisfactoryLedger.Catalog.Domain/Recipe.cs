@@ -2,17 +2,19 @@
 
 namespace SatisfactoryLedger.Catalog.Domain;
 
-public class Recipe
+public class Recipe : ICatalogEntry<Recipe>
 {
-    private Recipe(RecipeId id, string name, BuildingId buildingId, decimal cycleSeconds, RecipeIngredient[] inputs,
-        RecipeIngredient[] outputs, bool isAlternate)
+    // EF Core stores these fields (it needs a mutable List<T>); the domain only hands out read-only views.
+    private List<RecipeIngredient> _inputs = [];
+    private List<RecipeIngredient> _outputs = [];
+
+    // EF Core can only pass scalar properties to a constructor; it fills _inputs and _outputs afterwards.
+    private Recipe(RecipeId id, string name, BuildingId buildingId, decimal cycleSeconds, bool isAlternate)
     {
         Id = id;
         Name = name;
         BuildingId = buildingId;
         CycleSeconds = cycleSeconds;
-        Inputs = inputs;
-        Outputs = outputs;
         IsAlternate = isAlternate;
     }
 
@@ -27,7 +29,11 @@ public class Recipe
         ArrayArgumentException.ThrowIfLessThan(outputs, 1);
         ArrayArgumentException.ThrowIfMoreThan(outputs, 2);
 
-        return new Recipe(id, name, buildingId, cycleSeconds, inputs, outputs, isAlternate);
+        return new Recipe(id, name, buildingId, cycleSeconds, isAlternate)
+        {
+            _inputs = [.. inputs],
+            _outputs = [.. outputs]
+        };
     }
     
     private bool Equals(Recipe other)
@@ -47,24 +53,24 @@ public class Recipe
 
     public RecipeId Id { get; }
 
-    public string Name { get; }
+    public string Name { get; private set; }
 
-    public BuildingId BuildingId { get; }
+    public BuildingId BuildingId { get; private set; }
 
-    public decimal CycleSeconds { get; }
+    public decimal CycleSeconds { get; private set; }
 
-    public RecipeIngredient[] Inputs { get; }
+    public IReadOnlyList<RecipeIngredient> Inputs => _inputs;
     
-    public RecipeIngredient[] Outputs { get; }
+    public IReadOnlyList<RecipeIngredient> Outputs => _outputs;
     
-    public bool IsAlternate { get; }
+    public bool IsAlternate { get; private set; }
 
     public ItemRate[] BaseInputRates()
     {
         return ToItemRates(Inputs);
     }
 
-    private ItemRate[] ToItemRates(RecipeIngredient[] ingredients)
+    private ItemRate[] ToItemRates(IEnumerable<RecipeIngredient> ingredients)
     {
         return
         [
@@ -81,4 +87,29 @@ public class Recipe
     {
         return ToItemRates(Outputs);
     }
+
+    public bool IsInGame { get; private set; } = true;
+
+    public void UpdateFromGame(Recipe fromGame)
+    {
+        if (!Equals(fromGame))
+        {
+            throw new ArgumentException($"{fromGame} is a different recipe than {this}", nameof(fromGame));
+        }
+
+        Name = fromGame.Name;
+        BuildingId = fromGame.BuildingId;
+        CycleSeconds = fromGame.CycleSeconds;
+        _inputs = [.. fromGame._inputs];
+        _outputs = [.. fromGame._outputs];
+        IsAlternate = fromGame.IsAlternate;
+        IsInGame = true;
+    }
+
+    public void MarkNoLongerInGame()
+    {
+        IsInGame = false;
+    }
+
+    public override string ToString() => Id.Id;
 }

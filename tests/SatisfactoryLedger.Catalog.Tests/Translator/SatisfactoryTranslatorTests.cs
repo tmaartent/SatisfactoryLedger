@@ -143,8 +143,8 @@ public class SatisfactoryTranslatorTests
                 Assert.Equal(recipeDto.DisplayName, recipe.Name);
                 Assert.Equal(recipeDto.RecipeBuilding!.ClassName, recipe.BuildingId.Id);
                 Assert.Equal(decimal.Parse(recipeDto.ManufactoringDuration, CultureInfo.InvariantCulture), recipe.CycleSeconds);
-                Assert.Equal(recipeDto.Ingredients.Count, recipe.Inputs.Length);
-                Assert.Equal(recipeDto.Products.Count, recipe.Outputs.Length);
+                Assert.Equal(recipeDto.Ingredients.Count, recipe.Inputs.Count);
+                Assert.Equal(recipeDto.Products.Count, recipe.Outputs.Count);
                 Assert.Equal(recipeDto.ClassName.Contains("Alternate"), recipe.IsAlternate);
             }
             else

@@ -11,6 +11,9 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Recipe** | Game data: input amounts, output amounts and cycle time for one building type. May be an *alternate* recipe. | `Recipe` |
 | **Building** | A production machine: Smelter, Constructor, Assembler, Refinery, … | `Building` |
 | **Transport Tier** | A belt (Mk.1–Mk.6) or pipe (Mk.1–Mk.2) with a maximum throughput. | `TransportTier` |
+| **Catalog Entry** | An item, building, transport tier or recipe taken from the game's Docs file. Identified by the game's class name (`Desc_IronPlate_C`). | `ICatalogEntry<T>` |
+| **Catalog Import** | One import of the Docs file: the game version, when it happened, and per kind of entry how many were added, updated or marked no longer in the game (ADR-0009). | `CatalogImport` |
+| **No Longer In Game** | A catalog entry that a later import didn't contain. It stays in the catalog, so references to it stay valid, and it's shown as such. | `IsInGame = false`, `inGame` in the API |
 
 ## Shared kernel
 
