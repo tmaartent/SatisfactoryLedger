@@ -23,11 +23,16 @@
     <Project Path="src/Modules/World/SatisfactoryLedger.World.SaveFile/SatisfactoryLedger.World.SaveFile.csproj" />
     <Project Path="src/Modules/World/SatisfactoryLedger.World/SatisfactoryLedger.World.csproj" />
   </Folder>
+  <!-- Tools run by hand, never part of the app (ADR-0015). In the solution so they build and their tests run in CI. -->
+  <Folder Name="/tools/">
+    <Project Path="tools/SatisfactoryLedger.MapExtractor/SatisfactoryLedger.MapExtractor.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SatisfactoryLedger.Api.IntegrationTests/SatisfactoryLedger.Api.IntegrationTests.csproj" />
     <Project Path="tests/SatisfactoryLedger.ArchitectureTests/SatisfactoryLedger.ArchitectureTests.csproj" />
     <Project Path="tests/SatisfactoryLedger.Catalog.Domain.Tests/SatisfactoryLedger.Catalog.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.Catalog.Tests/SatisfactoryLedger.Catalog.Tests.csproj" />
+    <Project Path="tests/SatisfactoryLedger.MapExtractor.Tests/SatisfactoryLedger.MapExtractor.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.SharedKernel.Tests/SatisfactoryLedger.SharedKernel.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.Domain.Tests/SatisfactoryLedger.World.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.SaveFile.Tests/SatisfactoryLedger.World.SaveFile.Tests.csproj" />

@@ -24,6 +24,8 @@ We will extract resource nodes with a **separate tool** that writes a **node tab
 
 Covered first: the nodes miners and oil extractors stand on (`BP_ResourceNode_C`). Resource wells (satellite nodes), geysers and water volumes follow when they're needed.
 
+*Amended 2026-11-05 ([log 10](../guide/log/10-map-tool.md)):* resource well satellites (`BP_FrackingSatellite_C`) are in from the start, with the same fields and the same purity default. Your world has 34 resource well extractors, and the flow analysis needs them. With them, every extractor in your world that stands on a node resolves: 87 miners, 7 oil extractors, 34 resource well extractors. Water extractors stand on water volumes, which have no purity, and geysers only matter for power.
+
 ## Alternatives considered
 - **The app reads the game install itself:** always current, but every running instance needs the game's path, a 20 GB install, CUE4Parse and the workaround. It also puts a library with a vulnerable dependency into the API's dependency tree, and makes tests depend on a game install.
 - **Community node data:** no game-file reading at all, but it means someone else's format, licence and update schedule. The game ships the files and the type map for exactly this kind of use.

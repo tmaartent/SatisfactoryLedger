@@ -128,4 +128,15 @@ public class ModuleBoundaryTests
             .Should().DependOnAny(SaveFileLibrary)
             .Check(Architecture);
     }
+
+    // ADR-0015: the map tool and CUE4Parse are run by hand and never become part of the app.
+    [Fact]
+    public void No_part_of_the_app_references_the_map_tool_or_CUE4Parse()
+    {
+        string[] forbidden = ["SatisfactoryLedger.MapExtractor", "CUE4Parse"];
+        System.Reflection.Assembly[] app = [.. SolutionAssemblies.All, System.Reflection.Assembly.Load("SatisfactoryLedger.Api")];
+
+        Assert.All(app, assembly => Assert.DoesNotContain(
+            assembly.GetReferencedAssemblies(), reference => forbidden.Contains(reference.Name)));
+    }
 }

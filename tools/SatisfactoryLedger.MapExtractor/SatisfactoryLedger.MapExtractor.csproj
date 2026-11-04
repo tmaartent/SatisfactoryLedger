@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A tool, not part of the app (ADR-0015): run it after a game update to write resource-nodes.json.
+       How to run it: docs/guide/log/10-map-tool.md, or run it without arguments for help. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CUE4Parse" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SatisfactoryLedger.MapExtractor.Tests" />
+  </ItemGroup>
+
+</Project>
