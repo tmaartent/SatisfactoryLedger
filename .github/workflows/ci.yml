@@ -41,9 +41,10 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      # --ignore-exit-code 8: exit code 8 means "zero tests ran". The *.Domain.Tests and
-      # Api.IntegrationTests projects are still empty. Remove this flag once every test
+      # --ignore-exit-code 8: exit code 8 means "zero tests ran". The BlueprintDesign and
+      # FactoryNetwork *.Domain.Tests projects are still empty. Remove this flag once every test
       # project has tests, so a project that silently loses all its tests fails the build.
+      # Api.IntegrationTests starts PostgreSQL with Testcontainers; ubuntu-latest has Docker.
       - name: Test
         run: >
           dotnet test --no-build --configuration Release

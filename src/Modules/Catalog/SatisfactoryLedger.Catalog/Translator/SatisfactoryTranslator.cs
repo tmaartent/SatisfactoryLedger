@@ -92,7 +92,7 @@ internal class SatisfactoryTranslator
                     RecipeId.Of(recipeDto.ClassName),
                     recipeDto.DisplayName,
                     BuildingId.Of(recipeDto.RecipeBuilding!.ClassName),
-                    decimal.Parse(recipeDto.ManufactoringDuration, CultureInfo.InvariantCulture),
+                    ParseGameDecimal(recipeDto.ManufactoringDuration),
                     [
                         .. recipeDto.Ingredients.Select(ingredientDto =>
                             itemLookup.TryGetValue(ingredientDto.ClassName, out var item)
@@ -115,6 +115,13 @@ internal class SatisfactoryTranslator
                 )
             )
         ];
+    }
+
+    // The game writes decimals as "6.000000". A C# decimal remembers those six places (its scale) and prints
+    // them again, so drop the trailing zeros here: dividing by 1.000…0m with more places than any value has does that.
+    private static decimal ParseGameDecimal(string value)
+    {
+        return decimal.Parse(value, CultureInfo.InvariantCulture) / 1.000000000000000000000000000000000m;
     }
 
     private static int ConvertSpeed(string argSpeed)

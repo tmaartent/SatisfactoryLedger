@@ -7,6 +7,8 @@
 
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The same Docs files the Catalog tests use, copied next to this test DLL under Fixtures/. -->
+    <Content Include="..\SatisfactoryLedger.Catalog.Tests\Fixtures\*.json" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,6 +17,10 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3.mtp-v2" />
+    <!-- Runs the real API in memory (WebApplicationFactory), like @SpringBootTest with MockMvc. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- Starts a throwaway PostgreSQL container for the test run. Needs Docker. -->
+    <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
   <ItemGroup>

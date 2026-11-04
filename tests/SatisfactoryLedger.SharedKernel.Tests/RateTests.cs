@@ -100,6 +100,18 @@ public class RateTests
     }
 
     [Fact]
+    public void The_exact_value_is_the_reduced_fraction()
+    {
+        Assert.Equal("45/8", Rate.Of(90, 16).ToExactString());
+    }
+
+    [Fact]
+    public void The_exact_value_of_a_whole_rate_has_denominator_one()
+    {
+        Assert.Equal("20/1", Rate.PerMinute(20).ToExactString());
+    }
+
+    [Fact]
     public void ToString_prints_the_decimal_value()
     {
         Assert.Equal("5.625", Rate.Of(45, 8).ToString());

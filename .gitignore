@@ -481,3 +481,5 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 docs/resources/en-US.json
+# The step logs (docs/guide/log/) are docs, not log files: the Visual Studio rules above ignore every log/ folder.
+!docs/guide/log/

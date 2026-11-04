@@ -114,6 +114,12 @@ public record Rate: IComparable<Rate> {
         return (decimal)Numerator / (decimal)Denominator;
     }
 
+    /// <summary>The exact value as "numerator/denominator", e.g. "45/8". Always reduced.</summary>
+    public string ToExactString()
+    {
+        return string.Create(CultureInfo.InvariantCulture, $"{Numerator}/{Denominator}");
+    }
+
     public override string ToString()
     {
         var x = Math.Round(this.ToDecimal(), 3, MidpointRounding.AwayFromZero);

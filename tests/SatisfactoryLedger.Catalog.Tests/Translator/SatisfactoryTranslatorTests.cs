@@ -202,6 +202,16 @@ public class SatisfactoryTranslatorTests
         Assert.False(ironPlate.IsAlternate);
     }
 
+    // The game writes "6.000000". A decimal keeps that scale, so without care the API would answer 6.000000.
+    [Fact]
+    public async Task Cycle_times_from_the_game_file_keep_no_trailing_zeros()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        Recipe ironPlate = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_IronPlate_C");
+        Assert.Equal("6", ironPlate.CycleSeconds.ToString(CultureInfo.InvariantCulture));
+    }
+
     // The game stores fluid amounts in litres (x1000); the catalog uses cubic metres, like the game's UI.
     [Fact]
     public async Task Fluid_amounts_from_the_game_file_are_in_cubic_metres()
