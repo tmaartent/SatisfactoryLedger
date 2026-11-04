@@ -25,7 +25,7 @@ One workflow, `.github/workflows/ci.yml`, on every PR and push to `main`:
 | Job | Steps |
 |---|---|
 | **backend** | checkout → setup-dotnet (from `global.json`) → `dotnet restore` → `dotnet build --no-restore` → `dotnet test --no-build` (Testcontainers works on GitHub's Ubuntu runners) → upload test results |
-| **contract** | build API → generate OpenAPI document → `git diff --exit-code api/` |
+| **contract** | A step in the **backend** job, right after the build (which regenerates `api/openapi.json`): fail when `git status --porcelain -- api/` isn't empty. `git status` rather than `git diff --exit-code`, because a new, untracked document doesn't show up in `git diff`. |
 | **frontend** | setup-node 22 → `npm ci` → `npm run generate:api` → `ng lint` → `ng test --watch=false` → `ng build` |
 | **e2e** *(later)* | start the stack → Playwright |
 

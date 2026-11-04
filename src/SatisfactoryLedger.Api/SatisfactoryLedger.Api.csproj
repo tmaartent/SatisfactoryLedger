@@ -1,13 +1,33 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
+    <!-- Every build writes the OpenAPI document to api/openapi.json, which is committed (ADR-0006).
+         CI rebuilds it and fails when it differs from the committed file. -->
+    <OpenApiDocumentsDirectory>$(MSBuildThisFileDirectory)..\..\api</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Generates the OpenAPI document at build time by starting the app up to builder.Build(). -->
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <!-- Interactive API documentation at /scalar/v1 in development (chapter 05). -->
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
+
+  <!-- The package only regenerates the document when SatisfactoryLedger.Api.dll changes. The endpoints live in the
+       module assemblies, and a change inside a module doesn't recompile the Api (it only sees the module's reference
+       assembly), so the document would go stale. Deleting the package's stamp file when any referenced assembly is
+       newer forces a regeneration. _OpenApiDocumentsCache is the package's own (private) property. -->
+  <Target Name="RegenerateOpenApiWhenReferencesChange"
+          BeforeTargets="GenerateOpenApiDocuments"
+          Inputs="@(ReferenceCopyLocalPaths)"
+          Outputs="$(_OpenApiDocumentsCache)">
+    <Delete Files="$(_OpenApiDocumentsCache)" />
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\Modules\Catalog\SatisfactoryLedger.Catalog\SatisfactoryLedger.Catalog.csproj" />

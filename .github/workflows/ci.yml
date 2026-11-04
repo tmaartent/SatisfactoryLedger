@@ -1,6 +1,6 @@
 # CI for Satisfactory Ledger. See docs/guide/07-quality-and-delivery.md § "CI pipeline".
-# backend and frontend run in parallel. Planned jobs that are not here yet:
-#   contract  (generate OpenAPI and fail on drift) - once the API has endpoints
+# backend and frontend run in parallel. The backend job also checks the OpenAPI contract.
+# Planned jobs that are not here yet:
 #   lint      (ng lint)                            - once angular-eslint is added
 #   e2e       (Playwright)                         - later
 name: CI
@@ -40,6 +40,18 @@ jobs:
 
       - name: Build
         run: dotnet build --no-restore --configuration Release
+
+      # The build regenerates api/openapi.json (ADR-0006). If it differs from the committed file,
+      # or a new document appeared, someone changed the API contract without committing it.
+      # git status also catches new untracked files, which git diff would miss.
+      - name: Check OpenAPI contract is committed
+        run: |
+          if [ -n "$(git status --porcelain -- api/)" ]; then
+            echo "::error::The OpenAPI document changed. Build locally and commit api/."
+            git status --short -- api/
+            git diff -- api/
+            exit 1
+          fi
 
       # --ignore-exit-code 8: exit code 8 means "zero tests ran". The BlueprintDesign and
       # FactoryNetwork *.Domain.Tests projects are still empty. Remove this flag once every test

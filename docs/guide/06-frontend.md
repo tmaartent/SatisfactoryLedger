@@ -8,7 +8,7 @@ The scaffold in `web/` is the default Angular 22 setup: standalone components, z
 web/src/app/
   core/            app-wide singletons: HTTP interceptors (ProblemDetails → errors), layout shell
   shared/          dumb reusable UI: rate display, balance badge (green/red), item icon
-  api/             GENERATED client from openapi.v1.json. Never edit by hand.
+  api/             GENERATED client from api/openapi.json. Never edit by hand.
   features/
     catalog/       browse items and recipes
     blueprints/    list, designer, balance view
@@ -32,7 +32,7 @@ Features mirror the backend modules and use the same domain words. A feature may
 
 ## Generated API client (ADR-0006)
 
-- Generate with **orval** or **openapi-generator** from `../api/openapi.v1.json` into `src/app/api/`, via an `npm run generate:api` script.
+- Generate with **orval** or **openapi-generator** from `../api/openapi.json` into `src/app/api/`, via an `npm run generate:api` script.
 - Map ProblemDetails error codes to user-friendly messages in **one place** (an interceptor plus a message catalog).
 - Show rates with a single `RatePipe` or `<app-rate>` component: always the same precision and unit.
 

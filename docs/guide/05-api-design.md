@@ -54,7 +54,7 @@ Design notes:
 - URL segment versioning (`/api/v1`), e.g. with `Asp.Versioning.Http`. Additive changes don't need a new version. Breaking changes do.
 - Built-in OpenAPI (`Microsoft.AspNetCore.OpenApi`) + **Scalar** as the interactive UI in development.
 - Give every endpoint a `WithName`, `WithSummary`, typed results (`Results<Created<…>, ValidationProblem, ProblemHttpResult>`) so the OpenAPI document is exact. That document generates the frontend client (ADR-0006).
-- Commit `openapi.v1.json`. CI fails when the generated document differs from the committed one.
+- Commit `api/openapi.json`. Every build regenerates it, and CI fails when the generated document differs from the committed one.
 
 ## Minimal API structure
 

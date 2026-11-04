@@ -1,0 +1,523 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "SatisfactoryLedger.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/catalog/imports": {
+      "post": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Import the game's Docs file (en-US.json)",
+        "description": "Adds new entries, updates existing ones and marks entries missing from the file as no longer in the game. Importing the same file again changes nothing.",
+        "operationId": "ImportCatalog",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "file": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "gameVersion": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/imports/{id}": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "One import: game version, time and what it changed",
+        "operationId": "GetCatalogImport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/items": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Items, optionally only one form: ?form=solid or ?form=fluid",
+        "operationId": "GetItems",
+        "parameters": [
+          {
+            "name": "form",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/recipes": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Recipes with their per-minute rates, optionally only those that produce an item (alternates included)",
+        "operationId": "GetRecipes",
+        "parameters": [
+          {
+            "name": "produces",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/transport-tiers": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Belt and pipe tiers with their capacity per minute",
+        "operationId": "GetTransportTiers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransportTierResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "IFormFile": {
+        "type": "string",
+        "format": "binary"
+      },
+      "ImportCountsResponse": {
+        "required": [
+          "added",
+          "updated",
+          "noLongerInGame"
+        ],
+        "type": "object",
+        "properties": {
+          "added": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "noLongerInGame": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ImportResponse": {
+        "required": [
+          "id",
+          "gameVersion",
+          "importedAt",
+          "items",
+          "buildings",
+          "transportTiers",
+          "recipes",
+          "noLongerInGame"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "gameVersion": {
+            "type": "string"
+          },
+          "importedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "buildings": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "transportTiers": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "recipes": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "noLongerInGame": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "IngredientResponse": {
+        "required": [
+          "itemId",
+          "amountPerCycle",
+          "rate"
+        ],
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "amountPerCycle": {
+            "type": "number",
+            "format": "double"
+          },
+          "rate": {
+            "$ref": "#/components/schemas/RateResponse"
+          }
+        }
+      },
+      "ItemForm": {
+        "enum": [
+          "solid",
+          "fluid"
+        ]
+      },
+      "ItemResponse": {
+        "required": [
+          "id",
+          "name",
+          "form",
+          "isRawResource",
+          "inGame"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/ItemForm"
+          },
+          "isRawResource": {
+            "type": "boolean"
+          },
+          "inGame": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RateResponse": {
+        "required": [
+          "perMinute",
+          "exact"
+        ],
+        "type": "object",
+        "properties": {
+          "perMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "exact": {
+            "type": "string"
+          }
+        }
+      },
+      "RecipeResponse": {
+        "required": [
+          "id",
+          "name",
+          "buildingId",
+          "cycleSeconds",
+          "isAlternate",
+          "inGame",
+          "inputs",
+          "outputs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "buildingId": {
+            "type": "string"
+          },
+          "cycleSeconds": {
+            "type": "number",
+            "format": "double"
+          },
+          "isAlternate": {
+            "type": "boolean"
+          },
+          "inGame": {
+            "type": "boolean"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngredientResponse"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngredientResponse"
+            }
+          }
+        }
+      },
+      "TransportForm": {
+        "enum": [
+          "pipe",
+          "belt"
+        ]
+      },
+      "TransportTierResponse": {
+        "required": [
+          "id",
+          "name",
+          "form",
+          "capacity",
+          "inGame"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/TransportForm"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "inGame": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Catalog"
+    }
+  ]
+}
