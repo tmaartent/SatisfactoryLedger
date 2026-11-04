@@ -65,12 +65,36 @@ public sealed class CatalogBrowseApiTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Transport_tiers_are_belts_then_pipes_from_low_to_high_capacity()
+    public async Task Transport_tiers_are_belts_and_lifts_then_pipes_from_low_to_high_capacity_then_by_name()
     {
         var tiers = await _client.GetAsync<CatalogTransportTier[]>("/api/v1/catalog/transport-tiers");
 
         Assert.Equal(
-            ["belt:60", "belt:120", "belt:270", "belt:480", "belt:780", "belt:1200", "pipe:300", "pipe:600"],
-            tiers.Select(tier => $"{tier.Form}:{tier.Capacity}"));
+            [
+                "Conveyor Belt Mk.1:60", "Conveyor Lift Mk.1:60", "Conveyor Belt Mk.2:120", "Conveyor Lift Mk.2:120",
+                "Conveyor Belt Mk.3:270", "Conveyor Lift Mk.3:270", "Conveyor Belt Mk.4:480", "Conveyor Lift Mk.4:480",
+                "Conveyor Belt Mk.5:780", "Conveyor Lift Mk.5:780", "Conveyor Belt Mk.6:1200", "Conveyor Lift Mk.6:1200",
+                "Clean Pipeline Mk.1:300", "Pipeline Mk.1:300", "Clean Pipeline Mk.2:600", "Pipeline Mk.2:600"
+            ],
+            tiers.Select(tier => $"{tier.Name}:{tier.Capacity}"));
+    }
+
+    [Fact]
+    public async Task Extractors_are_listed_with_what_they_extract_on_a_normal_node()
+    {
+        var extractors = await _client.GetAsync<CatalogExtractor[]>("/api/v1/catalog/extractors");
+
+        Assert.Equal(
+            ["Miner Mk.1", "Miner Mk.2", "Miner Mk.3", "Oil Extractor", "Resource Well Extractor", "Water Extractor"],
+            extractors.Select(extractor => extractor.Name));
+
+        CatalogExtractor minerMk3 = Assert.Single(extractors, extractor => extractor.Id == "Build_MinerMk3_C");
+        Assert.Equal("solid", minerMk3.Form);
+        Assert.Equal(new CatalogRate(240, "240"), minerMk3.ExtractionRate);
+
+        CatalogExtractor water = Assert.Single(extractors, extractor => extractor.Id == "Build_WaterPump_C");
+        Assert.Equal("fluid", water.Form);
+        Assert.Equal(2, water.AmountPerCycle);
+        Assert.Equal(new CatalogRate(120, "120"), water.ExtractionRate);
     }
 }

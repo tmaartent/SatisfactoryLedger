@@ -1,19 +1,14 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace SatisfactoryLedger.Catalog.Importer;
 
+/// <summary>
+/// One section of transport tiers. The clean ("NoIndicator") pipelines are kept: they carry as much as the
+/// pipeline of the same mark, and blueprints use them, so saves contain them.
+/// </summary>
 internal class TransportTierGroupDto<TTier> : GameDataGroupDto
     where TTier : TransportTierDto
 {
     [JsonPropertyName("Classes")]
-    public List<TTier> Tiers
-    {
-        get;
-        set
-        {
-            field = value?
-                .Where(b => !b.ClassName.EndsWith("NoIndicator_C", StringComparison.InvariantCulture))
-                .ToList() ?? [];
-        }
-    } = [];
+    public List<TTier> Tiers { get; set; } = [];
 }

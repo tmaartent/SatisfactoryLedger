@@ -77,6 +77,21 @@ internal sealed class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
     }
 }
 
+internal sealed class ExtractorConfiguration : IEntityTypeConfiguration<Extractor>
+{
+    public void Configure(EntityTypeBuilder<Extractor> extractor)
+    {
+        extractor.HasKey(x => x.Id);
+        extractor.Property(x => x.Id).HasConversion(id => id.Id, value => ExtractorId.Of(value));
+        extractor.Property(x => x.Name);
+        extractor.Property(x => x.Form).HasConversion<string>();
+        extractor.Property(x => x.AmountPerCycle);
+        extractor.Property(x => x.CycleSeconds);
+        extractor.Property(x => x.IsInGame);
+        extractor.Ignore(x => x.ExtractionRate);
+    }
+}
+
 internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<CatalogImport>
 {
     public void Configure(EntityTypeBuilder<CatalogImport> import)
@@ -92,6 +107,7 @@ internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<Cata
         import.ComplexProperty(i => i.Buildings);
         import.ComplexProperty(i => i.TransportTiers);
         import.ComplexProperty(i => i.Recipes);
+        import.ComplexProperty(i => i.Extractors);
 
         // A list of strings becomes a PostgreSQL text[] column.
         import.PrimitiveCollection(i => i.NoLongerInGame);

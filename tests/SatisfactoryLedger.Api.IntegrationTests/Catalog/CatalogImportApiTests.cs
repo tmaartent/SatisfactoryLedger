@@ -25,8 +25,9 @@ public sealed class CatalogImportApiTests(LedgerApiFactory api) : IAsyncLifetime
         Assert.Equal("1.1", import!.GameVersion);
         Assert.Equal(new ImportCounts(190, 0, 0), import.Items);
         Assert.Equal(new ImportCounts(11, 0, 0), import.Buildings);
-        Assert.Equal(new ImportCounts(8, 0, 0), import.TransportTiers);
+        Assert.Equal(new ImportCounts(16, 0, 0), import.TransportTiers);
         Assert.Equal(new ImportCounts(291, 0, 0), import.Recipes);
+        Assert.Equal(new ImportCounts(6, 0, 0), import.Extractors);
     }
 
     [Fact]
@@ -48,7 +49,7 @@ public sealed class CatalogImportApiTests(LedgerApiFactory api) : IAsyncLifetime
 
         ImportResult second = await _client.ImportAsync(CatalogClient.SmallFile);
 
-        Assert.Equal(0, second.Items.Added + second.Buildings.Added + second.TransportTiers.Added + second.Recipes.Added);
+        Assert.Equal(0, second.Items.Added + second.Buildings.Added + second.TransportTiers.Added + second.Recipes.Added + second.Extractors.Added);
         Assert.Empty(second.NoLongerInGame);
         Assert.Equal(4, (await _client.GetAsync<CatalogRecipe[]>("/api/v1/catalog/recipes")).Length);
     }

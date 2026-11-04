@@ -35,7 +35,8 @@ public sealed class CatalogImport
         CatalogEntryChanges<Item> items,
         CatalogEntryChanges<Building> buildings,
         CatalogEntryChanges<TransportTier> transportTiers,
-        CatalogEntryChanges<Recipe> recipes)
+        CatalogEntryChanges<Recipe> recipes,
+        CatalogEntryChanges<Extractor> extractors)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameVersion);
 
@@ -44,7 +45,8 @@ public sealed class CatalogImport
             .. items.NoLongerInGame.Select(item => item.Id.Id),
             .. buildings.NoLongerInGame.Select(building => building.Id.Id),
             .. transportTiers.NoLongerInGame.Select(tier => tier.Id.Id),
-            .. recipes.NoLongerInGame.Select(recipe => recipe.Id.Id)
+            .. recipes.NoLongerInGame.Select(recipe => recipe.Id.Id),
+            .. extractors.NoLongerInGame.Select(extractor => extractor.Id.Id)
         ];
 
         return new CatalogImport(id, gameVersion.Trim(), importedAt)
@@ -53,6 +55,7 @@ public sealed class CatalogImport
             Buildings = buildings.Counts,
             TransportTiers = transportTiers.Counts,
             Recipes = recipes.Counts,
+            Extractors = extractors.Counts,
             NoLongerInGame = noLongerInGame
         };
     }
@@ -70,6 +73,8 @@ public sealed class CatalogImport
     public ImportCounts TransportTiers { get; private init; } = new(0, 0, 0);
 
     public ImportCounts Recipes { get; private init; } = new(0, 0, 0);
+
+    public ImportCounts Extractors { get; private init; } = new(0, 0, 0);
 
     /// <summary>Class names of the entries this import marked as no longer in the game.</summary>
     public IReadOnlyList<string> NoLongerInGame { get; private init; } = [];

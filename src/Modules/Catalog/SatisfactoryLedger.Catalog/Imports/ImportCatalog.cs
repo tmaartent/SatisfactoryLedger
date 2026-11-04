@@ -29,21 +29,24 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         var buildings = CatalogEntries.Reconcile(await db.Buildings.ToListAsync(cancellationToken), fromGame.Buildings);
         var transportTiers = CatalogEntries.Reconcile(await db.TransportTiers.ToListAsync(cancellationToken), fromGame.TransportTiers);
         var recipes = CatalogEntries.Reconcile(await db.Recipes.ToListAsync(cancellationToken), fromGame.Recipes);
+        var extractors = CatalogEntries.Reconcile(await db.Extractors.ToListAsync(cancellationToken), fromGame.Extractors);
 
         db.Items.AddRange(items.Added);
         db.Buildings.AddRange(buildings.Added);
         db.TransportTiers.AddRange(transportTiers.Added);
         db.Recipes.AddRange(recipes.Added);
+        db.Extractors.AddRange(extractors.Added);
 
         var import = CatalogImport.Record(CatalogImportId.New(), command.GameVersion, clock.GetUtcNow(),
-            items, buildings, transportTiers, recipes);
+            items, buildings, transportTiers, recipes, extractors);
         db.Imports.Add(import);
 
         await db.SaveChangesAsync(cancellationToken);
         return import;
     }
 
-    private sealed record GameData(List<Item> Items, List<Building> Buildings, List<TransportTier> TransportTiers, List<Recipe> Recipes);
+    private sealed record GameData(
+        List<Item> Items, List<Building> Buildings, List<TransportTier> TransportTiers, List<Recipe> Recipes, List<Extractor> Extractors);
 
     private static async Task<GameData> ReadDocsFileAsync(Stream docsFile, CancellationToken cancellationToken)
     {
@@ -55,7 +58,8 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
                 SatisfactoryTranslator.TranslateToItems(groups),
                 SatisfactoryTranslator.TranslateToBuildings(groups),
                 SatisfactoryTranslator.TranslateToTransportTiers(groups),
-                SatisfactoryTranslator.TranslateToRecipes(groups));
+                SatisfactoryTranslator.TranslateToRecipes(groups),
+                SatisfactoryTranslator.TranslateToExtractors(groups));
         }
         catch (Exception e) when (e is JsonException or ArgumentException or KeyNotFoundException or FormatException)
         {

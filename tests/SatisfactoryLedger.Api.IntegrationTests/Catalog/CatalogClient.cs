@@ -15,6 +15,7 @@ public sealed record ImportResult(
     ImportCounts Buildings,
     ImportCounts TransportTiers,
     ImportCounts Recipes,
+    ImportCounts Extractors,
     string[] NoLongerInGame);
 
 public sealed record CatalogItem(string Id, string Name, string Form, bool IsRawResource, bool InGame);
@@ -34,6 +35,9 @@ public sealed record CatalogRecipe(
     CatalogIngredient[] Outputs);
 
 public sealed record CatalogTransportTier(string Id, string Name, string Form, int Capacity, bool InGame);
+
+public sealed record CatalogExtractor(
+    string Id, string Name, string Form, decimal AmountPerCycle, decimal CycleSeconds, CatalogRate ExtractionRate, bool InGame);
 
 internal static class CatalogClient
 {

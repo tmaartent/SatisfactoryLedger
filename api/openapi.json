@@ -191,7 +191,7 @@
         "tags": [
           "Catalog"
         ],
-        "summary": "Belt and pipe tiers with their capacity per minute",
+        "summary": "Belt, lift and pipe tiers with their capacity per minute",
         "operationId": "GetTransportTiers",
         "responses": {
           "200": {
@@ -209,10 +209,71 @@
           }
         }
       }
+    },
+    "/api/v1/catalog/extractors": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Miners and extractors with what they extract per minute on a normal-purity node at 100% clock speed",
+        "operationId": "GetExtractors",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExtractorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ExtractorResponse": {
+        "required": [
+          "id",
+          "name",
+          "form",
+          "amountPerCycle",
+          "cycleSeconds",
+          "extractionRate",
+          "inGame"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/ItemForm"
+          },
+          "amountPerCycle": {
+            "type": "number",
+            "format": "double"
+          },
+          "cycleSeconds": {
+            "type": "number",
+            "format": "double"
+          },
+          "extractionRate": {
+            "$ref": "#/components/schemas/RateResponse"
+          },
+          "inGame": {
+            "type": "boolean"
+          }
+        }
+      },
       "HttpValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -293,6 +354,7 @@
           "buildings",
           "transportTiers",
           "recipes",
+          "extractors",
           "noLongerInGame"
         ],
         "type": "object",
@@ -318,6 +380,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "recipes": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "extractors": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "noLongerInGame": {

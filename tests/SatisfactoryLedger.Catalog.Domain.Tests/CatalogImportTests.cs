@@ -101,7 +101,20 @@ public class CatalogImportTests
         Assert.Equal(["Desc_Wire_C"], import.NoLongerInGame);
     }
 
-    private static CatalogImport RecordImport(string gameVersion, CatalogEntryChanges<Item>? items = null) =>
+    [Fact]
+    public void An_import_counts_and_lists_the_extractors_it_changed()
+    {
+        var minerMk1 = Extractor.Create(ExtractorId.Of("Build_MinerMk1_C"), "Miner Mk.1", ItemForm.Solid, 1, 1);
+        var minerMk2 = Extractor.Create(ExtractorId.Of("Build_MinerMk2_C"), "Miner Mk.2", ItemForm.Solid, 1, 0.5m);
+
+        var import = RecordImport("1.2", extractors: CatalogEntries.Reconcile([minerMk1], [minerMk2]));
+
+        Assert.Equal(new ImportCounts(Added: 1, Updated: 0, NoLongerInGame: 1), import.Extractors);
+        Assert.Equal(["Build_MinerMk1_C"], import.NoLongerInGame);
+    }
+
+    private static CatalogImport RecordImport(
+        string gameVersion, CatalogEntryChanges<Item>? items = null, CatalogEntryChanges<Extractor>? extractors = null) =>
         CatalogImport.Record(
             CatalogImportId.New(),
             gameVersion,
@@ -109,5 +122,6 @@ public class CatalogImportTests
             items ?? CatalogEntries.None<Item>(),
             CatalogEntries.None<Building>(),
             CatalogEntries.None<TransportTier>(),
-            CatalogEntries.None<Recipe>());
+            CatalogEntries.None<Recipe>(),
+            extractors ?? CatalogEntries.None<Extractor>());
 }

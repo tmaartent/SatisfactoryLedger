@@ -20,6 +20,25 @@ internal sealed record RateResponse(decimal PerMinute, string Exact)
     public static RateResponse From(Rate rate) => new(rate.ToDecimal(), rate.ToExactString());
 }
 
+internal sealed record ExtractorResponse(
+    string Id,
+    string Name,
+    ItemForm Form,
+    decimal AmountPerCycle,
+    decimal CycleSeconds,
+    RateResponse ExtractionRate,
+    bool InGame)
+{
+    public static ExtractorResponse From(Extractor extractor) => new(
+        extractor.Id.Id,
+        extractor.Name,
+        extractor.Form,
+        extractor.AmountPerCycle,
+        extractor.CycleSeconds,
+        RateResponse.From(extractor.ExtractionRate),
+        extractor.IsInGame);
+}
+
 internal sealed record IngredientResponse(string ItemId, decimal AmountPerCycle, RateResponse Rate);
 
 internal sealed record RecipeResponse(
@@ -67,7 +86,11 @@ internal static class BrowseEndpoints
 
         catalog.MapGet("/transport-tiers", GetTransportTiersAsync)
             .WithName("GetTransportTiers")
-            .WithSummary("Belt and pipe tiers with their capacity per minute");
+            .WithSummary("Belt, lift and pipe tiers with their capacity per minute");
+
+        catalog.MapGet("/extractors", GetExtractorsAsync)
+            .WithName("GetExtractors")
+            .WithSummary("Miners and extractors with what they extract per minute on a normal-purity node at 100% clock speed");
 
         return catalog;
     }
@@ -121,10 +144,21 @@ internal static class BrowseEndpoints
         CatalogDbContext db, CancellationToken cancellationToken)
     {
         List<TransportTierResponse> response = await db.TransportTiers.AsNoTracking()
-            .OrderBy(tier => tier.Form).ThenBy(tier => tier.Capacity)
+            .OrderBy(tier => tier.Form).ThenBy(tier => tier.Capacity).ThenBy(tier => tier.Name)
             .Select(tier => new TransportTierResponse(tier.Id.Id, tier.Name, tier.Form, tier.Capacity, tier.IsInGame))
             .ToListAsync(cancellationToken);
 
         return TypedResults.Ok(response);
+    }
+
+    private static async Task<Ok<List<ExtractorResponse>>> GetExtractorsAsync(
+        CatalogDbContext db, CancellationToken cancellationToken)
+    {
+        List<Extractor> extractors = await db.Extractors.AsNoTracking()
+            .OrderBy(extractor => extractor.Name)
+            .ToListAsync(cancellationToken);
+
+        // The rate is computed by the domain (Extractor.ExtractionRate), so this mapping runs in memory, like recipes.
+        return TypedResults.Ok(extractors.Select(ExtractorResponse.From).ToList());
     }
 }

@@ -3,6 +3,7 @@
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Importer;
 using SatisfactoryLedger.Catalog.Translator;
+using SatisfactoryLedger.SharedKernel;
 
 namespace SatisfactoryLedger.Catalog.Tests.Translator;
 
@@ -162,8 +163,9 @@ public class SatisfactoryTranslatorTests
 
         Assert.Equal(190, SatisfactoryTranslator.TranslateToItems(resources).Count);
         Assert.Equal(11, SatisfactoryTranslator.TranslateToBuildings(resources).Count);
-        Assert.Equal(8, SatisfactoryTranslator.TranslateToTransportTiers(resources).Count);
+        Assert.Equal(16, SatisfactoryTranslator.TranslateToTransportTiers(resources).Count);
         Assert.Equal(291, SatisfactoryTranslator.TranslateToRecipes(resources).Count);
+        Assert.Equal(6, SatisfactoryTranslator.TranslateToExtractors(resources).Count);
     }
 
     [Fact]
@@ -182,8 +184,16 @@ public class SatisfactoryTranslatorTests
         var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
         List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
 
-        int[] beltCapacities = [.. transportTiers.Where(tier => tier.Form == TransportForm.Belt).Select(tier => tier.Capacity).Order()];
-        int[] pipeCapacities = [.. transportTiers.Where(tier => tier.Form == TransportForm.Pipe).Select(tier => tier.Capacity).Order()];
+        int[] beltCapacities =
+        [
+            .. transportTiers.Where(tier => tier.Id.Id.StartsWith("Build_ConveyorBelt", StringComparison.Ordinal))
+                .Select(tier => tier.Capacity).Order()
+        ];
+        int[] pipeCapacities =
+        [
+            .. transportTiers.Where(tier => tier.Form == TransportForm.Pipe && !tier.Name.StartsWith("Clean", StringComparison.Ordinal))
+                .Select(tier => tier.Capacity).Order()
+        ];
 
         Assert.Equal([60, 120, 270, 480, 780, 1200], beltCapacities);
         Assert.Equal([300, 600], pipeCapacities);
@@ -223,5 +233,66 @@ public class SatisfactoryTranslatorTests
         Assert.Equal(
             [RecipeIngredient.Of(ItemId.Of("Desc_Plastic_C"), 2), RecipeIngredient.Of(ItemId.Of("Desc_HeavyOilResidue_C"), 1)],
             plastic.Outputs);
+    }
+
+    // A lift carries as much as the belt of the same mark: Mk.1 60 per minute up to Mk.6 1200.
+    [Fact]
+    public async Task Lifts_from_the_game_file_carry_as_much_as_belts_of_the_same_mark()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
+
+        TransportTier[] lifts =
+        [
+            .. transportTiers.Where(tier => tier.Id.Id.StartsWith("Build_ConveyorLift", StringComparison.Ordinal))
+                .OrderBy(tier => tier.Capacity)
+        ];
+
+        Assert.Equal([60, 120, 270, 480, 780, 1200], lifts.Select(lift => lift.Capacity));
+        Assert.All(lifts, lift => Assert.Equal(TransportForm.Belt, lift.Form));
+    }
+
+    // "Clean" pipelines have no flow indicator, nothing else. They carry as much as the pipeline of the same mark.
+    [Theory]
+    [InlineData("Build_Pipeline_NoIndicator_C", "Clean Pipeline Mk.1", 300)]
+    [InlineData("Build_PipelineMK2_NoIndicator_C", "Clean Pipeline Mk.2", 600)]
+    public async Task Clean_pipelines_from_the_game_file_carry_as_much_as_pipelines_of_the_same_mark(string id, string name, int capacity)
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        TransportTier clean = Assert.Single(SatisfactoryTranslator.TranslateToTransportTiers(resources), tier => tier.Id.Id == id);
+
+        Assert.Equal(name, clean.Name);
+        Assert.Equal(capacity, clean.Capacity);
+        Assert.Equal(TransportForm.Pipe, clean.Form);
+    }
+
+    [Fact]
+    public async Task The_extractors_from_the_game_file_are_the_miners_and_the_oil_water_and_resource_well_extractors()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        string[] actual = [.. SatisfactoryTranslator.TranslateToExtractors(resources).Select(extractor => extractor.Id.Id).Order(StringComparer.Ordinal)];
+
+        Assert.Equal(
+            ["Build_FrackingExtractor_C", "Build_MinerMk1_C", "Build_MinerMk2_C", "Build_MinerMk3_C", "Build_OilPump_C", "Build_WaterPump_C"],
+            actual);
+    }
+
+    // Rates on a normal-purity node at 100% clock speed. Fluid amounts are in cubic metres, like recipes.
+    [Theory]
+    [InlineData("Build_MinerMk1_C", 60, ItemForm.Solid)]
+    [InlineData("Build_MinerMk3_C", 240, ItemForm.Solid)]
+    [InlineData("Build_WaterPump_C", 120, ItemForm.Fluid)]
+    [InlineData("Build_OilPump_C", 120, ItemForm.Fluid)]
+    [InlineData("Build_FrackingExtractor_C", 60, ItemForm.Fluid)]
+    public async Task Extractors_from_the_game_file_have_their_in_game_rates(string id, int perMinute, ItemForm form)
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        Extractor extractor = Assert.Single(SatisfactoryTranslator.TranslateToExtractors(resources), extractor => extractor.Id.Id == id);
+
+        Assert.Equal(Rate.PerMinute(perMinute), extractor.ExtractionRate);
+        Assert.Equal(form, extractor.Form);
     }
 }

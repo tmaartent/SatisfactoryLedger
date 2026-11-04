@@ -92,9 +92,12 @@ public class SatisfactoryImporterTests
         Assert.NotNull(pipeGroupDtos);
         var item = Assert.Single(pipeGroupDtos);
 
-        Assert.Equal(2, item.Tiers.Count);
+        Assert.Equal(4, item.Tiers.Count);
         
-        Assert.All(pipeGroupDtos[0].Tiers, pipe => Assert.False(pipe.ClassName.EndsWith("NoIndicator_C", StringComparison.InvariantCulture)));
+        // The clean ("NoIndicator") pipelines are imported too: blueprints use them, so saves contain them.
+        Assert.Equal(
+            ["Build_PipelineMK2_C", "Build_PipelineMK2_NoIndicator_C", "Build_Pipeline_C", "Build_Pipeline_NoIndicator_C"],
+            item.Tiers.Select(pipe => pipe.ClassName).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -201,7 +204,20 @@ public class SatisfactoryImporterTests
         Assert.Equal(6, beltGroup.Tiers.Count);
 
         PipeGroupDto pipeGroup = Assert.Single(resources.OfType<PipeGroupDto>());
-        Assert.Equal(2, pipeGroup.Tiers.Count);
+        Assert.Equal(4, pipeGroup.Tiers.Count);
+
+        LiftGroupDto liftGroup = Assert.Single(resources.OfType<LiftGroupDto>());
+        Assert.Equal(6, liftGroup.Tiers.Count);
+    }
+
+    [Fact]
+    public async Task Import_of_the_game_file_finds_the_extractors_in_their_three_sections()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        Assert.Equal(4, Assert.Single(resources.OfType<ResourceExtractorGroupDto>()).Extractors.Count);
+        Assert.Single(Assert.Single(resources.OfType<WaterPumpGroupDto>()).Extractors);
+        Assert.Single(Assert.Single(resources.OfType<FrackingExtractorGroupDto>()).Extractors);
     }
 
     [Fact]

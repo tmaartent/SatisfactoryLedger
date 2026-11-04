@@ -1,7 +1,7 @@
 namespace SatisfactoryLedger.Catalog.Domain;
 
 /// <summary>
-/// Something the catalog takes from the game's Docs file: an item, building, transport tier or recipe.
+/// Something the catalog takes from the game's Docs file: an item, building, transport tier, recipe or extractor.
 /// Entries are equal when their ids are equal.
 /// </summary>
 public interface ICatalogEntry<in TEntry>

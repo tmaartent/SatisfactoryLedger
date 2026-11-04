@@ -48,11 +48,14 @@ internal class SatisfactoryTranslator
     public static List<TransportTier> TranslateToTransportTiers(List<GameDataGroupDto> dataList)
     {
         var beltDtos = dataList.OfType<BeltGroupDto>().SelectMany(dto => dto.Tiers);
+        var liftDtos = dataList.OfType<LiftGroupDto>().SelectMany(dto => dto.Tiers);
         var pipeDtos = dataList.OfType<PipeGroupDto>().SelectMany(dto => dto.Tiers);
 
+        // A lift carries solids at the speed of the belt of the same mark, so it's a belt-form tier.
         return
         [
             .. beltDtos.Select(CreateBeltTransportTier),
+            .. liftDtos.Select(CreateBeltTransportTier),
             .. pipeDtos.Select(CreatePipeTransportTier)
         ];
     }
@@ -114,6 +117,27 @@ internal class SatisfactoryTranslator
                     recipeDto.ClassName.Contains("Alternate", StringComparison.InvariantCulture)
                 )
             )
+        ];
+    }
+
+    public static List<Extractor> TranslateToExtractors(List<GameDataGroupDto> dataList)
+    {
+        return
+        [
+            .. dataList.OfType<ExtractorGroupDto>().SelectMany(dto => dto.Extractors).Select(dto =>
+            {
+                // "(RF_LIQUID,RF_GAS)": a resource well extractor takes either; both are fluids.
+                string firstForm = dto.AllowedResourceForms.Trim('(', ')').Split(',')[0];
+                ItemForm form = FormConverter.ToItemForm(firstForm);
+                decimal itemsPerCycle = ParseGameDecimal(dto.ItemsPerCycle);
+
+                return Extractor.Create(
+                    ExtractorId.Of(dto.ClassName),
+                    dto.DisplayName,
+                    form,
+                    form == ItemForm.Fluid ? itemsPerCycle / 1000 : itemsPerCycle,
+                    ParseGameDecimal(dto.ExtractCycleTime));
+            })
         ];
     }
 

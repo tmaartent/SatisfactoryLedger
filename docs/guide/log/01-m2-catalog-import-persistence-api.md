@@ -117,5 +117,5 @@ I also ran the real host by hand against a throwaway PostgreSQL. Uploading `en-U
 ```bash
 dotnet run --project src/SatisfactoryLedger.AppHost      # Docker must be running
 # open the API's /scalar/v1 from the Aspire dashboard, then POST /api/v1/catalog/imports
-# with en-US.json from <game>/CommunityResources/Docs and gameVersion=1.1
+# with en-US.json from <game>/CommunityResources/Docs and the game version you have installed (e.g. gameVersion=1.2)
 ```

@@ -18,6 +18,10 @@ namespace SatisfactoryLedger.Catalog.Importer;
 [JsonDerivedType(typeof(VariablePowerBuildingGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableManufacturerVariablePower'")]
 [JsonDerivedType(typeof(BeltGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableConveyorBelt'")]
 [JsonDerivedType(typeof(PipeGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildablePipeline'")]
+[JsonDerivedType(typeof(LiftGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableConveyorLift'")]
+[JsonDerivedType(typeof(ResourceExtractorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableResourceExtractor'")]
+[JsonDerivedType(typeof(WaterPumpGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableWaterPump'")]
+[JsonDerivedType(typeof(FrackingExtractorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableFrackingExtractor'")]
 internal class GameDataGroupDto
 {
     

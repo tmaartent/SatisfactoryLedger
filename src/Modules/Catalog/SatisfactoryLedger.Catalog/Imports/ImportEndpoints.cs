@@ -20,6 +20,7 @@ internal sealed record ImportResponse(
     ImportCountsResponse Buildings,
     ImportCountsResponse TransportTiers,
     ImportCountsResponse Recipes,
+    ImportCountsResponse Extractors,
     IReadOnlyList<string> NoLongerInGame)
 {
     public static ImportResponse From(CatalogImport import) => new(
@@ -30,6 +31,7 @@ internal sealed record ImportResponse(
         ToResponse(import.Buildings),
         ToResponse(import.TransportTiers),
         ToResponse(import.Recipes),
+        ToResponse(import.Extractors),
         import.NoLongerInGame);
 
     private static ImportCountsResponse ToResponse(ImportCounts counts) =>

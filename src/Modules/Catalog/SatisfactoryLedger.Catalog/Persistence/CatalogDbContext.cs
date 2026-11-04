@@ -20,6 +20,8 @@ internal sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> option
 
     public DbSet<Recipe> Recipes => Set<Recipe>();
 
+    public DbSet<Extractor> Extractors => Set<Extractor>();
+
     public DbSet<CatalogImport> Imports => Set<CatalogImport>();
 
     /// <summary>The PostgreSQL settings, shared by the app and the design-time factory used by `dotnet ef`.</summary>

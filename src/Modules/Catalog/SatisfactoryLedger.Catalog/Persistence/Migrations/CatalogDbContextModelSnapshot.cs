@@ -86,6 +86,23 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                                 .HasColumnName("buildings_updated");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Extractors", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Extractors#ImportCounts", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Added")
+                                .HasColumnType("integer")
+                                .HasColumnName("extractors_added");
+
+                            b1.Property<int>("NoLongerInGame")
+                                .HasColumnType("integer")
+                                .HasColumnName("extractors_no_longer_in_game");
+
+                            b1.Property<int>("Updated")
+                                .HasColumnType("integer")
+                                .HasColumnName("extractors_updated");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Items", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Items#ImportCounts", b1 =>
                         {
                             b1.IsRequired();
@@ -141,6 +158,40 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasName("pk_imports");
 
                     b.ToTable("imports", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Extractor", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("AmountPerCycle")
+                        .HasColumnType("numeric")
+                        .HasColumnName("amount_per_cycle");
+
+                    b.Property<decimal>("CycleSeconds")
+                        .HasColumnType("numeric")
+                        .HasColumnName("cycle_seconds");
+
+                    b.Property<string>("Form")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("form");
+
+                    b.Property<bool>("IsInGame")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_in_game");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_extractors");
+
+                    b.ToTable("extractors", "catalog");
                 });
 
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Item", b =>
@@ -201,7 +252,7 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
-                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "Inputs", "SatisfactoryLedger.Catalog.Domain.Recipe.Inputs#RecipeIngredient", b1 =>
+                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "_inputs", "SatisfactoryLedger.Catalog.Domain.Recipe._inputs#RecipeIngredient", b1 =>
                         {
                             b1.IsRequired();
 
@@ -215,7 +266,7 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                                 .HasColumnType("jsonb");
                         });
 
-                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "Outputs", "SatisfactoryLedger.Catalog.Domain.Recipe.Outputs#RecipeIngredient", b1 =>
+                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "_outputs", "SatisfactoryLedger.Catalog.Domain.Recipe._outputs#RecipeIngredient", b1 =>
                         {
                             b1.IsRequired();
 

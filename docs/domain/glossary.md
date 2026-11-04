@@ -10,8 +10,9 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Raw Resource** | An item extracted from the world (ores, limestone, coal, SAM, water, crude oil, nitrogen, …). Known from the catalog data. Everything else is *non-raw*. | `Item.IsRawResource` |
 | **Recipe** | Game data: input amounts, output amounts and cycle time for one building type. May be an *alternate* recipe. | `Recipe` |
 | **Building** | A production machine: Smelter, Constructor, Assembler, Refinery, … | `Building` |
-| **Transport Tier** | A belt (Mk.1–Mk.6) or pipe (Mk.1–Mk.2) with a maximum throughput. | `TransportTier` |
-| **Catalog Entry** | An item, building, transport tier or recipe taken from the game's Docs file. Identified by the game's class name (`Desc_IronPlate_C`). | `ICatalogEntry<T>` |
+| **Transport Tier** | A belt (Mk.1–Mk.6), lift (Mk.1–Mk.6) or pipe (Mk.1–Mk.2, and the *clean* variants without a flow indicator) with a maximum throughput. A lift carries as much as the belt of the same mark, so it has the *belt* form. A clean pipeline carries as much as the pipeline of the same mark. | `TransportTier` |
+| **Extractor** | A building that takes a raw resource out of the world: Miner Mk.1–Mk.3, oil extractor, water extractor, resource well extractor. Its **extraction rate** is what it extracts per minute on a normal-purity node at 100% clock speed. In the World, a placed extractor is a provider. | `Extractor`, `Extractor.ExtractionRate` |
+| **Catalog Entry** | An item, building, transport tier, recipe or extractor taken from the game's Docs file. Identified by the game's class name (`Desc_IronPlate_C`). | `ICatalogEntry<T>` |
 | **Catalog Import** | One import of the Docs file: the game version, when it happened, and per kind of entry how many were added, updated or marked no longer in the game (ADR-0009). | `CatalogImport` |
 | **No Longer In Game** | A catalog entry that a later import didn't contain. It stays in the catalog, so references to it stay valid, and it's shown as such. | `IsInGame = false`, `inGame` in the API |
 
