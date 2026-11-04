@@ -30,6 +30,8 @@ public sealed class WorldGraph
         _downstream = all.ToLookup(connection => connection.From, connection => _buildables[connection.To]);
     }
 
+    public IEnumerable<Buildable> Buildables => _buildables.Values;
+
     public Buildable? Find(BuildableId id) => _buildables.GetValueOrDefault(id);
 
     /// <summary>What feeds this buildable.</summary>

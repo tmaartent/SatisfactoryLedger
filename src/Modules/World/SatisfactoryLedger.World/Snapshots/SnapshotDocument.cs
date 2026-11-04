@@ -92,9 +92,15 @@ internal sealed record BuildableDocument(
     decimal? ClockPercent = null,
     decimal? ProductionBoost = null,
     string? Node = null,
-    LogisticsKind? Kind = null)
+    LogisticsKind? Kind = null,
+    PositionDocument? Position = null)
 {
-    public static BuildableDocument From(SavedBuildable saved) => saved switch
+    public static BuildableDocument From(SavedBuildable saved) => FromKind(saved) with
+    {
+        Position = saved.Position is { } position ? new PositionDocument(position.X, position.Y, position.Z) : null,
+    };
+
+    private static BuildableDocument FromKind(SavedBuildable saved) => saved switch
     {
         SavedMachine machine => new(machine.Id.Id, BuildableDocumentRole.Machine, machine.ClassName,
             Recipe: machine.Recipe, ClockPercent: Percent(machine.ClockSpeed), ProductionBoost: machine.ProductionBoost),
@@ -124,6 +130,9 @@ internal sealed record BuildableDocument(
     /// <summary>A clock speed is a fraction of 1 (333333/1000000); stored as the percent the game shows.</summary>
     private static decimal Percent(ClockSpeed clockSpeed) => (decimal)clockSpeed.Numerator * 100 / (decimal)clockSpeed.Denominator;
 }
+
+/// <summary>Where a buildable stands, in the game's units (centimetres).</summary>
+internal sealed record PositionDocument(double X, double Y, double Z);
 
 internal sealed record ConnectionDocument(string From, string To);
 

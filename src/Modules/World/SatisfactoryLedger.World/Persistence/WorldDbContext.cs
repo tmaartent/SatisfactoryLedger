@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
+using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Snapshots;
 
 namespace SatisfactoryLedger.World.Persistence;
@@ -14,6 +15,8 @@ internal sealed class WorldDbContext(DbContextOptions<WorldDbContext> options) :
     public const string ConnectionStringName = "ledger";
 
     public DbSet<StoredSnapshot> Snapshots => Set<StoredSnapshot>();
+
+    public DbSet<StoredFactory> Factories => Set<StoredFactory>();
 
     /// <summary>The PostgreSQL settings, shared by the app and the design-time factory used by `dotnet ef`.</summary>
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string? connectionString)

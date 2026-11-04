@@ -22,6 +22,12 @@ public sealed class FactoryDefinition
 
     public IReadOnlySet<ItemId> InputItems { get; }
 
+    /// <summary>
+    /// Whether the factory can be traced in a world: its output belt is in it, and is a belt. A definition belongs to a
+    /// world, so in an earlier or later snapshot its belt may not exist (BR-W11).
+    /// </summary>
+    public bool IsTraceableIn(WorldGraph world) => world.Find(OutputBelt) is Logistics { IsBelt: true };
+
     /// <summary>Finds the factory's machines and logistics in a world (BR-W3, BR-W4).</summary>
     public FactoryMembers TraceMembers(WorldGraph world)
     {

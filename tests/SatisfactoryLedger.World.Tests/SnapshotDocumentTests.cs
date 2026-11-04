@@ -106,6 +106,14 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void Positions_are_kept_so_a_player_can_find_a_buildable_in_the_game()
+    {
+        PositionDocument position = Stored().Buildables.Single(b => b.Id == Id("Build_MinerMk1_C_2147339296").Id).Position!;
+
+        Assert.Equal(256611.66, position.X, tolerance: 0.01);
+    }
+
+    [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
         Assert.Equal(1, Stored().Version);

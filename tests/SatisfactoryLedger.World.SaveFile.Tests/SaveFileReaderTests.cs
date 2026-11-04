@@ -69,6 +69,16 @@ public class SaveFileReaderTests
     }
 
     [Fact]
+    public void A_buildable_stands_where_the_save_puts_it_in_game_units()
+    {
+        SavedPosition position = Get<SavedProvider>(Miner).Position!;
+
+        Assert.Equal(256611.66, position.X, tolerance: 0.01);
+        Assert.Equal(-197978.56, position.Y, tolerance: 0.01);
+        Assert.Equal(3700.01, position.Z, tolerance: 0.01);
+    }
+
+    [Fact]
     public void The_water_extractor_is_a_provider()
     {
         Assert.Equal("Build_WaterPump_C", Get<SavedProvider>(WaterExtractor).ClassName);

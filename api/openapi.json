@@ -347,10 +347,267 @@
           }
         }
       }
+    },
+    "/api/v1/world/snapshots/{id}/output-belts": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Candidate output belts in a snapshot: where items leave a group of machines (BR-W12)",
+        "operationId": "GetOutputBelts",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OutputBeltSuggestion"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/world/factories": {
+      "post": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Define a factory in a world by its output belt and input items (BR-W2)",
+        "description": "A factory belongs to a world (a session name) and is traced in every snapshot of it. The output belt must be a belt in the world's latest snapshot.",
+        "operationId": "DefineFactory",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DefineFactoryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "The factories defined in a world: ?world=<session name>",
+        "operationId": "GetFactories",
+        "parameters": [
+          {
+            "name": "world",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FactoryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/factories/{id}": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "One factory definition",
+        "operationId": "GetFactory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/world/snapshots/{id}/factories": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Every factory of the snapshot's world, traced in this snapshot (BR-W3, BR-W11)",
+        "operationId": "TraceFactories",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FactoryTrace"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "BuildableReference": {
+        "required": [
+          "id",
+          "className"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          }
+        }
+      },
+      "DefineFactoryRequest": {
+        "required": [
+          "world",
+          "name",
+          "outputBelt",
+          "inputItems"
+        ],
+        "type": "object",
+        "properties": {
+          "world": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "outputBelt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "inputItems": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "ExtractorResponse": {
         "required": [
           "id",
@@ -385,6 +642,69 @@
           },
           "inGame": {
             "type": "boolean"
+          }
+        }
+      },
+      "FactoryResponse": {
+        "required": [
+          "id",
+          "world",
+          "name",
+          "outputBelt",
+          "inputItems"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "world": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "outputBelt": {
+            "type": "string"
+          },
+          "inputItems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FactoryTrace": {
+        "required": [
+          "factoryId",
+          "name",
+          "traceable",
+          "machines",
+          "logistics"
+        ],
+        "type": "object",
+        "properties": {
+          "factoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "traceable": {
+            "type": "boolean"
+          },
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MachineSummary"
+            }
+          },
+          "logistics": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -557,6 +877,98 @@
           },
           "inGame": {
             "type": "boolean"
+          }
+        }
+      },
+      "MachineSummary": {
+        "required": [
+          "id",
+          "className",
+          "recipe"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "recipe": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OutputBeltSuggestion": {
+        "required": [
+          "belt",
+          "className",
+          "items",
+          "into",
+          "position",
+          "machines"
+        ],
+        "type": "object",
+        "properties": {
+          "belt": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "into": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuildableReference"
+            }
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PositionDocument"
+              }
+            ]
+          },
+          "machines": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "PositionDocument": {
+        "required": [
+          "x",
+          "y",
+          "z"
+        ],
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "format": "double"
+          },
+          "y": {
+            "type": "number",
+            "format": "double"
+          },
+          "z": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

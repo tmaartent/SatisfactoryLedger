@@ -244,6 +244,31 @@ public class FactoryMembersTests
     }
 
     [Fact]
+    public void A_factory_can_be_traced_in_a_world_that_has_its_output_belt()
+    {
+        var factory = new FactoryDefinition("Plates", BuildableId.Of("output"), [Items.IronOre]);
+
+        Assert.True(factory.IsTraceableIn(IronPlateLine().Build()));
+    }
+
+    [Fact]
+    public void A_factory_cannot_be_traced_in_a_world_without_its_output_belt()
+    {
+        // BR-W11: an earlier or later snapshot of the world, in which the belt isn't (or no longer) built.
+        var factory = new FactoryDefinition("Plates", BuildableId.Of("rebuilt belt"), [Items.IronOre]);
+
+        Assert.False(factory.IsTraceableIn(IronPlateLine().Build()));
+    }
+
+    [Fact]
+    public void A_factory_cannot_be_traced_from_something_that_is_not_a_belt()
+    {
+        var factory = new FactoryDefinition("Plates", BuildableId.Of("constructor"), [Items.IronOre]);
+
+        Assert.False(factory.IsTraceableIn(IronPlateLine().Build()));
+    }
+
+    [Fact]
     public void A_factory_has_a_name()
     {
         Assert.Throws<ArgumentException>(() => new FactoryDefinition(" ", BuildableId.Of("output"), [Items.IronOre]));

@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
+using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -25,6 +26,7 @@ public static class WorldModule
 
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ImportSaveHandler>();
+        builder.Services.AddScoped<DefineFactoryHandler>();
 
         return builder;
     }
@@ -33,7 +35,8 @@ public static class WorldModule
     {
         endpoints.MapGroup("/api/v1/world")
             .WithTags("World")
-            .MapSnapshotEndpoints();
+            .MapSnapshotEndpoints()
+            .MapFactoryEndpoints();
 
         return endpoints;
     }

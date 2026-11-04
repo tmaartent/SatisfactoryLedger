@@ -33,6 +33,8 @@ internal sealed class TestWorld
 
     public TestWorld Merger(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Merger));
 
+    public TestWorld Container(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.StorageContainer));
+
     /// <summary>Connects each buildable to the next: <c>Connect("miner", "belt", "smelter")</c>.</summary>
     public TestWorld Connect(params string[] chain)
     {

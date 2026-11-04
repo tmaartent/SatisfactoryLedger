@@ -17,7 +17,13 @@ public sealed record SavedWorld(
 public sealed record SaveInfo(string SessionName, int GameBuild, DateTime SavedAtUtc);
 
 /// <summary>A buildable in the item network. <see cref="ClassName"/> is the game's class, e.g. <c>Build_ConveyorBeltMk6_C</c>.</summary>
-public abstract record SavedBuildable(BuildableId Id, string ClassName);
+public abstract record SavedBuildable(BuildableId Id, string ClassName)
+{
+    /// <summary>Where it stands, in the game's units (centimetres). Lets a player find it in the game.</summary>
+    public SavedPosition? Position { get; init; }
+}
+
+public sealed record SavedPosition(double X, double Y, double Z);
 
 /// <param name="Recipe">The recipe's class name (<c>Recipe_IronPlate_C</c>), or null when none is set.</param>
 /// <param name="ProductionBoost">The output multiplier from somersloops: 1 without, 2 when all slots are filled.</param>

@@ -80,7 +80,7 @@ public static class SaveFileReader
 
             if (buildable is not null)
             {
-                buildables.Add(buildable);
+                buildables.Add(buildable with { Position = new SavedPosition(actor.Position.X, actor.Position.Y, actor.Position.Z) });
                 connectors.AddRange(ports.Select(port =>
                     new Connector(id, port.Path, GameClasses.DirectionOf(port.Port, className), port.LinkedTo)));
             }

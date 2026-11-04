@@ -18,8 +18,28 @@ public sealed record Snapshot(
 
 public sealed record SnapshotSummary(Guid Id, string SessionName, int GameBuild, DateTimeOffset SavedAt, DateTimeOffset ImportedAt, SnapshotCounts Counts);
 
+public sealed record Reference(string Id, string ClassName);
+
+public sealed record Position(double X, double Y, double Z);
+
+public sealed record OutputBelt(string Belt, string ClassName, string[] Items, Reference[] Into, Position? Position, Dictionary<string, int> Machines);
+
+public sealed record Factory(Guid Id, string World, string Name, string OutputBelt, string[] InputItems);
+
+public sealed record Machine(string Id, string ClassName, string? Recipe);
+
+public sealed record FactoryTrace(Guid FactoryId, string Name, bool Traceable, Machine[] Machines, int Logistics);
+
 internal static class WorldClient
 {
+    public static string Id(string name) => $"Persistent_Level:PersistentLevel.{name}";
+
+    public static readonly string BeltIntoContainer = Id("Build_ConveyorBeltMk1_C_2147276358");
+
+    public static Task<HttpResponseMessage> DefineFactoryAsync(
+        this HttpClient client, string world, string name, string outputBelt, params string[] inputItems) =>
+        client.PostAsJsonAsync("/api/v1/world/factories", new { world, name, outputBelt, inputItems }, TestContext.Current.CancellationToken);
+
     /// <summary>The test world, linked from the save-file adapter's tests (see docs/guide/log/07).</summary>
     public const string TestWorld = "Fixtures/Development.sav";
 

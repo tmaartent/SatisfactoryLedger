@@ -24,6 +24,43 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SatisfactoryLedger.World.Factories.StoredFactory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.PrimitiveCollection<List<string>>("InputItems")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("input_items");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("OutputBelt")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("output_belt");
+
+                    b.Property<string>("World")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("world");
+
+                    b.HasKey("Id")
+                        .HasName("pk_factories");
+
+                    b.HasIndex("World", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_factories_world_name");
+
+                    b.ToTable("factories", "world");
+                });
+
             modelBuilder.Entity("SatisfactoryLedger.World.Persistence.StoredSnapshot", b =>
                 {
                     b.Property<Guid>("Id")

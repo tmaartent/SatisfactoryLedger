@@ -44,4 +44,16 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
 
         Assert.Equal(["Recipe_IronPlate_C"], recipes.Select(recipe => recipe.Id));
     }
+
+    [Fact]
+    public async Task Items_are_found_by_class_name_and_unknown_ones_are_left_out()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogItem> items = await catalog.GetItemsAsync(
+            ["Desc_OreIron_C", "Desc_IronOreTypo_C"], TestContext.Current.CancellationToken);
+
+        Assert.Equal([new Contracts.CatalogItem("Desc_OreIron_C", "Iron Ore")], items);
+    }
 }

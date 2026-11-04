@@ -26,4 +26,14 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
                 [.. recipe.Outputs.Select(output => new CatalogIngredient(output.ItemId.Id, output.Amount))]))
         ];
     }
+
+    public async Task<IReadOnlyList<CatalogItem>> GetItemsAsync(IReadOnlyCollection<string> itemIds, CancellationToken cancellationToken)
+    {
+        List<ItemId> ids = [.. itemIds.Select(ItemId.Of)];
+        return await db.Items.AsNoTracking()
+            .Where(item => ids.Contains(item.Id))
+            .OrderBy(item => item.Name)
+            .Select(item => new CatalogItem(item.Id.Id, item.Name))
+            .ToListAsync(cancellationToken);
+    }
 }
