@@ -57,7 +57,15 @@ internal class SatisfactoryImporter
             throw new FileNotFoundException("File not found", filePath);
         }
 
-        string jsonString = await File.ReadAllTextAsync(filePath);
+        await using FileStream file = File.OpenRead(filePath);
+        return await Import(file);
+    }
+
+    // The game writes the file as UTF-16. StreamReader picks the encoding from the byte order mark.
+    internal static async Task<List<GameDataGroupDto>> Import(Stream docsFile, CancellationToken cancellationToken = default)
+    {
+        using var reader = new StreamReader(docsFile, detectEncodingFromByteOrderMarks: true);
+        string jsonString = await reader.ReadToEndAsync(cancellationToken);
 
         List<GameDataGroupDto> dataList = DeserializeSupportedGroups(jsonString);
 

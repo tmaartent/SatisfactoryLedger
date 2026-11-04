@@ -6,7 +6,26 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The module maps its own endpoints, so it needs ASP.NET Core (like spring-web on the classpath). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Registers the DbContext with Aspire's connection string, health check, retries and tracing. -->
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <!-- snake_case table and column names, the PostgreSQL convention. -->
+    <PackageReference Include="EFCore.NamingConventions" />
+    <!-- Only needed by the `dotnet ef` tool to create migrations; not shipped with the app. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The module's own tests may use its internal types; other modules still can't. -->
     <InternalsVisibleTo Include="SatisfactoryLedger.Catalog.Tests" />
+    <InternalsVisibleTo Include="SatisfactoryLedger.Api.IntegrationTests" />
   </ItemGroup>
 </Project>

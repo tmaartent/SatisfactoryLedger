@@ -75,6 +75,8 @@ public class ModuleBoundaryTests
         
         Types().That().ResideInAssembly(implementations)
             .And().AreNot(implementationMarker)
+            // `dotnet ef migrations add` always generates public classes; nothing outside the module uses them.
+            .And().DoNotResideInNamespaceMatching(@"\.Persistence\.Migrations$")
             .As(implementations.GetName().Name)
             .Should().NotBePublic()
             .Because("implementation classes should be internal except for the Module Entrypoint class")
