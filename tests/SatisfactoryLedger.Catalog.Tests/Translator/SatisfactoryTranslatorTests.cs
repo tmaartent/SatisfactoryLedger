@@ -11,7 +11,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Items_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\Valid.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
         var itemGroupDtos = resources.OfType<ItemGroupDto>().ToList();
         var resourceItemGroupDto = itemGroupDtos.Single(dto => dto is ResourceItemGroupDto);
         var totalCount = itemGroupDtos.Select(dto => dto.Items.Count).Sum();
@@ -51,7 +51,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Buildings_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\Valid.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
         var buildingGroupDtos = resources.OfType<BuildingGroupDto>().ToList();
         var totalCount = buildingGroupDtos.Select(dto => dto.Buildings.Count).Sum();
         var buildingDtos = buildingGroupDtos.SelectMany(dto => dto.Buildings).ToDictionary(dto => dto.ClassName, dto => dto);
@@ -77,7 +77,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task TransportTiers_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\Valid.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
         var belTierGroupDtos = resources.OfType<BeltGroupDto>().ToList();
         var totalCount = belTierGroupDtos.Select(dto => dto.Tiers.Count).Sum();
         var pipeTierGroupDtos = resources.OfType<PipeGroupDto>().ToList();
@@ -127,7 +127,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Recipes_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\Valid.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
         var recipeGroupDtos = resources.OfType<RecipeGroupDto>().ToList();
         var totalCount = recipeGroupDtos.Select(dto => dto.Recipes.Count).Sum();
         var recipeDtos = recipeGroupDtos.SelectMany(dto => dto.Recipes).ToDictionary(dto => dto.ClassName, dto => dto);
@@ -158,7 +158,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task The_game_file_translates_into_a_complete_catalog()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\en-US.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
 
         Assert.Equal(190, SatisfactoryTranslator.TranslateToItems(resources).Count);
         Assert.Equal(11, SatisfactoryTranslator.TranslateToBuildings(resources).Count);
@@ -169,7 +169,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Water_from_the_game_file_is_a_raw_fluid()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\en-US.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
 
         Item water = Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == "Desc_Water_C");
         Assert.Equal(ItemForm.Fluid, water.ItemForm);
@@ -179,7 +179,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Transport_tiers_from_the_game_file_have_their_in_game_capacities()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\en-US.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
         List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
 
         int[] beltCapacities = [.. transportTiers.Where(tier => tier.Form == TransportForm.Belt).Select(tier => tier.Capacity).Order()];
@@ -192,7 +192,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task The_iron_plate_recipe_from_the_game_file_turns_3_ingots_into_2_plates_in_6_seconds()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\en-US.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
 
         Recipe ironPlate = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_IronPlate_C");
         Assert.Equal("Build_ConstructorMk1_C", ironPlate.BuildingId.Id);
@@ -206,7 +206,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Fluid_amounts_from_the_game_file_are_in_cubic_metres()
     {
-        var resources = await SatisfactoryImporter.Import(@"Fixtures\en-US.json");
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
 
         Recipe plastic = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_Plastic_C");
         Assert.Equal([RecipeIngredient.Of(ItemId.Of("Desc_LiquidOil_C"), 3)], plastic.Inputs);

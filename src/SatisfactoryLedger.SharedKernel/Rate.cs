@@ -15,10 +15,13 @@ public record Rate: IComparable<Rate> {
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cycleSeconds);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
-        var amountFraction = Fraction.FromDecimal(amount * 60);
+        var amountPerMinute = Fraction.FromDecimal(amount * 60);
         var cycleSecondsFraction = Fraction.FromDecimal(cycleSeconds);
-        
-        return new Rate(amountFraction.Numerator, cycleSecondsFraction.Numerator);
+
+        // (a/b) / (c/d) = (a·d) / (b·c)
+        return new Rate(
+            amountPerMinute.Numerator * cycleSecondsFraction.Denominator,
+            amountPerMinute.Denominator * cycleSecondsFraction.Numerator);
     }
 
     public static Rate Of(BigInteger numerator, BigInteger denominator)

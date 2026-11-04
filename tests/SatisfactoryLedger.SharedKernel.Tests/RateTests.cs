@@ -29,7 +29,27 @@ public class RateTests
     {
         Assert.Equal(Rate.Of(45, 8), Rate.FromRecipe(3, 32));
     }
-    
+
+    // Recipe_Alternate_RocketFuel_Nitro_C runs in 2.4 seconds.
+    [Fact]
+    public void One_item_per_2_point_4_seconds_is_25_per_minute()
+    {
+        Assert.Equal(Rate.PerMinute(25), Rate.FromRecipe(1, 2.4m));
+    }
+
+    // Recipe_Battery_C takes 2.5 m³ of sulfuric acid per 3 seconds.
+    [Fact]
+    public void Two_and_a_half_per_3_seconds_is_50_per_minute()
+    {
+        Assert.Equal(Rate.PerMinute(50), Rate.FromRecipe(2.5m, 3));
+    }
+
+    [Fact]
+    public void One_and_a_half_per_7_seconds_is_90_sevenths_per_minute()
+    {
+        Assert.Equal(Rate.Of(90, 7), Rate.FromRecipe(1.5m, 7));
+    }
+
     [Fact]
     public void Per_minute_can_be_decimal()
     {
