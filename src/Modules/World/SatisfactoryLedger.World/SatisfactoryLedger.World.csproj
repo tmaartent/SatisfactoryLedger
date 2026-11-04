@@ -3,6 +3,31 @@
   <ItemGroup>
     <ProjectReference Include="..\SatisfactoryLedger.World.Domain\SatisfactoryLedger.World.Domain.csproj" />
     <ProjectReference Include="..\SatisfactoryLedger.World.Contracts\SatisfactoryLedger.World.Contracts.csproj" />
+    <!-- The module's own anti-corruption layer around the save-file library (ADR-0013). -->
+    <ProjectReference Include="..\SatisfactoryLedger.World.SaveFile\SatisfactoryLedger.World.SaveFile.csproj" />
+    <!-- Recipes come from the Catalog, through its contracts only (ADR-0003). -->
+    <ProjectReference Include="..\..\Catalog\SatisfactoryLedger.Catalog.Contracts\SatisfactoryLedger.Catalog.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The module maps its own endpoints, so it needs ASP.NET Core (like spring-web on the classpath). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Same persistence setup as the Catalog: its own schema in the shared database (ADR-0007). -->
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SatisfactoryLedger.World.Tests" />
+    <InternalsVisibleTo Include="SatisfactoryLedger.Api.IntegrationTests" />
   </ItemGroup>
 
 </Project>

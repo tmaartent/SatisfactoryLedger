@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using SatisfactoryLedger.Catalog.Persistence;
+using SatisfactoryLedger.World.Persistence;
 
 using Testcontainers.PostgreSql;
 
@@ -30,13 +31,18 @@ public sealed class LedgerApiFactory : WebApplicationFactory<Program>, IAsyncLif
     }
 
     /// <summary>
-    /// Empties the catalog so each test starts from nothing. The tables come from EF's model, not a hand-written
-    /// list, so a new entity can't be forgotten here (the extractors table once was).
+    /// Empties every module's tables so each test starts from nothing. The tables come from each DbContext's model,
+    /// not a hand-written list, so a new entity can't be forgotten here (the extractors table once was).
     /// </summary>
-    public async Task ResetCatalogAsync()
+    public async Task ResetAsync()
     {
         await using AsyncServiceScope scope = Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        await TruncateAsync(scope.ServiceProvider.GetRequiredService<CatalogDbContext>());
+        await TruncateAsync(scope.ServiceProvider.GetRequiredService<WorldDbContext>());
+    }
+
+    private static async Task TruncateAsync(DbContext db)
+    {
         string tables = string.Join(", ", db.Model.GetEntityTypes()
             .Select(entity => $"\"{entity.GetSchema()}\".\"{entity.GetTableName()}\"")
             .Distinct());

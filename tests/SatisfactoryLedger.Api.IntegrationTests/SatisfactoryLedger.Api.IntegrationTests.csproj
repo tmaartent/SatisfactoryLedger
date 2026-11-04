@@ -9,6 +9,8 @@
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The same Docs files the Catalog tests use, copied next to this test DLL under Fixtures/. -->
     <Content Include="..\SatisfactoryLedger.Catalog.Tests\Fixtures\*.json" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The test world the save-file adapter's tests use. -->
+    <Content Include="..\SatisfactoryLedger.World.SaveFile.Tests\Fixtures\*.sav" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

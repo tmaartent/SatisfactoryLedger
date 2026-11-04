@@ -19,6 +19,7 @@ We will read the save with **SatisfactorySaveNet at commit `dd994a6`**, built fr
 - **Tests:** the adapter is tested against a small 1.2 save committed as a fixture, like the Docs-file fixtures. If a save can't be read, the import fails with a clear error, never with a partial world.
 - **Upstream:** when a stable release reads 1.2 saves, we switch to the NuGet package and drop the submodule.
 - *Amended 2026-11-04:* the pin moved to **`b329a9b`** on the fork: our own one-line fix on top of `dd994a6`. Saves of game build 517554 lack the persistent level custom version, the library adds it to a fixed-size array, and that threw. Fixes like this go on the fork's `fix/v1.2` branch, so the pin always points at a commit that exists there.
+- *Amended 2026-11-05:* the pin moved to **`b85249a`**: a second fix on the fork. In a Debug build the library took two stack traces for every string it read, so a big save took more than 5 minutes instead of 13 seconds. That tracing is now opt-in (`TRACE_STRINGS`).
 
 ## Alternatives considered
 - **4.0.0-alpha.3 from NuGet:** the simplest option, but it can't read the owner's saves.

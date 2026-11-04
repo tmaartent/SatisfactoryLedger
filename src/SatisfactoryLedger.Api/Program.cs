@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using SatisfactoryLedger.Catalog;
+using SatisfactoryLedger.World;
 
 using Scalar.AspNetCore;
 
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddCatalogModule();
+builder.AddWorldModule();
 
 // Errors are RFC 9457 ProblemDetails everywhere (chapter 05, "Status codes and errors").
 builder.Services.AddProblemDetails();
@@ -42,10 +44,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapScalarApiReference();
     await app.Services.MigrateCatalogDatabaseAsync();
+    await app.Services.MigrateWorldDatabaseAsync();
 }
 
 app.UseHttpsRedirection();
 
 app.MapCatalogEndpoints();
+app.MapWorldEndpoints();
 
 await app.RunAsync();

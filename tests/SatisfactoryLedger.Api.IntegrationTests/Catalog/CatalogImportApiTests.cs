@@ -11,7 +11,7 @@ public sealed class CatalogImportApiTests(LedgerApiFactory api) : IAsyncLifetime
 {
     private readonly HttpClient _client = api.CreateClient();
 
-    public async ValueTask InitializeAsync() => await api.ResetCatalogAsync();
+    public async ValueTask InitializeAsync() => await api.ResetAsync();
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 

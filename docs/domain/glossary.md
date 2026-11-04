@@ -28,6 +28,7 @@ These terms are used **identically** in conversation, docs, code (class and meth
 
 | Term | Definition | Code |
 |---|---|---|
+| **World Snapshot** | One imported save: when it was saved and imported, its world graph, and what the import couldn't place (unknown recipes, unsupported buildables). Every snapshot is kept (BR-W10). | (planned) |
 | **World Graph** | The world as read from one save file: its buildables and how they're connected. Never changed after import. Later stored per import as a snapshot. | `WorldGraph` |
 | **Buildable** | Anything built in the world that items move through: a machine, provider, consumer or piece of logistics. Identified by its id in the save, which stays the same from save to save. The game's own term. | `Buildable`, `BuildableId` |
 | **Connection** | Items moving from one buildable's output to another buildable's input. | `Connection` |

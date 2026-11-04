@@ -233,6 +233,120 @@
           }
         }
       }
+    },
+    "/api/v1/world/snapshots": {
+      "post": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Import a save file (.sav) as a new world snapshot",
+        "description": "Every import is kept. Recipes the Catalog doesn't know are listed in unknownRecipes; buildables that aren't modelled yet, such as stations, in unsupported.",
+        "operationId": "ImportSave",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "All imported snapshots, newest first",
+        "operationId": "GetSnapshots",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SnapshotSummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/snapshots/{id}": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "One snapshot: when it was saved and imported, what it contains, and what the import couldn't place",
+        "operationId": "GetSnapshot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -544,6 +658,122 @@
           }
         }
       },
+      "SnapshotCounts": {
+        "required": [
+          "machines",
+          "providers",
+          "consumers",
+          "logistics",
+          "connections"
+        ],
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "providers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "consumers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "logistics": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "connections": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SnapshotResponse": {
+        "required": [
+          "id",
+          "sessionName",
+          "gameBuild",
+          "savedAt",
+          "importedAt",
+          "counts",
+          "unknownRecipes",
+          "unsupported"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionName": {
+            "type": "string"
+          },
+          "gameBuild": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "savedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "importedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SnapshotCounts"
+          },
+          "unknownRecipes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unsupported": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnsupportedResponse"
+            }
+          }
+        }
+      },
+      "SnapshotSummaryResponse": {
+        "required": [
+          "id",
+          "sessionName",
+          "gameBuild",
+          "savedAt",
+          "importedAt",
+          "counts"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionName": {
+            "type": "string"
+          },
+          "gameBuild": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "savedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "importedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/SnapshotCounts"
+          }
+        }
+      },
       "TransportForm": {
         "enum": [
           "pipe",
@@ -577,12 +807,31 @@
             "type": "boolean"
           }
         }
+      },
+      "UnsupportedResponse": {
+        "required": [
+          "className",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       }
     }
   },
   "tags": [
     {
       "name": "Catalog"
+    },
+    {
+      "name": "World"
     }
   ]
 }

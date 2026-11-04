@@ -6,7 +6,7 @@ public sealed class CatalogBrowseApiTests(LedgerApiFactory api) : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        await api.ResetCatalogAsync();
+        await api.ResetAsync();
         await _client.ImportAsync(CatalogClient.GameFile);
     }
 

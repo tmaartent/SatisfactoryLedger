@@ -8,8 +8,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 using SatisfactoryLedger.Catalog.Browsing;
+using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.Catalog.Imports;
 using SatisfactoryLedger.Catalog.Persistence;
+using SatisfactoryLedger.Catalog.Queries;
 
 namespace SatisfactoryLedger.Catalog;
 
@@ -26,6 +28,9 @@ public static class CatalogModule
 
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ImportCatalogHandler>();
+
+        // What other modules may ask, through Catalog.Contracts.
+        builder.Services.AddScoped<ICatalogQueries, CatalogQueries>();
 
         return builder;
     }
