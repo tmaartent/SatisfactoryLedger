@@ -16,7 +16,11 @@ internal static class SolutionAssemblies
     public static readonly Assembly[] Domain = [CatalogDomain, WorldDomain];
     public static readonly Assembly[] Contracts = [CatalogContracts, WorldContracts];
     private static readonly Assembly[] Implementation = [CatalogImplementation, WorldImplementation];
-    
-    public static readonly Assembly[] All = [..Domain, ..Contracts, ..Implementation];
+
+    /// <summary>Anti-corruption layers around a third-party library, part of their module (ADR-0013).</summary>
+    public static readonly Assembly WorldSaveFile = typeof(World.SaveFile.SaveFileReader).Assembly;
+    private static readonly Assembly[] Adapters = [WorldSaveFile];
+
+    public static readonly Assembly[] All = [..Domain, ..Contracts, ..Implementation, ..Adapters];
     
 }

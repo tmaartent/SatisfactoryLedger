@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\SatisfactoryLedger.World.Domain\SatisfactoryLedger.World.Domain.csproj" />
+    <!-- The save-file reader, built from the pinned submodule (ADR-0013). Only this project may reference it. -->
+    <ProjectReference Include="..\..\..\..\external\SatisfactorySaveNet\SatisfactorySaveNet\SatisfactorySaveNet.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SatisfactoryLedger.World.SaveFile.Tests" />
+  </ItemGroup>
+
+</Project>

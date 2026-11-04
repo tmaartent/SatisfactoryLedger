@@ -15,5 +15,10 @@ public enum LogisticsKind
     Lift,
     Splitter,
     Merger,
+    /// <summary>A storage container, or a fluid buffer.</summary>
     StorageContainer,
+    /// <summary>A pipeline segment, pump or valve.</summary>
+    Pipe,
+    /// <summary>A pipeline junction: splits and merges fluid.</summary>
+    PipeJunction,
 }

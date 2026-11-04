@@ -24,6 +24,9 @@ public class ModuleBoundaryTests
     private static readonly IObjectProvider<IType> EntityFrameworkCore =
         Types(true).That().ResideInNamespaceMatching(@"^Microsoft\.EntityFrameworkCore(\.|$)").As("Entity Framework Core layer");
     
+    private static readonly IObjectProvider<IType> SaveFileLibrary =
+        Types(true).That().ResideInNamespaceMatching(@"^SatisfactorySaveNet(\.|$)").As("SatisfactorySaveNet library");
+
     private static readonly IObjectProvider<IType> AspNetCore =
         Types(true).That().ResideInNamespaceMatching(@"^Microsoft\.AspNetCore(\.|$)").As("ASP.NET Core layer");
 
@@ -83,25 +86,46 @@ public class ModuleBoundaryTests
     }
     
     [Theory]
-    [InlineData(typeof(Catalog.CatalogModule), typeof(Catalog.Domain.CatalogDomainAssembly))]
-    [InlineData(typeof(World.WorldModule), typeof(World.Domain.WorldDomainAssembly))]
-    public void Implementation_modules_only_depend_on_other_modules_contracts(Type implementationMarker, Type domainMarker) 
+    [InlineData(typeof(Catalog.CatalogModule))]
+    [InlineData(typeof(World.WorldModule))]
+    public void Implementation_modules_only_depend_on_other_modules_contracts(Type implementationMarker) 
     {
         var ownImplementations = implementationMarker.Assembly;
-        var ownDomain = domainMarker.Assembly;
+        // The module's own projects: SatisfactoryLedger.World plus SatisfactoryLedger.World.Domain, .Contracts, .SaveFile.
+        string ownName = ownImplementations.GetName().Name!;
+        var ownModule = SolutionAssemblies.All
+            .Where(assembly => assembly == ownImplementations || assembly.GetName().Name!.StartsWith(ownName + ".", StringComparison.Ordinal))
+            .ToArray();
         
         var forbidden = Types().That().ResideInAssembly(SolutionAssemblies.All[0], SolutionAssemblies.All[1..])
             .And()
             .DoNotResideInAssembly(SolutionAssemblies.Contracts[0], SolutionAssemblies.Contracts[1..])
             .And()
-            .DoNotResideInAssembly(ownImplementations)
-            .And()
-            .DoNotResideInAssembly(ownDomain);
+            .DoNotResideInAssembly(ownModule[0], ownModule[1..]);
         
         Types().That().ResideInAssembly(ownImplementations)
             .As(ownImplementations.GetName().Name)
             .Should().NotDependOnAny(forbidden)
             .Because("modules talk to each other only through Contracts")
+            .Check(Architecture);
+    }
+
+    [Fact]
+    public void Only_the_save_file_adapter_uses_the_save_file_library()
+    {
+        Types().That().ResideInAssembly(SolutionAssemblies.All[0], SolutionAssemblies.All[1..])
+            .And().DoNotResideInAssembly(SolutionAssemblies.WorldSaveFile)
+            .Should().NotDependOnAny(SaveFileLibrary)
+            .Because("the save format stays behind the anti-corruption layer (ADR-0013)")
+            .Check(Architecture);
+    }
+
+    // Without this, the rule above would also pass if the namespace pattern matched nothing at all.
+    [Fact]
+    public void The_save_file_reader_is_where_the_library_is_used()
+    {
+        Types().That().ResideInAssembly(SolutionAssemblies.WorldSaveFile).And().HaveName("SaveFileReader")
+            .Should().DependOnAny(SaveFileLibrary)
             .Check(Architecture);
     }
 }

@@ -20,6 +20,7 @@
   <Folder Name="/src/Modules/World/">
     <Project Path="src/Modules/World/SatisfactoryLedger.World.Contracts/SatisfactoryLedger.World.Contracts.csproj" />
     <Project Path="src/Modules/World/SatisfactoryLedger.World.Domain/SatisfactoryLedger.World.Domain.csproj" />
+    <Project Path="src/Modules/World/SatisfactoryLedger.World.SaveFile/SatisfactoryLedger.World.SaveFile.csproj" />
     <Project Path="src/Modules/World/SatisfactoryLedger.World/SatisfactoryLedger.World.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -29,5 +30,6 @@
     <Project Path="tests/SatisfactoryLedger.Catalog.Tests/SatisfactoryLedger.Catalog.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.SharedKernel.Tests/SatisfactoryLedger.SharedKernel.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.Domain.Tests/SatisfactoryLedger.World.Domain.Tests.csproj" />
+    <Project Path="tests/SatisfactoryLedger.World.SaveFile.Tests/SatisfactoryLedger.World.SaveFile.Tests.csproj" />
   </Folder>
 </Solution>
