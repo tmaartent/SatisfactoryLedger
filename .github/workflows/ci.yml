@@ -28,7 +28,10 @@ jobs:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
+      # The save-file library is a git submodule, pinned to one commit of our fork (ADR-0013).
       - uses: actions/checkout@v7
+        with:
+          submodules: true
 
       - name: Set up .NET (version from global.json)
         uses: actions/setup-dotnet@v6

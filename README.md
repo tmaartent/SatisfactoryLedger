@@ -2,18 +2,29 @@
 
 [![CI](https://github.com/tmaartent/SatisfactoryLedger/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tmaartent/SatisfactoryLedger/actions/workflows/ci.yml)
 
-An offline ledger of a Satisfactory world. It keeps blueprints, stacked factories and the supply lines between them balanced, and replaces a hand-maintained spreadsheet.
+An offline ledger of a Satisfactory world. It reads the world from the game's save file and finds the flaws in it: supply lines stretched thin, machines that don't get what they need, outputs on belts that can't carry them. It replaces a hand-maintained spreadsheet that only knew what was typed into it.
 
 It is also a deliberate learning and portfolio project. It shows Domain-Driven Design, Test-Driven Development, API design and a modern .NET + Angular stack, built as a modular monolith that can be split into services later.
 
-> **Status:** scaffold with architecture tests and CI. No domain code yet. Follow the [learning guide](docs/guide/README.md).
+> **Status:** game catalog import and API done. The World module models the world as a graph and finds a factory's machines; reading the save file is next. Follow the [learning guide](docs/guide/README.md) and the [step logs](docs/guide/log/).
 
 ## What it does (target)
 
-- **Blueprints:** model a 6×6 blueprint as a chain of production steps. Inputs, outputs and byproducts are derived from game recipe data, so you never type a ratio again.
-- **Factories:** place a blueprint stacked N high. The tool knows the maximum stack height from the belt and pipe limits.
-- **Supply lines:** model a belt with taps (consuming factories) and injections (new resources via a priority merger). See where the line runs dry, where capacity is stranded, and where overflow can feed future factories.
-- **Suggestions:** propose a tap order and merge points that use the fewest resource lines.
+- **Import the world:** read a save file into a graph of machines, belts, splitters, mergers and pipes ([ADR-0012](docs/adr/0012-diagnose-the-world-from-the-save-file.md)).
+- **Define factories:** mark a factory's output belt and name its input items. The tool finds every machine in between ([business rules](docs/domain/business-rules.md), BR-W).
+- **Diagnose:** simulate the flow through the real network and show what each machine gets ("this constructor gets 60%"), belts that are too slow, and items leaving a factory that shouldn't.
+- **Track over time:** each save is a snapshot, so you can see which flaws are new and which are fixed.
+- **Later:** plan changes and check them against the same analysis before you build them.
+
+## Getting the code
+
+The save-file reader is a git submodule ([ADR-0013](docs/adr/0013-read-the-save-with-satisfactorysavenet.md)), so clone with:
+
+```bash
+git clone --recurse-submodules https://github.com/tmaartent/SatisfactoryLedger.git
+# or, in an existing clone:
+git submodule update --init
+```
 
 ## Tech stack
 

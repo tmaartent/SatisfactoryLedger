@@ -17,8 +17,9 @@
 ## Verify the scaffold
 
 ```bash
+git submodule update --init                          # the save-file library (ADR-0013)
 dotnet build SatisfactoryLedger.slnx                 # must be 0 warnings, 0 errors (warnings are errors)
-dotnet test SatisfactoryLedger.slnx                  # exits with code 8 = "no tests found". Your first test fixes that.
+dotnet test SatisfactoryLedger.slnx                  # integration tests need Docker running
 dotnet run --project src/SatisfactoryLedger.AppHost  # opens the Aspire dashboard. The "api" resource should be running.
 cd web && npm start                                  # http://localhost:4200
 cd web && npm test                                   # Vitest, 2 passing template tests
