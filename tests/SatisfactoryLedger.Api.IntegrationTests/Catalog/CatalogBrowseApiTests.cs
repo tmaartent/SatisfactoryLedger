@@ -90,11 +90,11 @@ public sealed class CatalogBrowseApiTests(LedgerApiFactory api) : IAsyncLifetime
 
         CatalogExtractor minerMk3 = Assert.Single(extractors, extractor => extractor.Id == "Build_MinerMk3_C");
         Assert.Equal("solid", minerMk3.Form);
-        Assert.Equal(new CatalogRate(240, "240"), minerMk3.ExtractionRate);
+        Assert.Equal(new CatalogRate(240, "240/1"), minerMk3.ExtractionRate);
 
         CatalogExtractor water = Assert.Single(extractors, extractor => extractor.Id == "Build_WaterPump_C");
         Assert.Equal("fluid", water.Form);
         Assert.Equal(2, water.AmountPerCycle);
-        Assert.Equal(new CatalogRate(120, "120"), water.ExtractionRate);
+        Assert.Equal(new CatalogRate(120, "120/1"), water.ExtractionRate);
     }
 }
