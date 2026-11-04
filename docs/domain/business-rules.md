@@ -4,6 +4,31 @@ Each rule has an ID. **Every rule should end up as one or more tests named after
 
 All rates are per minute. Solids are items/min, fluids are m³/min.
 
+> **Direction changed 2026-11-04 ([ADR-0012](../adr/0012-diagnose-the-world-from-the-save-file.md)).** The world is now imported from the save file and diagnosed. Planning comes later.
+> - **Still valid:** BR-B2, BR-B9, BR-B10 and BR-B11 (per-machine rates), and BR-F5 (max capacity).
+> - **On hold:** the other Blueprint Design and Factory rules.
+> - **To be rewritten as rules on the real graph:** the Supply line rules. BR-S3 is replaced by the real splitter and merger behaviour.
+> - **Not changed yet:** the Layout suggestion rules (BR-P).
+>
+> The rules below stay as they are until each one is rewritten or retired.
+
+---
+
+## World (from the save file)
+
+Decided 2026-11-04 ([ADR-0012](../adr/0012-diagnose-the-world-from-the-save-file.md)). These rules describe the world as imported from the save.
+
+| ID | Rule |
+|---|---|
+| **BR-W1** | A **provider** brings items into the network from outside: miners, oil extractors, water extractors and resource well extractors, and the stations of trains, trucks and drones. A provider is **never part of a factory**. One provider can supply **more than one** factory. |
+| **BR-W2** | The player defines a **factory** by its **input items** (e.g. iron ore, copper ore) and its **output belt** (or pipe): the point where the merged output of its machines leaves the factory. The item on that belt is the factory's **output item**. A factory can have more than one output. The game has no notion of a factory. |
+| **BR-W3** | The factory's machines are found by tracing **upstream** from its output belt: through the mergers to every machine that produces the output item, then through those machines' inputs to the machines that feed them, and so on. The trace stops at a **provider** (BR-W1) and at a machine of **another factory** that produces one of the declared input items (BR-W6). Every machine it passes is part of the factory. |
+| **BR-W4** | A factory's input **starts at a splitter**: the splitter where an input line is first split among the factory's machines. Everything upstream of it is supply, not factory. When a single machine takes a whole input line, the input starts at that machine. The tool finds that splitter, the player doesn't mark it: walking upstream along an input line, a splitter belongs to the factory as long as everything it feeds is in the factory. The first splitter that also feeds something outside is where the factory ends. |
+| **BR-W5** | A machine can be **shared** by more than one factory (e.g. one row of smelters feeding two factories). That's allowed, and the machine is shown as shared. |
+| **BR-W6** | A factory's output can feed **another factory** or a **train, truck or drone station**. To the receiving factory it's a provider. |
+| **BR-W7** | Only a factory's **output item** leaves the factory, and that includes items sent to a sink: a factory only sinks its output item. Any other item that leaves the factory, to a sink or anywhere else, is a finding: an **undeclared output**. |
+| **BR-W8** | **Consumers** take items out of the network: AWESOME Sinks, dimensional depot uploaders, power generators, and stations that load items. A consumer is never part of a factory. **Storage containers** on a belt are logistics: they pass items through. |
+
 ---
 
 ## Blueprint Design
@@ -139,6 +164,12 @@ Example: demands 300, 400, 900 with sources of 1200 each. Order 900, 300 on Line
 
 ## Open questions (decide, then update this doc)
 
+- ~~**Q12** Where does the trace start?~~ **Resolved 2026-11-04:** at the output belt, where the merged output leaves. The trace goes upstream (BR-W2, BR-W3). Inputs start at a splitter (BR-W4).
+- ~~**Q13** Shared machines?~~ **Resolved 2026-11-04:** allowed, and shown as shared (BR-W5).
+- ~~**Q14** Factory feeding factory?~~ **Resolved 2026-11-04:** yes, and a factory can also feed a train, truck or drone station (BR-W6).
+- ~~**Q15** Side branches?~~ **Resolved 2026-11-04:** a factory only sinks its output item. Anything else leaving is an undeclared output (BR-W7).
+- ~~**Q16** Other consumers?~~ **Resolved 2026-11-04:** sinks, depot uploaders and power generators are consumers, outside any factory. Containers are logistics (BR-W8).
+- ~~**Q17** Who finds the input splitter?~~ **Resolved 2026-11-04:** the tool finds it (BR-W4).
 - ~~**Q1** Do fluid supply lines support injections?~~ **Resolved 2026-10-26:** no, only taps. Unused supply leads to underclock advice (BR-S11…S13).
 - ~~**Q6** Underclock advice for belt lines too?~~ **Resolved 2026-10-26:** no underclock advice for belts. Leftover raw resources feed the next factory as primary input of a priority merger (BR-S15, BR-P4). Non-raw items feed the dimensional depot if needed (BR-S14), and the rest must go to an AWESOME Sink (BR-S16).
 - ~~**Q7** Underclock advice without machine details?~~ **Resolved 2026-10-26:** yes. Advice is "reduce the source to X% of its current rate" until the Resource Nodes context exists.

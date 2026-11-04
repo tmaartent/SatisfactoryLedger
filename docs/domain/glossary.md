@@ -21,7 +21,23 @@ These terms are used **identically** in conversation, docs, code (class and meth
 |---|---|---|
 | **Rate** | An amount of an item per minute, kept as an **exact fraction**. Fluids are in m³/min. | `Rate` |
 
+## World (from the save file)
+
+| Term | Definition | Code |
+|---|---|---|
+| **World Snapshot** | The world as read from one save file: buildings, their settings, and how they're connected. Never changed after import. | `WorldSnapshot` (planned) |
+| **Machine** | A building that runs a recipe: smelter, constructor, assembler, refinery, … Has a recipe, a clock speed and somersloops. | `Machine` (planned) |
+| **Provider** | A building that brings items into the network from outside: miner, oil, water or resource well extractor, train, truck or drone station. Never part of a factory. Can supply several factories (BR-W1). | (planned) |
+| **Factory** | A group of machines **the player defines** by its input items and its output belt. Its machines are found by tracing upstream from the output belt (BR-W2, BR-W3). A machine can be shared by several factories. Replaces the earlier "blueprint placed in the world" meaning. | (planned) |
+| **Output Belt** | The belt (or pipe) where a factory's merged output leaves it. Marked by the player. | (planned) |
+| **Factory Input** | An item the player declares as entering a factory. The input line starts at a splitter (BR-W4). | (planned) |
+| **Consumer** | A building that takes items out of the network: AWESOME Sink, dimensional depot uploader, power generator, a station that loads. Never part of a factory (BR-W8). | (planned) |
+| **Undeclared Output** | An item other than the output item that leaves a factory, to a sink or elsewhere. A finding (BR-W7). | (planned) |
+| **Logistics** | Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers. | (planned) |
+
 ## Blueprint Design
+
+> On hold since [ADR-0012](../adr/0012-diagnose-the-world-from-the-save-file.md). The per-machine terms (Clock Speed, Power Shard, Somersloop, Slot Count) still apply.
 
 | Term | Definition | Code |
 |---|---|---|
@@ -41,6 +57,8 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Surplus / Exact / Deficit** | Balance > 0, = 0 or < 0. The UI shows surplus and exact as green, deficit as red. | `BalanceStatus` |
 
 ## Factory Network
+
+> On hold since ADR-0012. **Factory** now has the meaning in *World* above. The supply line terms will be redefined on the real graph.
 
 | Term | Definition | Code |
 |---|---|---|
