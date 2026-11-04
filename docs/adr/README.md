@@ -20,5 +20,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0012](0012-diagnose-the-world-from-the-save-file.md) | Diagnose the world from the game's save file; planning comes later | Accepted |
 | [0013](0013-read-the-save-with-satisfactorysavenet.md) | Read the save file with SatisfactorySaveNet's v1.2 branch, behind an anti-corruption layer | Accepted |
 | [0014](0014-world-module-replaces-blueprint-and-network.md) | A World module replaces BlueprintDesign and FactoryNetwork | Accepted |
+| [0015](0015-resource-nodes-from-the-game-map.md) | Resource nodes come from the game's map, through a generated node table | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.
