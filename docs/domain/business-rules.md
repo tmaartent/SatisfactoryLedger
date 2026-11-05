@@ -35,6 +35,33 @@ Decided 2026-11-04 ([ADR-0012](../adr/0012-diagnose-the-world-from-the-save-file
 
 ---
 
+## Flow analysis (decided 2026-11-05)
+
+How the World's analysis computes what flows where. A **steady state**: everything has run long enough to settle, and nothing fills or empties except as these rules say. All rates per minute.
+
+| ID | Rule |
+|---|---|
+| **BR-A1** | A **machine** asks for each input at its recipe rate × clock speed, and makes each output at its recipe rate × clock speed × production boost (somersloops raise output only, BR-B11). It runs at a **utilisation** between 0 and 100%: the lowest of *supplied ÷ asked* over its inputs and *taken ÷ made* over its outputs. It takes and makes everything at that utilisation. |
+| **BR-A2** | A **provider** offers: an extractor on a node its extraction rate × the node's purity × its clock speed (BR-W9), a water extractor its rate × clock speed. If less is taken, it delivers less (back-pressure). |
+| **BR-A3** | A **belt, lift or pipe** carries at most its tier's capacity (Catalog). |
+| **BR-A4** | A **splitter** divides what comes in evenly over its outputs that take items. What one output can't take goes to the others. A **smart or programmable splitter** sends each item to the outputs its rules name: an item, *any*, *none*, or *overflow*. An overflow output only gets what the other outputs for that item can't take. |
+| **BR-A5** | A **merger** takes evenly from its inputs, up to what its output can carry. An input that offers less leaves its share to the others. A **priority merger** takes from its inputs in order of priority. |
+| **BR-A6** | A **pipe junction** splits like a splitter and merges like a merger. Head lift and pump direction are ignored for now. |
+| **BR-A7** | A **storage container** inside a line passes items through. A storage container **at the end of a line** takes everything, like a sink: a factory whose container fills should overflow into a sink. |
+| **BR-A8** | **Consumers** (sinks, depot uploaders, generators) take everything they're offered. |
+| **BR-A9** | A source whose rate isn't known, such as a station or a container nothing feeds (Q19), supplies whatever is asked of it, up to the capacity of its belt. Everything it feeds is marked **assumed supplied**, unless its stock lasts: a source whose current stock (the save stores what containers and stations hold) lasts at least **30 minutes** at the rate asked of it is **confirmed supplied**. Otherwise the finding says how long the stock lasts. Stock is a moment in time: a station that trains keep refilling can be fine with a low stock. |
+| **BR-A10** | Results are approximations: the simulation stops when no flow changes by more than 0.0001/min, and shows 4 decimals ([ADR-0004](../adr/0004-exact-rational-rates.md), amended). |
+
+**Findings** (the first three; more later):
+
+| ID | Finding |
+|---|---|
+| **BR-A11** | **Machine utilisation and why.** Every machine below 100% gets its utilisation and the limiting cause: *starved* of an input item, *output blocked* (an output can't leave), or *no recipe known* (BR-W10). |
+| **BR-A12** | **Bottleneck.** A belt, lift or pipe running at its capacity while more is offered upstream of it. The finding says how much more is offered. |
+| **BR-A13** | **Unused supply.** A provider delivering less than it offers: what it could deliver more. Spare capacity for a new factory, or room to underclock. |
+
+---
+
 ## Blueprint Design
 
 | ID | Rule |
@@ -175,7 +202,8 @@ Example: demands 300, 400, 900 with sources of 1200 each. Order 900, 300 on Line
 - ~~**Q16** Other consumers?~~ **Resolved 2026-11-04:** sinks, depot uploaders and power generators are consumers, outside any factory. Containers are logistics (BR-W8).
 - ~~**Q17** Who finds the input splitter?~~ **Resolved 2026-11-04:** the tool finds it (BR-W4).
 - ~~**Q18** What does a miner deliver?~~ **Resolved 2026-11-04:** the node's resource and purity come from the game's map, through a node table the Catalog imports ([ADR-0015](../adr/0015-resource-nodes-from-the-game-map.md)). Purity: BR-W9.
-- **Q19** *A storage container that nothing feeds.* In the test world, a container filled by hand supplies empty canisters to a packager. BR-W8 calls containers logistics (pass-through). Is a container without inputs a **provider** with an unknown rate, or something the player gives a rate?
+- ~~**Q19** A storage container that nothing feeds?~~ **Resolved 2026-11-05:** a source with an unknown rate. It supplies what's asked, and its stock decides between assumed and confirmed supplied (BR-A9).
+- ~~**Q20** When is a source with an unknown rate confirmed supplied?~~ **Resolved 2026-11-05:** when its current stock lasts at least 30 minutes at the rate asked of it (BR-A9).
 - ~~**Q1** Do fluid supply lines support injections?~~ **Resolved 2026-10-26:** no, only taps. Unused supply leads to underclock advice (BR-S11…S13).
 - ~~**Q6** Underclock advice for belt lines too?~~ **Resolved 2026-10-26:** no underclock advice for belts. Leftover raw resources feed the next factory as primary input of a priority merger (BR-S15, BR-P4). Non-raw items feed the dimensional depot if needed (BR-S14), and the rest must go to an AWESOME Sink (BR-S16).
 - ~~**Q7** Underclock advice without machine details?~~ **Resolved 2026-10-26:** yes. Advice is "reduce the source to X% of its current rate" until the Resource Nodes context exists.

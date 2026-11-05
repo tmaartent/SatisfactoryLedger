@@ -18,6 +18,8 @@ Implementation choices (M1):
 - **`double` with an epsilon:** every comparison needs a tolerance, and "exactly balanced" loses its meaning.
 - **`decimal`:** better, but still inexact for thirds and ninths.
 
+*Amended 2026-11-05:* the **flow analysis** (BR-A10) works differently. Its inputs (recipe rates, clock speeds, capacities) are exact, but a steady state with loops, such as items fed back, only comes closer step by step and may never land on an exact fraction. So the simulation computes in `double` and stops when no flow changes by more than 0.0001/min. Its results are approximations, shown to 4 decimals and named so in the API. Everything else stays exact.
+
 ## Consequences
 - Balance checks are exact. "Exactly balanced" is a meaningful state.
 - We must implement and thoroughly test arithmetic, comparison, equality and normalisation. That's a great first TDD exercise.
