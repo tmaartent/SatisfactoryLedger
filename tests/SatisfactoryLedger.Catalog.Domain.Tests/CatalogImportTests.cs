@@ -113,6 +113,27 @@ public class CatalogImportTests
         Assert.Equal(["Build_MinerMk1_C"], import.NoLongerInGame);
     }
 
+    [Fact]
+    public void An_import_of_the_docs_file_says_so()
+    {
+        Assert.Equal(CatalogImportSource.DocsFile, RecordImport("1.2").Source);
+    }
+
+    [Fact]
+    public void An_import_of_the_node_table_counts_and_lists_the_nodes_it_changed()
+    {
+        var position = new MapPosition(0, 0, 0);
+        ResourceNode Node(string name) => ResourceNode.Create(ResourceNodeId.Of(name), ResourceNodeKind.ResourceNode, ItemId.Of("Desc_OreIron_C"), Purity.Normal, position);
+
+        var import = CatalogImport.RecordResourceNodes(CatalogImportId.New(), "1.2", ImportedAt,
+            CatalogEntries.Reconcile([Node("BP_ResourceNode1"), Node("BP_ResourceNode2")], [Node("BP_ResourceNode2"), Node("BP_ResourceNode3")]));
+
+        Assert.Equal(CatalogImportSource.ResourceNodeTable, import.Source);
+        Assert.Equal(new ImportCounts(Added: 1, Updated: 1, NoLongerInGame: 1), import.ResourceNodes);
+        Assert.Equal(new ImportCounts(0, 0, 0), import.Items);
+        Assert.Equal(["BP_ResourceNode1"], import.NoLongerInGame);
+    }
+
     private static CatalogImport RecordImport(
         string gameVersion, CatalogEntryChanges<Item>? items = null, CatalogEntryChanges<Extractor>? extractors = null) =>
         CatalogImport.Record(

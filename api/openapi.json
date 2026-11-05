@@ -75,6 +75,63 @@
         }
       }
     },
+    "/api/v1/catalog/resource-node-imports": {
+      "post": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Import the node table the map tool writes (resource-nodes.json, ADR-0015)",
+        "description": "Adds new nodes, updates existing ones and marks nodes missing from the table as no longer in the game. The game version comes from the table.",
+        "operationId": "ImportResourceNodes",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/catalog/imports/{id}": {
       "get": {
         "tags": [
@@ -202,6 +259,39 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/TransportTierResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/resource-nodes": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Resource nodes and resource well satellites from the map, optionally only one resource: ?resource=Desc_OreIron_C",
+        "operationId": "GetResourceNodes",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceNodeResponse"
                   }
                 }
               }
@@ -570,6 +660,12 @@
           }
         }
       },
+      "CatalogImportSource": {
+        "enum": [
+          "docsFile",
+          "resourceNodeTable"
+        ]
+      },
       "DefineFactoryRequest": {
         "required": [
           "world",
@@ -782,6 +878,7 @@
       "ImportResponse": {
         "required": [
           "id",
+          "source",
           "gameVersion",
           "importedAt",
           "items",
@@ -789,6 +886,7 @@
           "transportTiers",
           "recipes",
           "extractors",
+          "resourceNodes",
           "noLongerInGame"
         ],
         "type": "object",
@@ -796,6 +894,9 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CatalogImportSource"
           },
           "gameVersion": {
             "type": "string"
@@ -817,6 +918,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "extractors": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "resourceNodes": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "noLongerInGame": {
@@ -972,6 +1076,28 @@
           }
         }
       },
+      "PositionResponse": {
+        "required": [
+          "x",
+          "y",
+          "z"
+        ],
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "format": "double"
+          },
+          "y": {
+            "type": "number",
+            "format": "double"
+          },
+          "z": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -1007,6 +1133,13 @@
             ]
           }
         }
+      },
+      "Purity": {
+        "enum": [
+          "impure",
+          "normal",
+          "pure"
+        ]
       },
       "RateResponse": {
         "required": [
@@ -1067,6 +1200,43 @@
             "items": {
               "$ref": "#/components/schemas/IngredientResponse"
             }
+          }
+        }
+      },
+      "ResourceNodeKind": {
+        "enum": [
+          "resourceNode",
+          "wellSatellite"
+        ]
+      },
+      "ResourceNodeResponse": {
+        "required": [
+          "name",
+          "kind",
+          "resource",
+          "purity",
+          "position",
+          "inGame"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ResourceNodeKind"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "purity": {
+            "$ref": "#/components/schemas/Purity"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionResponse"
+          },
+          "inGame": {
+            "type": "boolean"
           }
         }
       },

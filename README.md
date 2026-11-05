@@ -29,10 +29,11 @@ git submodule update --init
 ## After a game update
 
 1. Import the game's Docs file (`CommunityResources/Docs/en-US.json`) into the Catalog.
-2. Write the resource node table from the game install, then import it into the Catalog (import endpoint: next step):
+2. Write the resource node table from the game install, then import it into the Catalog:
 
    ```bash
    dotnet run --project tools/SatisfactoryLedger.MapExtractor -- --game "<game folder>" --game-version 1.2
+   # then POST resource-nodes.json as "file" to /api/v1/catalog/resource-node-imports
    ```
 
 ## Tech stack

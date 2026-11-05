@@ -28,6 +28,7 @@ public static class CatalogModule
 
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ImportCatalogHandler>();
+        builder.Services.AddScoped<ImportResourceNodesHandler>();
 
         // What other modules may ask, through Catalog.Contracts.
         builder.Services.AddScoped<ICatalogQueries, CatalogQueries>();

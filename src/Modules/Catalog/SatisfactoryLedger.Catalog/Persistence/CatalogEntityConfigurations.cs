@@ -92,6 +92,22 @@ internal sealed class ExtractorConfiguration : IEntityTypeConfiguration<Extracto
     }
 }
 
+internal sealed class ResourceNodeConfiguration : IEntityTypeConfiguration<ResourceNode>
+{
+    public void Configure(EntityTypeBuilder<ResourceNode> node)
+    {
+        node.HasKey(n => n.Id);
+        node.Property(n => n.Id).HasConversion(id => id.Id, value => ResourceNodeId.Of(value));
+        node.Property(n => n.Kind).HasConversion<string>();
+        node.Property(n => n.Resource).HasConversion(id => id.Id, value => ItemId.Of(value));
+        node.Property(n => n.Purity).HasConversion<string>();
+        node.Property(n => n.IsInGame);
+        // A value object: its fields become columns (position_x, position_y, position_z).
+        node.ComplexProperty(n => n.Position);
+        node.HasIndex(n => n.Resource);
+    }
+}
+
 internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<CatalogImport>
 {
     public void Configure(EntityTypeBuilder<CatalogImport> import)
@@ -99,6 +115,7 @@ internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<Cata
         import.ToTable("imports");
         import.HasKey(i => i.Id);
         import.Property(i => i.Id).HasConversion(id => id.Id, value => CatalogImportId.Of(value));
+        import.Property(i => i.Source).HasConversion<string>();
         import.Property(i => i.GameVersion);
         import.Property(i => i.ImportedAt);
 
@@ -108,6 +125,7 @@ internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<Cata
         import.ComplexProperty(i => i.TransportTiers);
         import.ComplexProperty(i => i.Recipes);
         import.ComplexProperty(i => i.Extractors);
+        import.ComplexProperty(i => i.ResourceNodes);
 
         // A list of strings becomes a PostgreSQL text[] column.
         import.PrimitiveCollection(i => i.NoLongerInGame);

@@ -56,4 +56,17 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
 
         Assert.Equal([new Contracts.CatalogItem("Desc_OreIron_C", "Iron Ore")], items);
     }
+
+    [Fact]
+    public async Task Resource_nodes_are_found_by_name_and_unknown_ones_are_left_out()
+    {
+        await _client.ImportResourceNodesAsync();
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogResourceNode> nodes = await catalog.GetResourceNodesAsync(
+            ["BP_ResourceNode35", "FGWaterVolume30_0"], TestContext.Current.CancellationToken);
+
+        Assert.Equal([new Contracts.CatalogResourceNode("BP_ResourceNode35", "resourceNode", "Desc_OreIron_C", "normal")], nodes);
+    }
 }

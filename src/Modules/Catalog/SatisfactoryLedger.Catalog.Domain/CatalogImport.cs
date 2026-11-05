@@ -2,6 +2,13 @@ namespace SatisfactoryLedger.Catalog.Domain;
 
 public sealed record ImportCounts(int Added, int Updated, int NoLongerInGame);
 
+/// <summary>What an import read: the game's Docs file, or the node table the map tool writes (ADR-0015).</summary>
+public enum CatalogImportSource
+{
+    DocsFile,
+    ResourceNodeTable,
+}
+
 public sealed record CatalogImportId
 {
     private CatalogImportId(Guid id)
@@ -21,9 +28,10 @@ public sealed record CatalogImportId
 public sealed class CatalogImport
 {
     // EF Core can only pass scalar properties to a constructor; it sets the counts and the list afterwards.
-    private CatalogImport(CatalogImportId id, string gameVersion, DateTimeOffset importedAt)
+    private CatalogImport(CatalogImportId id, CatalogImportSource source, string gameVersion, DateTimeOffset importedAt)
     {
         Id = id;
+        Source = source;
         GameVersion = gameVersion;
         ImportedAt = importedAt;
     }
@@ -49,7 +57,7 @@ public sealed class CatalogImport
             .. extractors.NoLongerInGame.Select(extractor => extractor.Id.Id)
         ];
 
-        return new CatalogImport(id, gameVersion.Trim(), importedAt)
+        return new CatalogImport(id, CatalogImportSource.DocsFile, gameVersion.Trim(), importedAt)
         {
             Items = items.Counts,
             Buildings = buildings.Counts,
@@ -60,7 +68,22 @@ public sealed class CatalogImport
         };
     }
 
+    /// <summary>An import of the node table: only resource nodes change (ADR-0015).</summary>
+    public static CatalogImport RecordResourceNodes(
+        CatalogImportId id, string gameVersion, DateTimeOffset importedAt, CatalogEntryChanges<ResourceNode> resourceNodes)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameVersion);
+
+        return new CatalogImport(id, CatalogImportSource.ResourceNodeTable, gameVersion.Trim(), importedAt)
+        {
+            ResourceNodes = resourceNodes.Counts,
+            NoLongerInGame = [.. resourceNodes.NoLongerInGame.Select(node => node.Id.Id)]
+        };
+    }
+
     public CatalogImportId Id { get; }
+
+    public CatalogImportSource Source { get; }
 
     public string GameVersion { get; }
 
@@ -75,6 +98,8 @@ public sealed class CatalogImport
     public ImportCounts Recipes { get; private init; } = new(0, 0, 0);
 
     public ImportCounts Extractors { get; private init; } = new(0, 0, 0);
+
+    public ImportCounts ResourceNodes { get; private init; } = new(0, 0, 0);
 
     /// <summary>Class names of the entries this import marked as no longer in the game.</summary>
     public IReadOnlyList<string> NoLongerInGame { get; private init; } = [];

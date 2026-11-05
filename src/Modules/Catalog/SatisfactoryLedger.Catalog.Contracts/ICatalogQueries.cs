@@ -11,7 +11,16 @@ public interface ICatalogQueries
 
     /// <summary>The items with these ids that the Catalog knows, including ones no longer in the game. Unknown ids are left out.</summary>
     Task<IReadOnlyList<CatalogItem>> GetItemsAsync(IReadOnlyCollection<string> itemIds, CancellationToken cancellationToken);
+
+    /// <summary>The resource nodes with these names that the Catalog knows (ADR-0015). Unknown names, such as water volumes, are left out.</summary>
+    Task<IReadOnlyList<CatalogResourceNode>> GetResourceNodesAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken);
 }
+
+/// <param name="Name">The node's name, as the save uses it: <c>BP_ResourceNode35</c>.</param>
+/// <param name="Kind"><c>resourceNode</c> or <c>wellSatellite</c>.</param>
+/// <param name="Resource">The item's class name: <c>Desc_OreIron_C</c>.</param>
+/// <param name="Purity"><c>impure</c>, <c>normal</c> or <c>pure</c> (BR-W9).</param>
+public sealed record CatalogResourceNode(string Name, string Kind, string Resource, string Purity);
 
 /// <param name="Id">The item's class name, e.g. <c>Desc_OreIron_C</c>.</param>
 /// <param name="Name">The name the game shows, e.g. "Iron Ore".</param>

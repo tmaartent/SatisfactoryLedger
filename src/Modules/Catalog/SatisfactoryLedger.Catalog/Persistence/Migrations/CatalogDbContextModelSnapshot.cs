@@ -69,6 +69,11 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasColumnType("text[]")
                         .HasColumnName("no_longer_in_game");
 
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Buildings", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Buildings#ImportCounts", b1 =>
                         {
                             b1.IsRequired();
@@ -135,6 +140,23 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                             b1.Property<int>("Updated")
                                 .HasColumnType("integer")
                                 .HasColumnName("recipes_updated");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "ResourceNodes", "SatisfactoryLedger.Catalog.Domain.CatalogImport.ResourceNodes#ImportCounts", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Added")
+                                .HasColumnType("integer")
+                                .HasColumnName("resource_nodes_added");
+
+                            b1.Property<int>("NoLongerInGame")
+                                .HasColumnType("integer")
+                                .HasColumnName("resource_nodes_no_longer_in_game");
+
+                            b1.Property<int>("Updated")
+                                .HasColumnType("integer")
+                                .HasColumnName("resource_nodes_updated");
                         });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "TransportTiers", "SatisfactoryLedger.Catalog.Domain.CatalogImport.TransportTiers#ImportCounts", b1 =>
@@ -284,6 +306,57 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasName("pk_recipes");
 
                     b.ToTable("recipes", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.ResourceNode", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("IsInGame")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_in_game");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Purity")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("purity");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("resource");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Position", "SatisfactoryLedger.Catalog.Domain.ResourceNode.Position#MapPosition", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<double>("X")
+                                .HasColumnType("double precision")
+                                .HasColumnName("position_x");
+
+                            b1.Property<double>("Y")
+                                .HasColumnType("double precision")
+                                .HasColumnName("position_y");
+
+                            b1.Property<double>("Z")
+                                .HasColumnType("double precision")
+                                .HasColumnName("position_z");
+                        });
+
+                    b.HasKey("Id")
+                        .HasName("pk_resource_nodes");
+
+                    b.HasIndex("Resource")
+                        .HasDatabaseName("ix_resource_nodes_resource");
+
+                    b.ToTable("resource_nodes", "catalog");
                 });
 
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.TransportTier", b =>

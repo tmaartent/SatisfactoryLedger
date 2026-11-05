@@ -23,6 +23,7 @@ public sealed class CatalogImportApiTests(LedgerApiFactory api) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var import = await response.Content.ReadFromJsonAsync<ImportResult>(TestContext.Current.CancellationToken);
         Assert.Equal("1.1", import!.GameVersion);
+        Assert.Equal("docsFile", import.Source);
         Assert.Equal(new ImportCounts(190, 0, 0), import.Items);
         Assert.Equal(new ImportCounts(11, 0, 0), import.Buildings);
         Assert.Equal(new ImportCounts(16, 0, 0), import.TransportTiers);

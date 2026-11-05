@@ -24,6 +24,8 @@ We will extract resource nodes with a **separate tool** that writes a **node tab
 
 Covered first: the nodes miners and oil extractors stand on (`BP_ResourceNode_C`). Resource wells (satellite nodes), geysers and water volumes follow when they're needed.
 
+*Implemented in [log 10](../guide/log/10-map-tool.md) (the tool) and [log 11](../guide/log/11-catalog-resource-nodes.md) (the import).*
+
 *Amended 2026-11-05 ([log 10](../guide/log/10-map-tool.md)):* resource well satellites (`BP_FrackingSatellite_C`) are in from the start, with the same fields and the same purity default. Your world has 34 resource well extractors, and the flow analysis needs them. With them, every extractor in your world that stands on a node resolves: 87 miners, 7 oil extractors, 34 resource well extractors. Water extractors stand on water volumes, which have no purity, and geysers only matter for power.
 
 ## Alternatives considered

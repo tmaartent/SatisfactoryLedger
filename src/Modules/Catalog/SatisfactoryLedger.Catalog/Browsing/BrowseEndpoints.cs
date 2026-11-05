@@ -39,6 +39,11 @@ internal sealed record ExtractorResponse(
         extractor.IsInGame);
 }
 
+internal sealed record PositionResponse(double X, double Y, double Z);
+
+internal sealed record ResourceNodeResponse(
+    string Name, ResourceNodeKind Kind, string Resource, Purity Purity, PositionResponse Position, bool InGame);
+
 internal sealed record IngredientResponse(string ItemId, decimal AmountPerCycle, RateResponse Rate);
 
 internal sealed record RecipeResponse(
@@ -87,6 +92,10 @@ internal static class BrowseEndpoints
         catalog.MapGet("/transport-tiers", GetTransportTiersAsync)
             .WithName("GetTransportTiers")
             .WithSummary("Belt, lift and pipe tiers with their capacity per minute");
+
+        catalog.MapGet("/resource-nodes", GetResourceNodesAsync)
+            .WithName("GetResourceNodes")
+            .WithSummary("Resource nodes and resource well satellites from the map, optionally only one resource: ?resource=Desc_OreIron_C");
 
         catalog.MapGet("/extractors", GetExtractorsAsync)
             .WithName("GetExtractors")
@@ -160,5 +169,25 @@ internal static class BrowseEndpoints
 
         // The rate is computed by the domain (Extractor.ExtractionRate), so this mapping runs in memory, like recipes.
         return TypedResults.Ok(extractors.Select(ExtractorResponse.From).ToList());
+    }
+
+    private static async Task<Ok<List<ResourceNodeResponse>>> GetResourceNodesAsync(
+        string? resource, CatalogDbContext db, CancellationToken cancellationToken)
+    {
+        IQueryable<ResourceNode> nodes = db.ResourceNodes.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(resource))
+        {
+            ItemId item = ItemId.Of(resource);
+            nodes = nodes.Where(node => node.Resource == item);
+        }
+
+        List<ResourceNodeResponse> response = await nodes
+            .OrderBy(node => node.Id)
+            .Select(node => new ResourceNodeResponse(
+                node.Id.Id, node.Kind, node.Resource.Id, node.Purity,
+                new PositionResponse(node.Position.X, node.Position.Y, node.Position.Z), node.IsInGame))
+            .ToListAsync(cancellationToken);
+
+        return TypedResults.Ok(response);
     }
 }

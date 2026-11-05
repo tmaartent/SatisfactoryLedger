@@ -36,4 +36,22 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
             .Select(item => new CatalogItem(item.Id.Id, item.Name))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<CatalogResourceNode>> GetResourceNodesAsync(IReadOnlyCollection<string> names, CancellationToken cancellationToken)
+    {
+        List<ResourceNodeId> ids = [.. names.Select(ResourceNodeId.Of)];
+        List<ResourceNode> nodes = await db.ResourceNodes.AsNoTracking()
+            .Where(node => ids.Contains(node.Id))
+            .ToListAsync(cancellationToken);
+
+        // The contract has no enums of the Catalog's own: kinds and purities go out as the API writes them.
+        return
+        [
+            .. nodes.OrderBy(node => node.Id.Id, StringComparer.Ordinal).Select(node => new CatalogResourceNode(
+                node.Id.Id,
+                node.Kind == ResourceNodeKind.WellSatellite ? "wellSatellite" : "resourceNode",
+                node.Resource.Id,
+                node.Purity.ToString().ToLowerInvariant()))
+        ];
+    }
 }

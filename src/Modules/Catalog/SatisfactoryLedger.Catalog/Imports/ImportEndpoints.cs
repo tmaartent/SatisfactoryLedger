@@ -14,6 +14,7 @@ internal sealed record ImportCountsResponse(int Added, int Updated, int NoLonger
 
 internal sealed record ImportResponse(
     Guid Id,
+    CatalogImportSource Source,
     string GameVersion,
     DateTimeOffset ImportedAt,
     ImportCountsResponse Items,
@@ -21,10 +22,12 @@ internal sealed record ImportResponse(
     ImportCountsResponse TransportTiers,
     ImportCountsResponse Recipes,
     ImportCountsResponse Extractors,
+    ImportCountsResponse ResourceNodes,
     IReadOnlyList<string> NoLongerInGame)
 {
     public static ImportResponse From(CatalogImport import) => new(
         import.Id.Id,
+        import.Source,
         import.GameVersion,
         import.ImportedAt,
         ToResponse(import.Items),
@@ -32,6 +35,7 @@ internal sealed record ImportResponse(
         ToResponse(import.TransportTiers),
         ToResponse(import.Recipes),
         ToResponse(import.Extractors),
+        ToResponse(import.ResourceNodes),
         import.NoLongerInGame);
 
     private static ImportCountsResponse ToResponse(ImportCounts counts) =>
@@ -41,6 +45,7 @@ internal sealed record ImportResponse(
 internal static class ImportEndpoints
 {
     public const string InvalidDocsFileCode = "Catalog.InvalidDocsFile";
+    public const string InvalidResourceNodeTableCode = "Catalog.InvalidResourceNodeTable";
 
     public static RouteGroupBuilder MapImportEndpoints(this RouteGroupBuilder catalog)
     {
@@ -51,6 +56,13 @@ internal static class ImportEndpoints
             // A ProblemHttpResult doesn't tell OpenAPI its status code, so the 422 is declared here.
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             // The API uses no cookies, so there is nothing for antiforgery tokens to protect (see primer).
+            .DisableAntiforgery();
+
+        catalog.MapPost("/resource-node-imports", ImportResourceNodesAsync)
+            .WithName("ImportResourceNodes")
+            .WithSummary("Import the node table the map tool writes (resource-nodes.json, ADR-0015)")
+            .WithDescription("Adds new nodes, updates existing ones and marks nodes missing from the table as no longer in the game. The game version comes from the table.")
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .DisableAntiforgery();
 
         catalog.MapGet("/imports/{id:guid}", GetAsync)
@@ -96,6 +108,34 @@ internal static class ImportEndpoints
                 detail: e.Message,
                 statusCode: StatusCodes.Status422UnprocessableEntity,
                 extensions: new Dictionary<string, object?> { ["code"] = InvalidDocsFileCode });
+        }
+    }
+
+    private static async Task<Results<Created<ImportResponse>, ValidationProblem, ProblemHttpResult>> ImportResourceNodesAsync(
+        IFormFile? file, ImportResourceNodesHandler handler, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["file"] = ["Upload the node table the map tool writes (resource-nodes.json)."]
+            });
+        }
+
+        try
+        {
+            await using Stream table = file.OpenReadStream();
+            CatalogImport import = await handler.HandleAsync(new ImportResourceNodesCommand(table), cancellationToken);
+
+            return TypedResults.Created($"/api/v1/catalog/imports/{import.Id.Id}", ImportResponse.From(import));
+        }
+        catch (InvalidResourceNodeTableException e)
+        {
+            return TypedResults.Problem(
+                title: "The file is not a node table the catalog can import",
+                detail: e.Message,
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                extensions: new Dictionary<string, object?> { ["code"] = InvalidResourceNodeTableCode });
         }
     }
 
