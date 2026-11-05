@@ -30,6 +30,12 @@ These terms are used **identically** in conversation, docs, code (class and meth
 |---|---|---|
 | **World** | Every snapshot with the same session name. Factory definitions belong to a world (BR-W11). | `StoredSnapshot.SessionName`, `StoredFactory.World` |
 | **Candidate Output Belt** | A belt where items leave a group of machines: fed by machines through logistics, ending in a container, a consumer or nothing. Suggested to the player for BR-W2 (BR-W12). | `CandidateOutputBelts`, `OutputBeltCandidate` |
+| **Steady State** | What flows where once everything has run long enough to settle (BR-A1 to A10). An approximation to 0.0001/min. | `SteadyState`, `FlowResult` |
+| **Utilisation** | The share of 100% a machine runs at: the lowest of what its inputs supply and its outputs take (BR-A1). | `MachineState.Utilisation` |
+| **Starved / Output Blocked** | Why a machine runs below 100%: too little of an input is offered, or an output can't leave (BR-A11). | `MachineLimit` |
+| **Bottleneck** | A belt, lift or pipe at its capacity while more is offered upstream (BR-A12). The first saturated segment of a line. | `Bottleneck` |
+| **Unused Supply** | What a provider could deliver on top of what it does (BR-A13). | `UnusedSupply` |
+| **Assumed / Confirmed Supplied** | A source with an unknown rate supplies what's asked. Confirmed when its stock lasts 30 minutes at that rate (BR-A9). | `UnknownSupply` |
 | **World Snapshot** | One imported save: when it was saved and imported, its world graph, and what the import couldn't place (unknown recipes, unsupported buildables). Every snapshot is kept (BR-W10). | (planned) |
 | **World Graph** | The world as read from one save file: its buildables and how they're connected. Never changed after import. Later stored per import as a snapshot. | `WorldGraph` |
 | **Buildable** | Anything built in the world that items move through: a machine, provider, consumer or piece of logistics. Identified by its id in the save, which stays the same from save to save. The game's own term. | `Buildable`, `BuildableId` |

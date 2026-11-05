@@ -2,7 +2,7 @@
 
 using SatisfactoryLedger.Catalog.Importer;
 
-namespace SatisfactoryLedger.Catalog.Tests;
+namespace SatisfactoryLedger.Catalog.Tests.Importer;
 
 public class SatisfactoryImporterTests
 {

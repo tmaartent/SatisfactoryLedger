@@ -69,6 +69,9 @@ dotnet_style_coalesce_expression = true:suggestion
 dotnet_style_collection_initializer = true:suggestion
 dotnet_style_explicit_tuple_names = true:suggestion
 dotnet_style_namespace_match_folder = true:suggestion
+# A namespace follows its folder (IDE0130). The IDE shows it; command-line builds don't run it, so
+# ArchitectureTests/SourceLayoutTests checks it in CI.
+dotnet_diagnostic.IDE0130.severity = warning
 dotnet_style_null_propagation = true:suggestion
 dotnet_style_object_initializer = true:suggestion
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
