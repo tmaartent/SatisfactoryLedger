@@ -85,6 +85,18 @@ public class SaveFileReaderTests
     }
 
     [Fact]
+    public void A_water_extractor_pumps_water_whatever_it_stands_in()
+    {
+        Assert.Equal("Desc_Water_C", Get<SavedProvider>(WaterExtractor).Resource);
+    }
+
+    [Fact]
+    public void What_a_miner_extracts_depends_on_its_node_so_the_adapter_leaves_it_open()
+    {
+        Assert.Null(Get<SavedProvider>(Miner).Resource);
+    }
+
+    [Fact]
     public void The_sink_is_a_consumer()
     {
         Assert.Equal("Build_ResourceSink_C", Get<SavedConsumer>(Sink).ClassName);

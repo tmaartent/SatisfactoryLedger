@@ -2,8 +2,13 @@ using System.Net;
 using System.Net.Http.Json;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
 using SatisfactoryLedger.Api.IntegrationTests.Catalog;
+using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Persistence;
+using SatisfactoryLedger.World.Snapshots;
 
 namespace SatisfactoryLedger.Api.IntegrationTests.World;
 
@@ -30,6 +35,24 @@ public sealed class WorldSnapshotApiTests(LedgerApiFactory api) : IAsyncLifetime
         Assert.Equal(new SnapshotCounts(Machines: 5, Providers: 2, Consumers: 1, Logistics: 22, Connections: 28), snapshot.Counts);
         Assert.Empty(snapshot.UnknownRecipes);
         Assert.Empty(snapshot.Unsupported);
+    }
+
+    [Fact]
+    public async Task An_imported_snapshot_has_the_catalog_rates_the_flow_analysis_needs()
+    {
+        await _client.ImportAsync(CatalogClient.GameFile);
+        await _client.ImportResourceNodesAsync();
+        HttpResponseMessage response = await _client.PostSaveAsync(WorldClient.TestWorld);
+        var created = await response.Content.ReadFromJsonAsync<Snapshot>(TestContext.Current.CancellationToken);
+
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        StoredSnapshot stored = (await scope.ServiceProvider.GetRequiredService<WorldDbContext>().Snapshots
+            .FindAsync([created!.Id], TestContext.Current.CancellationToken))!;
+        FlowNetwork network = SnapshotDocument.FromJson(stored.Content).ToFlowNetwork();
+
+        FlowNode miner = network.Nodes[network.IndexOf[BuildableId.Of("Persistent_Level:PersistentLevel.Build_MinerMk1_C_2147339296")]];
+        Assert.Equal(new FlowProvider(miner.Id, ItemId.Of("Desc_OreIron_C"), 60), miner);
+        Assert.Contains(ItemId.Of("Desc_Water_C"), network.Fluids);
     }
 
     [Fact]

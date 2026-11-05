@@ -13,26 +13,38 @@ public sealed record FlowProvider(BuildableId Id, ItemId Item, double Offer) : F
 
 /// <summary>A source whose rate isn't known, such as a station or a container nothing feeds (BR-A9).</summary>
 /// <param name="Stock">What it holds right now, per item. Decides between assumed and confirmed supplied.</param>
-public sealed record FlowUnknownSource(BuildableId Id, IReadOnlyDictionary<ItemId, double> Stock) : FlowNode(Id);
+public sealed record FlowUnknownSource(BuildableId Id, IReadOnlyDictionary<ItemId, double> Stock, Carries Carries = Carries.Anything)
+    : FlowNode(Id);
 
 /// <summary>Takes everything it's offered: a consumer, or a container at the end of a line (BR-A7, BR-A8).</summary>
 public sealed record FlowSink(BuildableId Id) : FlowNode(Id);
 
 /// <summary>A belt, lift or pipe, or a container inside a line: passes items on, at most <paramref name="Capacity"/> per minute (BR-A3).</summary>
-public sealed record FlowConduit(BuildableId Id, double Capacity) : FlowNode(Id);
+public sealed record FlowConduit(BuildableId Id, double Capacity, Carries Carries = Carries.Anything) : FlowNode(Id);
 
-/// <summary>Divides what comes in evenly over its outputs that take items (BR-A4).</summary>
-public sealed record FlowSplitter(BuildableId Id) : FlowNode(Id);
+/// <summary>Divides what comes in evenly over its outputs that take items (BR-A4). A pipe junction is one too (BR-A6).</summary>
+public sealed record FlowSplitter(BuildableId Id, Carries Carries = Carries.Anything) : FlowNode(Id);
 
 /// <summary>Takes evenly from its inputs, up to what its output can carry (BR-A5).</summary>
-public sealed record FlowMerger(BuildableId Id) : FlowNode(Id);
+public sealed record FlowMerger(BuildableId Id, Carries Carries = Carries.Anything) : FlowNode(Id);
+
+/// <summary>What a node can move: belts, splitters, mergers and containers move solids; pipes, junctions and fluid buffers fluids.</summary>
+public enum Carries
+{
+    /// <summary>Not limited by the node itself: a machine, a sink, a station. Its connection's other end decides.</summary>
+    Anything,
+    Solids,
+    Fluids,
+}
 
 /// <summary>The nodes and their connections, ready to simulate.</summary>
 public sealed class FlowNetwork
 {
-    public FlowNetwork(IEnumerable<FlowNode> nodes, IEnumerable<Connection> connections)
+    /// <param name="fluids">The items that are fluids: they go over pipes. Every other item is a solid and goes over belts.</param>
+    public FlowNetwork(IEnumerable<FlowNode> nodes, IEnumerable<Connection> connections, IEnumerable<ItemId>? fluids = null)
     {
         Nodes = nodes.ToList();
+        Fluids = (fluids ?? []).ToHashSet();
         Dictionary<BuildableId, int> index = [];
         for (int i = 0; i < Nodes.Count; i++)
         {
@@ -54,4 +66,6 @@ public sealed class FlowNetwork
     public IReadOnlyList<(int From, int To)> Edges { get; }
 
     public IReadOnlyDictionary<BuildableId, int> IndexOf { get; }
+
+    public IReadOnlySet<ItemId> Fluids { get; }
 }

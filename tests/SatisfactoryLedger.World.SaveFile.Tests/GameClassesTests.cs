@@ -45,7 +45,8 @@ public class GameClassesTests
     [InlineData("Build_PipelinePumpMk2_C", LogisticsKind.Pipe)]
     [InlineData("Build_Valve_C", LogisticsKind.Pipe)]
     [InlineData("Build_PipelineJunction_T_C", LogisticsKind.PipeJunction)]
-    [InlineData("Build_PipeStorageTank_C", LogisticsKind.StorageContainer)]
+    [InlineData("Build_PipeStorageTank_C", LogisticsKind.FluidBuffer)]
+    [InlineData("Build_IndustrialTank_C", LogisticsKind.FluidBuffer)]
     public void Logistics_have_their_kind(string className, LogisticsKind kind)
     {
         Assert.Equal(kind, GameClasses.LogisticsKindOf(className));

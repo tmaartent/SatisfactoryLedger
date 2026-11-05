@@ -287,6 +287,129 @@ public class SteadyStateTests
         Assert.Equal(751.0 / 60, supply.StockMinutes!.Value, Precision);
     }
 
+    // ---- Belts carry solids, pipes carry fluids ----------------------------------------------------------------
+
+    private static readonly ItemId Water = ItemId.Of("Desc_Water_C");
+    private static readonly ItemId Canister = ItemId.Of("Desc_FluidCanister_C");
+    private static readonly ItemId PackagedWater = ItemId.Of("Desc_PackagedWater_C");
+    private static readonly ItemId CrudeOil = ItemId.Of("Desc_LiquidOil_C");
+    private static readonly ItemId Plastic = ItemId.Of("Desc_Plastic_C");
+    private static readonly ItemId Residue = ItemId.Of("Desc_HeavyOilResidue_C");
+
+    /// <summary>The packager of the test world: water over a pipe from an extractor, canisters over a belt from a container.</summary>
+    private static TestFlow Packager() => new TestFlow()
+        .Fluid(Water)
+        .Provider("extractor", Water, 120).Pipe("water")
+        .UnknownSource("container").Belt("canisters")
+        .Machine("packager", [(Water, 60), (Canister, 60)], [(PackagedWater, 60)]).Belt("out").Sink("sink")
+        .Connect("extractor", "water", "packager", "out", "sink")
+        .Connect("container", "canisters", "packager");
+
+    [Fact]
+    public void A_source_whose_rate_is_not_known_sends_no_fluid_over_a_belt()
+    {
+        FlowResult result = Packager().Run();
+
+        Assert.Equal(0, result.Flow(Id("container"), Id("canisters"), Water), Precision);
+        Assert.Equal(60, result.Flow(Id("container"), Id("canisters"), Canister), Precision);
+    }
+
+    [Fact]
+    public void A_machine_takes_its_fluid_from_the_pipe()
+    {
+        FlowResult result = Packager().Run();
+
+        Assert.Equal(60, result.Flow(Id("water"), Id("packager"), Water), Precision);
+        Assert.Equal(1.0, result.Machine(Id("packager")).Utilisation, Precision);
+    }
+
+    /// <summary>A plastic refinery: 30 oil makes 20 plastic and 10 residue.</summary>
+    private static TestFlow Refinery() => new TestFlow()
+        .Fluid(CrudeOil).Fluid(Residue)
+        .Provider("pump", CrudeOil, 30).Pipe("oil")
+        .Machine("refinery", [(CrudeOil, 30)], [(Plastic, 20), (Residue, 10)])
+        .Belt("plastic").Sink("plastic sink")
+        .Connect("pump", "oil", "refinery", "plastic", "plastic sink");
+
+    [Fact]
+    public void A_machine_sends_each_product_over_the_line_that_carries_its_form()
+    {
+        FlowResult result = Refinery()
+            .Pipe("residue").Sink("residue sink").Connect("refinery", "residue", "residue sink")
+            .Run();
+
+        Assert.Equal((20, 0), (result.Flow(Id("refinery"), Id("plastic"), Plastic), result.Flow(Id("refinery"), Id("plastic"), Residue)));
+        Assert.Equal((10, 0), (result.Flow(Id("refinery"), Id("residue"), Residue), result.Flow(Id("refinery"), Id("residue"), Plastic)));
+        Assert.Equal(1.0, result.Machine(Id("refinery")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_fluid_product_with_no_pipe_to_leave_by_blocks_the_machine()
+    {
+        FlowResult result = Refinery().Run();
+
+        MachineState refinery = result.Machine(Id("refinery"));
+        Assert.Equal(0, refinery.Utilisation, Precision);
+        Assert.Equal(MachineLimit.OutputBlocked, refinery.Limit);
+        Assert.Equal(Residue, refinery.LimitingItem);
+    }
+
+    // ---- Settling ----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void A_branch_that_rejoins_the_line_settles_in_one_sweep_and_two_that_confirm_it()
+    {
+        // Each node is handled after everything that feeds it, so the merger waits for the long branch.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Splitter("split").Belt("short")
+            .Belt("long 1").Belt("long 2").Belt("long 3").Merger("merge").Belt("out").Sink("sink")
+            .Connect("miner", "split", "short", "merge", "out", "sink")
+            .Connect("split", "long 1", "long 2", "long 3", "merge")
+            .Run();
+
+        Assert.Equal(3, result.Sweeps);
+    }
+
+    /// <summary>Two lines that don't touch: a smelter line, and the loop of the conservation test below.</summary>
+    private static TestFlow TwoParts() => new TestFlow()
+        .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+        .Connect("miner", "ore", "smelter", "ingots", "sink")
+        .Provider("loop miner", Ore, 30).Machine("loop smelter", Ore, 30, Ingot, 30)
+        .Merger("merge").Belt("loop", capacity: 60).Splitter("split").Belt("back", capacity: 60)
+        .Machine("constructor", Ingot, 20, Plate, 20).Belt("out").Sink("loop sink")
+        .Connect("loop miner", "loop smelter", "merge", "loop", "split", "constructor", "out", "loop sink")
+        .Connect("split", "back", "merge");
+
+    [Fact]
+    public void Parts_of_the_world_that_do_not_touch_are_settled_on_their_own()
+    {
+        FlowResult result = TwoParts().Run();
+
+        Assert.Equal(2, result.Parts.Count);
+        Assert.All(result.Parts, part => Assert.True(part.Settled));
+        Assert.Equal(3, result.PartOf(Id("smelter")).Sweeps);
+    }
+
+    [Fact]
+    public void A_part_that_does_not_settle_within_the_limit_is_approximate_while_the_others_still_settle()
+    {
+        FlowResult result = TwoParts().Run(maxSweeps: 4);
+
+        Assert.True(result.PartOf(Id("smelter")).Settled);
+        Assert.False(result.PartOf(Id("loop smelter")).Settled);
+        Assert.False(result.Settled);
+    }
+
+    [Fact]
+    public void A_part_has_settled_when_no_flow_changes_by_more_than_the_tolerance_for_two_sweeps()
+    {
+        // The loop comes closer to its steady state by a fraction each sweep. It stops at BR-A10's 0.0001 a minute
+        // after 21 sweeps; waiting until changes are below 1e-9 took 38.
+        FlowResult result = TwoParts().Run();
+
+        Assert.InRange(result.PartOf(Id("loop smelter")).Sweeps, 3, 25);
+    }
+
     // ---- Loops and BR-A10 -------------------------------------------------------------------------------------
 
     [Fact]

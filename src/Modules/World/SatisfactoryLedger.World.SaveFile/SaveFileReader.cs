@@ -72,7 +72,7 @@ public static class SaveFileReader
                 BuildableRole.Machine => new SavedMachine(id, className, ShortNameOrNull(ObjectPath(actor, "mCurrentRecipe")),
                     ClockSpeedOf(actor), (decimal?)Float(actor, "mCurrentProductionBoost") ?? 1m),
                 BuildableRole.Provider => new SavedProvider(id, className, ShortNameOrNull(ObjectPath(actor, "mExtractableResource")),
-                    ClockSpeedOf(actor)),
+                    ClockSpeedOf(actor), GameClasses.FixedResourceOf(className)),
                 BuildableRole.Consumer => new SavedConsumer(id, className),
                 BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className)),
                 _ => null,

@@ -80,6 +80,9 @@ internal static class GameClasses
         return TryLogisticsKindOf(className) is null ? BuildableRole.Unknown : BuildableRole.Logistics;
     }
 
+    /// <summary>The item a provider extracts when its class decides it, not its node: a water extractor pumps water.</summary>
+    public static string? FixedResourceOf(string className) => className == "Build_WaterPump_C" ? "Desc_Water_C" : null;
+
     public static LogisticsKind LogisticsKindOf(string className) =>
         TryLogisticsKindOf(className) ?? throw new ArgumentException($"{className} is not logistics", nameof(className));
 
@@ -90,7 +93,7 @@ internal static class GameClasses
         _ when className.StartsWith("Build_ConveyorAttachmentSplitter", StringComparison.Ordinal) => LogisticsKind.Splitter,
         _ when className.StartsWith("Build_ConveyorAttachmentMerger", StringComparison.Ordinal) => LogisticsKind.Merger,
         _ when className.StartsWith("Build_StorageContainer", StringComparison.Ordinal) => LogisticsKind.StorageContainer,
-        "Build_IndustrialTank_C" or "Build_PipeStorageTank_C" => LogisticsKind.StorageContainer,
+        "Build_IndustrialTank_C" or "Build_PipeStorageTank_C" => LogisticsKind.FluidBuffer,
         _ when className.StartsWith("Build_PipelineJunction", StringComparison.Ordinal) => LogisticsKind.PipeJunction,
         // Listed one by one: "Build_Pipeline…" also matches supports and flow indicators, which carry nothing.
         "Build_Pipeline_C" or "Build_Pipeline_NoIndicator_C" or "Build_PipelineMK2_C" or "Build_PipelineMK2_NoIndicator_C"

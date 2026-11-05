@@ -1,3 +1,5 @@
+using SatisfactoryLedger.SharedKernel;
+
 namespace SatisfactoryLedger.World.Domain.Tests;
 
 internal static class Items
@@ -16,16 +18,27 @@ internal sealed class TestWorld
     private readonly List<Buildable> _buildables = [];
     private readonly List<Connection> _connections = [];
 
+    /// <summary>A provider whose rate isn't known.</summary>
     public TestWorld Miner(string id) => Add(new Provider(BuildableId.Of(id)));
+
+    public TestWorld Miner(string id, ItemId item, decimal offersPerMinute) =>
+        Add(new Provider(BuildableId.Of(id), new ItemOffer(item, Rate.PerMinute(offersPerMinute))));
 
     public TestWorld Sink(string id) => Add(new Consumer(BuildableId.Of(id)));
 
     public TestWorld Machine(string id, ItemId consumes, ItemId produces) => Machine(id, [consumes], [produces]);
 
+    /// <summary>A machine for tracing: only which items matter, so every rate is 1 per minute.</summary>
     public TestWorld Machine(string id, ItemId[] consumes, ItemId[] produces) =>
-        Add(new Machine(BuildableId.Of(id), consumes, produces));
+        Add(new Machine(BuildableId.Of(id), new Recipe(PerMinute(consumes, 1), PerMinute(produces, 1)), ClockSpeed.Percent(100)));
 
-    public TestWorld Belt(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Belt));
+    /// <summary>A machine with one input and one output, at its rates per minute.</summary>
+    public TestWorld Machine(string id, ItemId input, decimal asks, ItemId output, decimal makes) =>
+        Add(new Machine(BuildableId.Of(id), new Recipe(PerMinute([input], asks), PerMinute([output], makes)), ClockSpeed.Percent(100)));
+
+    /// <param name="capacity">Per minute, or null when it isn't known.</param>
+    public TestWorld Belt(string id, decimal? capacity = null) =>
+        Add(new Logistics(BuildableId.Of(id), LogisticsKind.Belt, capacity is { } perMinute ? Rate.PerMinute(perMinute) : null));
 
     public TestWorld Lift(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Lift));
 
@@ -34,6 +47,12 @@ internal sealed class TestWorld
     public TestWorld Merger(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Merger));
 
     public TestWorld Container(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.StorageContainer));
+
+    public TestWorld Junction(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.PipeJunction));
+
+    public TestWorld Pipe(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Pipe, Rate.PerMinute(600)));
+
+    public TestWorld FluidBuffer(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.FluidBuffer));
 
     /// <summary>Connects each buildable to the next: <c>Connect("miner", "belt", "smelter")</c>.</summary>
     public TestWorld Connect(params string[] chain)
@@ -47,6 +66,9 @@ internal sealed class TestWorld
     }
 
     public WorldGraph Build() => new(_buildables, _connections);
+
+    private static Dictionary<ItemId, Rate> PerMinute(ItemId[] items, decimal rate) =>
+        items.ToDictionary(item => item, _ => Rate.PerMinute(rate));
 
     private TestWorld Add(Buildable buildable)
     {

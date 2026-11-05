@@ -7,8 +7,8 @@ namespace SatisfactoryLedger.World.Snapshots;
 internal sealed record ImportSaveCommand(Stream Save);
 
 /// <summary>
-/// Imports a save as a new world snapshot (BR-W10, ADR-0016): read it through the adapter, copy the recipes it uses
-/// from the Catalog, store it. What the Catalog doesn't know is listed, not refused.
+/// Imports a save as a new world snapshot (BR-W10, ADR-0016): read it through the adapter, copy the recipes,
+/// extractors, belts and nodes it uses from the Catalog, store it. What the Catalog doesn't know is listed, not refused.
 /// </summary>
 internal sealed class ImportSaveHandler(WorldDbContext db, ICatalogQueries catalog, TimeProvider clock)
 {
@@ -17,9 +17,7 @@ internal sealed class ImportSaveHandler(WorldDbContext db, ICatalogQueries catal
     {
         SavedWorld saved = SaveFileReader.Read(command.Save);
 
-        string[] recipeIds = [.. saved.Buildables.OfType<SavedMachine>().Select(machine => machine.Recipe).OfType<string>().Distinct()];
-        IReadOnlyList<CatalogRecipe> recipes = await catalog.GetRecipesAsync(recipeIds, cancellationToken);
-        SnapshotDocument document = SnapshotDocument.Create(saved, recipes);
+        SnapshotDocument document = SnapshotDocument.Create(saved, await CopyCatalogAsync(saved, cancellationToken));
 
         var snapshot = new StoredSnapshot
         {
@@ -37,5 +35,28 @@ internal sealed class ImportSaveHandler(WorldDbContext db, ICatalogQueries catal
         db.Snapshots.Add(snapshot);
         await db.SaveChangesAsync(cancellationToken);
         return snapshot;
+    }
+
+    /// <summary>What the Catalog says about the recipes, extractors, belts, nodes and items this save uses.</summary>
+    private async Task<CatalogCopy> CopyCatalogAsync(SavedWorld saved, CancellationToken cancellationToken)
+    {
+        string[] recipes = [.. saved.Buildables.OfType<SavedMachine>().Select(machine => machine.Recipe).OfType<string>().Distinct()];
+        string[] extractors = [.. saved.Buildables.OfType<SavedProvider>().Select(provider => provider.ClassName).Distinct()];
+        string[] tiers = [.. saved.Buildables.OfType<SavedLogistics>().Select(logistics => logistics.ClassName).Distinct()];
+        string[] nodes = [.. saved.Buildables.OfType<SavedProvider>().Select(provider => provider.Node).OfType<string>().Distinct()];
+
+        IReadOnlyList<CatalogRecipe> recipesKnown = await catalog.GetRecipesAsync(recipes, cancellationToken);
+        IReadOnlyList<CatalogResourceNode> nodesKnown = await catalog.GetResourceNodesAsync(nodes, cancellationToken);
+        HashSet<string> items = SnapshotDocument.ItemsUsed(
+            saved,
+            recipesKnown.Select(RecipeDocument.From),
+            nodesKnown.Select(node => new ResourceNodeDocument(node.Name, node.Resource, node.Purity)));
+
+        return new CatalogCopy(
+            recipesKnown,
+            await catalog.GetExtractorsAsync(extractors, cancellationToken),
+            await catalog.GetTransportTiersAsync(tiers, cancellationToken),
+            nodesKnown,
+            await catalog.GetItemsAsync(items, cancellationToken));
     }
 }

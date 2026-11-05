@@ -33,7 +33,7 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
         return await db.Items.AsNoTracking()
             .Where(item => ids.Contains(item.Id))
             .OrderBy(item => item.Name)
-            .Select(item => new CatalogItem(item.Id.Id, item.Name))
+            .Select(item => new CatalogItem(item.Id.Id, item.Name, item.ItemForm == ItemForm.Fluid))
             .ToListAsync(cancellationToken);
     }
 
@@ -52,6 +52,34 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
                 node.Kind == ResourceNodeKind.WellSatellite ? "wellSatellite" : "resourceNode",
                 node.Resource.Id,
                 node.Purity.ToString().ToLowerInvariant()))
+        ];
+    }
+
+    public async Task<IReadOnlyList<CatalogExtractor>> GetExtractorsAsync(IReadOnlyCollection<string> extractorIds, CancellationToken cancellationToken)
+    {
+        List<ExtractorId> ids = [.. extractorIds.Select(ExtractorId.Of)];
+        List<Extractor> extractors = await db.Extractors.AsNoTracking()
+            .Where(extractor => ids.Contains(extractor.Id))
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. extractors.OrderBy(extractor => extractor.Id.Id, StringComparer.Ordinal)
+                .Select(extractor => new CatalogExtractor(extractor.Id.Id, extractor.AmountPerCycle, extractor.CycleSeconds))
+        ];
+    }
+
+    public async Task<IReadOnlyList<CatalogTransportTier>> GetTransportTiersAsync(IReadOnlyCollection<string> tierIds, CancellationToken cancellationToken)
+    {
+        List<TransportTierId> ids = [.. tierIds.Select(TransportTierId.Of)];
+        List<TransportTier> tiers = await db.TransportTiers.AsNoTracking()
+            .Where(tier => ids.Contains(tier.Id))
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. tiers.OrderBy(tier => tier.Id.Id, StringComparer.Ordinal)
+                .Select(tier => new CatalogTransportTier(tier.Id.Id, tier.Capacity))
         ];
     }
 }

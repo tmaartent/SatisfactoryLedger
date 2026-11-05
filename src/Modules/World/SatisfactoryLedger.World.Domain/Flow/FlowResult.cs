@@ -30,39 +30,67 @@ public sealed record UnusedSupply(BuildableId Provider, ItemId Item, double Offe
 /// <param name="Confirmed">True when the stock lasts at least 30 minutes (BR-A9).</param>
 public sealed record UnknownSupply(BuildableId Source, IReadOnlyDictionary<ItemId, double> Delivered, double? StockMinutes, bool Confirmed);
 
+/// <summary>
+/// A connected part of the world, simulated on its own. When it didn't settle within the limit of sweeps, its numbers
+/// are approximate: it came close, but some flows still moved by more than 0.0001 a minute (BR-A10).
+/// </summary>
+public sealed record FlowPart(IReadOnlyList<BuildableId> Buildables, bool Settled, int Sweeps);
+
 /// <summary>The steady state of a flow network: approximations to 0.0001/min (BR-A10, ADR-0004).</summary>
-public sealed class FlowResult(
-    FlowNetwork network,
-    IReadOnlyList<IReadOnlyDictionary<ItemId, double>> flows,
-    IReadOnlyDictionary<BuildableId, MachineState> machines,
-    IReadOnlyList<Bottleneck> bottlenecks,
-    IReadOnlyList<UnusedSupply> unusedSupply,
-    IReadOnlyList<UnknownSupply> unknownSupply,
-    bool settled,
-    int sweeps)
+public sealed class FlowResult
 {
-    /// <summary>False when the simulation stopped at its limit of sweeps without settling.</summary>
-    public bool Settled { get; } = settled;
+    private readonly FlowNetwork _network;
+    private readonly IReadOnlyList<IReadOnlyDictionary<ItemId, double>> _flows;
+    private readonly IReadOnlyDictionary<BuildableId, MachineState> _machines;
+    private readonly Dictionary<BuildableId, FlowPart> _partOf;
 
-    public int Sweeps { get; } = sweeps;
+    public FlowResult(
+        FlowNetwork network,
+        IReadOnlyList<IReadOnlyDictionary<ItemId, double>> flows,
+        IReadOnlyDictionary<BuildableId, MachineState> machines,
+        IReadOnlyList<Bottleneck> bottlenecks,
+        IReadOnlyList<UnusedSupply> unusedSupply,
+        IReadOnlyList<UnknownSupply> unknownSupply,
+        IReadOnlyList<FlowPart> parts)
+    {
+        _network = network;
+        _flows = flows;
+        _machines = machines;
+        Bottlenecks = bottlenecks;
+        UnusedSupply = unusedSupply;
+        UnknownSupply = unknownSupply;
+        Parts = parts;
+        _partOf = parts.SelectMany(part => part.Buildables.Select(id => (id, part))).ToDictionary(entry => entry.id, entry => entry.part);
+    }
 
-    public IReadOnlyCollection<MachineState> Machines => machines.Values.ToList();
+    /// <summary>True when every part settled; false when one stopped at the limit of sweeps.</summary>
+    public bool Settled => Parts.All(part => part.Settled);
 
-    public IReadOnlyList<Bottleneck> Bottlenecks { get; } = bottlenecks;
+    /// <summary>The most sweeps any part took.</summary>
+    public int Sweeps => Parts.Count == 0 ? 0 : Parts.Max(part => part.Sweeps);
 
-    public IReadOnlyList<UnusedSupply> UnusedSupply { get; } = unusedSupply;
+    public IReadOnlyList<FlowPart> Parts { get; }
 
-    public IReadOnlyList<UnknownSupply> UnknownSupply { get; } = unknownSupply;
+    public IReadOnlyCollection<MachineState> Machines => _machines.Values.ToList();
 
-    public MachineState Machine(BuildableId id) => machines[id];
+    public IReadOnlyList<Bottleneck> Bottlenecks { get; }
+
+    public IReadOnlyList<UnusedSupply> UnusedSupply { get; }
+
+    public IReadOnlyList<UnknownSupply> UnknownSupply { get; }
+
+    public MachineState Machine(BuildableId id) => _machines[id];
+
+    /// <summary>The part a buildable belongs to: whether its numbers settled.</summary>
+    public FlowPart PartOf(BuildableId id) => _partOf[id];
 
     /// <summary>What flows of an item over the connection from one buildable to another, per minute.</summary>
     public double Flow(BuildableId from, BuildableId to, ItemId item)
     {
-        int fromIndex = network.IndexOf[from];
-        int toIndex = network.IndexOf[to];
-        return Enumerable.Range(0, network.Edges.Count)
-            .Where(edge => network.Edges[edge] == (fromIndex, toIndex))
-            .Sum(edge => flows[edge].GetValueOrDefault(item));
+        int fromIndex = _network.IndexOf[from];
+        int toIndex = _network.IndexOf[to];
+        return Enumerable.Range(0, _network.Edges.Count)
+            .Where(edge => _network.Edges[edge] == (fromIndex, toIndex))
+            .Sum(edge => _flows[edge].GetValueOrDefault(item));
     }
 }

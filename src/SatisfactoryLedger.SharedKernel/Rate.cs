@@ -71,6 +71,14 @@ public record Rate: IComparable<Rate> {
         return Of(newNumerator, newDenominator);
     }
 
+    /// <summary>A rate times an exact factor: a node's purity (0.5, 1, 2), or a somersloop production boost (1.5).</summary>
+    public static Rate operator *(Rate a, decimal factor)
+    {
+        var fraction = Fraction.FromDecimal(factor);
+
+        return Of(a.Numerator * fraction.Numerator, a.Denominator * fraction.Denominator);
+    }
+
     public static bool operator <(Rate a, Rate b)
     {
         return a.CompareTo(b) < 0;
@@ -112,6 +120,12 @@ public record Rate: IComparable<Rate> {
     public decimal ToDecimal()
     {
         return (decimal)Numerator / (decimal)Denominator;
+    }
+
+    /// <summary>The nearest double: only for the flow simulation, which approximates (ADR-0004, amended).</summary>
+    public double ToDouble()
+    {
+        return (double)Numerator / (double)Denominator;
     }
 
     /// <summary>The exact value as "numerator/denominator", e.g. "45/8". Always reduced.</summary>

@@ -54,7 +54,18 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
         IReadOnlyList<Contracts.CatalogItem> items = await catalog.GetItemsAsync(
             ["Desc_OreIron_C", "Desc_IronOreTypo_C"], TestContext.Current.CancellationToken);
 
-        Assert.Equal([new Contracts.CatalogItem("Desc_OreIron_C", "Iron Ore")], items);
+        Assert.Equal([new Contracts.CatalogItem("Desc_OreIron_C", "Iron Ore", IsFluid: false)], items);
+    }
+
+    [Fact]
+    public async Task An_item_says_whether_it_is_a_fluid()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        Contracts.CatalogItem water = Assert.Single(await catalog.GetItemsAsync(["Desc_Water_C"], TestContext.Current.CancellationToken));
+
+        Assert.True(water.IsFluid);
     }
 
     [Fact]
@@ -68,5 +79,36 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
             ["BP_ResourceNode35", "FGWaterVolume30_0"], TestContext.Current.CancellationToken);
 
         Assert.Equal([new Contracts.CatalogResourceNode("BP_ResourceNode35", "resourceNode", "Desc_OreIron_C", "normal")], nodes);
+    }
+
+    [Fact]
+    public async Task An_extractor_is_found_by_its_class_name_with_what_it_extracts_per_cycle()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogExtractor> extractors = await catalog.GetExtractorsAsync(
+            ["Build_MinerMk1_C", "Build_MinerMk9_C"], TestContext.Current.CancellationToken);
+
+        Assert.Equal([new Contracts.CatalogExtractor("Build_MinerMk1_C", 1, 1)], extractors);
+    }
+
+    [Fact]
+    public async Task Transport_tiers_are_found_by_class_name_with_their_capacity_per_minute()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogTransportTier> tiers = await catalog.GetTransportTiersAsync(
+            ["Build_ConveyorBeltMk1_C", "Build_ConveyorLiftMk1_C", "Build_PipelineMK2_NoIndicator_C", "Build_PipelinePump_C"],
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            [
+                new Contracts.CatalogTransportTier("Build_ConveyorBeltMk1_C", 60),
+                new Contracts.CatalogTransportTier("Build_ConveyorLiftMk1_C", 60),
+                new Contracts.CatalogTransportTier("Build_PipelineMK2_NoIndicator_C", 600),
+            ],
+            tiers);
     }
 }

@@ -20,6 +20,8 @@ Implementation choices (M1):
 
 *Amended 2026-11-05:* the **flow analysis** (BR-A10) works differently. Its inputs (recipe rates, clock speeds, capacities) are exact, but a steady state with loops, such as items fed back, only comes closer step by step and may never land on an exact fraction. So the simulation computes in `double` and stops when no flow changes by more than 0.0001/min. Its results are approximations, shown to 4 decimals and named so in the API. Everything else stays exact.
 
+*Amended again 2026-11-05:* a world can have parts where several steady states are nearly valid, and the simulation then drifts by tiny steps for thousands of sweeps. So each connected part is simulated on its own, and a part that hasn't settled after 2,000 sweeps is reported as *approximate* (BR-A10). An exact formulation, as a linear programme, is on the enhancements pile ([possible enhancements](../domain/possible-enhancements.md)).
+
 ## Consequences
 - Balance checks are exact. "Exactly balanced" is a meaningful state.
 - We must implement and thoroughly test arithmetic, comparison, equality and normalisation. That's a great first TDD exercise.

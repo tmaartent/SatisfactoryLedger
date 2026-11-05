@@ -1,4 +1,5 @@
 using SatisfactoryLedger.Catalog.Contracts;
+using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
@@ -34,8 +35,10 @@ public class SnapshotDocumentTests
         new("Recipe_Screw_C", "Build_ConstructorMk1_C", 6, [new("Desc_IronRod_C", 1)], [new("Desc_IronScrew_C", 4)]);
 
     /// <summary>Stored and read back, as the database does with it.</summary>
-    private static SnapshotDocument Stored(params CatalogRecipe[] catalog) =>
-        SnapshotDocument.FromJson(SnapshotDocument.Create(TestWorld, catalog).ToJson());
+    private static SnapshotDocument Stored(params CatalogRecipe[] recipes) =>
+        TestWorldSnapshot.Stored(TestWorldSnapshot.Catalog with { Recipes = recipes });
+
+    private static T Find<T>(WorldGraph world, string name) where T : Buildable => Assert.IsType<T>(world.Find(Id(name)));
 
     [Fact]
     public void A_stored_snapshot_keeps_every_buildable_and_connection_of_the_save()
@@ -116,6 +119,74 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
-        Assert.Equal(1, Stored().Version);
+        Assert.Equal(2, Stored().Version);
+    }
+
+    [Fact]
+    public void A_snapshot_copies_only_the_extractors_belts_and_nodes_it_uses()
+    {
+        SnapshotDocument snapshot = TestWorldSnapshot.Document;
+
+        Assert.Equal(["Build_MinerMk1_C", "Build_WaterPump_C"], snapshot.Extractors.Select(extractor => extractor.Id).Order(StringComparer.Ordinal));
+        Assert.DoesNotContain(snapshot.TransportTiers, tier => tier.Id == "Build_ConveyorBeltMk2_C");
+        Assert.Equal(["BP_ResourceNode35"], snapshot.ResourceNodes.Select(node => node.Name));
+    }
+
+    [Fact]
+    public void A_miner_offers_the_ore_of_its_node_at_its_extraction_rate()
+    {
+        Provider miner = Find<Provider>(TestWorldSnapshot.Document.ToWorldGraph(), "Build_MinerMk1_C_2147339296");
+
+        Assert.Equal(new ItemOffer(ItemId.Of("Desc_OreIron_C"), Rate.PerMinute(60)), miner.Offer);
+    }
+
+    [Fact]
+    public void A_water_extractor_offers_water_at_its_extraction_rate()
+    {
+        Provider extractor = Find<Provider>(TestWorldSnapshot.Document.ToWorldGraph(), "Build_WaterPump_C_2147271168");
+
+        Assert.Equal(new ItemOffer(ItemId.Of("Desc_Water_C"), Rate.PerMinute(120)), extractor.Offer);
+    }
+
+    [Fact]
+    public void A_miner_on_a_node_the_catalog_does_not_know_has_no_known_offer()
+    {
+        SnapshotDocument snapshot = TestWorldSnapshot.Stored(TestWorldSnapshot.Catalog with { ResourceNodes = [] });
+
+        Assert.Null(Find<Provider>(snapshot.ToWorldGraph(), "Build_MinerMk1_C_2147339296").Offer);
+    }
+
+    [Fact]
+    public void A_belt_carries_the_capacity_of_its_tier()
+    {
+        Logistics belt = Find<Logistics>(TestWorldSnapshot.Document.ToWorldGraph(), "Build_ConveyorBeltMk1_C_2147276358");
+
+        Assert.Equal(Rate.PerMinute(60), belt.Capacity);
+    }
+
+    [Fact]
+    public void A_machine_asks_its_recipe_rate_per_minute_times_its_clock_speed()
+    {
+        Machine smelterB = Find<Machine>(TestWorldSnapshot.Document.ToWorldGraph(), "Build_SmelterMk1_C_2147301500");
+
+        Assert.Equal(Rate.PerMinute(30) * ClockSpeed.Percent(33.3333m), smelterB.Demand[ItemId.Of("Desc_OreIron_C")]);
+    }
+
+    [Fact]
+    public void A_snapshot_knows_which_of_the_items_it_uses_are_fluids()
+    {
+        // Crude oil is a fluid too, but nothing in the test world uses it.
+        Assert.Equal(["Desc_Water_C"], TestWorldSnapshot.Document.Fluids);
+    }
+
+    [Fact]
+    public void A_snapshot_imported_before_rates_were_copied_can_still_be_read_and_traced()
+    {
+        string version1 = TestWorldSnapshot.Document.ToJson()
+            .Replace("\"version\":2", "\"version\":1", StringComparison.Ordinal);
+
+        WorldGraph world = SnapshotDocument.FromJson(version1).ToWorldGraph();
+
+        Assert.Null(Find<Provider>(world, "Build_MinerMk1_C_2147339296").Offer);
     }
 }

@@ -286,4 +286,28 @@ public class RateTests
     {
         Assert.Equal(Rate.PerMinute(20), Rate.PerMinute(20) * ClockSpeed.Percent(100));
     }
+
+    [Fact]
+    public void A_pure_node_doubles_a_rate()
+    {
+        Assert.Equal(Rate.PerMinute(120), Rate.PerMinute(60) * 2m);
+    }
+
+    [Fact]
+    public void An_impure_node_halves_a_rate_exactly()
+    {
+        Assert.Equal(Rate.Of(45, 4), Rate.FromRecipe(3, 8) * 0.5m);
+    }
+
+    [Fact]
+    public void A_partly_filled_somersloop_slot_multiplies_by_a_decimal()
+    {
+        Assert.Equal(Rate.PerMinute(45), Rate.PerMinute(30) * 1.5m);
+    }
+
+    [Fact]
+    public void A_rate_turns_into_a_double_for_the_flow_simulation()
+    {
+        Assert.Equal(45.0 / 8, Rate.Of(45, 8).ToDouble());
+    }
 }

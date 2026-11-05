@@ -7,6 +7,7 @@ internal sealed class TestFlow
 {
     private readonly List<FlowNode> _nodes = [];
     private readonly List<Connection> _connections = [];
+    private readonly HashSet<ItemId> _fluids = [];
 
     public static BuildableId Id(string name) => BuildableId.Of(name);
 
@@ -22,11 +23,20 @@ internal sealed class TestFlow
     public TestFlow Machine(string id, ItemId input, double asks, ItemId output, double makes) =>
         Machine(id, [(input, asks)], [(output, makes)]);
 
-    public TestFlow Belt(string id, double capacity = 1200) => Add(new FlowConduit(Id(id), capacity));
+    /// <summary>Marks an item as a fluid: it goes over pipes, not belts. Every other item is a solid.</summary>
+    public TestFlow Fluid(ItemId item)
+    {
+        _fluids.Add(item);
+        return this;
+    }
 
-    public TestFlow Splitter(string id) => Add(new FlowSplitter(Id(id)));
+    public TestFlow Belt(string id, double capacity = 1200) => Add(new FlowConduit(Id(id), capacity, Carries.Solids));
 
-    public TestFlow Merger(string id) => Add(new FlowMerger(Id(id)));
+    public TestFlow Pipe(string id, double capacity = 600) => Add(new FlowConduit(Id(id), capacity, Carries.Fluids));
+
+    public TestFlow Splitter(string id) => Add(new FlowSplitter(Id(id), Carries.Solids));
+
+    public TestFlow Merger(string id) => Add(new FlowMerger(Id(id), Carries.Solids));
 
     public TestFlow Sink(string id) => Add(new FlowSink(Id(id)));
 
@@ -40,7 +50,8 @@ internal sealed class TestFlow
         return this;
     }
 
-    public FlowResult Run() => SteadyState.Of(new FlowNetwork(_nodes, _connections));
+    public FlowResult Run(int maxSweeps = SteadyState.MaxSweeps) =>
+        SteadyState.Of(new FlowNetwork(_nodes, _connections, _fluids), maxSweeps);
 
     private TestFlow Add(FlowNode node)
     {

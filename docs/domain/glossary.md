@@ -35,6 +35,10 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Starved / Output Blocked** | Why a machine runs below 100%: too little of an input is offered, or an output can't leave (BR-A11). | `MachineLimit` |
 | **Bottleneck** | A belt, lift or pipe at its capacity while more is offered upstream (BR-A12). The first saturated segment of a line. | `Bottleneck` |
 | **Unused Supply** | What a provider could deliver on top of what it does (BR-A13). | `UnusedSupply` |
+| **Flow Part / Approximate** | A connected part of the world, simulated on its own. A part that hasn't settled within 2,000 sweeps is *approximate*: its numbers came close but some still moved (BR-A10). | `FlowPart`, `FlowResult.PartOf` |
+| **Item Offer** | What a provider can deliver: an item and a rate per minute. For an extractor: its extraction rate × its node's purity × its clock speed (BR-W9). Unknown for a station, or a node the Catalog doesn't know. | `ItemOffer`, `Provider.Offer` |
+| **Demand / Production** | What a machine asks and makes per minute when it runs at 100%: recipe rate × clock speed, and × production boost for what it makes (BR-A1). | `Machine.Demand`, `Machine.Production` |
+| **Solids / Fluids** | What a line can carry: belts, lifts, splitters, mergers and containers carry solids; pipes, junctions and fluid buffers carry fluids (BR-A3). | `Carries` |
 | **Assumed / Confirmed Supplied** | A source with an unknown rate supplies what's asked. Confirmed when its stock lasts 30 minutes at that rate (BR-A9). | `UnknownSupply` |
 | **World Snapshot** | One imported save: when it was saved and imported, its world graph, and what the import couldn't place (unknown recipes, unsupported buildables). Every snapshot is kept (BR-W10). | (planned) |
 | **World Graph** | The world as read from one save file: its buildables and how they're connected. Never changed after import. Later stored per import as a snapshot. | `WorldGraph` |
@@ -49,7 +53,7 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Factory Input** | An item the player declares as entering a factory. The input line starts at a splitter (BR-W4). | `FactoryDefinition.InputItems` |
 | **Consumer** | A building that takes items out of the network: AWESOME Sink, dimensional depot uploader, power generator, a station that loads. Never part of a factory (BR-W8). | `Consumer` |
 | **Undeclared Output** | An item other than the output item that leaves a factory, to a sink or elsewhere. A finding (BR-W7). | (planned) |
-| **Logistics** | Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers. | `Logistics`, `LogisticsKind` |
+| **Logistics** | Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers, fluid buffers. A belt, lift or pipe has a **capacity** from its tier. | `Logistics`, `LogisticsKind`, `Logistics.Capacity` |
 
 ## Blueprint Design
 

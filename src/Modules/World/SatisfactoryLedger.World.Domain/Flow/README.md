@@ -2,11 +2,12 @@
 
 This folder answers one question about a world: **once everything has run long enough to settle, how much flows over every belt and pipe, and how hard does every machine work?** The findings come from that answer: starved and blocked machines, bottlenecks, and unused supply.
 
-The rules it implements are BR-A1 to BR-A13 in [`docs/domain/business-rules.md`](../../../../../docs/domain/business-rules.md). Step log 12 (`docs/guide/log/12-flow-simulation.md`) tells how it was built. This README explains how it works.
+The rules it implements are BR-A1 to BR-A13 in [`docs/domain/business-rules.md`](../../../../../docs/domain/business-rules.md). Step logs 12 and 13 (`docs/guide/log/`) tell how it was built. This README explains how it works.
 
 | File | What's in it |
 |---|---|
-| `FlowNetwork.cs` | The model: the kinds of node, and the network of nodes and connections. |
+| `FlowNetwork.cs` | The model: the kinds of node, what they carry, and the network of nodes and connections. |
+| `WorldFlow.cs` | From the world to the model: which kind of node each buildable becomes. |
 | `SteadyState.cs` | The simulation: two passes, repeated until nothing changes. |
 | `FlowResult.cs` | What comes out: flows, machine states, and the findings. |
 
@@ -19,16 +20,37 @@ A `FlowNetwork` is a set of **nodes** and directed **connections** (`Connection(
 | Node | In the world | What it knows |
 |---|---|---|
 | `FlowProvider` | Miner, oil, water or resource well extractor | `Item`, `Offer`: what it can deliver (BR-A2) |
-| `FlowUnknownSource` | Train, truck or drone station; a container nothing feeds | `Stock`: what it holds now (BR-A9) |
+| `FlowUnknownSource` | Train, truck or drone station; a container nothing feeds; an extractor on a node the Catalog doesn't know | `Stock`: what it holds now (BR-A9) |
 | `FlowMachine` | Smelter, constructor, … | `Demand` and `Production` per item at 100% (BR-A1) |
 | `FlowConduit` | Belt, lift, pipe; a container inside a line | `Capacity` (BR-A3); a container passes through with an unlimited capacity |
-| `FlowSplitter` | Splitter | Nothing: it divides evenly (BR-A4) |
+| `FlowSplitter` | Splitter, pipe junction | Nothing: it divides evenly (BR-A4, A6) |
 | `FlowMerger` | Merger | Nothing: it takes evenly (BR-A5) |
 | `FlowSink` | AWESOME Sink, depot uploader, generator, a container at the end of a line | Nothing: it takes everything (BR-A7, A8) |
 
+Conduits, splitters, mergers and unknown sources also say what they **carry**: `Carries.Solids` or `Carries.Fluids` (section 2b). The network knows which items are fluids (`FlowNetwork.Fluids`).
+
 Rates are `double`s. The inputs are exact elsewhere, but a steady state with loops only comes closer step by step and may never land on an exact fraction (ADR-0004, amended). Results are meaningful to `SteadyState.Tolerance` = 0.0001/min.
 
-Building a `FlowNetwork` from a stored snapshot isn't done yet. That's the next step. The tests build small networks by hand with `TestFlow`.
+### From the world to the model
+
+`WorldFlow.From(world, fluids)` turns a `WorldGraph` into a `FlowNetwork`. A stored snapshot does it in one call, `SnapshotDocument.ToFlowNetwork()`, with the rates and fluids it copied from the Catalog at import (ADR-0016). The rates themselves are worked out in the domain, exactly, before they become doubles here:
+- `Machine.Demand` = recipe rate × clock speed;
+- `Machine.Production` = that × production boost (BR-A1);
+- `ItemOffer.Extracting` = extraction rate × purity × clock speed (BR-W9).
+
+| Buildable | Becomes | Carries |
+|---|---|---|
+| `Machine` | `FlowMachine` | (its lines decide) |
+| `Provider` with an offer | `FlowProvider` | its item's form |
+| `Provider` without one | `FlowUnknownSource` (BR-A9) | (its line decides) |
+| `Consumer` | `FlowSink` | (its line decides) |
+| Belt, lift | `FlowConduit` with its tier's capacity, or no limit if the Catalog doesn't know the tier | solids |
+| Pipe, pump, valve | `FlowConduit` with its tier's capacity; a pump or valve has no tier, so no limit | fluids |
+| Splitter, merger | `FlowSplitter`, `FlowMerger` | solids |
+| Pipe junction | `FlowSplitter` (BR-A6) | fluids |
+| Storage container, fluid buffer | at the end of a line `FlowSink`; inside a line `FlowConduit` without a limit; fed by nothing `FlowUnknownSource` (BR-A7, A9) | solids / fluids |
+
+The tests build small networks by hand with `TestFlow`, or small worlds with `TestWorld`.
 
 ---
 
@@ -53,6 +75,14 @@ Why **offered** next to **flow**? Back-pressure lowers the flow on *both* sides 
 - **A blocked machine:** its output can't leave, so it stops, so it takes nothing in, so its input flow drops to zero too. From flows alone it looks starved. Its input is still *offered*, though, so the cause is visible: offered enough, but the output takes less, means *output blocked*.
 - **A machine with two inputs:** if each input's acceptance looked at what the other has *delivered* so far, both would start at zero and wait for each other forever. Looking at what the other is *offered* breaks that.
 
+### 2b. Solids and fluids
+
+A connection carries what both its ends allow: a belt only solids, a pipe only fluids. A machine, a sink or a station allows anything, so its line decides (`Both` in the solver). That matters in four places:
+- **`Send` divides solids and fluids separately.** Each form goes over the outputs that carry it. A refinery's plastic goes on its belt and its residue in its pipe.
+- **`OutputRoom` takes the tighter form.** A refinery whose residue has no pipe to leave by can't run: *output blocked* on the residue.
+- **`AcceptForMachine`** only expects the items its line can bring.
+- **An unknown source** only supplies what its line can carry. A container next to a packager sends canisters, not water.
+
 ---
 
 ## 3. One sweep: backward, then forward
@@ -66,7 +96,9 @@ flowchart LR
     C -- "no, twice in a row" --> R[FlowResult]
 ```
 
-The order is worked out once (`ForwardOrder()`): first the nodes nothing feeds (providers, unknown sources), then breadth first along the connections. Nodes only reachable through a loop come last. The backward pass walks that order in reverse. Order doesn't change the answer, only how many sweeps it takes to get there.
+The order is worked out once (`ForwardOrder()`): a **topological order**. A node comes only after everything that feeds it, so one forward pass carries a change all the way down a line, and the backward pass, walking the order in reverse, carries one all the way up. A loop has no such order: when only loops are left, the first node of one goes next, and the rest follows from it.
+
+The order matters more than it looks. Step 12 used a breadth-first order. There, a node reached by a short and a long path was handled before the long path had updated, so it worked with numbers one sweep old. On your big world, two blenders flip-flopped between two states because of that and never settled. The test `A_branch_that_rejoins_the_line_settles_in_one_sweep_and_two_that_confirm_it` shows the difference: 3 sweeps instead of 4.
 
 ### Backward pass: what each receiving end can take
 
@@ -123,7 +155,9 @@ The splitter's even split, a merger's even take, and what a belt passes on are a
 
 ### Settling
 
-After each sweep, `Run` compares every connection's total flow with the previous sweep. If no flow changed by more than `Settle` (10⁻⁹) **two sweeps in a row**, the network has settled. A network that hasn't settled after `MaxSweeps` (50,000) sweeps stops anyway, and `FlowResult.Settled` is false. It never pretends.
+`SteadyState.Of` first splits the network into its **connected parts** (`PartsOf`, ignoring direction) and simulates each on its own. A world is hundreds of separate factories, and each settles at its own pace.
+
+After each sweep, `Run` compares every connection's total flow with the previous sweep. If no flow changed by more than `Tolerance` (0.0001/min, BR-A10) **two sweeps in a row**, the part has settled. A part that hasn't settled after `MaxSweeps` (2,000) sweeps stops anyway. Its `FlowPart.Settled` is false, so its numbers are *approximate*, and `FlowResult.Settled` is false. It never pretends. (`Settle`, 10⁻⁹, is only for comparing doubles inside the solver.)
 
 ---
 
@@ -210,9 +244,11 @@ All findings are read from the settled state, in `FlowResult`:
 ## 7. What it doesn't do yet
 
 - **Smart-splitter rules and priority mergers** (the rest of BR-A4 and A5) are treated as plain splitters and mergers. Their settings refer to ports (output 0, 1, 2; input priority), and connections don't carry ports yet.
-- **A machine with two products** offers both on all its output connections. That's right with one output belt, but wrong for a refinery whose plastic goes on a belt and whose residue goes in a pipe. Ports fix this too.
+- **A machine with two solid products on two belts** (a manufacturer has one output, but some alternates make two solids) offers both on both belts. In the game each product leaves by its own port. Ports fix this too. Solid and fluid products are already kept apart (section 2b).
+- **Stock** isn't read from the save yet, so every unknown source is *assumed* supplied, never *confirmed*.
+- **Stations** aren't in the world yet (the adapter reports them as unsupported). A line a train unloads onto starts at nothing, so whatever it feeds is starved.
 - **A belt carrying an item a machine doesn't ask for** clogs completely (accept 0). That's what the game does. The finding doesn't name it as its own cause yet: the machine shows as starved.
-- **Speed on a big world** hasn't been measured yet. Each sweep is linear in the number of connections, but how many sweeps a world of 42,000 buildables needs is still to be seen.
+- **Degenerate parts stay approximate.** Your big world (41,959 nodes, 1,016 parts) runs in 3 s. One part of 313 buildables doesn't settle: its ore supply and the room downstream bind at almost the same point. Then many splits over parallel smelters are nearly valid, and each sweep moves the split by a tiny slack (0.00045/min). It's reported as approximate. An exact solver (linear programming) is on the enhancements pile.
 
 ---
 
@@ -220,9 +256,11 @@ All findings are read from the settled state, in `FlowResult`:
 
 | Concept | `SteadyState.Solver` method |
 |---|---|
+| Splitting into parts, merging the results | `Of`, `PartsOf` |
 | Sweeps until settled | `Run` |
 | Backward pass, per kind of node | `Backward` |
 | What a machine can take | `AcceptForMachine`, `OutputRoom`, `ScarcestOtherThan` |
+| Solids and fluids | `CanCarry`, `CarriesOf`, `Both`, `OfForm` |
 | Inputs sharing what a node passes on | `ShareInputs` |
 | Forward pass, per kind of node | `Forward` |
 | A machine's utilisation and cause | `Run(int, FlowMachine)`, `Scarcest` |
@@ -230,6 +268,7 @@ All findings are read from the settled state, in `FlowResult`:
 | What an unknown source supplies | `SendAsked`, `AskedItems` |
 | The findings | `Bottlenecks`, `Saturated`, `Unused`, `Unknown` |
 | The order of the passes | `ForwardOrder` |
+| Buildable to node | `WorldFlow.NodeOf`, `WorldFlow.Container` |
 
 ## 9. Adding to it
 

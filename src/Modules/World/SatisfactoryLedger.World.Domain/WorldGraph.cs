@@ -18,6 +18,7 @@ public sealed class WorldGraph
         }
 
         List<Connection> all = connections.ToList();
+        Connections = all;
         foreach (Connection connection in all)
         {
             if (!_buildables.ContainsKey(connection.From) || !_buildables.ContainsKey(connection.To))
@@ -31,6 +32,9 @@ public sealed class WorldGraph
     }
 
     public IEnumerable<Buildable> Buildables => _buildables.Values;
+
+    /// <summary>Every connection, in the direction items flow.</summary>
+    public IReadOnlyList<Connection> Connections { get; }
 
     public Buildable? Find(BuildableId id) => _buildables.GetValueOrDefault(id);
 

@@ -1,3 +1,4 @@
+using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain;
 
 using static SatisfactoryLedger.World.SaveFile.Tests.TestWorldSave;
@@ -24,13 +25,18 @@ public class TestWorldFactoryTests
     private static WorldGraph Graph() => new(
         Save.Buildables.Select<SavedBuildable, Buildable>(saved => saved switch
         {
-            SavedMachine machine => new Machine(machine.Id, Recipes[machine.Recipe!].Consumes, Recipes[machine.Recipe!].Produces),
+            SavedMachine machine => new Machine(machine.Id, Traced(Recipes[machine.Recipe!]), machine.ClockSpeed),
             SavedProvider provider => new Provider(provider.Id),
             SavedConsumer consumer => new Consumer(consumer.Id),
             SavedLogistics logistics => new Logistics(logistics.Id, logistics.Kind),
             _ => throw new InvalidOperationException($"Unexpected {saved}"),
         }),
         Save.Connections);
+
+    /// <summary>Tracing only looks at which items a machine takes and makes, so every rate is 1 per minute.</summary>
+    private static Recipe Traced((ItemId[] Consumes, ItemId[] Produces) recipe) => new(
+        recipe.Consumes.ToDictionary(item => item, _ => Rate.PerMinute(1)),
+        recipe.Produces.ToDictionary(item => item, _ => Rate.PerMinute(1)));
 
     [Fact]
     public void The_iron_plate_factory_traced_from_the_belt_into_the_container_has_both_smelters_and_constructor_C()
