@@ -200,6 +200,37 @@ Every technical term in the guide, in plain language: what it is, and where you'
 | **Dev-server proxy** | `proxy.conf.js` passes `/api` from `ng serve` on to the API, so the app calls relative URLs and needs no CORS. Like a Vite or webpack proxy. | `web/proxy.conf.js` |
 | **`AddJavaScriptApp`** | Aspire's resource for an npm app: runs an npm script and passes `WithReference` addresses as environment variables (`services__api__https__0`). | `AppHost.cs` |
 
+### Angular compared with a Node.js backend and with React
+
+Angular runs in the **browser**; Node.js is only its toolchain (`ng serve`, `ng build`, npm). It feels like a backend because it's built like one: DI, services, decorators, a router. NestJS, a Node backend framework, copied that design, and both feel like Spring.
+
+| | Angular | Node.js backend (Express / NestJS) |
+|---|---|---|
+| **Runs where** | In the browser, one instance per user tab | On a server, one process for all users |
+| **State** | In memory, per user, for as long as the tab is open | In a database; memory is shared by all users |
+| **Produces** | What the user sees (the DOM) | HTTP responses |
+| **DI** | Built in: `inject(Api)`, `providedIn: 'root'` | Express: none. NestJS: Angular-style |
+| **Concurrency** | One user, one thread; awaits HTTP calls | Many users on one event loop; blocking work stalls everyone |
+| **Security** | Trusts nothing it holds: the user can change the code | The trust boundary: validates input, enforces access |
+| **Tests** | Components in a fake DOM (`world/findings.spec.ts`) | Over HTTP, like `WebApplicationFactory` here |
+
+An Angular service such as `shared/catalog-names.ts` looks like a Spring `@Service` singleton, but it's a singleton **per browser tab**. It's closer to a session-scoped bean.
+
+| | Angular | React |
+|---|---|---|
+| **What it is** | A whole framework: router, HTTP client, forms, DI, test setup, CLI. Like Spring Boot | A rendering library. Router, data fetching and state come from other libraries (React Router, TanStack Query, Next.js) |
+| **Templates** | HTML files with their own syntax (`@if`, `@for`, `[value]`, `(click)`), compiled ahead of time | JSX: HTML-like syntax inside TypeScript, so templates are code |
+| **Components** | Classes with `@Component`; inputs via `input()` | Functions; props are parameters |
+| **State** | Signals (`signal`, `computed`, `effect`): only what depends on a change is updated | `useState` and hooks: the component function runs again, and React compares the result |
+| **Async data** | `resource()` or RxJS | `useEffect`, or TanStack Query |
+| **DI** | Built in, hierarchical | None: Context, or passing props down |
+| **Styles** | Scoped per component (`styleUrl`) | Your choice: CSS modules, Tailwind, CSS-in-JS |
+
+**In this project:**
+- **DI:** `CatalogNames` is injected wherever names are shown. React would pass it down or put it in a Context.
+- **Signals:** the machine filter in `world/findings.ts` is a `computed()` over `findings()` and `limitFilter()`. React would run the component again and use `useMemo` to keep that cheap.
+- **One toolchain:** the CLI, `HttpClient` and Angular Material came as one set. With React you'd choose a bundler, router, data library and component library separately.
+
 ## Architecture & DDD
 
 | Term | What it is | In this project |
