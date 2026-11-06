@@ -9,7 +9,7 @@ The rules it implements are BR-A1 to BR-A13 in [`docs/domain/business-rules.md`]
 | `FlowNetwork.cs` | The model: the kinds of node, what they carry, and the network of nodes and connections. |
 | `WorldFlow.cs` | From the world to the model: which kind of node each buildable becomes. |
 | `SteadyState.cs` | The simulation: two passes, repeated until nothing changes. |
-| `FlowResult.cs` | What comes out: flows, machine states, and the findings. |
+| `FlowResult.cs` | What comes out: flows, machine states, and the findings. The API gives them per snapshot: `World/Analysis/SnapshotAnalysis.cs`, `GET /api/v1/world/snapshots/{id}/analysis`. |
 
 ---
 

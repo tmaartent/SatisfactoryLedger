@@ -641,10 +641,194 @@
           }
         }
       }
+    },
+    "/api/v1/world/snapshots/{id}/analysis": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "The findings of a snapshot: machines below 100% and why, bottlenecks, unused supply, and sources of unknown rate",
+        "description": "Computed on request from the steady state of the snapshot's world (BR-A1 to A13); a big world takes some seconds. Rates per minute, to 4 decimals. Every list starts with the worst. A finding in a part of the world that didn't settle is marked approximate.",
+        "operationId": "AnalyseSnapshot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AnalysisResponse": {
+        "required": [
+          "settled",
+          "summary",
+          "approximateParts",
+          "machines",
+          "bottlenecks",
+          "unusedSupply",
+          "unknownSupply"
+        ],
+        "type": "object",
+        "properties": {
+          "settled": {
+            "type": "boolean"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AnalysisSummary"
+          },
+          "approximateParts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApproximatePart"
+            }
+          },
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MachineFinding"
+            }
+          },
+          "bottlenecks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BottleneckFinding"
+            }
+          },
+          "unusedSupply": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnusedSupplyFinding"
+            }
+          },
+          "unknownSupply": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnknownSupplyFinding"
+            }
+          }
+        }
+      },
+      "AnalysisSummary": {
+        "required": [
+          "machines",
+          "running",
+          "starved",
+          "outputBlocked",
+          "noRecipe"
+        ],
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "starved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "outputBlocked": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "noRecipe": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApproximatePart": {
+        "required": [
+          "buildables",
+          "sweeps",
+          "example"
+        ],
+        "type": "object",
+        "properties": {
+          "buildables": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "sweeps": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "example": {
+            "type": "string"
+          }
+        }
+      },
+      "BottleneckFinding": {
+        "required": [
+          "id",
+          "className",
+          "capacity",
+          "flow",
+          "offeredMore",
+          "position",
+          "approximate"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "number",
+            "format": "double"
+          },
+          "flow": {
+            "type": "number",
+            "format": "double"
+          },
+          "offeredMore": {
+            "type": "number",
+            "format": "double"
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PositionDocument"
+              }
+            ]
+          },
+          "approximate": {
+            "type": "boolean"
+          }
+        }
+      },
       "BuildableReference": {
         "required": [
           "id",
@@ -983,6 +1167,67 @@
             "type": "boolean"
           }
         }
+      },
+      "MachineFinding": {
+        "required": [
+          "id",
+          "className",
+          "recipe",
+          "utilisation",
+          "limit",
+          "limitingItem",
+          "position",
+          "approximate"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "recipe": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "utilisation": {
+            "type": "number",
+            "format": "double"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/MachineLimit"
+          },
+          "limitingItem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PositionDocument"
+              }
+            ]
+          },
+          "approximate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MachineLimit": {
+        "enum": [
+          "none",
+          "starved",
+          "outputBlocked",
+          "noRecipe"
+        ]
       },
       "MachineSummary": {
         "required": [
@@ -1390,6 +1635,56 @@
           }
         }
       },
+      "UnknownSupplyFinding": {
+        "required": [
+          "id",
+          "className",
+          "delivered",
+          "stockMinutes",
+          "confirmed",
+          "position",
+          "approximate"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "delivered": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "stockMinutes": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PositionDocument"
+              }
+            ]
+          },
+          "approximate": {
+            "type": "boolean"
+          }
+        }
+      },
       "UnsupportedResponse": {
         "required": [
           "className",
@@ -1403,6 +1698,50 @@
           "count": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "UnusedSupplyFinding": {
+        "required": [
+          "id",
+          "className",
+          "item",
+          "offered",
+          "delivered",
+          "position",
+          "approximate"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "item": {
+            "type": "string"
+          },
+          "offered": {
+            "type": "number",
+            "format": "double"
+          },
+          "delivered": {
+            "type": "number",
+            "format": "double"
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PositionDocument"
+              }
+            ]
+          },
+          "approximate": {
+            "type": "boolean"
           }
         }
       }

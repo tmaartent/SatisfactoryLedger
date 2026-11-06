@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
+using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
@@ -36,7 +37,8 @@ public static class WorldModule
         endpoints.MapGroup("/api/v1/world")
             .WithTags("World")
             .MapSnapshotEndpoints()
-            .MapFactoryEndpoints();
+            .MapFactoryEndpoints()
+            .MapAnalysisEndpoints();
 
         return endpoints;
     }
