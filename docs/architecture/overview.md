@@ -33,17 +33,25 @@ flowchart LR
 flowchart LR
     browser[Angular SPA<br/>web/]
     api[ASP.NET Core API<br/>SatisfactoryLedger.Api<br/>modular monolith]
-    db[(PostgreSQL<br/>one schema per module)]
+    analysis[Analysis service<br/>SatisfactoryLedger.AnalysisService<br/>stateless, ADR-0018]
+    db[(PostgreSQL<br/>one schema per module<br/>+ Wolverine's outbox)]
+    mq[[RabbitMQ]]
     apphost[Aspire AppHost<br/>local orchestration +<br/>dashboard / OpenTelemetry]
 
     browser -- "JSON over HTTPS<br/>REST, OpenAPI-described" --> api
     api -- "EF Core" --> db
+    api -- "SnapshotImported<br/>(transactional outbox)" --> mq
+    mq -- "SnapshotImported" --> analysis
+    analysis -- "GET flow network,<br/>PUT analysis<br/>(/internal/world)" --> api
     apphost -. starts and wires .-> browser
     apphost -. starts and wires .-> api
+    apphost -. starts and wires .-> analysis
     apphost -. starts .-> db
+    apphost -. starts .-> mq
 ```
 
-- **One deployable backend.** The API host composes all modules in-process.
+- **Two deployable backends.** The API host composes all modules in-process. The **analysis service** runs a snapshot's flow simulation when the API says it was imported (ADR-0018). It owns no data: it fetches the flow network over HTTP and sends the analysis back.
+- **Messages stay small.** RabbitMQ carries only `SnapshotImported { SnapshotId }`; the documents (megabytes on a big world) go over HTTP (the *claim check* pattern). The API publishes through Wolverine's transactional outbox, so a snapshot and its message are stored together.
 - **One database, a schema per module.** A module never reads another module's tables. This is the cheapest boundary to enforce now and the most expensive to fix later.
 - The **TypeScript API client is generated** from the OpenAPI document (ADR-0006), so the frontend can't drift from the contract.
 

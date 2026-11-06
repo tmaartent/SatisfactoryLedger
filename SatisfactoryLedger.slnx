@@ -7,6 +7,7 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/SatisfactoryLedger.AnalysisService/SatisfactoryLedger.AnalysisService.csproj" />
     <Project Path="src/SatisfactoryLedger.Api/SatisfactoryLedger.Api.csproj" />
     <Project Path="src/SatisfactoryLedger.AppHost/SatisfactoryLedger.AppHost.csproj" />
     <Project Path="src/SatisfactoryLedger.ServiceDefaults/SatisfactoryLedger.ServiceDefaults.csproj" />
@@ -21,6 +22,7 @@
     <Project Path="src/Modules/World/SatisfactoryLedger.World.Contracts/SatisfactoryLedger.World.Contracts.csproj" />
     <Project Path="src/Modules/World/SatisfactoryLedger.World.Domain/SatisfactoryLedger.World.Domain.csproj" />
     <Project Path="src/Modules/World/SatisfactoryLedger.World.SaveFile/SatisfactoryLedger.World.SaveFile.csproj" />
+    <Project Path="src/Modules/World/SatisfactoryLedger.World.Simulation/SatisfactoryLedger.World.Simulation.csproj" />
     <Project Path="src/Modules/World/SatisfactoryLedger.World/SatisfactoryLedger.World.csproj" />
   </Folder>
   <!-- Tools run by hand, never part of the app (ADR-0015). In the solution so they build and their tests run in CI. -->
@@ -36,6 +38,7 @@
     <Project Path="tests/SatisfactoryLedger.SharedKernel.Tests/SatisfactoryLedger.SharedKernel.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.Domain.Tests/SatisfactoryLedger.World.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.SaveFile.Tests/SatisfactoryLedger.World.SaveFile.Tests.csproj" />
+    <Project Path="tests/SatisfactoryLedger.World.Simulation.Tests/SatisfactoryLedger.World.Simulation.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.Tests/SatisfactoryLedger.World.Tests.csproj" />
   </Folder>
 </Solution>

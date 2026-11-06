@@ -5,8 +5,21 @@ var ledger = builder.AddPostgres("postgres")
     .WithDataVolume()
     .AddDatabase("ledger");
 
-builder.AddProject<Projects.SatisfactoryLedger_Api>("api")
+// RabbitMQ carries SnapshotImported from the API to the analysis service (ADR-0018). The management UI shows the queues.
+var rabbitmq = builder.AddRabbitMQ("rabbitmq")
+    .WithManagementPlugin();
+
+var api = builder.AddProject<Projects.SatisfactoryLedger_Api>("api")
     .WithReference(ledger)
-    .WaitFor(ledger);
+    .WithReference(rabbitmq)
+    .WaitFor(ledger)
+    .WaitFor(rabbitmq);
+
+// The analysis service finds the API as "api" by service discovery, and owns no database.
+builder.AddProject<Projects.SatisfactoryLedger_AnalysisService>("analysis")
+    .WithReference(rabbitmq)
+    .WithReference(api)
+    .WaitFor(rabbitmq)
+    .WaitFor(api);
 
 builder.Build().Run();

@@ -1,6 +1,6 @@
 # ADR-0017: A snapshot's analysis is stored, and computed in the background after import
 
-- **Status:** Accepted
+- **Status:** Accepted, amended by [ADR-0018](0018-analysis-as-a-separate-service-over-rabbitmq.md): the worker is now a separate service
 - **Date:** 2026-11-06
 
 ## Context

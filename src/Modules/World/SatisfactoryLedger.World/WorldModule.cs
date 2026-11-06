@@ -22,20 +22,25 @@ public static class WorldModule
         builder.Services.AddDbContext<WorldDbContext>(options =>
             WorldDbContext.Configure(options, builder.Configuration.GetConnectionString(WorldDbContext.ConnectionStringName)));
 
-        // Adds Aspire's extras to that DbContext: retries on transient errors, a health check, tracing and metrics.
-        builder.EnrichNpgsqlDbContext<WorldDbContext>();
+        // Adds Aspire's extras to that DbContext: a health check, tracing and metrics. Not its retries: EF's retrying
+        // execution strategy refuses transactions it didn't start, and Wolverine's outbox opens one as soon as the import
+        // publishes its message (ADR-0018). Wolverine retries the messaging itself.
+        builder.EnrichNpgsqlDbContext<WorldDbContext>(settings => settings.DisableRetry = true);
 
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ImportSaveHandler>();
         builder.Services.AddScoped<DefineFactoryHandler>();
 
-        // ADR-0017: the import queues each new snapshot; one background worker analyses them.
-        builder.Services.AddSingleton<AnalysisQueue>();
-        builder.Services.AddScoped<AnalyseSnapshotHandler>();
-        builder.Services.AddHostedService<AnalysisWorker>();
+        // ADR-0018: the analysis service computes each snapshot's analysis; World stores it (ADR-0017).
+        builder.Services.AddScoped<StoreAnalysisHandler>();
+        builder.Services.AddHostedService<AnalysisRequeue>();
 
         return builder;
     }
+
+    /// <summary>World's messaging with the analysis service (ADR-0018), for the host's <c>UseWolverine</c>.</summary>
+    public static Wolverine.WolverineOptions AddWorldMessaging(this Wolverine.WolverineOptions options) =>
+        AnalysisMessages.AddWorldMessaging(options);
 
     public static IEndpointRouteBuilder MapWorldEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -44,6 +49,11 @@ public static class WorldModule
             .MapSnapshotEndpoints()
             .MapFactoryEndpoints()
             .MapAnalysisEndpoints();
+
+        // For the analysis service only (ADR-0018): not part of the public API or its OpenAPI document.
+        endpoints.MapGroup("/internal/world")
+            .ExcludeFromDescription()
+            .MapInternalAnalysisEndpoints();
 
         return endpoints;
     }

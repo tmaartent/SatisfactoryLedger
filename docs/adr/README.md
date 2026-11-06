@@ -22,6 +22,7 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0014](0014-world-module-replaces-blueprint-and-network.md) | A World module replaces BlueprintDesign and FactoryNetwork | Accepted |
 | [0015](0015-resource-nodes-from-the-game-map.md) | Resource nodes come from the game's map, through a generated node table | Accepted |
 | [0016](0016-world-snapshots-as-one-document.md) | A world snapshot is stored as one document per import | Accepted |
-| [0017](0017-snapshot-analysis-stored-and-computed-in-the-background.md) | A snapshot's analysis is stored, and computed in the background after import | Accepted |
+| [0017](0017-snapshot-analysis-stored-and-computed-in-the-background.md) | A snapshot's analysis is stored, and computed in the background after import | Accepted, amended by 0018 |
+| [0018](0018-analysis-as-a-separate-service-over-rabbitmq.md) | The analysis runs in a separate service, triggered over RabbitMQ | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

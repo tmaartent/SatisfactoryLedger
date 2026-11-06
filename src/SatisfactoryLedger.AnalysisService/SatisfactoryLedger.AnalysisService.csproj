@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <!-- The analysis service (ADR-0018): simulates a snapshot's flow network when World says a snapshot was imported. -->
+  <ItemGroup>
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\World\SatisfactoryLedger.World.Simulation\SatisfactoryLedger.World.Simulation.csproj" />
+    <ProjectReference Include="..\SatisfactoryLedger.ServiceDefaults\SatisfactoryLedger.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -2,10 +2,12 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SatisfactoryLedger.Api\SatisfactoryLedger.Api.csproj" />
+    <ProjectReference Include="..\SatisfactoryLedger.AnalysisService\SatisfactoryLedger.AnalysisService.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

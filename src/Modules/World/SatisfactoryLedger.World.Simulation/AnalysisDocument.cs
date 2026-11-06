@@ -1,10 +1,8 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 using SatisfactoryLedger.World.Domain.Flow;
-using SatisfactoryLedger.World.Snapshots;
 
-namespace SatisfactoryLedger.World.Analysis;
+namespace SatisfactoryLedger.World.Simulation;
 
 /// <summary>
 /// The stored result of a snapshot's simulation (ADR-0017): what every machine does, the findings, the parts that
@@ -16,7 +14,7 @@ namespace SatisfactoryLedger.World.Analysis;
 /// changes results: every stored analysis is then computed again.
 /// </param>
 /// <param name="Into">Per belt, lift, pipe or container in a line that carries something: what flows into it, per item and minute.</param>
-internal sealed record AnalysisDocument(
+public sealed record AnalysisDocument(
     int Version,
     IReadOnlyList<MachineStateDocument> Machines,
     IReadOnlyList<BottleneckDocument> Bottlenecks,
@@ -28,16 +26,10 @@ internal sealed record AnalysisDocument(
     /// <summary>Version 1: the analysis of steps 12 to 17.</summary>
     public const int CurrentVersion = 1;
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    /// <summary>Simulates a world's flow network and keeps what the findings need.</summary>
+    public static AnalysisDocument Compute(FlowNetwork network)
     {
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-
-    /// <summary>Simulates the snapshot's world and keeps what the findings need.</summary>
-    public static AnalysisDocument Compute(SnapshotDocument snapshot)
-    {
-        FlowNetwork network = snapshot.ToFlowNetwork();
+        ArgumentNullException.ThrowIfNull(network);
         FlowResult result = SteadyState.Of(network);
 
         Dictionary<string, IReadOnlyDictionary<string, double>> into = new(StringComparer.Ordinal);
@@ -68,21 +60,21 @@ internal sealed record AnalysisDocument(
             into);
     }
 
-    public string ToJson() => JsonSerializer.Serialize(this, Json);
+    public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 
     public static AnalysisDocument FromJson(string json) =>
-        JsonSerializer.Deserialize<AnalysisDocument>(json, Json) ?? throw new JsonException("An analysis document can't be empty");
+        JsonSerializer.Deserialize<AnalysisDocument>(json, SimulationJson.Options) ?? throw new JsonException("An analysis document can't be empty");
 
     /// <summary>The buildables in a part of the world that didn't settle: their findings are approximate (BR-A10).</summary>
     public HashSet<string> Approximate() => [.. UnsettledParts.SelectMany(part => part.Buildables)];
 }
 
-internal sealed record MachineStateDocument(string Id, double Utilisation, MachineLimit Limit, string? LimitingItem = null);
+public sealed record MachineStateDocument(string Id, double Utilisation, MachineLimit Limit, string? LimitingItem = null);
 
-internal sealed record BottleneckDocument(string Id, double Capacity, double Flow, double OfferedMore);
+public sealed record BottleneckDocument(string Id, double Capacity, double Flow, double OfferedMore);
 
-internal sealed record UnusedSupplyDocument(string Id, string Item, double Offered, double Delivered);
+public sealed record UnusedSupplyDocument(string Id, string Item, double Offered, double Delivered);
 
-internal sealed record UnknownSupplyDocument(string Id, IReadOnlyDictionary<string, double> Delivered, double? StockMinutes, bool Confirmed);
+public sealed record UnknownSupplyDocument(string Id, IReadOnlyDictionary<string, double> Delivered, double? StockMinutes, bool Confirmed);
 
-internal sealed record UnsettledPartDocument(IReadOnlyList<string> Buildables, int Sweeps);
+public sealed record UnsettledPartDocument(IReadOnlyList<string> Buildables, int Sweeps);

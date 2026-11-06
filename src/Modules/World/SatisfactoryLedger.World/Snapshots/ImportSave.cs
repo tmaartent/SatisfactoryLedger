@@ -2,6 +2,9 @@ using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.SaveFile;
+using SatisfactoryLedger.World.Simulation;
+
+using Wolverine.EntityFrameworkCore;
 
 namespace SatisfactoryLedger.World.Snapshots;
 
@@ -11,7 +14,7 @@ internal sealed record ImportSaveCommand(Stream Save);
 /// Imports a save as a new world snapshot (BR-W10, ADR-0016): read it through the adapter, copy the recipes,
 /// extractors, belts and nodes it uses from the Catalog, store it. What the Catalog doesn't know is listed, not refused.
 /// </summary>
-internal sealed class ImportSaveHandler(WorldDbContext db, ICatalogQueries catalog, TimeProvider clock, AnalysisQueue analyses)
+internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox, ICatalogQueries catalog, TimeProvider clock)
 {
     /// <exception cref="SaveFileException">The file can't be read as a save.</exception>
     public async Task<StoredSnapshot> HandleAsync(ImportSaveCommand command, CancellationToken cancellationToken)
@@ -33,11 +36,12 @@ internal sealed class ImportSaveHandler(WorldDbContext db, ICatalogQueries catal
             Content = document.ToJson(),
         };
 
-        db.Snapshots.Add(snapshot);
-        // ADR-0017: the analysis is pending from the start, in the same transaction; the background worker computes it.
-        db.Analyses.Add(StoredAnalysis.PendingFor(snapshot.Id));
-        await db.SaveChangesAsync(cancellationToken);
-        analyses.Enqueue(snapshot.Id);
+        // ADR-0018: the snapshot, its pending analysis and the message to the analysis service, in one transaction.
+        // Wolverine sends the message to RabbitMQ once the transaction is committed (the transactional outbox).
+        outbox.DbContext.Snapshots.Add(snapshot);
+        outbox.DbContext.Analyses.Add(StoredAnalysis.PendingFor(snapshot.Id));
+        await outbox.PublishAsync(new SnapshotImported(snapshot.Id));
+        await outbox.SaveChangesAndFlushMessagesAsync(cancellationToken);
         return snapshot;
     }
 

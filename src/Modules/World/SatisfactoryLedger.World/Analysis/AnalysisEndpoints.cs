@@ -1,12 +1,16 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
 
+using Wolverine;
+
+using SatisfactoryLedger.World.Simulation;
 namespace SatisfactoryLedger.World.Analysis;
 
 /// <summary>The answer while a snapshot's analysis isn't ready yet: ask again later (ADR-0017).</summary>
@@ -34,7 +38,8 @@ internal static class AnalysisEndpoints
     }
 
     private static async Task<Results<Ok<AnalysisResponse>, Accepted<AnalysisPendingResponse>, NotFound, ProblemHttpResult>> AnalyseAsync(
-        Guid id, WorldDbContext db, AnalysisQueue queue, CancellationToken cancellationToken)
+        // [FromServices]: without it, the build-time OpenAPI generation (where Wolverine isn't there) takes it for a body.
+        Guid id, WorldDbContext db, [FromServices] IMessageBus bus, CancellationToken cancellationToken)
     {
         var snapshot = await db.LoadSnapshotAsync(id, cancellationToken);
         if (snapshot is null)
@@ -42,7 +47,7 @@ internal static class AnalysisEndpoints
             return TypedResults.NotFound();
         }
 
-        return await StoredAsync(id, db, queue, cancellationToken) switch
+        return await StoredAsync(id, db, bus, cancellationToken) switch
         {
             { Document: { } analysis } => TypedResults.Ok(SnapshotAnalysis.For(snapshot.Value.Document, analysis)),
             { Error: { } error } => Failed(error),
@@ -51,7 +56,7 @@ internal static class AnalysisEndpoints
     }
 
     private static async Task<Results<Ok<FactoryAnalysisResponse>, Accepted<AnalysisPendingResponse>, NotFound, ProblemHttpResult>> AnalyseFactoryAsync(
-        Guid id, Guid factoryId, WorldDbContext db, AnalysisQueue queue, CancellationToken cancellationToken)
+        Guid id, Guid factoryId, WorldDbContext db, [FromServices] IMessageBus bus, CancellationToken cancellationToken)
     {
         var snapshot = await db.LoadSnapshotAsync(id, cancellationToken);
         Factories.StoredFactory? factory = await db.Factories.FindAsync([factoryId], cancellationToken);
@@ -60,7 +65,7 @@ internal static class AnalysisEndpoints
             return TypedResults.NotFound();
         }
 
-        switch (await StoredAsync(id, db, queue, cancellationToken))
+        switch (await StoredAsync(id, db, bus, cancellationToken))
         {
             case { Document: { } analysis }:
                 FactoryAnalysisResponse? findings = SnapshotAnalysis.ForFactory(snapshot.Value.Document, factory, analysis);
@@ -74,7 +79,7 @@ internal static class AnalysisEndpoints
 
     /// <summary>The snapshot's analysis when it's current, or why it failed. Queues it when it's missing or outdated.</summary>
     private static async Task<(AnalysisDocument? Document, string? Error)> StoredAsync(
-        Guid id, WorldDbContext db, AnalysisQueue queue, CancellationToken cancellationToken)
+        Guid id, WorldDbContext db, IMessageBus bus, CancellationToken cancellationToken)
     {
         StoredAnalysis? stored = await db.Analyses.AsNoTracking().SingleOrDefaultAsync(analysis => analysis.SnapshotId == id, cancellationToken);
         if (stored is { IsCurrent: true, Content: { } content })
@@ -87,10 +92,10 @@ internal static class AnalysisEndpoints
             return (null, stored.Error);
         }
 
-        // Imported before analyses were stored, or computed with older rules: the worker picks it up.
-        if (stored is null || stored.Version != AnalysisDocument.CurrentVersion)
+        // Imported before analyses were stored, or computed with older rules: ask the analysis service (ADR-0018).
+        if (stored is null || (stored.Status != AnalysisStatus.Pending && stored.Version != AnalysisDocument.CurrentVersion))
         {
-            queue.Enqueue(id);
+            await bus.PublishAsync(new SnapshotImported(id));
         }
 
         return (null, null);

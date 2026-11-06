@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -5,6 +6,8 @@ using SatisfactoryLedger.Catalog;
 using SatisfactoryLedger.World;
 
 using Scalar.AspNetCore;
+
+using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +27,14 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     // number-or-string. Strict keeps numbers plain numbers in the contract and the generated client.
     options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
+
+// Messaging with the analysis service (ADR-0018). Only World sends messages; the Catalog has none.
+// The build-time OpenAPI generation (ADR-0006) starts this app without a database or RabbitMQ, as "GetDocument.Insider":
+// it only needs the endpoints, and Wolverine would refuse to start without its connection strings.
+if (Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
+{
+    builder.UseWolverine(options => options.AddWorldMessaging());
+}
 
 var app = builder.Build();
 

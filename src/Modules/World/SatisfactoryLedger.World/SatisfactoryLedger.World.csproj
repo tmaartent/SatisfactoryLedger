@@ -1,10 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- Messaging with the analysis service (ADR-0018). -->
+    <PackageReference Include="WolverineFx" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SatisfactoryLedger.World.Domain\SatisfactoryLedger.World.Domain.csproj" />
     <ProjectReference Include="..\SatisfactoryLedger.World.Contracts\SatisfactoryLedger.World.Contracts.csproj" />
     <!-- The module's own anti-corruption layer around the save-file library (ADR-0013). -->
     <ProjectReference Include="..\SatisfactoryLedger.World.SaveFile\SatisfactoryLedger.World.SaveFile.csproj" />
+    <ProjectReference Include="..\SatisfactoryLedger.World.Simulation\SatisfactoryLedger.World.Simulation.csproj" />
     <!-- Recipes come from the Catalog, through its contracts only (ADR-0003). -->
     <ProjectReference Include="..\..\Catalog\SatisfactoryLedger.Catalog.Contracts\SatisfactoryLedger.Catalog.Contracts.csproj" />
   </ItemGroup>

@@ -2,6 +2,7 @@ using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Snapshots;
 
+using SatisfactoryLedger.World.Simulation;
 namespace SatisfactoryLedger.World.Analysis;
 
 /// <summary>How the machines of a snapshot run: at 100%, or below it and why (BR-A11).</summary>

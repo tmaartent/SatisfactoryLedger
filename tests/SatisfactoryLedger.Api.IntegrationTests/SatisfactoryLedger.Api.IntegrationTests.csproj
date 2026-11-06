@@ -23,10 +23,12 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <!-- Starts a throwaway PostgreSQL container for the test run. Needs Docker. -->
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.RabbitMq" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SatisfactoryLedger.Api\SatisfactoryLedger.Api.csproj" />
+    <ProjectReference Include="..\..\src\SatisfactoryLedger.AnalysisService\SatisfactoryLedger.AnalysisService.csproj" />
   </ItemGroup>
 
 </Project>

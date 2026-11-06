@@ -8,6 +8,7 @@ using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.SaveFile;
 
+using SatisfactoryLedger.World.Simulation;
 namespace SatisfactoryLedger.World.Snapshots;
 
 internal sealed record UnsupportedResponse(string ClassName, int Count);

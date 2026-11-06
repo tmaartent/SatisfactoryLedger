@@ -41,8 +41,8 @@ internal static class TestWorldSnapshot
     public static SnapshotDocument Document { get; } = Stored(Catalog);
 
     /// <summary>The test world's analysis, stored and read back as the database does (ADR-0017).</summary>
-    public static Analysis.AnalysisDocument TestWorldAnalysis { get; } =
-        Analysis.AnalysisDocument.FromJson(Analysis.AnalysisDocument.Compute(Document).ToJson());
+    public static Simulation.AnalysisDocument TestWorldAnalysis { get; } =
+        Simulation.AnalysisDocument.FromJson(Simulation.AnalysisDocument.Compute(Document.ToFlowNetwork()).ToJson());
 
     public static SnapshotDocument Stored(CatalogCopy catalog) => SnapshotDocument.FromJson(SnapshotDocument.Create(Saved, catalog).ToJson());
 

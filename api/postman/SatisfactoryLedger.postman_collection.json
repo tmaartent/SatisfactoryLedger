@@ -1,0 +1,614 @@
+{
+  "info": {
+    "_postman_id": "0ca8d61a-a8d0-4f3e-8cec-1a6b76b182cf",
+    "name": "Satisfactory Ledger",
+    "description": "The public API (api/openapi.json), in the order you use it: import the Catalog, import a save, wait for its analysis, define a factory, read the findings.\n\nRequests store what later ones need (snapshotId, world, outputBelt, factoryId) as collection variables, so the whole collection runs top to bottom in the Collection Runner.\n\nFile uploads point at the repo's fixtures, relative to the repo root: set Postman's working directory (Settings → General) to the repo, or pick the files by hand.\n\nSelect the \"Satisfactory Ledger · local\" environment: Aspire publishes the API on https://localhost:7044.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1 · Catalog",
+      "description": "Game data from the Docs file, and the resource nodes from the map tool (ADR-0005, ADR-0015). Import both before a save, so a snapshot copies the rates it needs.",
+      "item": [
+        {
+          "name": "Import the Docs file",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/imports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "imports"
+              ]
+            },
+            "description": "Imports items, recipes, buildings, extractors and belt/pipe tiers. The file is the game's CommunityResources/Docs/en-US.json; the repo's test fixture is used here.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "tests/SatisfactoryLedger.Catalog.Tests/Fixtures/en-US.json",
+                  "description": "The game's Docs file"
+                },
+                {
+                  "key": "gameVersion",
+                  "type": "text",
+                  "value": "1.2",
+                  "description": "The game version the Docs file belongs to"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Imported', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const body = pm.response.json();",
+                  "if (body.id) pm.collectionVariables.set('catalogImportId', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Import the resource nodes",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/resource-node-imports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "resource-node-imports"
+              ]
+            },
+            "description": "Imports the node table the map tool wrote (ADR-0015): each node's resource and purity.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "tests/SatisfactoryLedger.Catalog.Tests/Fixtures/resource-nodes.json",
+                  "description": "The resource node table"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "The Docs import",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/imports/{{catalogImportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "imports",
+                "{{catalogImportId}}"
+              ]
+            },
+            "description": "What the last Docs import added, updated or marked no longer in the game."
+          }
+        },
+        {
+          "name": "Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/items?form=solid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "items"
+              ],
+              "query": [
+                {
+                  "key": "form",
+                  "value": "solid"
+                }
+              ]
+            },
+            "description": "Items, optionally by form: solid or fluid."
+          }
+        },
+        {
+          "name": "Recipes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/recipes?produces=Desc_IronPlate_C",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "recipes"
+              ],
+              "query": [
+                {
+                  "key": "produces",
+                  "value": "Desc_IronPlate_C"
+                }
+              ]
+            },
+            "description": "Recipes, optionally those that produce an item."
+          }
+        },
+        {
+          "name": "Transport tiers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/transport-tiers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "transport-tiers"
+              ]
+            },
+            "description": "Belts, lifts and pipes with their capacity."
+          }
+        },
+        {
+          "name": "Extractors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/extractors",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "extractors"
+              ]
+            },
+            "description": "Miners and extractors with their extraction rate."
+          }
+        },
+        {
+          "name": "Resource nodes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/catalog/resource-nodes?resource=Desc_OreIron_C",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "catalog",
+                "resource-nodes"
+              ],
+              "query": [
+                {
+                  "key": "resource",
+                  "value": "Desc_OreIron_C"
+                }
+              ]
+            },
+            "description": "Resource nodes, optionally of one resource."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · World snapshots",
+      "description": "A save file becomes a snapshot of the world (ADR-0016). Its analysis is computed in the background by the analysis service (ADR-0018): analysis says pending until it's ready.",
+      "item": [
+        {
+          "name": "Import a save",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots"
+              ]
+            },
+            "description": "Imports a .sav file as a new snapshot. Your saves are in %LOCALAPPDATA%\\FactoryGame\\Saved\\SaveGames\\<id>\\; the repo's test world is used here. Sets snapshotId and world for the requests after it.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "tests/SatisfactoryLedger.World.SaveFile.Tests/Fixtures/Development.sav",
+                  "description": "A save file (.sav)"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Imported', () => pm.response.to.have.status(201));",
+                  "const snapshot = pm.response.json();",
+                  "pm.collectionVariables.set('snapshotId', snapshot.id);",
+                  "pm.collectionVariables.set('world', snapshot.sessionName);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wait for the analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}"
+              ]
+            },
+            "description": "The snapshot, with its analysis status. Run in the Collection Runner, it repeats itself until the analysis is ready."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const snapshot = pm.response.json();",
+                  "pm.test('Snapshot found', () => pm.response.to.have.status(200));",
+                  "if (snapshot.analysis === 'pending') {",
+                  "    // In the Collection Runner: ask again in two seconds, until the analysis service is done.",
+                  "    setTimeout(() => pm.execution.setNextRequest(pm.info.requestName), 2000);",
+                  "} else {",
+                  "    pm.test('Analysis is ready', () => pm.expect(snapshot.analysis).to.eql('ready'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Snapshots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots"
+              ]
+            },
+            "description": "Every imported snapshot, newest first, with its analysis status."
+          }
+        },
+        {
+          "name": "Snapshot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}"
+              ]
+            },
+            "description": "One snapshot: what it contains, what the import couldn't place, and its analysis status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3 · Factories",
+      "description": "A factory is defined by its output belt and input items, per world (BR-W2), and traced in every snapshot of it (BR-W3).",
+      "item": [
+        {
+          "name": "Candidate output belts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}/output-belts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}",
+                "output-belts"
+              ]
+            },
+            "description": "Belts where items leave a group of machines (BR-W12). Picks the first as outputBelt for \"Define a factory\"; choose another by hand if you like."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const belts = pm.response.json();",
+                  "pm.test('Found output belts', () => pm.expect(belts.length).to.be.above(0));",
+                  "if (belts.length > 0) pm.collectionVariables.set('outputBelt', belts[0].belt);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Define a factory",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/factories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "factories"
+              ]
+            },
+            "description": "A factory in the snapshot's world, by its output belt and input items. Sets factoryId.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"world\": \"{{world}}\",\n  \"name\": \"Iron plates\",\n  \"outputBelt\": \"{{outputBelt}}\",\n  \"inputItems\": [\n    \"Desc_OreIron_C\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Defined', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('factoryId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Factories of the world",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/factories?world={{world}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "factories"
+              ],
+              "query": [
+                {
+                  "key": "world",
+                  "value": "{{world}}"
+                }
+              ]
+            },
+            "description": "The factories defined in a world."
+          }
+        },
+        {
+          "name": "Factory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/factories/{{factoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "factories",
+                "{{factoryId}}"
+              ]
+            },
+            "description": "One factory definition."
+          }
+        },
+        {
+          "name": "Factories traced in the snapshot",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}/factories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}",
+                "factories"
+              ]
+            },
+            "description": "Every factory of the world, with its machines in this snapshot."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4 · Findings",
+      "description": "What the analysis found (BR-A9 to A14). 202 with status pending while the analysis service is still at it: run \"Wait for the analysis\" first.",
+      "item": [
+        {
+          "name": "Findings of the world",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}/analysis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}",
+                "analysis"
+              ]
+            },
+            "description": "Machines below 100% and why, bottlenecks, unused supply, and sources of unknown rate. Worst first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Ready (not 202 pending)', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Findings of the factory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}/factories/{{factoryId}}/analysis",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}",
+                "factories",
+                "{{factoryId}}",
+                "analysis"
+              ]
+            },
+            "description": "What the factory makes now and at 100%, its machines and belts, and the suppliers that feed it (BR-A14)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Ready (not 202 pending)', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "catalogImportId",
+      "value": ""
+    },
+    {
+      "key": "snapshotId",
+      "value": ""
+    },
+    {
+      "key": "world",
+      "value": ""
+    },
+    {
+      "key": "outputBelt",
+      "value": ""
+    },
+    {
+      "key": "factoryId",
+      "value": ""
+    }
+  ]
+}

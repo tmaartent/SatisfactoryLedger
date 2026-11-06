@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using SatisfactoryLedger.World.Persistence;
 
+using SatisfactoryLedger.World.Simulation;
 namespace SatisfactoryLedger.World.Analysis;
 
 internal enum AnalysisStatus

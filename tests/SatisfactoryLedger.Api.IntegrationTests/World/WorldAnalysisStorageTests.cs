@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SatisfactoryLedger.Api.IntegrationTests.Catalog;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Persistence;
+using SatisfactoryLedger.World.Simulation;
 
 namespace SatisfactoryLedger.Api.IntegrationTests.World;
 
@@ -120,7 +121,7 @@ public sealed class WorldAnalysisStorageTests(LedgerApiFactory api) : IAsyncLife
         Guid failed = await CopyWithAnalysisAsync(imported.Id, id => new StoredAnalysis { SnapshotId = id, Status = AnalysisStatus.Failed, Error = "Restart" });
 
         await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
-        List<Guid> toAnalyse = await AnalysisWorker.ToAnalyseAsync(scope.ServiceProvider.GetRequiredService<WorldDbContext>(), TestContext.Current.CancellationToken);
+        List<Guid> toAnalyse = await AnalysisRequeue.ToAnalyseAsync(scope.ServiceProvider.GetRequiredService<WorldDbContext>(), TestContext.Current.CancellationToken);
 
         Assert.Equal(new HashSet<Guid> { outdated, failed }, toAnalyse.ToHashSet());
     }
