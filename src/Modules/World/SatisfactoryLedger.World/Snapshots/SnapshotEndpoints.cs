@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
+using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.SaveFile;
 
@@ -11,6 +12,7 @@ namespace SatisfactoryLedger.World.Snapshots;
 
 internal sealed record UnsupportedResponse(string ClassName, int Count);
 
+/// <param name="Analysis">Whether its analysis is ready (ADR-0017): pending until the background worker has computed it.</param>
 internal sealed record SnapshotResponse(
     Guid Id,
     string SessionName,
@@ -19,16 +21,18 @@ internal sealed record SnapshotResponse(
     DateTimeOffset ImportedAt,
     SnapshotCounts Counts,
     IReadOnlyList<string> UnknownRecipes,
-    IReadOnlyList<UnsupportedResponse> Unsupported)
+    IReadOnlyList<UnsupportedResponse> Unsupported,
+    AnalysisStatus Analysis)
 {
-    public static SnapshotResponse From(StoredSnapshot snapshot) => new(
+    public static SnapshotResponse From(StoredSnapshot snapshot, AnalysisStatus analysis) => new(
         snapshot.Id, snapshot.SessionName, snapshot.GameBuild, snapshot.SavedAt, snapshot.ImportedAt, snapshot.Counts,
         snapshot.UnknownRecipes,
-        [.. snapshot.Unsupported.Select(unsupported => new UnsupportedResponse(unsupported.ClassName, unsupported.Count))]);
+        [.. snapshot.Unsupported.Select(unsupported => new UnsupportedResponse(unsupported.ClassName, unsupported.Count))],
+        analysis);
 }
 
 internal sealed record SnapshotSummaryResponse(
-    Guid Id, string SessionName, int GameBuild, DateTimeOffset SavedAt, DateTimeOffset ImportedAt, SnapshotCounts Counts);
+    Guid Id, string SessionName, int GameBuild, DateTimeOffset SavedAt, DateTimeOffset ImportedAt, SnapshotCounts Counts, AnalysisStatus Analysis);
 
 internal static class SnapshotEndpoints
 {
@@ -39,7 +43,7 @@ internal static class SnapshotEndpoints
         world.MapPost("/snapshots", ImportAsync)
             .WithName("ImportSave")
             .WithSummary("Import a save file (.sav) as a new world snapshot")
-            .WithDescription("Every import is kept. Recipes the Catalog doesn't know are listed in unknownRecipes; buildables that aren't modelled yet, such as stations, in unsupported.")
+            .WithDescription("Every import is kept. Recipes the Catalog doesn't know are listed in unknownRecipes; buildables that aren't modelled yet in unsupported. Its analysis is computed in the background: analysis says pending until it's ready.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .DisableAntiforgery();
 
@@ -70,7 +74,7 @@ internal static class SnapshotEndpoints
             await using Stream save = file.OpenReadStream();
             StoredSnapshot snapshot = await handler.HandleAsync(new ImportSaveCommand(save), cancellationToken);
 
-            return TypedResults.Created($"/api/v1/world/snapshots/{snapshot.Id}", SnapshotResponse.From(snapshot));
+            return TypedResults.Created($"/api/v1/world/snapshots/{snapshot.Id}", SnapshotResponse.From(snapshot, AnalysisStatus.Pending));
         }
         catch (SaveFileException e)
         {
@@ -88,7 +92,9 @@ internal static class SnapshotEndpoints
         List<SnapshotSummaryResponse> snapshots = await db.Snapshots.AsNoTracking()
             .OrderByDescending(snapshot => snapshot.ImportedAt)
             .Select(snapshot => new SnapshotSummaryResponse(
-                snapshot.Id, snapshot.SessionName, snapshot.GameBuild, snapshot.SavedAt, snapshot.ImportedAt, snapshot.Counts))
+                snapshot.Id, snapshot.SessionName, snapshot.GameBuild, snapshot.SavedAt, snapshot.ImportedAt, snapshot.Counts,
+                db.Analyses.Where(analysis => analysis.SnapshotId == snapshot.Id && analysis.Version == AnalysisDocument.CurrentVersion)
+                    .Select(analysis => (AnalysisStatus?)analysis.Status).FirstOrDefault() ?? AnalysisStatus.Pending))
             .ToListAsync(cancellationToken);
 
         return TypedResults.Ok(snapshots);
@@ -103,6 +109,8 @@ internal static class SnapshotEndpoints
             {
                 snapshot.Id, snapshot.SessionName, snapshot.GameBuild, snapshot.SavedAt, snapshot.ImportedAt,
                 snapshot.Counts, snapshot.UnknownRecipes, snapshot.Unsupported,
+                Analysis = db.Analyses.Where(analysis => analysis.SnapshotId == snapshot.Id && analysis.Version == AnalysisDocument.CurrentVersion)
+                    .Select(analysis => (AnalysisStatus?)analysis.Status).FirstOrDefault() ?? AnalysisStatus.Pending,
             })
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -110,6 +118,7 @@ internal static class SnapshotEndpoints
             ? TypedResults.NotFound()
             : TypedResults.Ok(new SnapshotResponse(
                 found.Id, found.SessionName, found.GameBuild, found.SavedAt, found.ImportedAt, found.Counts, found.UnknownRecipes,
-                [.. found.Unsupported.Select(unsupported => new UnsupportedResponse(unsupported.ClassName, unsupported.Count))]));
+                [.. found.Unsupported.Select(unsupported => new UnsupportedResponse(unsupported.ClassName, unsupported.Count))],
+                found.Analysis));
     }
 }

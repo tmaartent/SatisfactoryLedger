@@ -43,6 +43,7 @@ public sealed class FlowResult
     private readonly IReadOnlyList<IReadOnlyDictionary<ItemId, double>> _flows;
     private readonly IReadOnlyDictionary<BuildableId, MachineState> _machines;
     private readonly Dictionary<BuildableId, FlowPart> _partOf;
+    private ILookup<int, int>? _incoming;
 
     public FlowResult(
         FlowNetwork network,
@@ -84,19 +85,20 @@ public sealed class FlowResult
     /// <summary>The part a buildable belongs to: whether its numbers settled.</summary>
     public FlowPart PartOf(BuildableId id) => _partOf[id];
 
-    /// <summary>What flows into a buildable over all its inputs together, per item and minute.</summary>
+    /// <summary>
+    /// What flows into a buildable over all its inputs together, per item and minute. The connections into each
+    /// buildable are looked up once: asking this for every belt of a big world would otherwise walk every connection
+    /// for each of them.
+    /// </summary>
     public IReadOnlyDictionary<ItemId, double> Into(BuildableId id)
     {
-        int index = _network.IndexOf[id];
+        _incoming ??= Enumerable.Range(0, _network.Edges.Count).ToLookup(edge => _network.Edges[edge].To);
         Dictionary<ItemId, double> into = [];
-        for (int edge = 0; edge < _network.Edges.Count; edge++)
+        foreach (int edge in _incoming[_network.IndexOf[id]])
         {
-            if (_network.Edges[edge].To == index)
+            foreach ((ItemId item, double rate) in _flows[edge])
             {
-                foreach ((ItemId item, double rate) in _flows[edge])
-                {
-                    into[item] = into.GetValueOrDefault(item) + rate;
-                }
+                into[item] = into.GetValueOrDefault(item) + rate;
             }
         }
 

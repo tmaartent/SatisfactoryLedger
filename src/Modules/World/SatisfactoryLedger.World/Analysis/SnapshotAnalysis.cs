@@ -89,25 +89,22 @@ internal sealed record FactoryAnalysisResponse(
     IReadOnlyList<UnusedSupplyFinding> UnusedSupply,
     IReadOnlyList<UnknownSupplyFinding> UnknownSupply);
 
-/// <summary>Runs the flow analysis on a stored snapshot and turns its result into findings a player can act on.</summary>
+/// <summary>Turns a snapshot's stored analysis (ADR-0017) into findings a player can act on.</summary>
 internal static class SnapshotAnalysis
 {
     /// <summary>Results are meaningful to 0.0001 a minute, so that's what they show (BR-A10).</summary>
     private const int Decimals = 4;
 
     /// <summary>The findings of the whole world.</summary>
-    public static AnalysisResponse For(SnapshotDocument snapshot)
-    {
-        FlowResult result = SteadyState.Of(snapshot.ToFlowNetwork());
-        return Findings(snapshot, result, result.Parts, _ => true, _ => true, _ => true);
-    }
+    public static AnalysisResponse For(SnapshotDocument snapshot, AnalysisDocument analysis) =>
+        Findings(snapshot, analysis, analysis.UnsettledParts, _ => true, _ => true, _ => true);
 
     /// <summary>
-    /// The findings of one factory. The whole world is simulated, because a factory depends on its supply; the findings
-    /// are then its machines and logistics, and its suppliers (BR-A14). Null when the factory can't be traced in this
-    /// snapshot (BR-W11).
+    /// The findings of one factory (BR-A14): its machines and logistics, and its suppliers. The simulation was of the
+    /// whole world, because a factory depends on its supply. Null when the factory can't be traced in this snapshot
+    /// (BR-W11).
     /// </summary>
-    public static FactoryAnalysisResponse? ForFactory(SnapshotDocument snapshot, Factories.StoredFactory factory)
+    public static FactoryAnalysisResponse? ForFactory(SnapshotDocument snapshot, Factories.StoredFactory factory, AnalysisDocument analysis)
     {
         WorldGraph world = snapshot.ToWorldGraph();
         FactoryDefinition definition = factory.ToDefinition();
@@ -117,16 +114,22 @@ internal static class SnapshotAnalysis
         }
 
         FactoryMembers members = definition.TraceMembers(world);
-        FlowResult result = SteadyState.Of(WorldFlow.From(world, snapshot.Fluids.Select(ItemId.Of)));
-        HashSet<FlowPart> parts = [.. members.Machines.Concat(members.Logistics).Select(result.PartOf)];
-        AnalysisResponse findings = Findings(snapshot, result, parts, members.Machines.Contains, members.Logistics.Contains, members.Suppliers.Contains);
+        bool IsMember(string id) => members.Contains(BuildableId.Of(id));
+        List<UnsettledPartDocument> parts = [.. analysis.UnsettledParts.Where(part => part.Buildables.Any(IsMember))];
+        AnalysisResponse findings = Findings(
+            snapshot,
+            analysis,
+            parts,
+            id => members.Machines.Contains(BuildableId.Of(id)),
+            id => members.Logistics.Contains(BuildableId.Of(id)),
+            id => members.Suppliers.Contains(BuildableId.Of(id)));
 
         return new FactoryAnalysisResponse(
             factory.Id,
             factory.Name,
             findings.Settled,
             findings.Summary,
-            OutputOf(world, members, definition, result),
+            OutputOf(world, members, definition, analysis),
             findings.Machines,
             findings.Bottlenecks,
             findings.UnusedSupply,
@@ -134,44 +137,43 @@ internal static class SnapshotAnalysis
     }
 
     /// <summary>Per item the producers make: what flows onto the output belt now, and what they'd make at 100%.</summary>
-    private static List<FactoryOutput> OutputOf(WorldGraph world, FactoryMembers members, FactoryDefinition definition, FlowResult result)
+    private static List<FactoryOutput> OutputOf(WorldGraph world, FactoryMembers members, FactoryDefinition definition, AnalysisDocument analysis)
     {
-        IReadOnlyDictionary<ItemId, double> now = result.Into(definition.OutputBelt);
-        Dictionary<ItemId, double> atFullSpeed = [];
+        IReadOnlyDictionary<string, double> now = analysis.Into.GetValueOrDefault(definition.OutputBelt.Id) ?? new Dictionary<string, double>();
+        Dictionary<string, double> atFullSpeed = new(StringComparer.Ordinal);
         foreach (Machine producer in members.Producers.Select(id => world.Find(id)).OfType<Machine>())
         {
             foreach ((ItemId item, SharedKernel.Rate rate) in producer.Production)
             {
-                atFullSpeed[item] = atFullSpeed.GetValueOrDefault(item) + rate.ToDouble();
+                atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) + rate.ToDouble();
             }
         }
 
         return
         [
-            .. atFullSpeed.Keys.Union(now.Keys).OrderBy(item => item.Id, StringComparer.Ordinal)
-                .Select(item => new FactoryOutput(item.Id, Round(now.GetValueOrDefault(item)), Round(atFullSpeed.GetValueOrDefault(item))))
+            .. atFullSpeed.Keys.Union(now.Keys).Order(StringComparer.Ordinal)
+                .Select(item => new FactoryOutput(item, Round(now.GetValueOrDefault(item)), Round(atFullSpeed.GetValueOrDefault(item))))
         ];
     }
 
     /// <summary>
     /// The findings of the machines, conduits and suppliers the filters let through; worst first. Whether they settled
-    /// is read from <paramref name="parts"/>: the parts of the world they're in.
+    /// is read from <paramref name="unsettled"/>: the parts of the world they're in that didn't settle.
     /// </summary>
     private static AnalysisResponse Findings(
         SnapshotDocument snapshot,
-        FlowResult result,
-        IReadOnlyCollection<FlowPart> parts,
-        Func<BuildableId, bool> isMachine,
-        Func<BuildableId, bool> isConduit,
-        Func<BuildableId, bool> isSupplier)
+        AnalysisDocument analysis,
+        IReadOnlyCollection<UnsettledPartDocument> unsettled,
+        Func<string, bool> isMachine,
+        Func<string, bool> isConduit,
+        Func<string, bool> isSupplier)
     {
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
-        BuildableDocument Of(BuildableId id) => buildables[id.Id];
-        bool Approximate(BuildableId id) => !result.PartOf(id).Settled;
+        HashSet<string> approximate = analysis.Approximate();
 
-        List<MachineState> machines = [.. result.Machines.Where(machine => isMachine(machine.Machine))];
+        List<MachineStateDocument> machines = [.. analysis.Machines.Where(machine => isMachine(machine.Id))];
         return new AnalysisResponse(
-            parts.All(part => part.Settled),
+            unsettled.Count == 0,
             new AnalysisSummary(
                 machines.Count,
                 machines.Count(machine => machine.Limit == MachineLimit.None),
@@ -179,59 +181,58 @@ internal static class SnapshotAnalysis
                 machines.Count(machine => machine.Limit == MachineLimit.OutputBlocked),
                 machines.Count(machine => machine.Limit == MachineLimit.NoRecipe)),
             [
-                .. parts.Where(part => !part.Settled)
-                    .OrderByDescending(part => part.Buildables.Count)
-                    .Select(part => new ApproximatePart(part.Buildables.Count, part.Sweeps, part.Buildables[0].Id))
+                .. unsettled.OrderByDescending(part => part.Buildables.Count)
+                    .Select(part => new ApproximatePart(part.Buildables.Count, part.Sweeps, part.Buildables[0]))
             ],
             [
                 .. machines.Where(machine => machine.Limit != MachineLimit.None)
-                    .OrderBy(machine => machine.Utilisation).ThenBy(machine => machine.Machine.Id, StringComparer.Ordinal)
+                    .OrderBy(machine => machine.Utilisation).ThenBy(machine => machine.Id, StringComparer.Ordinal)
                     .Select(machine => new MachineFinding(
-                        machine.Machine.Id,
-                        Of(machine.Machine).ClassName,
-                        Of(machine.Machine).Recipe,
+                        machine.Id,
+                        buildables[machine.Id].ClassName,
+                        buildables[machine.Id].Recipe,
                         Round(machine.Utilisation),
                         machine.Limit,
-                        machine.LimitingItem?.Id,
-                        Of(machine.Machine).Position,
-                        Approximate(machine.Machine)))
+                        machine.LimitingItem,
+                        buildables[machine.Id].Position,
+                        approximate.Contains(machine.Id)))
             ],
             [
-                .. result.Bottlenecks.Where(bottleneck => isConduit(bottleneck.Conduit))
-                    .OrderByDescending(bottleneck => bottleneck.OfferedMore).ThenBy(bottleneck => bottleneck.Conduit.Id, StringComparer.Ordinal)
+                .. analysis.Bottlenecks.Where(bottleneck => isConduit(bottleneck.Id))
+                    .OrderByDescending(bottleneck => bottleneck.OfferedMore).ThenBy(bottleneck => bottleneck.Id, StringComparer.Ordinal)
                     .Select(bottleneck => new BottleneckFinding(
-                        bottleneck.Conduit.Id,
-                        Of(bottleneck.Conduit).ClassName,
+                        bottleneck.Id,
+                        buildables[bottleneck.Id].ClassName,
                         Round(bottleneck.Capacity),
                         Round(bottleneck.Flow),
                         Round(bottleneck.OfferedMore),
-                        Of(bottleneck.Conduit).Position,
-                        Approximate(bottleneck.Conduit)))
+                        buildables[bottleneck.Id].Position,
+                        approximate.Contains(bottleneck.Id)))
             ],
             [
-                .. result.UnusedSupply.Where(supply => isSupplier(supply.Provider))
-                    .OrderByDescending(supply => supply.Offered - supply.Delivered).ThenBy(supply => supply.Provider.Id, StringComparer.Ordinal)
+                .. analysis.UnusedSupply.Where(supply => isSupplier(supply.Id))
+                    .OrderByDescending(supply => supply.Offered - supply.Delivered).ThenBy(supply => supply.Id, StringComparer.Ordinal)
                     .Select(supply => new UnusedSupplyFinding(
-                        supply.Provider.Id,
-                        Of(supply.Provider).ClassName,
-                        supply.Item.Id,
+                        supply.Id,
+                        buildables[supply.Id].ClassName,
+                        supply.Item,
                         Round(supply.Offered),
                         Round(supply.Delivered),
-                        Of(supply.Provider).Position,
-                        Approximate(supply.Provider)))
+                        buildables[supply.Id].Position,
+                        approximate.Contains(supply.Id)))
             ],
             [
                 // Assumed supplied first, the shortest stock first: those need checking in the game.
-                .. result.UnknownSupply.Where(supply => isSupplier(supply.Source))
-                    .OrderBy(supply => supply.Confirmed).ThenBy(supply => supply.StockMinutes ?? -1).ThenBy(supply => supply.Source.Id, StringComparer.Ordinal)
+                .. analysis.UnknownSupply.Where(supply => isSupplier(supply.Id))
+                    .OrderBy(supply => supply.Confirmed).ThenBy(supply => supply.StockMinutes ?? -1).ThenBy(supply => supply.Id, StringComparer.Ordinal)
                     .Select(supply => new UnknownSupplyFinding(
-                        supply.Source.Id,
-                        Of(supply.Source).ClassName,
-                        supply.Delivered.OrderBy(entry => entry.Key.Id, StringComparer.Ordinal).ToDictionary(entry => entry.Key.Id, entry => Round(entry.Value)),
+                        supply.Id,
+                        buildables[supply.Id].ClassName,
+                        supply.Delivered.OrderBy(entry => entry.Key, StringComparer.Ordinal).ToDictionary(entry => entry.Key, entry => Round(entry.Value)),
                         supply.StockMinutes is { } minutes ? Round(minutes) : null,
                         supply.Confirmed,
-                        Of(supply.Source).Position,
-                        Approximate(supply.Source)))
+                        buildables[supply.Id].Position,
+                        approximate.Contains(supply.Id)))
             ]);
     }
 

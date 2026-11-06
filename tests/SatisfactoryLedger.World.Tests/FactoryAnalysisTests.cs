@@ -17,7 +17,7 @@ public class FactoryAnalysisTests
         InputItems = ["Desc_OreIron_C"],
     };
 
-    private static readonly FactoryAnalysisResponse Analysis = SnapshotAnalysis.ForFactory(Document, IronPlates)!;
+    private static readonly FactoryAnalysisResponse Analysis = SnapshotAnalysis.ForFactory(Document, IronPlates, TestWorldAnalysis)!;
 
     [Fact]
     public void A_factory_says_what_it_makes_now_and_at_100_percent()
@@ -59,6 +59,6 @@ public class FactoryAnalysisTests
     {
         StoredFactory gone = new() { Id = Guid.CreateVersion7(), World = "Development", Name = "Gone", OutputBelt = Id("Build_ConveyorBeltMk1_C_1"), InputItems = [] };
 
-        Assert.Null(SnapshotAnalysis.ForFactory(Document, gone));
+        Assert.Null(SnapshotAnalysis.ForFactory(Document, gone, TestWorldAnalysis));
     }
 }

@@ -24,6 +24,46 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SatisfactoryLedger.World.Analysis.StoredAnalysis", b =>
+                {
+                    b.Property<Guid>("SnapshotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("snapshot_id");
+
+                    b.Property<DateTimeOffset?>("ComputedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("computed_at");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("content");
+
+                    b.Property<TimeSpan?>("Duration")
+                        .HasColumnType("interval")
+                        .HasColumnName("duration");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text")
+                        .HasColumnName("error");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("SnapshotId")
+                        .HasName("pk_snapshot_analyses");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_snapshot_analyses_status");
+
+                    b.ToTable("snapshot_analyses", "world");
+                });
+
             modelBuilder.Entity("SatisfactoryLedger.World.Factories.StoredFactory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -141,6 +181,16 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .HasDatabaseName("ix_snapshots_imported_at");
 
                     b.ToTable("snapshots", "world");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.World.Analysis.StoredAnalysis", b =>
+                {
+                    b.HasOne("SatisfactoryLedger.World.Persistence.StoredSnapshot", null)
+                        .WithOne()
+                        .HasForeignKey("SatisfactoryLedger.World.Analysis.StoredAnalysis", "SnapshotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_snapshot_analyses_snapshots_snapshot_id");
                 });
 #pragma warning restore 612, 618
         }

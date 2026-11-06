@@ -20,6 +20,7 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
         await _client.ImportAsync(CatalogClient.GameFile);
         await _client.ImportResourceNodesAsync();
         Snapshot snapshot = await _client.ImportSaveAsync(WorldClient.TestWorld);
+        await _client.WaitForAnalysisAsync(snapshot.Id);
 
         HttpResponseMessage response = await _client.GetAsync($"/api/v1/world/snapshots/{snapshot.Id}/analysis", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -73,6 +74,7 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
         await _client.ImportAsync(CatalogClient.GameFile);
         await _client.ImportResourceNodesAsync();
         Snapshot snapshot = await _client.ImportSaveAsync(WorldClient.TestWorld);
+        await _client.WaitForAnalysisAsync(snapshot.Id);
         HttpResponseMessage defined = await _client.DefineFactoryAsync("Development", "Iron plates", WorldClient.BeltIntoContainer, "Desc_OreIron_C");
         return (snapshot, (await defined.Content.ReadFromJsonAsync<Factory>(TestContext.Current.CancellationToken))!);
     }

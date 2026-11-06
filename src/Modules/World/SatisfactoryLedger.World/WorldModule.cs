@@ -29,6 +29,11 @@ public static class WorldModule
         builder.Services.AddScoped<ImportSaveHandler>();
         builder.Services.AddScoped<DefineFactoryHandler>();
 
+        // ADR-0017: the import queues each new snapshot; one background worker analyses them.
+        builder.Services.AddSingleton<AnalysisQueue>();
+        builder.Services.AddScoped<AnalyseSnapshotHandler>();
+        builder.Services.AddHostedService<AnalysisWorker>();
+
         return builder;
     }
 

@@ -8,7 +8,7 @@ namespace SatisfactoryLedger.World.Tests;
 /// <summary>The findings of a snapshot (BR-A9, BR-A11 to A13), as the API gives them, for the test world.</summary>
 public class SnapshotAnalysisTests
 {
-    private static readonly AnalysisResponse Analysis = SnapshotAnalysis.For(Document);
+    private static readonly AnalysisResponse Analysis = SnapshotAnalysis.For(Document, TestWorldAnalysis);
 
     [Fact]
     public void The_summary_counts_the_machines_by_how_they_run()

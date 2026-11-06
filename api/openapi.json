@@ -330,7 +330,7 @@
           "World"
         ],
         "summary": "Import a save file (.sav) as a new world snapshot",
-        "description": "Every import is kept. Recipes the Catalog doesn't know are listed in unknownRecipes; buildables that aren't modelled yet, such as stations, in unsupported.",
+        "description": "Every import is kept. Recipes the Catalog doesn't know are listed in unknownRecipes; buildables that aren't modelled yet in unsupported. Its analysis is computed in the background: analysis says pending until it's ready.",
         "operationId": "ImportSave",
         "requestBody": {
           "content": {
@@ -648,7 +648,7 @@
           "World"
         ],
         "summary": "The findings of a snapshot: machines below 100% and why, bottlenecks, unused supply, and sources of unknown rate",
-        "description": "Computed on request from the steady state of the snapshot's world (BR-A1 to A13); a big world takes some seconds. Rates per minute, to 4 decimals. Every list starts with the worst. A finding in a part of the world that didn't settle is marked approximate.",
+        "description": "Computed in the background after the import and stored (ADR-0017): 202 with status pending until it's ready. Rates per minute, to 4 decimals. Every list starts with the worst. A finding in a part of the world that didn't settle is marked approximate.",
         "operationId": "AnalyseSnapshot",
         "parameters": [
           {
@@ -672,8 +672,28 @@
               }
             }
           },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPendingResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -684,7 +704,7 @@
           "World"
         ],
         "summary": "The findings of one factory in a snapshot: what it makes, its machines and belts, and the suppliers that feed it (BR-A14)",
-        "description": "The whole world is simulated, because a factory depends on its supply; a big world takes some seconds. Not found when the snapshot or factory doesn't exist, the factory belongs to another world, or its output belt isn't in this snapshot (BR-W11).",
+        "description": "Made from the snapshot's stored analysis: 202 with status pending until that's ready. Not found when the snapshot or factory doesn't exist, the factory belongs to another world, or its output belt isn't in this snapshot (BR-W11).",
         "operationId": "AnalyseFactory",
         "parameters": [
           {
@@ -717,8 +737,28 @@
               }
             }
           },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPendingResponse"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -726,6 +766,17 @@
   },
   "components": {
     "schemas": {
+      "AnalysisPendingResponse": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          }
+        }
+      },
       "AnalysisResponse": {
         "required": [
           "settled",
@@ -775,6 +826,13 @@
             }
           }
         }
+      },
+      "AnalysisStatus": {
+        "enum": [
+          "pending",
+          "ready",
+          "failed"
+        ]
       },
       "AnalysisSummary": {
         "required": [
@@ -1651,7 +1709,8 @@
           "importedAt",
           "counts",
           "unknownRecipes",
-          "unsupported"
+          "unsupported",
+          "analysis"
         ],
         "type": "object",
         "properties": {
@@ -1688,6 +1747,9 @@
             "items": {
               "$ref": "#/components/schemas/UnsupportedResponse"
             }
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/AnalysisStatus"
           }
         }
       },
@@ -1698,7 +1760,8 @@
           "gameBuild",
           "savedAt",
           "importedAt",
-          "counts"
+          "counts",
+          "analysis"
         ],
         "type": "object",
         "properties": {
@@ -1723,6 +1786,9 @@
           },
           "counts": {
             "$ref": "#/components/schemas/SnapshotCounts"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/AnalysisStatus"
           }
         }
       },
