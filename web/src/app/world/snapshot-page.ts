@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTabsModule } from '@angular/material/tabs';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { Api } from '../api/api';
 import { analyseSnapshot } from '../api/fn/world/analyse-snapshot';
@@ -17,6 +17,7 @@ import { CatalogNames } from '../shared/catalog-names';
 import { problemMessage } from '../shared/problem';
 import { DefineFactoryDialog, DefineFactoryDialogData } from './define-factory-dialog';
 import { FindingsView } from './findings';
+import { SnapshotDeletion } from './snapshot-deletion';
 
 /** One snapshot: what it holds, its findings once the analysis is ready, and the factories traced in it. */
 @Component({
@@ -27,6 +28,8 @@ import { FindingsView } from './findings';
 export class SnapshotPage {
   private readonly api = inject(Api);
   private readonly dialog = inject(MatDialog);
+  private readonly router = inject(Router);
+  private readonly deletion = inject(SnapshotDeletion);
   protected readonly names = inject(CatalogNames);
 
   /** From the route: /snapshots/:id. */
@@ -60,6 +63,12 @@ export class SnapshotPage {
       const timer = setTimeout(() => this.snapshot.reload(), 2000);
       onCleanup(() => clearTimeout(timer));
     });
+  }
+
+  /** After asking; then back to the list. */
+  protected async delete(): Promise<void> {
+    const snapshot = this.snapshot.value();
+    if (snapshot && (await this.deletion.confirmAndDelete(snapshot))) await this.router.navigate(['/snapshots']);
   }
 
   protected defineFactory(): void {

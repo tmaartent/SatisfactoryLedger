@@ -94,6 +94,18 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_footprint_is_found_by_the_class_name_of_its_building()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogFootprint> footprints = await catalog.GetFootprintsAsync(
+            ["Build_ConstructorMk1_C", "Build_ConveyorLiftMk1_C"], TestContext.Current.CancellationToken);
+
+        Assert.Equal([new Contracts.CatalogFootprint("Build_ConstructorMk1_C", -400, -500, 400, 500)], footprints);
+    }
+
+    [Fact]
     public async Task Transport_tiers_are_found_by_class_name_with_their_capacity_per_minute()
     {
         await using AsyncServiceScope scope = api.Services.CreateAsyncScope();

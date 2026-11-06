@@ -20,7 +20,14 @@ public interface ICatalogQueries
 
     /// <summary>The belts, lifts and pipes with these building class names that the Catalog knows. Unknown ids are left out.</summary>
     Task<IReadOnlyList<CatalogTransportTier>> GetTransportTiersAsync(IReadOnlyCollection<string> tierIds, CancellationToken cancellationToken);
+
+    /// <summary>The footprints of the buildings with these class names that the Catalog knows (ADR-0020). Unknown ids, such as lifts, are left out.</summary>
+    Task<IReadOnlyList<CatalogFootprint>> GetFootprintsAsync(IReadOnlyCollection<string> buildingIds, CancellationToken cancellationToken);
 }
+
+/// <summary>The ground a building covers, seen from above: a rectangle in its own coordinates, in centimetres.</summary>
+/// <param name="Id">The building's class name, e.g. <c>Build_ConstructorMk1_C</c>.</param>
+public sealed record CatalogFootprint(string Id, decimal MinX, decimal MinY, decimal MaxX, decimal MaxY);
 
 /// <param name="Id">The building's class name, e.g. <c>Build_MinerMk1_C</c>.</param>
 /// <param name="AmountPerCycle">Items, or cubic metres for a fluid, on a normal-purity node at 100% clock speed.</param>

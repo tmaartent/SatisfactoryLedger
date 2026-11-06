@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Importer;
@@ -294,5 +294,60 @@ public class SatisfactoryTranslatorTests
 
         Assert.Equal(Rate.PerMinute(perMinute), extractor.ExtractionRate);
         Assert.Equal(form, extractor.Form);
+    }
+
+    // ---- Footprints (ADR-0020): the ground a building covers, from its clearance boxes ---------------------------
+
+    private static async Task<Footprint> FootprintOfAsync(string id)
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        return Assert.Single(SatisfactoryTranslator.TranslateToFootprints(resources), footprint => footprint.Id.Id == id);
+    }
+
+    [Fact]
+    public async Task A_constructor_from_the_game_file_covers_8_by_10_metres()
+    {
+        Footprint constructor = await FootprintOfAsync("Build_ConstructorMk1_C");
+
+        Assert.Equal((-400m, -500m, 400m, 500m), (constructor.MinX, constructor.MinY, constructor.MaxX, constructor.MaxY));
+    }
+
+    [Fact]
+    public async Task A_miners_boxes_are_moved_by_their_offsets_and_its_soft_box_left_out()
+    {
+        // Two boxes 2 m along y from where it stands, and a small soft one on top.
+        Footprint miner = await FootprintOfAsync("Build_MinerMk1_C");
+
+        Assert.Equal((-300m, -500m, 300m, 900m), (miner.MinX, miner.MinY, miner.MaxX, miner.MaxY));
+    }
+
+    [Fact]
+    public async Task A_splitter_covers_the_room_of_its_soft_box()
+    {
+        Footprint splitter = await FootprintOfAsync("Build_ConveyorAttachmentSplitter_C");
+
+        Assert.Equal((400m, 400m), (splitter.Width, splitter.Length));
+    }
+
+    [Fact]
+    public async Task Footprints_come_from_every_kind_of_building_in_the_game_file()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        HashSet<string> ids = [.. SatisfactoryTranslator.TranslateToFootprints(resources).Select(footprint => footprint.Id.Id)];
+
+        Assert.Superset(
+            new HashSet<string> { "Build_SmelterMk1_C", "Build_MinerMk1_C", "Build_WaterPump_C", "Build_StorageContainerMk2_C", "Build_DroneStation_C", "Build_TrainDockingStation_C" },
+            ids);
+        Assert.DoesNotContain("Build_ConveyorLiftMk1_C", ids);
+    }
+
+    [Fact]
+    public async Task A_box_turned_a_quarter_covers_its_turned_ground()
+    {
+        // A low barrier: its 4 m by 0.6 m box is turned a quarter about the vertical axis.
+        Footprint barrier = await FootprintOfAsync("Build_Barrier_Low_01_C");
+
+        Assert.Equal((60m, 400m), (Math.Round(barrier.Width), Math.Round(barrier.Length)));
     }
 }

@@ -33,6 +33,10 @@ internal static class TestWorldSnapshot
             new("Desc_OreIron_C", "Iron Ore", false), new("Desc_IronIngot_C", "Iron Ingot", false),
             new("Desc_Water_C", "Water", true), new("Desc_FluidCanister_C", "Empty Canister", false),
             new("Desc_LiquidOil_C", "Crude Oil", true),
+        ],
+        [
+            new("Build_SmelterMk1_C", -250, -500, 250, 500), new("Build_ConstructorMk1_C", -400, -500, 400, 500),
+            new("Build_AssemblerMk1_C", -500, -750, 500, 750),
         ]);
 
     public static readonly SavedWorld Saved = Read();

@@ -45,13 +45,14 @@ internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox,
         return snapshot;
     }
 
-    /// <summary>What the Catalog says about the recipes, extractors, belts, nodes and items this save uses.</summary>
+    /// <summary>What the Catalog says about the recipes, extractors, belts, nodes, items and footprints this save uses.</summary>
     private async Task<CatalogCopy> CopyCatalogAsync(SavedWorld saved, CancellationToken cancellationToken)
     {
         string[] recipes = [.. saved.Buildables.OfType<SavedMachine>().Select(machine => machine.Recipe).OfType<string>().Distinct()];
         string[] extractors = [.. saved.Buildables.OfType<SavedProvider>().Select(provider => provider.ClassName).Distinct()];
         string[] tiers = [.. saved.Buildables.OfType<SavedLogistics>().Select(logistics => logistics.ClassName).Distinct()];
         string[] nodes = [.. saved.Buildables.OfType<SavedProvider>().Select(provider => provider.Node).OfType<string>().Distinct()];
+        string[] classes = [.. saved.Buildables.Select(buildable => buildable.ClassName).Distinct()];
 
         IReadOnlyList<CatalogRecipe> recipesKnown = await catalog.GetRecipesAsync(recipes, cancellationToken);
         IReadOnlyList<CatalogResourceNode> nodesKnown = await catalog.GetResourceNodesAsync(nodes, cancellationToken);
@@ -65,6 +66,7 @@ internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox,
             await catalog.GetExtractorsAsync(extractors, cancellationToken),
             await catalog.GetTransportTiersAsync(tiers, cancellationToken),
             nodesKnown,
-            await catalog.GetItemsAsync(items, cancellationToken));
+            await catalog.GetItemsAsync(items, cancellationToken),
+            await catalog.GetFootprintsAsync(classes, cancellationToken));
     }
 }

@@ -66,6 +66,7 @@ export class CatalogPage {
       { kind: 'Buildings', counts: i.buildings },
       { kind: 'Extractors', counts: i.extractors },
       { kind: 'Transport tiers', counts: i.transportTiers },
+      { kind: 'Footprints', counts: i.footprints },
       { kind: 'Resource nodes', counts: i.resourceNodes },
     ];
   });

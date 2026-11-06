@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Factories;
+using SatisfactoryLedger.World.Map;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -48,7 +49,8 @@ public static class WorldModule
             .WithTags("World")
             .MapSnapshotEndpoints()
             .MapFactoryEndpoints()
-            .MapAnalysisEndpoints();
+            .MapAnalysisEndpoints()
+            .MapWorldMapEndpoints();
 
         // For the analysis service only (ADR-0018): not part of the public API or its OpenAPI document.
         endpoints.MapGroup("/internal/world")

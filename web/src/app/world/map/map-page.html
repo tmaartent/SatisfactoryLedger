@@ -1,0 +1,41 @@
+<div class="page-header">
+  <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"><mat-icon>arrow_back</mat-icon></a>
+  <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · map</h1>
+  <span class="spacer"></span>
+  <mat-slide-toggle [checked]="showFreeNodes()" (change)="showFreeNodes.set($event.checked)">Free resource nodes</mat-slide-toggle>
+  <mat-form-field subscriptSizing="dynamic" class="factory">
+    <mat-label>Highlight a factory</mat-label>
+    <mat-select [value]="factoryId()" (valueChange)="factoryId.set($event)">
+      <mat-option [value]="null">None</mat-option>
+      @for (factory of factories.value() ?? []; track factory.factoryId) {
+        <mat-option [value]="factory.factoryId" [disabled]="!factory.traceable">{{ factory.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+@if (world.isLoading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (world.error(); as error) {
+  <p>The map couldn't be loaded: {{ problem(error) }}</p>
+}
+
+<div class="map-frame">
+  <div #map class="map"></div>
+  <div class="legend">
+    @for (entry of legend; track entry.status) {
+      <div><span class="dot" [style.background]="entry.colour"></span>{{ entry.label }}</div>
+    }
+    <div><span class="line belt"></span>Belt</div>
+    <div><span class="line pipe"></span>Pipe</div>
+    <div><span class="line bottleneck"></span>Bottleneck</div>
+    <div><span class="dot provider"></span>Provider (ring: node purity)</div>
+    <div><span class="dot node"></span>Free node</div>
+    <div><span class="dot other"></span>Splitter, lift, storage</div>
+    <div><span class="dot consumer"></span>Consumer (sink, generator, loading station)</div>
+    @if (pointer()) {
+      <div class="pointer">{{ pointer() }}</div>
+    }
+  </div>
+</div>

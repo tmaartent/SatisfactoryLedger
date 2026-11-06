@@ -11,13 +11,14 @@ namespace SatisfactoryLedger.World.Snapshots;
 
 internal sealed record SnapshotCounts(int Machines, int Providers, int Consumers, int Logistics, int Connections);
 
-/// <summary>What the Catalog said, at import, about the recipes, extractors, belts, nodes and items a save uses.</summary>
+/// <summary>What the Catalog said, at import, about the recipes, extractors, belts, nodes, items and footprints a save uses.</summary>
 internal sealed record CatalogCopy(
     IReadOnlyCollection<CatalogRecipe> Recipes,
     IReadOnlyCollection<CatalogExtractor> Extractors,
     IReadOnlyCollection<CatalogTransportTier> TransportTiers,
     IReadOnlyCollection<CatalogResourceNode> ResourceNodes,
-    IReadOnlyCollection<CatalogItem> Items);
+    IReadOnlyCollection<CatalogItem> Items,
+    IReadOnlyCollection<CatalogFootprint> Footprints);
 
 /// <summary>
 /// The stored content of a world snapshot (ADR-0016): everything the save said, plus what the Catalog said about the
@@ -34,14 +35,17 @@ internal sealed record SnapshotDocument(
     IReadOnlyList<ExtractorDocument> Extractors,
     IReadOnlyList<TransportTierDocument> TransportTiers,
     IReadOnlyList<ResourceNodeDocument> ResourceNodes,
-    IReadOnlyList<string> Fluids)
+    IReadOnlyList<string> Fluids,
+    IReadOnlyList<FootprintDocument>? Footprints = null)
 {
     /// <summary>
     /// Version 2 added extractors, transport tiers, resource nodes and fluids; a version 1 snapshot has none of them.
     /// Version 3 added the stock of stations and containers; a version 2 snapshot has none.
     /// Version 4 added splitter rules, merger priorities and the ports of connections; a version 3 snapshot has none.
+    /// Version 5 added the curves of belts and pipes, which way buildables face, and the footprints of the buildings it
+    /// has (ADR-0020); a version 4 snapshot has none of them.
     /// </summary>
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -74,7 +78,9 @@ internal sealed record SnapshotDocument(
             [.. catalog.TransportTiers.Where(tier => classes.Contains(tier.Id))
                 .Select(tier => new TransportTierDocument(tier.Id, tier.CapacityPerMinute))],
             nodesUsed,
-            [.. catalog.Items.Where(item => item.IsFluid && items.Contains(item.Id)).Select(item => item.Id).Order(StringComparer.Ordinal)]);
+            [.. catalog.Items.Where(item => item.IsFluid && items.Contains(item.Id)).Select(item => item.Id).Order(StringComparer.Ordinal)],
+            [.. catalog.Footprints.Where(footprint => classes.Contains(footprint.Id)).OrderBy(footprint => footprint.Id, StringComparer.Ordinal)
+                .Select(footprint => new FootprintDocument(footprint.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY))]);
     }
 
     /// <summary>The items a save's recipes take and make, and its providers extract.</summary>
@@ -95,8 +101,8 @@ internal sealed record SnapshotDocument(
         return document.Version switch
         {
             CurrentVersion => document,
-            // Imported before stock, or splitter rules and ports, were read: everything else is the same.
-            2 or 3 => document with { Version = CurrentVersion },
+            // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
+            2 or 3 or 4 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),
@@ -161,11 +167,14 @@ internal sealed record BuildableDocument(
     IReadOnlyDictionary<string, decimal>? Stock = null,
     IReadOnlyList<string>? Burns = null,
     IReadOnlyList<SortRuleDocument>? SortRules = null,
-    IReadOnlyList<int>? InputPriorities = null)
+    IReadOnlyList<int>? InputPriorities = null,
+    IReadOnlyList<CurvePointDocument>? Curve = null,
+    double? Yaw = null)
 {
     public static BuildableDocument From(SavedBuildable saved) => FromKind(saved) with
     {
         Position = saved.Position is { } position ? new PositionDocument(position.X, position.Y, position.Z) : null,
+        Yaw = Math.Round(saved.Yaw, 2),
         Stock = saved.Stock,
         Burns = saved.Burns?.Order(StringComparer.Ordinal).ToList(),
     };
@@ -179,7 +188,8 @@ internal sealed record BuildableDocument(
         SavedConsumer consumer => new(consumer.Id.Id, BuildableDocumentRole.Consumer, consumer.ClassName),
         SavedLogistics logistics => new(logistics.Id.Id, BuildableDocumentRole.Logistics, logistics.ClassName, Kind: logistics.Kind,
             SortRules: logistics.SortRules?.Select(rule => new SortRuleDocument(rule.Output, rule.Kind, rule.Item?.Id)).ToList(),
-            InputPriorities: logistics.InputPriorities),
+            InputPriorities: logistics.InputPriorities,
+            Curve: logistics.Curve?.Select(CurvePointDocument.From).ToList()),
         _ => throw new ArgumentException($"{saved} is not a kind of buildable a snapshot knows", nameof(saved)),
     };
 
@@ -240,7 +250,21 @@ internal sealed record BuildableDocument(
 }
 
 /// <summary>Where a buildable stands, in the game's units (centimetres).</summary>
-internal sealed record PositionDocument(double X, double Y, double Z);
+internal sealed record PositionDocument(double X, double Y, double Z)
+{
+    public static PositionDocument From(SavedPosition position) => new(position.X, position.Y, position.Z);
+}
+
+/// <summary>A point of a belt's or pipe's curve, with the tangents it arrives and leaves with (world coordinates, centimetres).</summary>
+internal sealed record CurvePointDocument(PositionDocument Location, PositionDocument ArriveTangent, PositionDocument LeaveTangent)
+{
+    /// <summary>Rounded to a hundredth of a centimetre: finer than anything the map shows, and a third of the size.</summary>
+    public static CurvePointDocument From(SavedCurvePoint point) =>
+        new(Rounded(point.Location), Rounded(point.ArriveTangent), Rounded(point.LeaveTangent));
+
+    private static PositionDocument Rounded(SavedPosition position) =>
+        new(Math.Round(position.X, 2), Math.Round(position.Y, 2), Math.Round(position.Z, 2));
+}
 
 /// <param name="FromPort">The splitter output it leaves from; null where that doesn't matter.</param>
 /// <param name="ToPort">The merger input it enters by; null where that doesn't matter.</param>
@@ -277,3 +301,6 @@ internal sealed record TransportTierDocument(string Id, int CapacityPerMinute);
 
 /// <param name="Purity"><c>impure</c>, <c>normal</c> or <c>pure</c>, as the Catalog writes it.</param>
 internal sealed record ResourceNodeDocument(string Name, string Resource, string Purity);
+
+/// <summary>The ground a building class covers, seen from above, in its own coordinates (centimetres), as the Catalog said at import.</summary>
+internal sealed record FootprintDocument(string Id, decimal MinX, decimal MinY, decimal MaxX, decimal MaxY);

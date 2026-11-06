@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
@@ -32,8 +32,35 @@ internal class SatisfactoryImporter
         [
             .. document.RootElement.EnumerateArray()
                 .Where(IsSupportedGroup)
-                .Select(group => group.Deserialize<GameDataGroupDto>()!)
+                .Select(group => group.Deserialize<GameDataGroupDto>()!),
+            FootprintsOf(document.RootElement)
         ];
+    }
+
+    // Clearance boxes are on buildings of every section, imported or not: collected from all of them.
+    private static FootprintGroupDto FootprintsOf(JsonElement groups)
+    {
+        var footprints = new FootprintGroupDto();
+        foreach (JsonElement group in groups.EnumerateArray())
+        {
+            if (!group.TryGetProperty("Classes", out JsonElement classes) || classes.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (JsonElement entry in classes.EnumerateArray())
+            {
+                if (entry.TryGetProperty("ClassName", out JsonElement className)
+                    && entry.TryGetProperty("mClearanceData", out JsonElement clearance)
+                    && clearance.ValueKind == JsonValueKind.String
+                    && clearance.GetString()!.Contains("IsValid=True", StringComparison.Ordinal))
+                {
+                    footprints.Classes.Add(new ClearanceDto { ClassName = className.GetString()!, ClearanceData = clearance.GetString()! });
+                }
+            }
+        }
+
+        return footprints;
     }
 
     private static bool IsSupportedGroup(JsonElement group)

@@ -360,6 +360,28 @@
             },
             "description": "One snapshot: what it contains, what the import couldn't place, and its analysis status."
           }
+        },
+        {
+          "name": "World map",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}/map",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}",
+                "map"
+              ]
+            },
+            "description": "The machines and providers of the snapshot, where they stand (centimetres), as the web app's map draws them (ADR-0020)."
+          }
         }
       ]
     },
@@ -585,6 +607,33 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "5 · Clean up",
+      "description": "Run last, or by hand.",
+      "item": [
+        {
+          "name": "Delete the snapshot",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/world/snapshots/{{snapshotId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "world",
+                "snapshots",
+                "{{snapshotId}}"
+              ]
+            },
+            "description": "Deletes the snapshot and its analysis; the world's factories stay. Last in the collection, so a run of the whole collection deletes the snapshot only after everything else has used it."
+          }
         }
       ]
     }

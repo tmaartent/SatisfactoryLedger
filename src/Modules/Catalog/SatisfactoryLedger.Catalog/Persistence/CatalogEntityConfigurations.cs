@@ -92,6 +92,22 @@ internal sealed class ExtractorConfiguration : IEntityTypeConfiguration<Extracto
     }
 }
 
+internal sealed class FootprintConfiguration : IEntityTypeConfiguration<Footprint>
+{
+    public void Configure(EntityTypeBuilder<Footprint> footprint)
+    {
+        footprint.HasKey(f => f.Id);
+        footprint.Property(f => f.Id).HasConversion(id => id.Id, value => FootprintId.Of(value));
+        footprint.Property(f => f.MinX);
+        footprint.Property(f => f.MinY);
+        footprint.Property(f => f.MaxX);
+        footprint.Property(f => f.MaxY);
+        footprint.Property(f => f.IsInGame);
+        footprint.Ignore(f => f.Width);
+        footprint.Ignore(f => f.Length);
+    }
+}
+
 internal sealed class ResourceNodeConfiguration : IEntityTypeConfiguration<ResourceNode>
 {
     public void Configure(EntityTypeBuilder<ResourceNode> node)
@@ -125,6 +141,7 @@ internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<Cata
         import.ComplexProperty(i => i.TransportTiers);
         import.ComplexProperty(i => i.Recipes);
         import.ComplexProperty(i => i.Extractors);
+        import.ComplexProperty(i => i.Footprints);
         import.ComplexProperty(i => i.ResourceNodes);
 
         // A list of strings becomes a PostgreSQL text[] column.

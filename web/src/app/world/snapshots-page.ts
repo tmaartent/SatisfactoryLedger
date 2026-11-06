@@ -10,8 +10,10 @@ import { Router, RouterLink } from '@angular/router';
 import { Api } from '../api/api';
 import { getSnapshots } from '../api/fn/world/get-snapshots';
 import { importSave } from '../api/fn/world/import-save';
+import { SnapshotSummaryResponse } from '../api/models/snapshot-summary-response';
 import { AnalysisStatusChip } from '../shared/analysis-status-chip';
 import { problemMessage } from '../shared/problem';
+import { SnapshotDeletion } from './snapshot-deletion';
 
 /** Every imported snapshot, newest first, and the import of a new save. */
 @Component({
@@ -23,10 +25,11 @@ export class SnapshotsPage {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly deletion = inject(SnapshotDeletion);
 
   protected readonly snapshots = resource({ loader: () => this.api.invoke(getSnapshots) });
   protected readonly importing = signal(false);
-  protected readonly columns = ['sessionName', 'savedAt', 'machines', 'logistics', 'analysis'];
+  protected readonly columns = ['sessionName', 'savedAt', 'machines', 'logistics', 'analysis', 'actions'];
 
   constructor() {
     // While an analysis is pending, ask again every two seconds.
@@ -35,6 +38,11 @@ export class SnapshotsPage {
       const timer = setTimeout(() => this.snapshots.reload(), 2000);
       onCleanup(() => clearTimeout(timer));
     });
+  }
+
+  /** Deletes a snapshot and its analysis, after asking. The world's factories stay (BR-W2). */
+  protected async delete(snapshot: SnapshotSummaryResponse): Promise<void> {
+    if (await this.deletion.confirmAndDelete(snapshot)) this.snapshots.reload();
   }
 
   protected async import(files: FileList | null): Promise<void> {

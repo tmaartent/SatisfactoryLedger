@@ -92,6 +92,7 @@ public static class SaveFileReader
                 BuildableRole.Station when linked => new SavedConsumer(id, className) { Burns = burns },
                 BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className), SortRulesOf(actor), InputPrioritiesOf(actor))
                 {
+                    Curve = CurveOf(actor),
                     Stock = GameClasses.LogisticsKindOf(className) == LogisticsKind.FluidBuffer
                         ? FluidStockOf(actor, byPath, fluidOfNetwork)
                         : inventory is null ? null : StockOf(actor, inventory, byPath),
@@ -101,7 +102,11 @@ public static class SaveFileReader
 
             if (buildable is not null)
             {
-                buildables.Add(buildable with { Position = new SavedPosition(actor.Position.X, actor.Position.Y, actor.Position.Z) });
+                buildables.Add(buildable with
+                {
+                    Position = new SavedPosition(actor.Position.X, actor.Position.Y, actor.Position.Z),
+                    Yaw = YawOf(actor.Rotation),
+                });
                 connectors.AddRange(ports.Select(port =>
                     new Connector(id, port.Path, GameClasses.DirectionOf(port.Port, className), port.LinkedTo, GameClasses.PortIndexOf(port.Port, className))));
             }
@@ -175,6 +180,48 @@ public static class SaveFileReader
         return content > 0 && network is not null && fluidOfNetwork.TryGetValue(network.Value, out string? fluid)
             ? new Dictionary<string, decimal>(StringComparer.Ordinal) { [fluid] = Math.Round((decimal)content, 3) }
             : new Dictionary<string, decimal>(StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// A belt's or pipe's curve (<c>mSplineData</c>), from the belt's own coordinates into the world's: turned by its
+    /// rotation and moved to where it stands. Null when it has none, as a splitter or lift.
+    /// </summary>
+    private static List<SavedCurvePoint>? CurveOf(ActorObject actor)
+    {
+        if (actor.Properties.OfType<ArrayProperty>().FirstOrDefault(property => property.Name == "mSplineData")?.Property is not ArrayStructProperty spline)
+        {
+            return null;
+        }
+
+        SavedPosition Vector(ArrayProperties point, string name) =>
+            point.Values.OfType<StructProperty>().FirstOrDefault(property => property.Name == name)?.Value is VectorD { Value: var v }
+                ? Rotate(actor.Rotation, new SavedPosition(v.X, v.Y, v.Z))
+                : new SavedPosition(0, 0, 0);
+
+        return
+        [
+            .. spline.Values.OfType<ArrayProperties>().Select(point =>
+            {
+                SavedPosition local = Vector(point, "Location");
+                return new SavedCurvePoint(
+                    new SavedPosition(actor.Position.X + local.X, actor.Position.Y + local.Y, actor.Position.Z + local.Z),
+                    Vector(point, "ArriveTangent"),
+                    Vector(point, "LeaveTangent"));
+            })
+        ];
+    }
+
+    /// <summary>The turn about the vertical axis of the quaternion <paramref name="q"/>, in degrees.</summary>
+    internal static double YawOf(SatisfactorySaveNet.Abstracts.Maths.Vector.Vector4 q) =>
+        Math.Atan2(2 * (((double)q.W * q.Z) + ((double)q.X * q.Y)), 1 - (2 * (((double)q.Y * q.Y) + ((double)q.Z * q.Z)))) * 180 / Math.PI;
+
+    /// <summary>Turns <paramref name="v"/> by the quaternion <paramref name="q"/>: v + 2w(q×v) + 2q×(q×v).</summary>
+    internal static SavedPosition Rotate(SatisfactorySaveNet.Abstracts.Maths.Vector.Vector4 q, SavedPosition v)
+    {
+        (double x, double y, double z, double w) = (q.X, q.Y, q.Z, q.W);
+        (double cx, double cy, double cz) = (y * v.Z - z * v.Y, z * v.X - x * v.Z, x * v.Y - y * v.X);
+        (double ccx, double ccy, double ccz) = (y * cz - z * cy, z * cx - x * cz, x * cy - y * cx);
+        return new SavedPosition(v.X + 2 * (w * cx + ccx), v.Y + 2 * (w * cy + ccy), v.Z + 2 * (w * cz + ccz));
     }
 
     /// <summary>A smart or programmable splitter's rules (<c>mSortRules</c>); null when it has none, as a plain splitter.</summary>

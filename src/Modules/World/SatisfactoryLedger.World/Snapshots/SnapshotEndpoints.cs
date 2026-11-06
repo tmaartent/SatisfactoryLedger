@@ -56,7 +56,20 @@ internal static class SnapshotEndpoints
             .WithName("GetSnapshot")
             .WithSummary("One snapshot: when it was saved and imported, what it contains, and what the import couldn't place");
 
+        world.MapDelete("/snapshots/{id:guid}", DeleteAsync)
+            .WithName("DeleteSnapshot")
+            .WithSummary("Delete a snapshot and its analysis")
+            .WithDescription("The world's factories stay: they belong to the world, and are traced in its next snapshot (BR-W2). An analysis still being computed for it is dropped.");
+
         return world;
+    }
+
+    // ExecuteDeleteAsync deletes in the database without loading the snapshot (its document is large). The database
+    // deletes the analysis with it (a cascading foreign key).
+    private static async Task<Results<NoContent, NotFound>> DeleteAsync(Guid id, WorldDbContext db, CancellationToken cancellationToken)
+    {
+        int deleted = await db.Snapshots.Where(snapshot => snapshot.Id == id).ExecuteDeleteAsync(cancellationToken);
+        return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
     }
 
     private static async Task<Results<Created<SnapshotResponse>, ValidationProblem, ProblemHttpResult>> ImportAsync(

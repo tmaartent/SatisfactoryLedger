@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Importer;
@@ -138,6 +138,22 @@ internal class SatisfactoryTranslator
                     form == ItemForm.Fluid ? itemsPerCycle / 1000 : itemsPerCycle,
                     ParseGameDecimal(dto.ExtractCycleTime));
             })
+        ];
+    }
+
+    /// <summary>
+    /// The footprint of every building with clearance boxes (ADR-0020). A class can be in more than one section; the
+    /// first is taken.
+    /// </summary>
+    public static List<Footprint> TranslateToFootprints(List<GameDataGroupDto> dataList)
+    {
+        return
+        [
+            .. dataList.OfType<FootprintGroupDto>().SelectMany(dto => dto.Classes)
+                .DistinctBy(dto => dto.ClassName, StringComparer.Ordinal)
+                .Select(dto => (dto.ClassName, Boxes: ClearanceDataParser.Parse(dto.ClearanceData)))
+                .Where(building => building.Boxes.Count > 0)
+                .Select(building => Footprint.Around(FootprintId.Of(building.ClassName), building.Boxes))
         ];
     }
 

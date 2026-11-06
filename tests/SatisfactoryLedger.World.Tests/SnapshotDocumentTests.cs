@@ -117,9 +117,50 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void A_belt_keeps_its_curve_so_the_map_can_draw_it_as_built()
+    {
+        BuildableDocument belt = Stored().Buildables.Single(b => b.Id == Id("Build_ConveyorBeltMk1_C_2147303056").Id);
+
+        Assert.Equal(8, belt.Curve!.Count);
+        // The curve starts where the belt stands, to the hundredth of a centimetre it's kept at.
+        Assert.Equal(belt.Position!.X, belt.Curve[0].Location.X, tolerance: 0.01);
+        Assert.Equal(belt.Position.Y, belt.Curve[0].Location.Y, tolerance: 0.01);
+    }
+
+    [Fact]
+    public void A_buildable_keeps_which_way_it_faces()
+    {
+        BuildableDocument smelter = Stored().Buildables.Single(b => b.Id == Id("Build_SmelterMk1_C_2147301226").Id);
+
+        Assert.Equal(90, smelter.Yaw!.Value, 3);
+    }
+
+    [Fact]
+    public void A_snapshot_copies_the_footprints_of_the_buildings_it_has()
+    {
+        // The test world has smelters and constructors, but no assembler.
+        Assert.Equal(["Build_ConstructorMk1_C", "Build_SmelterMk1_C"], Stored().Footprints!.Select(footprint => footprint.Id));
+    }
+
+    [Fact]
+    public void A_snapshot_from_before_curves_were_read_can_still_be_read_without_them()
+    {
+        SnapshotDocument withoutCurves = TestWorldSnapshot.Document with
+        {
+            Version = 4,
+            Buildables = [.. TestWorldSnapshot.Document.Buildables.Select(buildable => buildable with { Curve = null })],
+        };
+
+        SnapshotDocument read = SnapshotDocument.FromJson(withoutCurves.ToJson());
+
+        Assert.Equal(5, read.Version);
+        Assert.All(read.Buildables, buildable => Assert.Null(buildable.Curve));
+    }
+
+    [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
-        Assert.Equal(4, Stored().Version);
+        Assert.Equal(5, Stored().Version);
     }
 
     [Fact]
@@ -211,16 +252,16 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_from_before_stock_was_read_can_still_be_read()
     {
-        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":4", "\"version\":2", StringComparison.Ordinal);
+        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":5", "\"version\":2", StringComparison.Ordinal);
 
-        Assert.Equal(4, SnapshotDocument.FromJson(version2).Version);
+        Assert.Equal(5, SnapshotDocument.FromJson(version2).Version);
     }
 
     [Fact]
     public void A_snapshot_imported_before_rates_were_copied_can_still_be_read_and_traced()
     {
         string version1 = TestWorldSnapshot.Document.ToJson()
-            .Replace("\"version\":4", "\"version\":1", StringComparison.Ordinal);
+            .Replace("\"version\":5", "\"version\":1", StringComparison.Ordinal);
 
         WorldGraph world = SnapshotDocument.FromJson(version1).ToWorldGraph();
 

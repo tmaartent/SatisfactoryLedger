@@ -7,7 +7,9 @@
     <h1>{{ s.sessionName }}</h1>
     <span class="muted">saved {{ s.savedAt | date: 'medium' }} · build {{ s.gameBuild }}</span>
     <span class="spacer"></span>
+    <a mat-stroked-button [routerLink]="['/snapshots', s.id, 'map']"><mat-icon>map</mat-icon> Map</a>
     <app-analysis-status-chip [status]="s.analysis" />
+    <button mat-icon-button (click)="delete()" aria-label="Delete this snapshot"><mat-icon>delete</mat-icon></button>
   </div>
 
   <mat-tab-group animationDuration="0">

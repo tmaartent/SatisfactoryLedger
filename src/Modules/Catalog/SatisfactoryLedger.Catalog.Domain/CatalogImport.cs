@@ -44,7 +44,8 @@ public sealed class CatalogImport
         CatalogEntryChanges<Building> buildings,
         CatalogEntryChanges<TransportTier> transportTiers,
         CatalogEntryChanges<Recipe> recipes,
-        CatalogEntryChanges<Extractor> extractors)
+        CatalogEntryChanges<Extractor> extractors,
+        CatalogEntryChanges<Footprint> footprints)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameVersion);
 
@@ -54,7 +55,8 @@ public sealed class CatalogImport
             .. buildings.NoLongerInGame.Select(building => building.Id.Id),
             .. transportTiers.NoLongerInGame.Select(tier => tier.Id.Id),
             .. recipes.NoLongerInGame.Select(recipe => recipe.Id.Id),
-            .. extractors.NoLongerInGame.Select(extractor => extractor.Id.Id)
+            .. extractors.NoLongerInGame.Select(extractor => extractor.Id.Id),
+            .. footprints.NoLongerInGame.Select(footprint => footprint.Id.Id)
         ];
 
         return new CatalogImport(id, CatalogImportSource.DocsFile, gameVersion.Trim(), importedAt)
@@ -64,7 +66,9 @@ public sealed class CatalogImport
             TransportTiers = transportTiers.Counts,
             Recipes = recipes.Counts,
             Extractors = extractors.Counts,
-            NoLongerInGame = noLongerInGame
+            Footprints = footprints.Counts,
+            // A building that left the game takes its footprint with it: one class name, listed once.
+            NoLongerInGame = [.. noLongerInGame.Distinct(StringComparer.Ordinal)]
         };
     }
 
@@ -98,6 +102,8 @@ public sealed class CatalogImport
     public ImportCounts Recipes { get; private init; } = new(0, 0, 0);
 
     public ImportCounts Extractors { get; private init; } = new(0, 0, 0);
+
+    public ImportCounts Footprints { get; private init; } = new(0, 0, 0);
 
     public ImportCounts ResourceNodes { get; private init; } = new(0, 0, 0);
 

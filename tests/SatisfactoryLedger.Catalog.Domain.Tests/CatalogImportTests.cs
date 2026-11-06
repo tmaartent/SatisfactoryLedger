@@ -114,6 +114,30 @@ public class CatalogImportTests
     }
 
     [Fact]
+    public void An_import_counts_the_footprints_it_changed()
+    {
+        var constructor = Footprint.Create(FootprintId.Of("Build_ConstructorMk1_C"), -400, -500, 400, 500);
+        var widerConstructor = Footprint.Create(FootprintId.Of("Build_ConstructorMk1_C"), -450, -500, 450, 500);
+
+        var import = RecordImport("1.2", footprints: CatalogEntries.Reconcile([constructor], [widerConstructor]));
+
+        Assert.Equal(new ImportCounts(Added: 0, Updated: 1, NoLongerInGame: 0), import.Footprints);
+    }
+
+    [Fact]
+    public void A_building_no_longer_in_the_game_is_listed_once_though_its_footprint_went_too()
+    {
+        var extractor = Extractor.Create(ExtractorId.Of("Build_MinerMk1_C"), "Miner Mk.1", ItemForm.Solid, 1, 1);
+        var footprint = Footprint.Create(FootprintId.Of("Build_MinerMk1_C"), -300, -500, 300, 900);
+
+        var import = RecordImport("1.2",
+            extractors: CatalogEntries.Reconcile([extractor], fromGame: []),
+            footprints: CatalogEntries.Reconcile([footprint], fromGame: []));
+
+        Assert.Equal(["Build_MinerMk1_C"], import.NoLongerInGame);
+    }
+
+    [Fact]
     public void An_import_of_the_docs_file_says_so()
     {
         Assert.Equal(CatalogImportSource.DocsFile, RecordImport("1.2").Source);
@@ -135,7 +159,10 @@ public class CatalogImportTests
     }
 
     private static CatalogImport RecordImport(
-        string gameVersion, CatalogEntryChanges<Item>? items = null, CatalogEntryChanges<Extractor>? extractors = null) =>
+        string gameVersion,
+        CatalogEntryChanges<Item>? items = null,
+        CatalogEntryChanges<Extractor>? extractors = null,
+        CatalogEntryChanges<Footprint>? footprints = null) =>
         CatalogImport.Record(
             CatalogImportId.New(),
             gameVersion,
@@ -144,5 +171,6 @@ public class CatalogImportTests
             CatalogEntries.None<Building>(),
             CatalogEntries.None<TransportTier>(),
             CatalogEntries.None<Recipe>(),
-            extractors ?? CatalogEntries.None<Extractor>());
+            extractors ?? CatalogEntries.None<Extractor>(),
+            footprints ?? CatalogEntries.None<Footprint>());
 }

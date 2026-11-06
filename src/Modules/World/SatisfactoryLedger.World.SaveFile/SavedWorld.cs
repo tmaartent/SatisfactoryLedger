@@ -22,6 +22,9 @@ public abstract record SavedBuildable(BuildableId Id, string ClassName)
     /// <summary>Where it stands, in the game's units (centimetres). Lets a player find it in the game.</summary>
     public SavedPosition? Position { get; init; }
 
+    /// <summary>Which way it faces, seen from above: degrees from the game's x axis towards its y axis (−180 to 180).</summary>
+    public double Yaw { get; init; }
+
     /// <summary>
     /// What it holds now, per item class name: what's on a platform, what a drone port received, what's in a storage
     /// container. Null when the save says nothing about it.
@@ -62,7 +65,18 @@ public sealed record SavedLogistics(
     string ClassName,
     LogisticsKind Kind,
     IReadOnlyList<SortRule>? SortRules = null,
-    IReadOnlyList<int>? InputPriorities = null) : SavedBuildable(Id, ClassName);
+    IReadOnlyList<int>? InputPriorities = null) : SavedBuildable(Id, ClassName)
+{
+    /// <summary>How a belt or pipe runs, as built: its spline, in world coordinates. Null for other logistics.</summary>
+    public IReadOnlyList<SavedCurvePoint>? Curve { get; init; }
+}
+
+/// <summary>
+/// A point of a belt's or pipe's curve (the game's <c>mSplineData</c>). Between two points the curve is a cubic Hermite
+/// spline: it leaves one point along its <see cref="LeaveTangent"/> and arrives at the next along its
+/// <see cref="ArriveTangent"/>. Locations in world coordinates (centimetres); tangents turned with the belt.
+/// </summary>
+public sealed record SavedCurvePoint(SavedPosition Location, SavedPosition ArriveTangent, SavedPosition LeaveTangent);
 
 /// <summary>Buildables in the item network the adapter can't model yet, such as stations. Their connections are left out.</summary>
 public sealed record UnsupportedBuildables(string ClassName, int Count);

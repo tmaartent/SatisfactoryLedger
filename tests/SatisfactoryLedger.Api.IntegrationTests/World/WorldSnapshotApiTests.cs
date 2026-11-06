@@ -120,4 +120,41 @@ public sealed class WorldSnapshotApiTests(LedgerApiFactory api) : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    // ---- Deleting a snapshot ---------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task A_deleted_snapshot_is_gone_with_its_findings()
+    {
+        await _client.ImportAsync(CatalogClient.GameFile);
+        Snapshot snapshot = await _client.ImportSaveAsync(WorldClient.TestWorld);
+        await _client.WaitForAnalysisAsync(snapshot.Id);
+
+        HttpResponseMessage deleted = await _client.DeleteAsync($"/api/v1/world/snapshots/{snapshot.Id}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/v1/world/snapshots/{snapshot.Id}", TestContext.Current.CancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync($"/api/v1/world/snapshots/{snapshot.Id}/analysis", TestContext.Current.CancellationToken)).StatusCode);
+    }
+
+    [Fact]
+    public async Task An_unknown_snapshot_cannot_be_deleted()
+    {
+        HttpResponseMessage response = await _client.DeleteAsync($"/api/v1/world/snapshots/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_worlds_factories_stay_when_its_last_snapshot_is_deleted()
+    {
+        await _client.ImportAsync(CatalogClient.GameFile);
+        Snapshot snapshot = await _client.ImportSaveAsync(WorldClient.TestWorld);
+        (await _client.DefineFactoryAsync("Development", "Iron plates", WorldClient.BeltIntoContainer, "Desc_OreIron_C")).EnsureSuccessStatusCode();
+
+        await _client.DeleteAsync($"/api/v1/world/snapshots/{snapshot.Id}", TestContext.Current.CancellationToken);
+
+        List<Factory> factories = (await _client.GetFromJsonAsync<List<Factory>>("/api/v1/world/factories?world=Development", TestContext.Current.CancellationToken))!;
+        Assert.Equal(["Iron plates"], factories.Select(factory => factory.Name));
+    }
 }

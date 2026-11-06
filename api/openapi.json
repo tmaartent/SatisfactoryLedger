@@ -436,6 +436,33 @@
             "description": "Not Found"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Delete a snapshot and its analysis",
+        "description": "The world's factories stay: they belong to the world, and are traced in its next snapshot (BR-W2). An analysis still being computed for it is dropped.",
+        "operationId": "DeleteSnapshot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
       }
     },
     "/api/v1/world/snapshots/{id}/output-belts": {
@@ -762,6 +789,42 @@
           }
         }
       }
+    },
+    "/api/v1/world/snapshots/{id}/map": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "What the world map draws of a snapshot: its machines and providers, where they stand",
+        "description": "Positions are in the game's units (centimetres). How each machine runs comes from the snapshot's analysis.",
+        "operationId": "GetWorldMap",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorldMapResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -952,6 +1015,25 @@
           "docsFile",
           "resourceNodeTable"
         ]
+      },
+      "CurvePointDocument": {
+        "required": [
+          "location",
+          "arriveTangent",
+          "leaveTangent"
+        ],
+        "type": "object",
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/PositionDocument"
+          },
+          "arriveTangent": {
+            "$ref": "#/components/schemas/PositionDocument"
+          },
+          "leaveTangent": {
+            "$ref": "#/components/schemas/PositionDocument"
+          }
+        }
       },
       "DefineFactoryRequest": {
         "required": [
@@ -1171,6 +1253,37 @@
           }
         }
       },
+      "FootprintDocument": {
+        "required": [
+          "id",
+          "minX",
+          "minY",
+          "maxX",
+          "maxY"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "minX": {
+            "type": "number",
+            "format": "double"
+          },
+          "minY": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxX": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxY": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "HttpValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -1253,6 +1366,7 @@
           "transportTiers",
           "recipes",
           "extractors",
+          "footprints",
           "resourceNodes",
           "noLongerInGame"
         ],
@@ -1285,6 +1399,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "extractors": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "footprints": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "resourceNodes": {
@@ -1431,6 +1548,138 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "MapBuilding": {
+        "required": [
+          "id",
+          "className",
+          "position",
+          "yaw"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionDocument"
+          },
+          "yaw": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "MapConveyor": {
+        "required": [
+          "id",
+          "className",
+          "kind",
+          "curve"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MapConveyorKind"
+          },
+          "curve": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurvePointDocument"
+            }
+          }
+        }
+      },
+      "MapConveyorKind": {
+        "enum": [
+          "belt",
+          "pipe"
+        ]
+      },
+      "MapMachine": {
+        "required": [
+          "id",
+          "className",
+          "recipe",
+          "position",
+          "yaw"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "recipe": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionDocument"
+          },
+          "yaw": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "MapProvider": {
+        "required": [
+          "id",
+          "className",
+          "resource",
+          "node",
+          "purity",
+          "position",
+          "yaw"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "resource": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "node": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "purity": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionDocument"
+          },
+          "yaw": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -1933,6 +2182,55 @@
           },
           "approximate": {
             "type": "boolean"
+          }
+        }
+      },
+      "WorldMapResponse": {
+        "required": [
+          "machines",
+          "providers",
+          "conveyors",
+          "logistics",
+          "consumers",
+          "footprints"
+        ],
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapMachine"
+            }
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapProvider"
+            }
+          },
+          "conveyors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapConveyor"
+            }
+          },
+          "logistics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapBuilding"
+            }
+          },
+          "consumers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapBuilding"
+            }
+          },
+          "footprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FootprintDocument"
+            }
           }
         }
       }

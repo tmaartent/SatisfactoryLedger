@@ -82,4 +82,18 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
                 .Select(tier => new CatalogTransportTier(tier.Id.Id, tier.Capacity))
         ];
     }
+
+    public async Task<IReadOnlyList<CatalogFootprint>> GetFootprintsAsync(IReadOnlyCollection<string> buildingIds, CancellationToken cancellationToken)
+    {
+        List<FootprintId> ids = [.. buildingIds.Select(FootprintId.Of)];
+        List<Footprint> footprints = await db.Footprints.AsNoTracking()
+            .Where(footprint => ids.Contains(footprint.Id))
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. footprints.OrderBy(footprint => footprint.Id.Id, StringComparer.Ordinal)
+                .Select(footprint => new CatalogFootprint(footprint.Id.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY))
+        ];
+    }
 }

@@ -108,6 +108,23 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                                 .HasColumnName("extractors_updated");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Footprints", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Footprints#ImportCounts", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Added")
+                                .HasColumnType("integer")
+                                .HasColumnName("footprints_added");
+
+                            b1.Property<int>("NoLongerInGame")
+                                .HasColumnType("integer")
+                                .HasColumnName("footprints_no_longer_in_game");
+
+                            b1.Property<int>("Updated")
+                                .HasColumnType("integer")
+                                .HasColumnName("footprints_updated");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Items", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Items#ImportCounts", b1 =>
                         {
                             b1.IsRequired();
@@ -214,6 +231,38 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasName("pk_extractors");
 
                     b.ToTable("extractors", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Footprint", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("IsInGame")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_in_game");
+
+                    b.Property<decimal>("MaxX")
+                        .HasColumnType("numeric")
+                        .HasColumnName("max_x");
+
+                    b.Property<decimal>("MaxY")
+                        .HasColumnType("numeric")
+                        .HasColumnName("max_y");
+
+                    b.Property<decimal>("MinX")
+                        .HasColumnType("numeric")
+                        .HasColumnName("min_x");
+
+                    b.Property<decimal>("MinY")
+                        .HasColumnType("numeric")
+                        .HasColumnName("min_y");
+
+                    b.HasKey("Id")
+                        .HasName("pk_footprints");
+
+                    b.ToTable("footprints", "catalog");
                 });
 
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Item", b =>

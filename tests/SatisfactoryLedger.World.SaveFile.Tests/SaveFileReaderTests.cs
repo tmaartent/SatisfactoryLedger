@@ -335,4 +335,76 @@ public class SaveFileReaderTests
 
         Assert.Throws<SaveFileException>(() => SaveFileReader.Read(notASave));
     }
+
+    // ---- Curves: how a belt or pipe runs, as built -------------------------------------------------------------
+
+    private static SavedLogistics Logistics(string name) =>
+        Assert.IsType<SavedLogistics>(Save.Buildables.Single(buildable => buildable.Id == Id(name)));
+
+    [Fact]
+    public void A_straight_belt_runs_from_where_it_stands_to_its_end_point()
+    {
+        // A 9 m belt, westwards: two points, in world coordinates.
+        IReadOnlyList<SavedCurvePoint> curve = Logistics("Build_ConveyorBeltMk1_C_2147299536").Curve!;
+
+        Assert.Equal(2, curve.Count);
+        Assert.Equal((254400, -198000, 4199.99), (curve[0].Location.X, curve[0].Location.Y, Math.Round(curve[0].Location.Z, 2)));
+        Assert.Equal((253500, -198000), (Math.Round(curve[1].Location.X), Math.Round(curve[1].Location.Y)));
+    }
+
+    [Fact]
+    public void A_belt_keeps_every_point_of_its_curve_with_its_tangents()
+    {
+        IReadOnlyList<SavedCurvePoint> curve = Logistics("Build_ConveyorBeltMk1_C_2147303056").Curve!;
+
+        Assert.Equal(8, curve.Count);
+        // The tangent the curve leaves its first point with: about a metre westwards, a little south.
+        Assert.Equal((-99.76, -6.86), (Math.Round(curve[0].LeaveTangent.X, 2), Math.Round(curve[0].LeaveTangent.Y, 2)));
+    }
+
+    [Fact]
+    public void A_pipe_keeps_its_curve_too()
+    {
+        IReadOnlyList<SavedCurvePoint> curve = Logistics("Build_PipelineMK2_NoIndicator_C_2147257019").Curve!;
+
+        Assert.Equal(6, curve.Count);
+        Assert.Equal(1717.48 + 198.12, Math.Round(curve[^1].Location.Z, 2), 2);
+    }
+
+    [Fact]
+    public void A_splitter_has_no_curve()
+    {
+        Assert.All(
+            Save.Buildables.OfType<SavedLogistics>().Where(logistics => logistics.Kind is LogisticsKind.Splitter or LogisticsKind.Merger or LogisticsKind.Lift),
+            logistics => Assert.Null(logistics.Curve));
+    }
+
+    [Fact]
+    public void A_turned_belt_turns_its_curve_with_it()
+    {
+        // A quarter turn about the vertical axis: what pointed along x now points along y.
+        var quarterTurn = new SatisfactorySaveNet.Abstracts.Maths.Vector.Vector4(0, 0, MathF.Sqrt(0.5f), MathF.Sqrt(0.5f));
+
+        SavedPosition turned = SaveFileReader.Rotate(quarterTurn, new SavedPosition(100, 0, 0));
+
+        Assert.Equal((0, 100, 0), (Math.Round(turned.X, 3), Math.Round(turned.Y, 3), Math.Round(turned.Z, 3)));
+    }
+
+    // ---- Which way a buildable faces, seen from above: so the map can turn its footprint ----------------------
+
+    [Fact]
+    public void A_buildable_keeps_which_way_it_faces()
+    {
+        // The smelters and constructors of the main line face along y (a quarter turn); the packager is turned −100°.
+        Assert.Equal(90, Math.Round(Save.Buildables.Single(buildable => buildable.Id == SmelterA).Yaw), 0);
+        Assert.Equal(-100, Math.Round(Save.Buildables.Single(buildable => buildable.Id == Id("Build_Packager_C_2147260704")).Yaw), 0);
+    }
+
+    [Fact]
+    public void A_quarter_turn_about_the_vertical_axis_is_a_yaw_of_90_degrees()
+    {
+        var quarterTurn = new SatisfactorySaveNet.Abstracts.Maths.Vector.Vector4(0, 0, MathF.Sqrt(0.5f), MathF.Sqrt(0.5f));
+
+        Assert.Equal(90, SaveFileReader.YawOf(quarterTurn), 3);
+    }
 }
