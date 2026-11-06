@@ -27,6 +27,17 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void What_flows_into_a_belt_is_what_its_inputs_bring_together()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner 1", Ore, 20).Provider("miner 2", Ore, 25).Merger("merge").Belt("out").Sink("sink")
+            .Connect("miner 1", "merge", "out", "sink").Connect("miner 2", "merge")
+            .Run();
+
+        Assert.Equal(45, result.Into(Id("out"))[Ore], Precision);
+    }
+
+    [Fact]
     public void A_machine_that_gets_half_of_its_input_runs_at_half_speed_and_is_starved_of_that_item()
     {
         FlowResult result = new TestFlow()

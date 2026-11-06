@@ -84,6 +84,25 @@ public sealed class FlowResult
     /// <summary>The part a buildable belongs to: whether its numbers settled.</summary>
     public FlowPart PartOf(BuildableId id) => _partOf[id];
 
+    /// <summary>What flows into a buildable over all its inputs together, per item and minute.</summary>
+    public IReadOnlyDictionary<ItemId, double> Into(BuildableId id)
+    {
+        int index = _network.IndexOf[id];
+        Dictionary<ItemId, double> into = [];
+        for (int edge = 0; edge < _network.Edges.Count; edge++)
+        {
+            if (_network.Edges[edge].To == index)
+            {
+                foreach ((ItemId item, double rate) in _flows[edge])
+                {
+                    into[item] = into.GetValueOrDefault(item) + rate;
+                }
+            }
+        }
+
+        return into;
+    }
+
     /// <summary>What flows of an item over the connection from one buildable to another, per minute.</summary>
     public double Flow(BuildableId from, BuildableId to, ItemId item)
     {

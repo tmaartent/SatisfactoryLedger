@@ -677,6 +677,51 @@
           }
         }
       }
+    },
+    "/api/v1/world/snapshots/{id}/factories/{factoryId}/analysis": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "The findings of one factory in a snapshot: what it makes, its machines and belts, and the suppliers that feed it (BR-A14)",
+        "description": "The whole world is simulated, because a factory depends on its supply; a big world takes some seconds. Not found when the snapshot or factory doesn't exist, the factory belongs to another world, or its output belt isn't in this snapshot (BR-W11).",
+        "operationId": "AnalyseFactory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "factoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryAnalysisResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -922,6 +967,86 @@
           },
           "inGame": {
             "type": "boolean"
+          }
+        }
+      },
+      "FactoryAnalysisResponse": {
+        "required": [
+          "factoryId",
+          "name",
+          "settled",
+          "summary",
+          "output",
+          "machines",
+          "bottlenecks",
+          "unusedSupply",
+          "unknownSupply"
+        ],
+        "type": "object",
+        "properties": {
+          "factoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "settled": {
+            "type": "boolean"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AnalysisSummary"
+          },
+          "output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryOutput"
+            }
+          },
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MachineFinding"
+            }
+          },
+          "bottlenecks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BottleneckFinding"
+            }
+          },
+          "unusedSupply": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnusedSupplyFinding"
+            }
+          },
+          "unknownSupply": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnknownSupplyFinding"
+            }
+          }
+        }
+      },
+      "FactoryOutput": {
+        "required": [
+          "item",
+          "now",
+          "atFullSpeed"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "now": {
+            "type": "number",
+            "format": "double"
+          },
+          "atFullSpeed": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

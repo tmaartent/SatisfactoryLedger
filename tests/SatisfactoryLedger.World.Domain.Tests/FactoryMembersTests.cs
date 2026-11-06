@@ -273,4 +273,57 @@ public class FactoryMembersTests
     {
         Assert.Throws<ArgumentException>(() => new FactoryDefinition(" ", BuildableId.Of("output"), [Items.IronOre]));
     }
+
+    // ---- Suppliers and producers, for the factory's findings (BR-A14) -----------------------------------------
+
+    [Fact]
+    public void The_provider_feeding_a_factory_is_its_supplier()
+    {
+        var members = Trace(IronPlateLine().Build(), "output", Items.IronOre);
+
+        Ids.AssertSet(members.Suppliers, "miner");
+    }
+
+    [Fact]
+    public void A_provider_shared_with_another_factory_supplies_both()
+    {
+        WorldGraph world = new TestWorld()
+            .Miner("miner").Belt("ore").Splitter("split")
+            .Belt("to plates").Machine("plate smelter", Items.IronOre, Items.IronIngot).Belt("plates")
+            .Belt("to rods").Machine("rod smelter", Items.IronOre, Items.IronIngot).Belt("rods")
+            .Connect("miner", "ore", "split", "to plates", "plate smelter", "plates")
+            .Connect("split", "to rods", "rod smelter", "rods")
+            .Build();
+
+        Ids.AssertSet(Trace(world, "plates", Items.IronOre).Suppliers, "miner");
+        Ids.AssertSet(Trace(world, "rods", Items.IronOre).Suppliers, "miner");
+    }
+
+    [Fact]
+    public void A_container_nothing_feeds_on_an_input_line_is_a_supplier()
+    {
+        WorldGraph world = new TestWorld()
+            .Container("box").Belt("ore").Machine("smelter", Items.IronOre, Items.IronIngot).Belt("output")
+            .Connect("box", "ore", "smelter", "output")
+            .Build();
+
+        Ids.AssertSet(Trace(world, "output", Items.IronOre).Suppliers, "box");
+    }
+
+    [Fact]
+    public void A_machine_of_another_factory_is_not_a_supplier()
+    {
+        // The smelter makes the declared input item, so it belongs to another factory (BR-W6), and so does its miner.
+        var members = Trace(IronPlateLine().Build(), "output", Items.IronIngot);
+
+        Assert.Empty(members.Suppliers);
+    }
+
+    [Fact]
+    public void The_machines_whose_output_reaches_the_output_belt_are_its_producers()
+    {
+        var members = Trace(IronPlateLine().Build(), "output", Items.IronOre);
+
+        Ids.AssertSet(members.Producers, "constructor");
+    }
 }

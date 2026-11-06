@@ -67,4 +67,38 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    private async Task<(Snapshot Snapshot, Factory Factory)> DefineIronPlatesAsync()
+    {
+        await _client.ImportAsync(CatalogClient.GameFile);
+        await _client.ImportResourceNodesAsync();
+        Snapshot snapshot = await _client.ImportSaveAsync(WorldClient.TestWorld);
+        HttpResponseMessage defined = await _client.DefineFactoryAsync("Development", "Iron plates", WorldClient.BeltIntoContainer, "Desc_OreIron_C");
+        return (snapshot, (await defined.Content.ReadFromJsonAsync<Factory>(TestContext.Current.CancellationToken))!);
+    }
+
+    [Fact]
+    public async Task A_factory_analysis_says_what_it_makes_now_and_at_100_percent()
+    {
+        (Snapshot snapshot, Factory factory) = await DefineIronPlatesAsync();
+
+        HttpResponseMessage response = await _client.GetAsync(
+            $"/api/v1/world/snapshots/{snapshot.Id}/factories/{factory.Id}/analysis", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonNode analysis = (await response.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken))!;
+        Assert.Equal("""[{"item":"Desc_IronPlate_C","now":15,"atFullSpeed":15}]""", analysis["output"]!.ToJsonString());
+        Assert.Single(analysis["machines"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task A_factory_that_does_not_exist_has_no_analysis()
+    {
+        (Snapshot snapshot, _) = await DefineIronPlatesAsync();
+
+        HttpResponseMessage response = await _client.GetAsync(
+            $"/api/v1/world/snapshots/{snapshot.Id}/factories/{Guid.NewGuid()}/analysis", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }

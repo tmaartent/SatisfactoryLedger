@@ -35,6 +35,8 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Starved / Output Blocked** | Why a machine runs below 100%: too little of an input is offered, or an output can't leave (BR-A11). | `MachineLimit` |
 | **Bottleneck** | A belt, lift or pipe at its capacity while more is offered upstream (BR-A12). The first saturated segment of a line. | `Bottleneck` |
 | **Unused Supply** | What a provider could deliver on top of what it does (BR-A13). | `UnusedSupply` |
+| **Supplier** | A provider, station or container nothing feeds that a factory's input lines reach. Never part of the factory (BR-W1); can supply several (BR-A14). | `FactoryMembers.Suppliers` |
+| **Producer** | A machine of a factory whose output reaches the output belt through logistics only: it makes what the factory makes (BR-A14). | `FactoryMembers.Producers` |
 | **Finding** | Something the analysis reports about a snapshot: a machine below 100% and why, a bottleneck, unused supply, or a source of unknown rate and how long its stock lasts (BR-A9, BR-A11 to A13). With where it stands in the game. | `SnapshotAnalysis`, `AnalysisResponse`, `GET /snapshots/{id}/analysis` |
 | **Flow Part / Approximate** | A connected part of the world, simulated on its own. A part that hasn't settled within 2,000 sweeps is *approximate*: its numbers came close but some still moved (BR-A10). | `FlowPart`, `FlowResult.PartOf` |
 | **Sort Rule** | What one output of a smart or programmable splitter sends: an item, *any*, *any undefined*, *overflow* or *none* (BR-A4). Outputs are counted from 0, as the splitter's settings number them. | `SortRule`, `SortRuleKind` |

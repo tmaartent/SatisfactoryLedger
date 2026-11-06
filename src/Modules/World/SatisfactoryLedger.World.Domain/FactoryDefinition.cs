@@ -39,7 +39,32 @@ public sealed class FactoryDefinition
         }
 
         UpstreamTrace trace = TraceUpstream(world);
-        return new FactoryMembers(trace.Machines, trace.FactoryLogistics(world));
+        return new FactoryMembers(trace.Machines, trace.FactoryLogistics(world), trace.Suppliers(world), Producers(world));
+    }
+
+    /// <summary>The machines reached from the output belt upstream through logistics only: they make what leaves.</summary>
+    private HashSet<BuildableId> Producers(WorldGraph world)
+    {
+        HashSet<BuildableId> producers = [];
+        HashSet<BuildableId> seen = [OutputBelt];
+        Queue<BuildableId> toVisit = new([OutputBelt]);
+        while (toVisit.TryDequeue(out BuildableId? current))
+        {
+            foreach (Buildable upstream in world.Upstream(current).Where(upstream => seen.Add(upstream.Id)))
+            {
+                switch (upstream)
+                {
+                    case Machine machine when !machine.ProducesAnyOf(InputItems):
+                        producers.Add(machine.Id);
+                        break;
+                    case Logistics:
+                        toVisit.Enqueue(upstream.Id);
+                        break;
+                }
+            }
+        }
+
+        return producers;
     }
 
     /// <summary>
@@ -49,6 +74,7 @@ public sealed class FactoryDefinition
     private UpstreamTrace TraceUpstream(WorldGraph world)
     {
         HashSet<BuildableId> machines = [];
+        HashSet<BuildableId> providers = [];
         HashSet<BuildableId> passedLogistics = [OutputBelt];
         Queue<BuildableId> toVisit = new([OutputBelt]);
 
@@ -56,6 +82,13 @@ public sealed class FactoryDefinition
         {
             foreach (Buildable upstream in world.Upstream(current))
             {
+                if (upstream is Provider)
+                {
+                    // The walk stops at a provider: it's the factory's supply (BR-A14), never a member (BR-W1).
+                    providers.Add(upstream.Id);
+                    continue;
+                }
+
                 bool isNew = upstream switch
                 {
                     Machine machine when !machine.ProducesAnyOf(InputItems) => machines.Add(machine.Id),
@@ -70,15 +103,23 @@ public sealed class FactoryDefinition
             }
         }
 
-        return new UpstreamTrace(machines, passedLogistics);
+        return new UpstreamTrace(machines, passedLogistics, providers);
     }
 
     /// <summary>
     /// What the walk upstream from the output belt found: the factory's machines, and every piece of logistics it
     /// passed. Not all of those are the factory's: the walk also passes the supply on the input lines.
     /// </summary>
-    private sealed record UpstreamTrace(HashSet<BuildableId> Machines, HashSet<BuildableId> PassedLogistics)
+    private sealed record UpstreamTrace(HashSet<BuildableId> Machines, HashSet<BuildableId> PassedLogistics, HashSet<BuildableId> Providers)
     {
+        /// <summary>The providers the walk stopped at, and the containers it passed that nothing feeds (BR-A9).</summary>
+        public HashSet<BuildableId> Suppliers(WorldGraph world) =>
+        [
+            .. Providers,
+            .. PassedLogistics.Where(id => world.Find(id) is Logistics { Kind: LogisticsKind.StorageContainer or LogisticsKind.FluidBuffer }
+                && !world.Upstream(id).Any()),
+        ];
+
         /// <summary>
         /// Of the logistics the walk passed, the factory's are:
         /// <list type="bullet">

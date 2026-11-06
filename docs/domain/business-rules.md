@@ -59,6 +59,7 @@ How the World's analysis computes what flows where. A **steady state**: everythi
 | **BR-A11** | **Machine utilisation and why.** Every machine below 100% gets its utilisation and the limiting cause: *starved* of an input item, *output blocked* (an output can't leave), or *no recipe known* (BR-W10). |
 | **BR-A12** | **Bottleneck.** A belt, lift or pipe running at its capacity while more is offered upstream of it. The finding says how much more is offered. |
 | **BR-A13** | **Unused supply.** A provider delivering less than it offers: what it could deliver more. Spare capacity for a new factory, or room to underclock. |
+| **BR-A14** | **A factory's findings** (decided 2026-11-06). The machine findings of its own machines and the bottlenecks on its own logistics. Its **suppliers**: the providers, stations and containers nothing feeds that its input lines reach, with their unused supply and how long their stock lasts. A supplier is never part of the factory (BR-W1), and one that feeds several factories is listed with each. Its **output**: per item, what flows onto the output belt now, and what its **producers** (the machines whose output reaches the output belt through logistics only) make at 100% at their clock speeds. |
 
 ---
 
