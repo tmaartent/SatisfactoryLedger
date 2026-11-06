@@ -1,0 +1,56 @@
+<div class="page-header">
+  <h1>Snapshots</h1>
+  <span class="spacer"></span>
+  <input #saveFile type="file" accept=".sav" hidden (change)="import(saveFile.files); saveFile.value = ''" />
+  <button mat-flat-button (click)="saveFile.click()" [disabled]="importing()">
+    <mat-icon>upload_file</mat-icon> Import a save
+  </button>
+</div>
+
+@if (importing()) {
+  <mat-progress-bar mode="indeterminate" />
+  <p class="muted">Reading the save… a big world takes a few seconds.</p>
+}
+
+@if (snapshots.error(); as error) {
+  <p class="muted">The snapshots couldn't be loaded. Is the API running?</p>
+} @else if (snapshots.value(); as list) {
+  @if (list.length === 0) {
+    <p class="muted">
+      No snapshots yet. Import a save from <code>%LOCALAPPDATA%\FactoryGame\Saved\SaveGames</code>; import the game's Docs
+      file in the <a routerLink="/catalog">Catalog</a> first.
+    </p>
+  } @else {
+    <div class="table-scroll">
+      <table mat-table [dataSource]="list">
+        <ng-container matColumnDef="sessionName">
+          <th mat-header-cell *matHeaderCellDef>World</th>
+          <td mat-cell *matCellDef="let s"><a [routerLink]="['/snapshots', s.id]">{{ s.sessionName }}</a></td>
+        </ng-container>
+        <ng-container matColumnDef="savedAt">
+          <th mat-header-cell *matHeaderCellDef>Saved</th>
+          <td mat-cell *matCellDef="let s">
+            {{ s.savedAt | date: 'medium' }}
+            <div class="muted">imported {{ s.importedAt | date: 'short' }}</div>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="machines">
+          <th mat-header-cell *matHeaderCellDef class="number">Machines</th>
+          <td mat-cell *matCellDef="let s" class="number">{{ s.counts.machines }}</td>
+        </ng-container>
+        <ng-container matColumnDef="logistics">
+          <th mat-header-cell *matHeaderCellDef class="number">Belts, pipes, splitters…</th>
+          <td mat-cell *matCellDef="let s" class="number">{{ s.counts.logistics }}</td>
+        </ng-container>
+        <ng-container matColumnDef="analysis">
+          <th mat-header-cell *matHeaderCellDef>Analysis</th>
+          <td mat-cell *matCellDef="let s"><app-analysis-status-chip [status]="s.analysis" /></td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="columns"></tr>
+        <tr mat-row *matRowDef="let row; columns: columns"></tr>
+      </table>
+    </div>
+  }
+} @else {
+  <mat-progress-bar mode="indeterminate" />
+}

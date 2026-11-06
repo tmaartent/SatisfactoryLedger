@@ -1,0 +1,170 @@
+@let f = findings();
+<div class="summary">
+  <mat-card appearance="outlined"><mat-card-content><div class="figure">{{ f.summary.machines }}</div>machines</mat-card-content></mat-card>
+  <mat-card appearance="outlined" class="good"><mat-card-content><div class="figure">{{ f.summary.running }}</div>at 100%</mat-card-content></mat-card>
+  <mat-card appearance="outlined" class="bad"><mat-card-content><div class="figure">{{ f.summary.starved }}</div>starved</mat-card-content></mat-card>
+  <mat-card appearance="outlined" class="bad"><mat-card-content><div class="figure">{{ f.summary.outputBlocked }}</div>output blocked</mat-card-content></mat-card>
+  <mat-card appearance="outlined"><mat-card-content><div class="figure">{{ f.summary.noRecipe }}</div>without a recipe</mat-card-content></mat-card>
+</div>
+@if (!f.settled) {
+  <p class="warning">
+    <mat-icon>warning</mat-icon> Part of the network didn't settle: findings marked
+    <mat-icon inline matTooltip="Approximate">blur_on</mat-icon> are approximate.
+  </p>
+}
+
+<mat-tab-group animationDuration="0">
+  <mat-tab [label]="'Machines (' + f.machines.length + ')'">
+    <mat-button-toggle-group class="filter" [value]="limitFilter()" (change)="filterBy($event.value)" hideSingleSelectionIndicator>
+      <mat-button-toggle value="all">All</mat-button-toggle>
+      <mat-button-toggle value="starved">Starved</mat-button-toggle>
+      <mat-button-toggle value="outputBlocked">Output blocked</mat-button-toggle>
+      <mat-button-toggle value="noRecipe">No recipe</mat-button-toggle>
+      <mat-button-toggle value="none">Running</mat-button-toggle>
+    </mat-button-toggle-group>
+    <div class="table-scroll">
+      <table mat-table [dataSource]="machinesOnPage()">
+        <ng-container matColumnDef="machine">
+          <th mat-header-cell *matHeaderCellDef>Machine</th>
+          <td mat-cell *matCellDef="let m">
+            {{ names.building(m.className) }}
+            @if (m.approximate) {
+              <mat-icon inline matTooltip="Approximate">blur_on</mat-icon>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="recipe">
+          <th mat-header-cell *matHeaderCellDef>Recipe</th>
+          <td mat-cell *matCellDef="let m">{{ names.recipe(m.recipe) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="utilisation">
+          <th mat-header-cell *matHeaderCellDef>Running at</th>
+          <td mat-cell *matCellDef="let m" class="utilisation">
+            <mat-progress-bar [value]="m.utilisation * 100" />
+            <span class="number">{{ percent(m.utilisation) }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="limit">
+          <th mat-header-cell *matHeaderCellDef>Why</th>
+          <td mat-cell *matCellDef="let m">
+            <mat-chip [class]="m.limit" disableRipple>{{ limitLabel(m) }}</mat-chip>
+            <span class="muted">{{ why(m) }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>Where</th>
+          <td mat-cell *matCellDef="let m" class="muted">{{ position(m.position) }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="machineColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: machineColumns"></tr>
+      </table>
+    </div>
+    <mat-paginator
+      [length]="machines().length"
+      [pageIndex]="page().pageIndex"
+      [pageSize]="page().pageSize"
+      [pageSizeOptions]="[25, 100, 500]"
+      (page)="page.set($event)"
+    />
+  </mat-tab>
+
+  <mat-tab [label]="'Bottlenecks (' + f.bottlenecks.length + ')'">
+    <p class="muted explanation">Belts and pipes at their capacity while more is offered to them.</p>
+    <div class="table-scroll">
+      <table mat-table [dataSource]="f.bottlenecks">
+        <ng-container matColumnDef="belt">
+          <th mat-header-cell *matHeaderCellDef>Belt or pipe</th>
+          <td mat-cell *matCellDef="let b">{{ names.building(b.className) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="flow">
+          <th mat-header-cell *matHeaderCellDef class="number">Carries</th>
+          <td mat-cell *matCellDef="let b" class="number">{{ perMinute(b.flow) }} of {{ perMinute(b.capacity) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="offeredMore">
+          <th mat-header-cell *matHeaderCellDef class="number">Offered on top</th>
+          <td mat-cell *matCellDef="let b" class="number">{{ perMinute(b.offeredMore) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>Where</th>
+          <td mat-cell *matCellDef="let b" class="muted">{{ position(b.position) }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="bottleneckColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: bottleneckColumns"></tr>
+      </table>
+    </div>
+  </mat-tab>
+
+  <mat-tab [label]="'Unused supply (' + f.unusedSupply.length + ')'">
+    <p class="muted explanation">Miners, extractors and stations that could deliver more than is taken from them.</p>
+    <div class="table-scroll">
+      <table mat-table [dataSource]="f.unusedSupply">
+        <ng-container matColumnDef="source">
+          <th mat-header-cell *matHeaderCellDef>Source</th>
+          <td mat-cell *matCellDef="let u">{{ names.building(u.className) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="item">
+          <th mat-header-cell *matHeaderCellDef>Item</th>
+          <td mat-cell *matCellDef="let u">{{ names.item(u.item) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="delivered">
+          <th mat-header-cell *matHeaderCellDef class="number">Delivers</th>
+          <td mat-cell *matCellDef="let u" class="number">{{ perMinute(u.delivered) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="offered">
+          <th mat-header-cell *matHeaderCellDef class="number">Could deliver</th>
+          <td mat-cell *matCellDef="let u" class="number">{{ perMinute(u.offered) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>Where</th>
+          <td mat-cell *matCellDef="let u" class="muted">{{ position(u.position) }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="unusedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: unusedColumns"></tr>
+      </table>
+    </div>
+  </mat-tab>
+
+  <mat-tab [label]="'Unknown supply (' + f.unknownSupply.length + ')'">
+    <p class="muted explanation">
+      Stations and storage whose rate the save doesn't tell. The analysis assumes they deliver what is asked of them, up to
+      their belts.
+    </p>
+    <div class="table-scroll">
+      <table mat-table [dataSource]="f.unknownSupply">
+        <ng-container matColumnDef="source">
+          <th mat-header-cell *matHeaderCellDef>Source</th>
+          <td mat-cell *matCellDef="let u">
+            {{ names.building(u.className) }}
+            @if (u.confirmed) {
+              <mat-icon inline matTooltip="Its stock confirms it can">check_circle</mat-icon>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="delivered">
+          <th mat-header-cell *matHeaderCellDef>Assumed to deliver</th>
+          <td mat-cell *matCellDef="let u">
+            @for (delivery of deliveries(u); track delivery.item) {
+              <div>{{ names.item(delivery.item) }}: {{ perMinute(delivery.rate) }}</div>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="stock">
+          <th mat-header-cell *matHeaderCellDef class="number">Stock lasts</th>
+          <td mat-cell *matCellDef="let u" class="number">
+            @if (u.stockMinutes !== null) {
+              {{ u.stockMinutes | number: '1.0-0' }} min
+            } @else {
+              —
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>Where</th>
+          <td mat-cell *matCellDef="let u" class="muted">{{ position(u.position) }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="unknownColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: unknownColumns"></tr>
+      </table>
+    </div>
+  </mat-tab>
+</mat-tab-group>

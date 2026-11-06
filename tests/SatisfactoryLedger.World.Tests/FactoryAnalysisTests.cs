@@ -35,8 +35,10 @@ public class FactoryAnalysisTests
     [Fact]
     public void Only_the_factorys_own_machines_are_machine_findings()
     {
-        // Constructor D (starved) is in the world, but not in this factory.
-        Assert.Equal([SmelterA], Analysis.Machines.Select(machine => machine.Id));
+        // Constructor D (starved) and the packager are in the world, but not in this factory.
+        Assert.Equal(
+            new HashSet<string> { SmelterA, SmelterB, ConstructorC },
+            Analysis.Machines.Select(machine => machine.Id).ToHashSet());
     }
 
     [Fact]

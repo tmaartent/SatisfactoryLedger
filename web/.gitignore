@@ -42,3 +42,6 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Generated from ../api/openapi.json by npm run generate:api (ADR-0006, ADR-0019): never edited, never committed.
+/src/app/api/

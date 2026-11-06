@@ -23,8 +23,12 @@ public sealed record AnalysisDocument(
     IReadOnlyList<UnsettledPartDocument> UnsettledParts,
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> Into)
 {
-    /// <summary>Version 1: the analysis of steps 12 to 17.</summary>
-    public const int CurrentVersion = 1;
+    /// <summary>
+    /// Version 1: the analysis of steps 12 to 17. Version 2: a machine at 99.99% or more is running (BR-A11).
+    /// Version 3: from 99.9%.
+    /// A stored analysis of an older version is computed again.
+    /// </summary>
+    public const int CurrentVersion = 3;
 
     /// <summary>Simulates a world's flow network and keeps what the findings need.</summary>
     public static AnalysisDocument Compute(FlowNetwork network)

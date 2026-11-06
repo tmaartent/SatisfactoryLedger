@@ -33,6 +33,12 @@ public static class SteadyState
     /// <summary>After this many sweeps without settling, a part's acceptance is damped against flip-flopping.</summary>
     private const int DampAfter = 50;
 
+    /// <summary>
+    /// BR-A11: from this utilisation a machine counts as running, with no limit. A shortfall of less than a tenth of a
+    /// percent is noise: about what the sweeps leave when a part settles slowly.
+    /// </summary>
+    public const double RunningFrom = 0.999;
+
     /// <summary>For comparing doubles inside the solver: a difference smaller than this is no difference.</summary>
     private const double Settle = 1e-9;
 
@@ -516,7 +522,7 @@ public static class SteadyState
 
             // Back-pressure lowers what comes in as well, so the cause is read from what's offered:
             // offered enough but the outputs take less means blocked, too little offered means starved.
-            (MachineLimit limit, ItemId? item) = utilisation >= 1 - Settle ? (MachineLimit.None, (ItemId?)null)
+            (MachineLimit limit, ItemId? item) = utilisation >= RunningFrom ? (MachineLimit.None, (ItemId?)null)
                 : outputs < offeredShare - Settle ? (MachineLimit.OutputBlocked, blocked ?? machine.Production.Keys.First())
                 : (MachineLimit.Starved, scarcest);
             _machines[machine.Id] = new MachineState(machine.Id, Math.Min(1, utilisation), limit, item);

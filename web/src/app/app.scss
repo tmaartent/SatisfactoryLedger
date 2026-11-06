@@ -1,0 +1,25 @@
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 8px;
+  background: var(--mat-sys-surface-container);
+}
+
+.logo {
+  color: var(--mat-sys-primary);
+}
+
+.title {
+  margin-right: 24px;
+}
+
+nav .active {
+  background: var(--mat-sys-secondary-container);
+}
+
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}

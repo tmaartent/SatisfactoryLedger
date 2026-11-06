@@ -36,15 +36,19 @@ public class SnapshotAnalysisTests
     }
 
     [Fact]
-    public void A_machine_running_fully_is_not_a_finding()
+    public void A_machine_running_fully_is_listed_without_a_cause()
     {
-        Assert.DoesNotContain(Analysis.Machines, machine => machine.Id == SmelterB || machine.Id == ConstructorC);
+        MachineFinding smelterB = Assert.Single(Analysis.Machines, machine => machine.Id == SmelterB);
+
+        Assert.Equal((1.0, MachineLimit.None, (string?)null), (smelterB.Utilisation, smelterB.Limit, smelterB.LimitingItem));
     }
 
     [Fact]
-    public void The_machine_running_worst_comes_first()
+    public void Every_machine_is_listed_the_one_running_worst_first()
     {
-        Assert.Equal(["Build_ConstructorMk1_C", "Build_SmelterMk1_C"], Analysis.Machines.Select(machine => machine.ClassName));
+        Assert.Equal(
+            ["Build_ConstructorMk1_C", "Build_SmelterMk1_C", "Build_ConstructorMk1_C", "Build_Packager_C", "Build_SmelterMk1_C"],
+            Analysis.Machines.Select(machine => machine.ClassName));
     }
 
     [Fact]

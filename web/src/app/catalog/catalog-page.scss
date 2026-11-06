@@ -1,0 +1,21 @@
+.imports {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.counts {
+  border-spacing: 12px 2px;
+
+  th {
+    font-weight: normal;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.search {
+  width: 100%;
+  max-width: 480px;
+  margin: 8px 0;
+}

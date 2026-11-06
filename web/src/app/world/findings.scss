@@ -1,0 +1,54 @@
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+
+  .figure {
+    font: var(--mat-sys-display-small);
+  }
+
+  .good .figure {
+    color: var(--mat-sys-primary);
+  }
+
+  .bad .figure {
+    color: var(--mat-sys-error);
+  }
+}
+
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mat-sys-tertiary);
+}
+
+.filter,
+.explanation {
+  margin: 16px 0 8px;
+}
+
+.utilisation {
+  min-width: 140px;
+
+  mat-progress-bar {
+    display: inline-block;
+    width: 80px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+}
+
+mat-chip {
+  margin-right: 8px;
+
+  &.starved,
+  &.outputBlocked {
+    --mat-chip-elevated-container-color: var(--mat-sys-error-container);
+  }
+
+  &.none {
+    --mat-chip-elevated-container-color: color-mix(in srgb, var(--mat-sys-primary) 25%, transparent);
+  }
+}

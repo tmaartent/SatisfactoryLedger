@@ -12,9 +12,9 @@ internal sealed record AnalysisSummary(int Machines, int Running, int Starved, i
 /// <param name="Example">One of its buildables, to find the part in the game.</param>
 internal sealed record ApproximatePart(int Buildables, int Sweeps, string Example);
 
-/// <summary>A machine below 100% (BR-A11).</summary>
+/// <summary>A machine, how fast it runs, and why not faster when below 100% (BR-A11).</summary>
 /// <param name="Utilisation">Between 0 and 1, to 4 decimals.</param>
-/// <param name="LimitingItem">The item it's starved of or blocked on; null when it has no known recipe.</param>
+/// <param name="LimitingItem">The item it's starved of or blocked on; null when it runs or has no known recipe.</param>
 /// <param name="Approximate">True when its part of the world didn't settle (BR-A10).</param>
 internal sealed record MachineFinding(
     string Id,
@@ -186,7 +186,7 @@ internal static class SnapshotAnalysis
                     .Select(part => new ApproximatePart(part.Buildables.Count, part.Sweeps, part.Buildables[0]))
             ],
             [
-                .. machines.Where(machine => machine.Limit != MachineLimit.None)
+                .. machines
                     .OrderBy(machine => machine.Utilisation).ThenBy(machine => machine.Id, StringComparer.Ordinal)
                     .Select(machine => new MachineFinding(
                         machine.Id,

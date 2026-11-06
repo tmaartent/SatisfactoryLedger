@@ -1,0 +1,100 @@
+@if (snapshot.error(); as error) {
+  <p class="muted">The snapshot couldn't be loaded: {{ problem(error) }}</p>
+  <a mat-button routerLink="/snapshots"><mat-icon>arrow_back</mat-icon> Snapshots</a>
+} @else if (snapshot.value(); as s) {
+  <div class="page-header">
+    <a mat-icon-button routerLink="/snapshots" aria-label="Snapshots"><mat-icon>arrow_back</mat-icon></a>
+    <h1>{{ s.sessionName }}</h1>
+    <span class="muted">saved {{ s.savedAt | date: 'medium' }} · build {{ s.gameBuild }}</span>
+    <span class="spacer"></span>
+    <app-analysis-status-chip [status]="s.analysis" />
+  </div>
+
+  <mat-tab-group animationDuration="0">
+    <mat-tab label="Findings">
+      <div class="tab-body">
+        @switch (s.analysis) {
+          @case ('pending') {
+            <mat-progress-bar mode="indeterminate" />
+            <p class="muted">The analysis service is simulating the world. A big world takes about ten seconds.</p>
+          }
+          @case ('failed') {
+            <p>The analysis failed: {{ analysis.error() ? problem(analysis.error()) : '…' }}</p>
+          }
+          @default {
+            @if (analysis.value(); as findings) {
+              <app-findings [findings]="findings" />
+            } @else if (analysis.error(); as error) {
+              <p>The findings couldn't be loaded: {{ problem(error) }}</p>
+            } @else {
+              <mat-progress-bar mode="indeterminate" />
+            }
+          }
+        }
+      </div>
+    </mat-tab>
+
+    <mat-tab label="Factories">
+      <div class="tab-body">
+        <div class="page-header">
+          <p class="muted">A factory is an output belt and the items that come in (BR-W2), traced in every snapshot of its world.</p>
+          <span class="spacer"></span>
+          <button mat-flat-button (click)="defineFactory()"><mat-icon>add</mat-icon> Define a factory</button>
+        </div>
+        @if (factories.value(); as list) {
+          @if (list.length === 0) {
+            <p class="muted">No factories in {{ s.sessionName }} yet.</p>
+          }
+          <mat-nav-list>
+            @for (factory of list; track factory.factoryId) {
+              <a mat-list-item [routerLink]="['factories', factory.factoryId]" [disabled]="!factory.traceable">
+                <mat-icon matListItemIcon>{{ factory.traceable ? 'precision_manufacturing' : 'link_off' }}</mat-icon>
+                <span matListItemTitle>{{ factory.name }}</span>
+                <span matListItemLine>
+                  @if (factory.traceable) {
+                    {{ factory.machines.length }} machines, {{ factory.logistics }} belts and splitters
+                  } @else {
+                    Its output belt isn't in this snapshot.
+                  }
+                </span>
+              </a>
+            }
+          </mat-nav-list>
+        } @else if (factories.error(); as error) {
+          <p>The factories couldn't be loaded: {{ problem(error) }}</p>
+        }
+      </div>
+    </mat-tab>
+
+    <mat-tab label="What it holds">
+      <div class="tab-body">
+        <mat-list>
+          <mat-list-item><span matListItemTitle>{{ s.counts.machines }}</span><span matListItemLine>machines</span></mat-list-item>
+          <mat-list-item><span matListItemTitle>{{ s.counts.logistics }}</span><span matListItemLine>belts, pipes, splitters and mergers</span></mat-list-item>
+          <mat-list-item><span matListItemTitle>{{ s.counts.providers }}</span><span matListItemLine>providers: miners, extractors and stations that bring items in</span></mat-list-item>
+          <mat-list-item><span matListItemTitle>{{ s.counts.consumers }}</span><span matListItemLine>consumers: sinks, generators and stations that load</span></mat-list-item>
+          <mat-list-item><span matListItemTitle>{{ s.counts.connections }}</span><span matListItemLine>connections</span></mat-list-item>
+        </mat-list>
+        @if (s.unknownRecipes.length > 0) {
+          <h3>Recipes the catalog doesn't know</h3>
+          <p class="muted">Import a newer Docs file in the Catalog, then the save again.</p>
+          <ul>
+            @for (recipe of s.unknownRecipes; track recipe) {
+              <li>{{ names.recipe(recipe) }} <span class="muted">({{ recipe }})</span></li>
+            }
+          </ul>
+        }
+        @if (s.unsupported.length > 0) {
+          <h3>Buildings the analysis leaves out</h3>
+          <ul>
+            @for (u of s.unsupported; track u.className) {
+              <li>{{ names.building(u.className) }} × {{ u.count }}</li>
+            }
+          </ul>
+        }
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+} @else {
+  <mat-progress-bar mode="indeterminate" />
+}

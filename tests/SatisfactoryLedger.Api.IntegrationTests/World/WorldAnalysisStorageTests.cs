@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -124,5 +125,45 @@ public sealed class WorldAnalysisStorageTests(LedgerApiFactory api) : IAsyncLife
         List<Guid> toAnalyse = await AnalysisRequeue.ToAnalyseAsync(scope.ServiceProvider.GetRequiredService<WorldDbContext>(), TestContext.Current.CancellationToken);
 
         Assert.Equal(new HashSet<Guid> { outdated, failed }, toAnalyse.ToHashSet());
+    }
+
+    [Fact]
+    public async Task An_API_that_starts_with_snapshots_to_analyse_keeps_running_and_has_them_analysed()
+    {
+        Snapshot imported = await ImportTestWorldAsync();
+        await _client.WaitForAnalysisAsync(imported.Id);
+        Guid outdated = await CopyWithAnalysisAsync(imported.Id, id => new StoredAnalysis
+        {
+            SnapshotId = id, Status = AnalysisStatus.Ready, Version = AnalysisDocument.CurrentVersion - 1, Content = "{}",
+        });
+        Guid failed = await CopyWithAnalysisAsync(imported.Id, id => new StoredAnalysis { SnapshotId = id, Status = AnalysisStatus.Failed, Error = "Restart" });
+
+        // A second API on the same database and broker: what a restart does.
+        await using WebApplicationFactory<Program> restarted = api.WithWebHostBuilder(_ => { });
+        HttpClient client = restarted.CreateClient();
+
+        await WaitUntilCurrentAsync(outdated, failed);
+        HttpResponseMessage stillRunning = await client.GetAsync("/api/v1/world/snapshots", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, stillRunning.StatusCode);
+    }
+
+    private async Task WaitUntilCurrentAsync(params Guid[] snapshots)
+    {
+        DateTime giveUp = DateTime.UtcNow.AddMinutes(1);
+        while (DateTime.UtcNow < giveUp)
+        {
+            await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<WorldDbContext>();
+            List<StoredAnalysis> analyses = await db.Analyses.AsNoTracking()
+                .Where(analysis => snapshots.Contains(analysis.SnapshotId)).ToListAsync(TestContext.Current.CancellationToken);
+            if (analyses.Count == snapshots.Length && analyses.All(analysis => analysis.IsCurrent))
+            {
+                return;
+            }
+
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        throw new TimeoutException("The snapshots weren't analysed again within a minute");
     }
 }

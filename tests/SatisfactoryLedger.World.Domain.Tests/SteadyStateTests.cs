@@ -162,6 +162,32 @@ public class SteadyStateTests
         Assert.Equal(MachineLimit.OutputBlocked, result.Machine(Id("smelter")).Limit);
     }
 
+    [Fact]
+    public void A_machine_held_back_by_less_than_a_tenth_of_a_percent_is_running()
+    {
+        // 10,000 ingots a minute onto a belt that takes 9,995: 99.95%.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 10_000).Machine("smelter", Ore, 10_000, Ingot, 10_000).Belt("belt", capacity: 9_995).Sink("sink")
+            .Connect("miner", "smelter", "belt", "sink")
+            .Run();
+
+        MachineState smelter = result.Machine(Id("smelter"));
+        Assert.Equal(MachineLimit.None, smelter.Limit);
+        Assert.Null(smelter.LimitingItem);
+    }
+
+    [Fact]
+    public void A_machine_held_back_by_a_fifth_of_a_percent_is_still_output_blocked()
+    {
+        // 10,000 ingots a minute onto a belt that takes 9,980: 99.8%.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 10_000).Machine("smelter", Ore, 10_000, Ingot, 10_000).Belt("belt", capacity: 9_980).Sink("sink")
+            .Connect("miner", "smelter", "belt", "sink")
+            .Run();
+
+        Assert.Equal(MachineLimit.OutputBlocked, result.Machine(Id("smelter")).Limit);
+    }
+
     // ---- BR-A4: splitters -------------------------------------------------------------------------------------
 
     [Fact]

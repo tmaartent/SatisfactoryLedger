@@ -24,7 +24,7 @@ internal static class AnalysisEndpoints
     {
         world.MapGet("/snapshots/{id:guid}/analysis", AnalyseAsync)
             .WithName("AnalyseSnapshot")
-            .WithSummary("The findings of a snapshot: machines below 100% and why, bottlenecks, unused supply, and sources of unknown rate")
+            .WithSummary("The findings of a snapshot: every machine, why it runs below 100%, bottlenecks, unused supply, and sources of unknown rate")
             .WithDescription("Computed in the background after the import and stored (ADR-0017): 202 with status pending until it's ready. Rates per minute, to 4 decimals. Every list starts with the worst. A finding in a part of the world that didn't settle is marked approximate.")
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 

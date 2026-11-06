@@ -22,4 +22,12 @@ builder.AddProject<Projects.SatisfactoryLedger_AnalysisService>("analysis")
     .WaitFor(rabbitmq)
     .WaitFor(api);
 
+// The Angular dev server (ADR-0019). Its proxy sends /api to the API, whose address WithReference passes on as
+// services__api__https__0. "start" first generates the API client from api/openapi.json.
+builder.AddJavaScriptApp("web", "../../web", "start")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithHttpEndpoint(port: 4200, isProxied: false)
+    .WithExternalHttpEndpoints();
+
 builder.Build().Run();

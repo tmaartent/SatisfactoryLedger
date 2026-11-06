@@ -1,0 +1,30 @@
+<div class="page-header">
+  <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"><mat-icon>arrow_back</mat-icon></a>
+  <h1>{{ analysis.value()?.name ?? 'Factory' }}</h1>
+</div>
+
+@if (analysis.value(); as factory) {
+  <h2>Output</h2>
+  <table mat-table [dataSource]="factory.output" class="output">
+    <ng-container matColumnDef="item">
+      <th mat-header-cell *matHeaderCellDef>Item</th>
+      <td mat-cell *matCellDef="let o">{{ names.item(o.item) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="now">
+      <th mat-header-cell *matHeaderCellDef class="number">Now</th>
+      <td mat-cell *matCellDef="let o" class="number" [class.short]="o.now < o.atFullSpeed">{{ perMinute(o.now) }}</td>
+    </ng-container>
+    <ng-container matColumnDef="atFullSpeed">
+      <th mat-header-cell *matHeaderCellDef class="number">At 100%</th>
+      <td mat-cell *matCellDef="let o" class="number">{{ perMinute(o.atFullSpeed) }}</td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="outputColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: outputColumns"></tr>
+  </table>
+
+  <app-findings [findings]="factory" />
+} @else if (analysis.error(); as error) {
+  <p>The factory's findings couldn't be loaded: {{ problem(error) }}</p>
+} @else {
+  <mat-progress-bar mode="indeterminate" />
+}

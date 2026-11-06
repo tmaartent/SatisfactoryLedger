@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>Define a factory in {{ data.world }}</h2>
+<mat-dialog-content>
+  @if (belts.isLoading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  <mat-form-field>
+    <mat-label>Output belt</mat-label>
+    <mat-select [value]="outputBelt()" (valueChange)="chooseBelt($event)">
+      @for (belt of belts.value() ?? []; track belt.belt) {
+        <mat-option [value]="belt.belt">{{ describe(belt) }}</mat-option>
+      }
+    </mat-select>
+    <mat-hint>Belts where items leave a group of machines</mat-hint>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Name</mat-label>
+    <input matInput [(ngModel)]="name" />
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>Input items</mat-label>
+    <mat-select multiple [(ngModel)]="inputItems">
+      @for (item of names.items(); track item.id) {
+        <mat-option [value]="item.id">{{ item.name }}</mat-option>
+      }
+    </mat-select>
+    <mat-hint>What comes in from outside: the trace stops at the machines that make these</mat-hint>
+  </mat-form-field>
+
+  @if (error(); as message) {
+    <p class="error">{{ message }}</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button (click)="define()" [disabled]="!canDefine()">Define</button>
+</mat-dialog-actions>

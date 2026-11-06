@@ -537,7 +537,7 @@
                 "analysis"
               ]
             },
-            "description": "Machines below 100% and why, bottlenecks, unused supply, and sources of unknown rate. Worst first."
+            "description": "Every machine and why it runs below 100%, bottlenecks, unused supply, and sources of unknown rate. Worst first."
           },
           "event": [
             {

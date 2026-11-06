@@ -52,6 +52,17 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task The_findings_list_every_machine_the_running_ones_last()
+    {
+        JsonNode analysis = await AnalyseTestWorldAsync();
+
+        List<(string Limit, double Utilisation)> machines = [.. analysis["machines"]!.AsArray()
+            .Select(machine => (machine!["limit"]!.GetValue<string>(), machine["utilisation"]!.GetValue<double>()))];
+        Assert.Equal(5, machines.Count);
+        Assert.Equal([("none", 1.0), ("none", 1.0), ("none", 1.0)], machines[2..]);
+    }
+
+    [Fact]
     public async Task Unused_supply_says_what_a_provider_could_deliver_more()
     {
         JsonNode analysis = await AnalyseTestWorldAsync();
@@ -90,7 +101,7 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonNode analysis = (await response.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken))!;
         Assert.Equal("""[{"item":"Desc_IronPlate_C","now":15,"atFullSpeed":15}]""", analysis["output"]!.ToJsonString());
-        Assert.Single(analysis["machines"]!.AsArray());
+        Assert.Equal(analysis["summary"]!["machines"]!.GetValue<int>(), analysis["machines"]!.AsArray().Count);
     }
 
     [Fact]
