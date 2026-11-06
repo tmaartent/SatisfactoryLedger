@@ -52,7 +52,17 @@ public sealed record SavedProvider(BuildableId Id, string ClassName, string? Nod
 
 public sealed record SavedConsumer(BuildableId Id, string ClassName) : SavedBuildable(Id, ClassName);
 
-public sealed record SavedLogistics(BuildableId Id, string ClassName, LogisticsKind Kind) : SavedBuildable(Id, ClassName);
+/// <param name="SortRules">A smart or programmable splitter's rules; null for every other piece of logistics.</param>
+/// <param name="InputPriorities">
+/// A priority merger's priority per input, counted from 0 (<c>Input1</c> is 0). A higher number goes first; 0 is the
+/// default. Null for every other piece of logistics.
+/// </param>
+public sealed record SavedLogistics(
+    BuildableId Id,
+    string ClassName,
+    LogisticsKind Kind,
+    IReadOnlyList<SortRule>? SortRules = null,
+    IReadOnlyList<int>? InputPriorities = null) : SavedBuildable(Id, ClassName);
 
 /// <summary>Buildables in the item network the adapter can't model yet, such as stations. Their connections are left out.</summary>
 public sealed record UnsupportedBuildables(string ClassName, int Count);

@@ -57,6 +57,7 @@ internal static class GameClasses
         ["Build_TrainDockingStation_C"] = "inventory",
         ["Build_TrainDockingStationLiquid_C"] = "inventory",
         ["Build_TruckStation_C"] = "inventory",
+        ["Build_FluidTruckStation_C"] = "inventory",
         ["Build_DroneStation_C"] = "OutputInventory",
     };
 
@@ -105,9 +106,45 @@ internal static class GameClasses
         : className.StartsWith("Build_StorageContainer", StringComparison.Ordinal) ? "StorageInventory"
         : null;
 
+    /// <summary>
+    /// Which output of a splitter (<c>Output1</c> is 0) or input of a merger (<c>Input1</c> is 0) a port is: a smart
+    /// splitter's rules and a priority merger's priorities count them like that. Null for every other port.
+    /// </summary>
+    public static int? PortIndexOf(string portName, string className)
+    {
+        string? prefix = TryLogisticsKindOf(className) switch
+        {
+            LogisticsKind.Splitter => "Output",
+            LogisticsKind.Merger => "Input",
+            _ => null,
+        };
+
+        return prefix is not null && portName.StartsWith(prefix, StringComparison.Ordinal)
+            && int.TryParse(portName.AsSpan(prefix.Length), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int number)
+                ? number - 1
+                : null;
+    }
+
+    /// <summary>
+    /// A smart splitter's rule as the save stores it: the class of what it sends (<c>Desc_Wildcard_C</c> for any,
+    /// <c>Desc_None_C</c>, <c>Desc_Overflow_C</c>, <c>Desc_AnyUndefined_C</c>, or an item) and the output.
+    /// </summary>
+    public static SortRule SortRuleOf(int output, string itemClass) => itemClass switch
+    {
+        "Desc_Wildcard_C" => new SortRule(output, SortRuleKind.Any),
+        "Desc_AnyUndefined_C" => new SortRule(output, SortRuleKind.AnyUndefined),
+        "Desc_Overflow_C" => new SortRule(output, SortRuleKind.Overflow),
+        "Desc_None_C" => new SortRule(output, SortRuleKind.None),
+        _ => new SortRule(output, SortRuleKind.Item, ItemId.Of(itemClass)),
+    };
+
     /// <summary>The inventory a drone port or truck station keeps its fuel in. Null for buildables that burn nothing.</summary>
     public static string? FuelInventoryOf(string className) =>
-        className is "Build_DroneStation_C" or "Build_TruckStation_C" ? "FuelInventory" : null;
+        className is "Build_DroneStation_C" or "Build_TruckStation_C" or "Build_FluidTruckStation_C" ? "FuelInventory" : null;
+
+    /// <summary>Fluid platforms and fluid truck stations count their fluid in litres; the Catalog's rates are in m³.</summary>
+    public static bool StocksLitres(string className) =>
+        className is "Build_TrainDockingStationLiquid_C" or "Build_FluidTruckStation_C";
 
     /// <summary>The item a provider extracts when its class decides it, not its node: a water extractor pumps water.</summary>
     public static string? FixedResourceOf(string className) => className == "Build_WaterPump_C" ? "Desc_Water_C" : null;
@@ -139,7 +176,8 @@ internal static class GameClasses
         "ConveyorAny0" => Port.In,
         "ConveyorAny1" => Port.Out,
         "FGPipeConnectionFactory" => FluidPortIsOutput.Contains(className) || Providers.Contains(className) ? Port.Out : Port.In,
-        _ when StartsWithAny(portName, "Input", "ConveyorInput", "PipeInput", "PipeFactoryInput") => Port.In,
+        // FuelInput: the fuel belt of a fluid truck station.
+        _ when StartsWithAny(portName, "Input", "ConveyorInput", "PipeInput", "PipeFactoryInput", "FuelInput") => Port.In,
         _ when StartsWithAny(portName, "Output", "PipeOutput", "PipeFactoryOutput") => Port.Out,
         _ when StartsWithAny(portName, "PipelineConnection", "Connection") => Port.Undirected,
         _ => throw new ArgumentException($"Port {portName} of {className} has no known direction", nameof(portName)),

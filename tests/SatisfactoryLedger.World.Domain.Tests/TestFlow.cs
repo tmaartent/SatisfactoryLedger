@@ -36,7 +36,13 @@ internal sealed class TestFlow
 
     public TestFlow Splitter(string id) => Add(new FlowSplitter(Id(id), Carries.Solids));
 
+    /// <summary>A smart splitter with its rules per output (BR-A4). Connect its outputs with <see cref="ConnectPort"/>.</summary>
+    public TestFlow SmartSplitter(string id, params SortRule[] rules) => Add(new FlowSplitter(Id(id), Carries.Solids, rules));
+
     public TestFlow Merger(string id) => Add(new FlowMerger(Id(id), Carries.Solids));
+
+    /// <summary>A priority merger with its priority per input (BR-A5): a higher number goes first. Connect with <see cref="ConnectInto"/>.</summary>
+    public TestFlow PriorityMerger(string id, params int[] priorities) => Add(new FlowMerger(Id(id), Carries.Solids, priorities));
 
     public TestFlow Sink(string id) => Add(new FlowSink(Id(id)));
 
@@ -54,6 +60,20 @@ internal sealed class TestFlow
             _connections.Add(new Connection(Id(chain[i - 1]), Id(chain[i])));
         }
 
+        return this;
+    }
+
+    /// <summary>Connects output <paramref name="port"/> of a splitter to the next buildable.</summary>
+    public TestFlow ConnectPort(string from, int port, string to)
+    {
+        _connections.Add(new Connection(Id(from), Id(to), FromPort: port));
+        return this;
+    }
+
+    /// <summary>Connects a buildable to input <paramref name="port"/> of a merger.</summary>
+    public TestFlow ConnectInto(string from, string to, int port)
+    {
+        _connections.Add(new Connection(Id(from), Id(to), ToPort: port));
         return this;
     }
 

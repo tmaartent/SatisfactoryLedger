@@ -36,6 +36,8 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Bottleneck** | A belt, lift or pipe at its capacity while more is offered upstream (BR-A12). The first saturated segment of a line. | `Bottleneck` |
 | **Unused Supply** | What a provider could deliver on top of what it does (BR-A13). | `UnusedSupply` |
 | **Flow Part / Approximate** | A connected part of the world, simulated on its own. A part that hasn't settled within 2,000 sweeps is *approximate*: its numbers came close but some still moved (BR-A10). | `FlowPart`, `FlowResult.PartOf` |
+| **Sort Rule** | What one output of a smart or programmable splitter sends: an item, *any*, *any undefined*, *overflow* or *none* (BR-A4). Outputs are counted from 0, as the splitter's settings number them. | `SortRule`, `SortRuleKind` |
+| **Port** | Which output of a splitter a belt leaves from, or which input of a merger it enters by, counted from 0. | `Connection.FromPort`, `Connection.ToPort` |
 | **Spare** | What a connection takes only when the line's other consumers have what they want: the fuel of a drone port or truck station (BR-A8). A sender serves spare last. | `SteadyState`: `_spare`, `TakeEverything` |
 | **Station** | A train platform, fluid platform, drone port or truck station. Its ports decide its role: belts leaving its outputs make it unload (a provider without a known rate), belts into its inputs make it load (a consumer). A drone port can do both (BR-W1, BR-W8). | `Provider` without an offer |
 | **Stock** | What a station or storage container holds right now, per item, as the save stores it. Decides whether a source of unknown rate is *confirmed* supplied (BR-A9). | `Provider.Stock`, `Logistics.Stock` |

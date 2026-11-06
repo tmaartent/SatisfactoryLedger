@@ -45,7 +45,7 @@ public class SnapshotDocumentTests
     {
         SnapshotDocument snapshot = Stored(IngotIron, IronPlate, IronRod, PackagedWater);
 
-        Assert.Equal(new SnapshotCounts(Machines: 5, Providers: 5, Consumers: 6, Logistics: 37, Connections: 46), snapshot.Counts());
+        Assert.Equal(new SnapshotCounts(Machines: 5, Providers: 7, Consumers: 8, Logistics: 58, Connections: 71), snapshot.Counts());
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
-        Assert.Equal(3, Stored().Version);
+        Assert.Equal(4, Stored().Version);
     }
 
     [Fact]
@@ -211,16 +211,16 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_from_before_stock_was_read_can_still_be_read()
     {
-        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":3", "\"version\":2", StringComparison.Ordinal);
+        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":4", "\"version\":2", StringComparison.Ordinal);
 
-        Assert.Equal(3, SnapshotDocument.FromJson(version2).Version);
+        Assert.Equal(4, SnapshotDocument.FromJson(version2).Version);
     }
 
     [Fact]
     public void A_snapshot_imported_before_rates_were_copied_can_still_be_read_and_traced()
     {
         string version1 = TestWorldSnapshot.Document.ToJson()
-            .Replace("\"version\":3", "\"version\":1", StringComparison.Ordinal);
+            .Replace("\"version\":4", "\"version\":1", StringComparison.Ordinal);
 
         WorldGraph world = SnapshotDocument.FromJson(version1).ToWorldGraph();
 

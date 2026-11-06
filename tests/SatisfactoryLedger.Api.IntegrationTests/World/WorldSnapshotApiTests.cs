@@ -32,7 +32,7 @@ public sealed class WorldSnapshotApiTests(LedgerApiFactory api) : IAsyncLifetime
         var snapshot = await response.Content.ReadFromJsonAsync<Snapshot>(TestContext.Current.CancellationToken);
         Assert.Equal("Development", snapshot!.SessionName);
         Assert.Equal(517554, snapshot.GameBuild);
-        Assert.Equal(new SnapshotCounts(Machines: 5, Providers: 5, Consumers: 6, Logistics: 37, Connections: 46), snapshot.Counts);
+        Assert.Equal(new SnapshotCounts(Machines: 5, Providers: 7, Consumers: 8, Logistics: 58, Connections: 71), snapshot.Counts);
         Assert.Empty(snapshot.UnknownRecipes);
         Assert.Empty(snapshot.Unsupported);
     }

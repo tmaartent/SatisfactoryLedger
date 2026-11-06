@@ -6,7 +6,8 @@ namespace SatisfactoryLedger.World.SaveFile.Tests;
 /// The test world (Fixtures/Development.sav), read once. What's in it:
 /// <code>
 /// Miner Mk.1 → Belt Mk.1 → Lift Mk.1 → Belt Mk.1 → Splitter
-///   → Smelter A (100%) and Smelter B (33.3333%) → Merger → Belt Mk.6 → Constructor C (Iron Plate, 75%)
+///   → Smelter A (100%) and Smelter B (33.3333%) → Priority merger (B on the center input, highest priority)
+///   → Belt Mk.6 → Constructor C (Iron Plate, 75%)
 ///   → Smart Splitter: overflow → AWESOME Sink, rest → belt → Storage Container
 /// Constructor D (Iron Rod): input unconnected, output belt ends in the air
 /// Water Extractor → Pipeline Mk.1 → Clean Pipeline Mk.2 → Packager (Packaged Water),
@@ -15,6 +16,8 @@ namespace SatisfactoryLedger.World.SaveFile.Tests;
 ///   Freight platform A unloads screws; freight platform B loads rods
 ///   Drone port: loads reinforced plates and rocket fuel, unloads modular frames
 ///   Truck station A: fed fuel, unloads iron plates; truck station B: loads screws, fed fuel
+/// Fluids: a second water extractor; fluid truck station A unloads water into a fluid buffer, B loads water;
+///   a fluid freight platform holding water; both fluid truck stations are fed rocket fuel by belt
 /// </code>
 /// </summary>
 internal static class TestWorldSave
@@ -51,6 +54,11 @@ internal static class TestWorldSave
     public static readonly BuildableId TruckStationUnloading = Id("Build_TruckStation_C_2147469334");
     public static readonly BuildableId TruckStationLoading = Id("Build_TruckStation_C_2147458005");
     public static readonly BuildableId ScrewContainer = Id("Build_StorageContainerMk2_C_2147456833");
+    public static readonly BuildableId PriorityMerger = Id("Build_ConveyorAttachmentMergerPriority_C_2147471421");
+    public static readonly BuildableId FluidTruckStationUnloading = Id("Build_FluidTruckStation_C_2147469813");
+    public static readonly BuildableId FluidTruckStationLoading = Id("Build_FluidTruckStation_C_2147456504");
+    public static readonly BuildableId FluidPlatform = Id("Build_TrainDockingStationLiquid_C_2147387476");
+    public static readonly BuildableId FluidBuffer = Id("Build_PipeStorageTank_C_2147459415");
 
     public static T Get<T>(BuildableId id) where T : SavedBuildable =>
         Assert.IsType<T>(Assert.Single(Save.Buildables, buildable => buildable.Id == id));

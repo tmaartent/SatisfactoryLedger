@@ -39,8 +39,9 @@ internal sealed record SnapshotDocument(
     /// <summary>
     /// Version 2 added extractors, transport tiers, resource nodes and fluids; a version 1 snapshot has none of them.
     /// Version 3 added the stock of stations and containers; a version 2 snapshot has none.
+    /// Version 4 added splitter rules, merger priorities and the ports of connections; a version 3 snapshot has none.
     /// </summary>
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -64,7 +65,7 @@ internal sealed record SnapshotDocument(
         return new SnapshotDocument(
             CurrentVersion,
             [.. saved.Buildables.Select(BuildableDocument.From)],
-            [.. saved.Connections.Select(connection => new ConnectionDocument(connection.From.Id, connection.To.Id))],
+            [.. saved.Connections.Select(connection => new ConnectionDocument(connection.From.Id, connection.To.Id, connection.FromPort, connection.ToPort))],
             known,
             [.. used.Where(id => !knownIds.Contains(id)).Order(StringComparer.Ordinal)],
             [.. saved.Unsupported.Select(unsupported => new UnsupportedDocument(unsupported.ClassName, unsupported.Count))],
@@ -94,8 +95,8 @@ internal sealed record SnapshotDocument(
         return document.Version switch
         {
             CurrentVersion => document,
-            // Imported before stock was read: everything else is the same.
-            2 => document with { Version = CurrentVersion },
+            // Imported before stock, or splitter rules and ports, were read: everything else is the same.
+            2 or 3 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),
@@ -123,7 +124,7 @@ internal sealed record SnapshotDocument(
 
         return new WorldGraph(
             Buildables.Select(buildable => buildable.ToBuildable(copied)),
-            Connections.Select(connection => new Connection(BuildableId.Of(connection.From), BuildableId.Of(connection.To))));
+            Connections.Select(connection => new Connection(BuildableId.Of(connection.From), BuildableId.Of(connection.To), connection.FromPort, connection.ToPort)));
     }
 }
 
@@ -158,7 +159,9 @@ internal sealed record BuildableDocument(
     PositionDocument? Position = null,
     string? Resource = null,
     IReadOnlyDictionary<string, decimal>? Stock = null,
-    IReadOnlyList<string>? Burns = null)
+    IReadOnlyList<string>? Burns = null,
+    IReadOnlyList<SortRuleDocument>? SortRules = null,
+    IReadOnlyList<int>? InputPriorities = null)
 {
     public static BuildableDocument From(SavedBuildable saved) => FromKind(saved) with
     {
@@ -174,7 +177,9 @@ internal sealed record BuildableDocument(
         SavedProvider provider => new(provider.Id.Id, BuildableDocumentRole.Provider, provider.ClassName,
             ClockPercent: Percent(provider.ClockSpeed), Node: provider.Node, Resource: provider.Resource),
         SavedConsumer consumer => new(consumer.Id.Id, BuildableDocumentRole.Consumer, consumer.ClassName),
-        SavedLogistics logistics => new(logistics.Id.Id, BuildableDocumentRole.Logistics, logistics.ClassName, Kind: logistics.Kind),
+        SavedLogistics logistics => new(logistics.Id.Id, BuildableDocumentRole.Logistics, logistics.ClassName, Kind: logistics.Kind,
+            SortRules: logistics.SortRules?.Select(rule => new SortRuleDocument(rule.Output, rule.Kind, rule.Item?.Id)).ToList(),
+            InputPriorities: logistics.InputPriorities),
         _ => throw new ArgumentException($"{saved} is not a kind of buildable a snapshot knows", nameof(saved)),
     };
 
@@ -195,7 +200,9 @@ internal sealed record BuildableDocument(
                 id,
                 Kind ?? throw new JsonException($"Logistics {Id} has no kind"),
                 catalog.TransportTiers.TryGetValue(ClassName, out TransportTierDocument? tier) ? Rate.PerMinute(tier.CapacityPerMinute) : null,
-                StockOf()),
+                StockOf(),
+                SortRules?.Select(rule => new SortRule(rule.Output, rule.Kind, rule.Item is null ? null : ItemId.Of(rule.Item))).ToList(),
+                InputPriorities),
             _ => throw new JsonException($"Buildable {Id} has an unknown role"),
         };
     }
@@ -235,7 +242,12 @@ internal sealed record BuildableDocument(
 /// <summary>Where a buildable stands, in the game's units (centimetres).</summary>
 internal sealed record PositionDocument(double X, double Y, double Z);
 
-internal sealed record ConnectionDocument(string From, string To);
+/// <param name="FromPort">The splitter output it leaves from; null where that doesn't matter.</param>
+/// <param name="ToPort">The merger input it enters by; null where that doesn't matter.</param>
+internal sealed record ConnectionDocument(string From, string To, int? FromPort = null, int? ToPort = null);
+
+/// <param name="Item">The item's class name, for a rule of kind <c>item</c>.</param>
+internal sealed record SortRuleDocument(int Output, SortRuleKind Kind, string? Item = null);
 
 internal sealed record RecipeDocument(string Id, decimal CycleSeconds, IReadOnlyList<IngredientDocument> Inputs, IReadOnlyList<IngredientDocument> Outputs)
 {

@@ -24,8 +24,9 @@ public static class WorldFlow
         // takes everything loaded onto it.
         Provider provider => new FlowUnknownSource(provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns),
         Consumer consumer => new FlowSink(consumer.Id, consumer.Burns),
-        Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction } splitter => new FlowSplitter(splitter.Id, CarriesOf(splitter)),
-        Logistics { Kind: LogisticsKind.Merger } merger => new FlowMerger(merger.Id, CarriesOf(merger)),
+        Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction } splitter =>
+            new FlowSplitter(splitter.Id, CarriesOf(splitter), splitter.SortRules),
+        Logistics { Kind: LogisticsKind.Merger } merger => new FlowMerger(merger.Id, CarriesOf(merger), merger.InputPriorities),
         Logistics { Kind: LogisticsKind.StorageContainer or LogisticsKind.FluidBuffer } container => Container(container, world),
         Logistics conduit => new FlowConduit(conduit.Id, conduit.Capacity?.ToDouble() ?? double.PositiveInfinity, CarriesOf(conduit)),
         _ => throw new ArgumentException($"{buildable} is not a kind of buildable the flow analysis knows", nameof(buildable)),

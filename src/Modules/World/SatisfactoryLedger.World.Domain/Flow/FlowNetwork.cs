@@ -31,10 +31,15 @@ public sealed record FlowSink(BuildableId Id, IReadOnlySet<ItemId>? Burns = null
 public sealed record FlowConduit(BuildableId Id, double Capacity, Carries Carries = Carries.Anything) : FlowNode(Id);
 
 /// <summary>Divides what comes in evenly over its outputs that take items (BR-A4). A pipe junction is one too (BR-A6).</summary>
-public sealed record FlowSplitter(BuildableId Id, Carries Carries = Carries.Anything) : FlowNode(Id);
+/// <param name="Rules">A smart or programmable splitter's rules per output; null or empty for a plain splitter.</param>
+public sealed record FlowSplitter(BuildableId Id, Carries Carries = Carries.Anything, IReadOnlyList<SortRule>? Rules = null) : FlowNode(Id);
 
 /// <summary>Takes evenly from its inputs, up to what its output can carry (BR-A5).</summary>
-public sealed record FlowMerger(BuildableId Id, Carries Carries = Carries.Anything) : FlowNode(Id);
+/// <param name="Priorities">
+/// A priority merger's priority per input, counted from 0: a higher number is served first, equal numbers share
+/// evenly. Null or empty for a plain merger.
+/// </param>
+public sealed record FlowMerger(BuildableId Id, Carries Carries = Carries.Anything, IReadOnlyList<int>? Priorities = null) : FlowNode(Id);
 
 /// <summary>What a node can move: belts, splitters, mergers and containers move solids; pipes, junctions and fluid buffers fluids.</summary>
 public enum Carries
@@ -62,10 +67,12 @@ public sealed class FlowNetwork
             }
         }
 
-        Edges = [.. connections.Select(connection => (
+        List<Connection> all = [.. connections];
+        Edges = [.. all.Select(connection => (
             From: index.TryGetValue(connection.From, out int from) ? from : throw new ArgumentException($"{connection} starts outside the network", nameof(connections)),
             To: index.TryGetValue(connection.To, out int to) ? to : throw new ArgumentException($"{connection} ends outside the network", nameof(connections))))];
         IndexOf = index;
+        Ports = [.. all.Select(connection => (connection.FromPort, connection.ToPort))];
     }
 
     public IReadOnlyList<FlowNode> Nodes { get; }
@@ -76,4 +83,7 @@ public sealed class FlowNetwork
     public IReadOnlyDictionary<BuildableId, int> IndexOf { get; }
 
     public IReadOnlySet<ItemId> Fluids { get; }
+
+    /// <summary>Per connection, as in <see cref="Edges"/>: the splitter output it leaves from and the merger input it enters, if known.</summary>
+    public IReadOnlyList<(int? From, int? To)> Ports { get; }
 }

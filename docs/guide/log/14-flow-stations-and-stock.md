@@ -98,8 +98,8 @@ Still silent: 84 sources. 75 of them reach only sinks, other stations or nothing
 1. **What a station burns comes from what's in its fuel slot now.** An empty slot means the save can't tell, and its inputs take everything.
 2. **A drone port that ships rocket fuel and burns it too:** all its rocket fuel counts as fuel, so it takes only what's left.
 3. **A station whose ports have no belts** isn't in the world (5 of your freight platforms).
-4. **Fluid truck stations** (`Build_FluidTruckStation_C`) aren't modelled: there's none in either save to check against. One that's connected is reported as unsupported.
-5. **Fluid stock** wasn't found, so fluid platforms and buffers are always *assumed* supplied.
+4. **Fluid truck stations** (`Build_FluidTruckStation_C`) aren't modelled: there's none in either save to check against. One that's connected is reported as unsupported. *(Done in step 15.)*
+5. **Fluid stock** wasn't found, so fluid platforms and buffers are always *assumed* supplied. *(Found in step 15: litres in platforms and fluid truck stations, `mFluidBox` in buffers.)*
 
 ## Next
 

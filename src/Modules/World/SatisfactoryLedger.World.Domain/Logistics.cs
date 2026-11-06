@@ -8,9 +8,22 @@ namespace SatisfactoryLedger.World.Domain;
 /// pumps) or the Catalog doesn't know its tier.
 /// </param>
 /// <param name="stock">What a storage container holds now, per item.</param>
-public sealed class Logistics(BuildableId id, LogisticsKind kind, Rate? capacity = null, IReadOnlyDictionary<ItemId, decimal>? stock = null)
-    : Buildable(id)
+/// <param name="sortRules">A smart or programmable splitter's rules per output (BR-A4).</param>
+/// <param name="inputPriorities">A priority merger's priority per input: a higher number goes first (BR-A5).</param>
+public sealed class Logistics(
+    BuildableId id,
+    LogisticsKind kind,
+    Rate? capacity = null,
+    IReadOnlyDictionary<ItemId, decimal>? stock = null,
+    IReadOnlyList<SortRule>? sortRules = null,
+    IReadOnlyList<int>? inputPriorities = null) : Buildable(id)
 {
+    /// <summary>A priority merger's priority per input, counted from 0. Empty for a plain merger and everything else.</summary>
+    public IReadOnlyList<int> InputPriorities { get; } = inputPriorities ?? [];
+
+    /// <summary>A smart or programmable splitter's rules per output. Empty for a plain splitter and everything else.</summary>
+    public IReadOnlyList<SortRule> SortRules { get; } = sortRules ?? [];
+
     public LogisticsKind Kind { get; } = kind;
 
     public Rate? Capacity { get; } = capacity;

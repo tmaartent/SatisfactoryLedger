@@ -111,20 +111,20 @@ public class SaveFileReaderTests
     [Fact]
     public void An_unloading_platform_holds_what_is_on_it()
     {
-        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronScrew_C"] = 7666 }, Get<SavedProvider>(FreightPlatformUnloading).Stock);
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronScrew_C"] = 7118 }, Get<SavedProvider>(FreightPlatformUnloading).Stock);
     }
 
     [Fact]
     public void A_drone_port_with_belts_on_both_sides_is_a_provider_holding_what_drones_brought()
     {
         // What it sends (reinforced plates) and its fuel are not what it supplies.
-        Assert.Equal(new Dictionary<string, decimal> { ["Desc_ModularFrame_C"] = 669 }, Get<SavedProvider>(DronePort).Stock);
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_ModularFrame_C"] = 121 }, Get<SavedProvider>(DronePort).Stock);
     }
 
     [Fact]
     public void A_truck_station_that_unloads_is_a_provider_holding_its_cargo_but_not_its_fuel()
     {
-        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronPlate_C"] = 688 }, Get<SavedProvider>(TruckStationUnloading).Stock);
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronPlate_C"] = 140 }, Get<SavedProvider>(TruckStationUnloading).Stock);
     }
 
     [Fact]
@@ -146,9 +146,9 @@ public class SaveFileReaderTests
     }
 
     [Fact]
-    public void A_station_with_an_empty_fuel_slot_burns_nothing_the_save_can_tell()
+    public void A_truck_station_that_unloads_burns_the_fuel_in_its_fuel_slot()
     {
-        Assert.Empty(Get<SavedProvider>(TruckStationUnloading).Burns!);
+        Assert.Equal(["Desc_PackagedRocketFuel_C"], Get<SavedProvider>(TruckStationUnloading).Burns!);
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class SaveFileReaderTests
     [Fact]
     public void A_storage_container_holds_its_stock()
     {
-        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronScrew_C"] = 1561 }, Get<SavedLogistics>(ScrewContainer).Stock);
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronScrew_C"] = 1013 }, Get<SavedLogistics>(ScrewContainer).Stock);
     }
 
     [Fact]
@@ -177,6 +177,80 @@ public class SaveFileReaderTests
     }
 
     [Fact]
+    public void The_smart_splitter_keeps_its_rules_per_output()
+    {
+        Assert.Equal(
+            [new SortRule(0, SortRuleKind.Any), new SortRule(2, SortRuleKind.None), new SortRule(1, SortRuleKind.Overflow)],
+            Get<SavedLogistics>(SmartSplitter).SortRules!);
+    }
+
+    [Fact]
+    public void A_plain_splitter_has_no_rules()
+    {
+        Assert.Null(Get<SavedLogistics>(Splitter).SortRules);
+    }
+
+    [Fact]
+    public void A_belt_leaving_a_smart_splitter_knows_which_output_it_leaves_from()
+    {
+        // Output 0 (any) goes to the container, output 1 (overflow) to the sink, as the test world was built.
+        Assert.Contains(new Connection(SmartSplitter, BeltIntoContainer, FromPort: 0), Save.Connections);
+        Assert.Contains(new Connection(SmartSplitter, Id("Build_ConveyorBeltMk1_C_2147281116"), FromPort: 1), Save.Connections);
+    }
+
+    [Fact]
+    public void A_belt_entering_a_merger_knows_which_input_it_enters_by()
+    {
+        Assert.All(Save.Connections.Where(connection => connection.To == PriorityMerger),
+            connection => Assert.NotNull(connection.ToPort));
+    }
+
+    [Fact]
+    public void A_priority_merger_keeps_its_priority_per_input()
+    {
+        // Smelter B's belt is on the center input, Input1, which has the highest priority in the game.
+        Assert.Equal([2, 0, 0], Get<SavedLogistics>(PriorityMerger).InputPriorities!);
+        Assert.Contains(new Connection(Id("Build_ConveyorBeltMk1_C_2147295053"), PriorityMerger, ToPort: 0), Save.Connections);
+    }
+
+    [Fact]
+    public void A_plain_merger_has_no_priorities()
+    {
+        Assert.All(Save.Buildables.OfType<SavedLogistics>().Where(logistics => logistics.ClassName == "Build_ConveyorAttachmentMerger_C"),
+            merger => Assert.Null(merger.InputPriorities));
+    }
+
+    [Fact]
+    public void A_fluid_truck_station_that_unloads_is_a_provider_holding_its_fluid_in_cubic_metres()
+    {
+        SavedProvider station = Get<SavedProvider>(FluidTruckStationUnloading);
+
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_Water_C"] = 680.37m }, station.Stock);
+        Assert.Equal(["Desc_PackagedRocketFuel_C"], station.Burns!);
+    }
+
+    [Fact]
+    public void A_fluid_truck_station_that_loads_is_a_consumer_that_burns_its_fuel()
+    {
+        Assert.Equal(["Desc_PackagedRocketFuel_C"], Get<SavedConsumer>(FluidTruckStationLoading).Burns!);
+    }
+
+    [Fact]
+    public void A_fluid_truck_station_is_fed_fuel_over_its_fuel_belt()
+    {
+        Assert.Contains(new Connection(Id("Build_ConveyorBeltMk1_C_2147393153"), FluidTruckStationUnloading), Save.Connections);
+    }
+
+    [Fact]
+    public void A_fluid_buffer_holds_the_fluid_of_its_pipe_network_in_cubic_metres()
+    {
+        Dictionary<string, decimal> stock = new(Get<SavedLogistics>(FluidBuffer).Stock!);
+
+        Assert.Equal(["Desc_Water_C"], stock.Keys);
+        Assert.Equal(404, stock["Desc_Water_C"], 0);
+    }
+
+    [Fact]
     public void The_sink_is_a_consumer()
     {
         Assert.Equal("Build_ResourceSink_C", Get<SavedConsumer>(Sink).ClassName);
@@ -188,7 +262,7 @@ public class SaveFileReaderTests
     [InlineData("Build_ConveyorBeltMk6_C_2147290960", "Build_ConveyorBeltMk6_C", LogisticsKind.Belt)]
     [InlineData("Build_ConveyorAttachmentSplitter_C_2147304077", "Build_ConveyorAttachmentSplitter_C", LogisticsKind.Splitter)]
     [InlineData("Build_ConveyorAttachmentSplitterSmart_C_2147286684", "Build_ConveyorAttachmentSplitterSmart_C", LogisticsKind.Splitter)]
-    [InlineData("Build_ConveyorAttachmentMerger_C_2147295890", "Build_ConveyorAttachmentMerger_C", LogisticsKind.Merger)]
+    [InlineData("Build_ConveyorAttachmentMergerPriority_C_2147471421", "Build_ConveyorAttachmentMergerPriority_C", LogisticsKind.Merger)]
     [InlineData("Build_StorageContainerMk2_C_2147277594", "Build_StorageContainerMk2_C", LogisticsKind.StorageContainer)]
     [InlineData("Build_Pipeline_C_2147257932", "Build_Pipeline_C", LogisticsKind.Pipe)]
     [InlineData("Build_PipelineMK2_NoIndicator_C_2147257019", "Build_PipelineMK2_NoIndicator_C", LogisticsKind.Pipe)]

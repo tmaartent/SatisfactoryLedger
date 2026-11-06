@@ -289,6 +289,20 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void The_largest_part_of_your_big_world_settles()
+    {
+        // 15,328 buildables of "Desert Start Cleaned" (step 15). Manufacturers that take motors and cooling systems
+        // from manifolds flip-flop between two states for good unless what connections accept is damped. No smaller
+        // piece of it does: every neighbourhood of up to 7,880 nodes settles on its own.
+        FlowNetwork part = FlowText.ReadGzip("Fixtures/big-world-part.flow.gz");
+
+        FlowResult result = SteadyState.Of(part);
+
+        Assert.True(result.Settled);
+        Assert.Equal(15328, part.Nodes.Count);
+    }
+
+    [Fact]
     public void A_source_whose_rate_is_not_known_offers_what_its_belt_can_carry()
     {
         FlowResult result = new TestFlow()
@@ -343,6 +357,109 @@ public class SteadyStateTests
 
         Assert.Empty(result.UnusedSupply);
         Assert.Equal(30, result.Flow(Id("drone port"), Id("from port"), Ore), Precision);
+    }
+
+    // ---- BR-A4: smart splitters ----------------------------------------------------------------------------------
+
+    private static SortRule Rule(int output, SortRuleKind kind, ItemId? item = null) => new(output, kind, item);
+
+    /// <summary>60 ore into a smart splitter: output 0 to a smelter that burns 40, output 1 to a sink.</summary>
+    private static FlowResult SplitOre(SortRuleKind second) => new TestFlow()
+        .Provider("miner", Ore, 60).Belt("in").SmartSplitter("split", Rule(0, SortRuleKind.Any), Rule(1, second))
+        .Belt("main").Machine("smelter", [(Ore, 40)], []).Belt("second").Sink("sink")
+        .Connect("miner", "in", "split").ConnectPort("split", 0, "main").Connect("main", "smelter")
+        .ConnectPort("split", 1, "second").Connect("second", "sink")
+        .Run();
+
+    [Fact]
+    public void An_overflow_output_gets_only_what_the_other_outputs_cannot_take()
+    {
+        FlowResult result = SplitOre(SortRuleKind.Overflow);
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+        Assert.Equal(20, result.Flow(Id("second"), Id("sink"), Ore), Precision);
+    }
+
+    [Fact]
+    public void An_output_set_to_none_gets_nothing()
+    {
+        FlowResult result = SplitOre(SortRuleKind.None);
+
+        Assert.Equal(0, result.Flow(Id("second"), Id("sink"), Ore), Precision);
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void Two_outputs_set_to_any_share_evenly_like_a_plain_splitter()
+    {
+        FlowResult result = SplitOre(SortRuleKind.Any);
+
+        Assert.Equal(30, result.Flow(Id("second"), Id("sink"), Ore), Precision);
+    }
+
+    /// <summary>A belt with 30 ore and 20 plates a minute into a smart splitter, to a smelter and a constructor.</summary>
+    private static FlowResult SortMixed(SortRule second) => new TestFlow()
+        .Provider("miner", Ore, 30).Provider("plates", Plate, 20).Merger("merge").Belt("mixed")
+        .SmartSplitter("sort", Rule(0, SortRuleKind.Item, Ore), second)
+        .Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("ingot sink")
+        .Belt("plate").Machine("constructor", [(Plate, 20)], []).Sink("plate sink")
+        .Connect("miner", "merge", "mixed", "sort").Connect("plates", "merge")
+        .ConnectPort("sort", 0, "ore").Connect("ore", "smelter", "ingots", "ingot sink")
+        .ConnectPort("sort", 1, "plate").Connect("plate", "constructor")
+        .Run();
+
+    [Fact]
+    public void An_item_rule_sorts_a_mixed_belt_so_each_machine_gets_its_item()
+    {
+        FlowResult result = SortMixed(Rule(1, SortRuleKind.Item, Plate));
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+        Assert.Equal(1.0, result.Machine(Id("constructor")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void Any_undefined_takes_the_items_no_other_output_names()
+    {
+        FlowResult result = SortMixed(Rule(1, SortRuleKind.AnyUndefined));
+
+        Assert.Equal(0, result.Flow(Id("sort"), Id("plate"), Ore), Precision);
+        Assert.Equal(1.0, result.Machine(Id("constructor")).Utilisation, Precision);
+    }
+
+    // ---- BR-A5: priority mergers ---------------------------------------------------------------------------------
+
+    /// <summary>Two lines into a priority merger, onto a belt that carries 60: input 0 has priority 2, input 1 has 0.</summary>
+    private static FlowResult Merge(double first, double second, int firstPriority = 2) => new TestFlow()
+        .Provider("first", Ore, first).Belt("first line").Provider("second", Ore, second).Belt("second line")
+        .PriorityMerger("merge", firstPriority, 0).Belt("out", capacity: 60).Sink("sink")
+        .Connect("first", "first line").ConnectInto("first line", "merge", 0)
+        .Connect("second", "second line").ConnectInto("second line", "merge", 1)
+        .Connect("merge", "out", "sink")
+        .Run();
+
+    [Fact]
+    public void A_priority_merger_takes_from_its_highest_priority_input_first()
+    {
+        FlowResult result = Merge(60, 60);
+
+        Assert.Equal(60, result.Flow(Id("first line"), Id("merge"), Ore), Precision);
+        Assert.Equal(0, result.Flow(Id("second line"), Id("merge"), Ore), Precision);
+    }
+
+    [Fact]
+    public void A_priority_merger_tops_up_from_a_lower_priority_input()
+    {
+        FlowResult result = Merge(40, 60);
+
+        Assert.Equal(20, result.Flow(Id("second line"), Id("merge"), Ore), Precision);
+    }
+
+    [Fact]
+    public void Inputs_of_equal_priority_share_evenly_like_a_plain_merger()
+    {
+        FlowResult result = Merge(60, 60, firstPriority: 0);
+
+        Assert.Equal(30, result.Flow(Id("second line"), Id("merge"), Ore), Precision);
     }
 
     // ---- Fuel for drones and trucks: what the other consumers leave ------------------------------------------------

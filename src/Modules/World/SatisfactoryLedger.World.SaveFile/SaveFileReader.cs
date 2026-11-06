@@ -51,6 +51,7 @@ public static class SaveFileReader
             byPath.TryAdd(saved.ObjectReference.PathName, saved);
         }
 
+        Dictionary<int, string> fluidOfNetwork = FluidsOfPipeNetworks(byPath.Values);
         List<SavedBuildable> buildables = [];
         List<Connector> connectors = [];
         Dictionary<string, int> unsupported = [];
@@ -67,7 +68,9 @@ public static class SaveFileReader
             List<(string Path, string Port, string? LinkedTo)> ports = PortsOf(actor, byPath);
             BuildableRole role = GameClasses.RoleOf(className);
             bool linked = ports.Any(port => port.LinkedTo is not null);
-            bool unloads = ports.Any(port => port.LinkedTo is not null && GameClasses.DirectionOf(port.Port, className) == Port.Out);
+            // Only for stations: an unknown building may have ports the adapter can't give a direction.
+            bool unloads = role is BuildableRole.Station
+                && ports.Any(port => port.LinkedTo is not null && GameClasses.DirectionOf(port.Port, className) == Port.Out);
             string? inventory = GameClasses.StockInventoryOf(className);
             IReadOnlySet<string>? burns = GameClasses.FuelInventoryOf(className) is { } fuelInventory
                 ? StockOf(actor, fuelInventory, byPath).Keys.ToHashSet(StringComparer.Ordinal)
@@ -83,13 +86,15 @@ public static class SaveFileReader
                 // BR-W1, BR-W8: belts leaving a station's outputs make it unload; belts into its inputs only, load.
                 BuildableRole.Station when unloads => new SavedProvider(id, className, Node: null, ClockSpeed.Percent(100))
                 {
-                    Stock = StockOf(actor, inventory!, byPath),
+                    Stock = StockOf(actor, inventory!, byPath, GameClasses.StocksLitres(className)),
                     Burns = burns,
                 },
                 BuildableRole.Station when linked => new SavedConsumer(id, className) { Burns = burns },
-                BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className))
+                BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className), SortRulesOf(actor), InputPrioritiesOf(actor))
                 {
-                    Stock = inventory is null ? null : StockOf(actor, inventory, byPath),
+                    Stock = GameClasses.LogisticsKindOf(className) == LogisticsKind.FluidBuffer
+                        ? FluidStockOf(actor, byPath, fluidOfNetwork)
+                        : inventory is null ? null : StockOf(actor, inventory, byPath),
                 },
                 _ => null,
             };
@@ -98,7 +103,7 @@ public static class SaveFileReader
             {
                 buildables.Add(buildable with { Position = new SavedPosition(actor.Position.X, actor.Position.Y, actor.Position.Z) });
                 connectors.AddRange(ports.Select(port =>
-                    new Connector(id, port.Path, GameClasses.DirectionOf(port.Port, className), port.LinkedTo)));
+                    new Connector(id, port.Path, GameClasses.DirectionOf(port.Port, className), port.LinkedTo, GameClasses.PortIndexOf(port.Port, className))));
             }
             else if (role is BuildableRole.Unsupported || linked)
             {
@@ -131,11 +136,68 @@ public static class SaveFileReader
             .Where(port => !port.Port.StartsWith("SnapOnly", StringComparison.Ordinal))
     ];
 
+    /// <summary>A priority merger's priority per input (<c>mInputPriorities</c>); null for a plain merger.</summary>
+    private static List<int>? InputPrioritiesOf(ActorObject actor) =>
+        actor.Properties.OfType<ArrayProperty>().FirstOrDefault(property => property.Name == "mInputPriorities")?.Property is ArrayIntProperty priorities
+            ? [.. priorities.Values]
+            : null;
+
+    /// <summary>Which fluid each pipe network holds: <c>FGPipeNetwork</c> objects store their id and fluid.</summary>
+    private static Dictionary<int, string> FluidsOfPipeNetworks(IEnumerable<ComponentObject> objects)
+    {
+        Dictionary<int, string> fluids = [];
+        foreach (ComponentObject network in objects.Where(saved => saved.TypePath.EndsWith(".FGPipeNetwork", StringComparison.Ordinal)))
+        {
+            int? id = network.Properties.OfType<IntProperty>().FirstOrDefault(property => property.Name == "mPipeNetworkID")?.Value;
+            string? fluid = ObjectPath(network, "mFluidDescriptor");
+            if (id is not null && !string.IsNullOrEmpty(fluid))
+            {
+                fluids[id.Value] = ShortName(fluid);
+            }
+        }
+
+        return fluids;
+    }
+
+    /// <summary>
+    /// What a fluid buffer holds: its <c>mFluidBox</c>, in m³, of the fluid of the pipe network its ends are on. Empty
+    /// when it holds nothing or the network's fluid isn't known.
+    /// </summary>
+    private static Dictionary<string, decimal> FluidStockOf(ActorObject actor, Dictionary<string, ComponentObject> byPath, Dictionary<int, string> fluidOfNetwork)
+    {
+        float content = actor.Properties.OfType<StructProperty>().FirstOrDefault(property => property.Name == "mFluidBox")?.Value is FluidBox box ? box.Value : 0;
+        int? network = actor.Components
+            .Select(reference => byPath.GetValueOrDefault(reference.PathName))
+            .OfType<ComponentObject>()
+            .Select(component => component.Properties.OfType<IntProperty>().FirstOrDefault(property => property.Name == "mPipeNetworkID")?.Value)
+            .FirstOrDefault(id => id is not null);
+
+        return content > 0 && network is not null && fluidOfNetwork.TryGetValue(network.Value, out string? fluid)
+            ? new Dictionary<string, decimal>(StringComparer.Ordinal) { [fluid] = Math.Round((decimal)content, 3) }
+            : new Dictionary<string, decimal>(StringComparer.Ordinal);
+    }
+
+    /// <summary>A smart or programmable splitter's rules (<c>mSortRules</c>); null when it has none, as a plain splitter.</summary>
+    private static List<SortRule>? SortRulesOf(ActorObject actor)
+    {
+        if (actor.Properties.OfType<ArrayProperty>().FirstOrDefault(property => property.Name == "mSortRules")?.Property is not ArrayStructProperty rules)
+        {
+            return null;
+        }
+
+        return
+        [
+            .. rules.Values.OfType<ArrayProperties>().Select(rule => GameClasses.SortRuleOf(
+                rule.Values.OfType<IntProperty>().FirstOrDefault(property => property.Name == "OutputIndex")?.Value ?? 0,
+                ShortName(rule.Values.OfType<ObjectProperty>().FirstOrDefault(property => property.Name == "ItemClass")?.Value.PathName ?? "Desc_None_C")))
+        ];
+    }
+
     /// <summary>
     /// What one inventory of a buildable holds, per item: its stacks are an item path and a count each. An empty slot
     /// has no item.
     /// </summary>
-    private static Dictionary<string, decimal> StockOf(ActorObject actor, string inventory, Dictionary<string, ComponentObject> byPath)
+    private static Dictionary<string, decimal> StockOf(ActorObject actor, string inventory, Dictionary<string, ComponentObject> byPath, bool litres = false)
     {
         Dictionary<string, decimal> stock = new(StringComparer.Ordinal);
         ComponentObject? component = byPath.GetValueOrDefault($"{actor.ObjectReference.PathName}.{inventory}");
@@ -148,7 +210,7 @@ public static class SaveFileReader
                 && item.ExtraProperty is IntProperty { Value: > 0 } count)
             {
                 string itemId = ShortName(item.ItemType);
-                stock[itemId] = stock.GetValueOrDefault(itemId) + count.Value;
+                stock[itemId] = stock.GetValueOrDefault(itemId) + (litres ? count.Value / 1000m : count.Value);
             }
         }
 

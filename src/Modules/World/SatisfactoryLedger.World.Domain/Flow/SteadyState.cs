@@ -30,6 +30,9 @@ public static class SteadyState
     /// <summary>The most sweeps one part gets. A part that hasn't settled by then is approximate.</summary>
     public const int MaxSweeps = 2_000;
 
+    /// <summary>After this many sweeps without settling, a part's acceptance is damped against flip-flopping.</summary>
+    private const int DampAfter = 50;
+
     /// <summary>For comparing doubles inside the solver: a difference smaller than this is no difference.</summary>
     private const double Settle = 1e-9;
 
@@ -52,7 +55,11 @@ public static class SteadyState
         {
             var part = new FlowNetwork(
                 nodes.Select(node => network.Nodes[node]),
-                edges.Select(edge => new Connection(network.Nodes[network.Edges[edge].From].Id, network.Nodes[network.Edges[edge].To].Id)),
+                edges.Select(edge => new Connection(
+                    network.Nodes[network.Edges[edge].From].Id,
+                    network.Nodes[network.Edges[edge].To].Id,
+                    network.Ports[edge].From,
+                    network.Ports[edge].To)),
                 network.Fluids);
             PartResult result = new Solver(part).Run(maxSweeps);
 
@@ -170,7 +177,15 @@ public static class SteadyState
             while (sweep < maxSweeps && calm < 2)
             {
                 sweep++;
+                double[] accepted = (double[])_accept.Clone();
+                double[] spared = (double[])_spare.Clone();
                 Backward();
+                if (sweep > DampAfter)
+                {
+                    Damp(_accept, accepted);
+                    Damp(_spare, spared);
+                }
+
                 Forward();
 
                 double change = 0;
@@ -208,6 +223,10 @@ public static class SteadyState
                         double firm = Math.Min(conduit.Capacity, AcceptedDownstream(node));
                         ShareInputs(node, firm, Math.Min(Left(conduit.Capacity, firm), SpareDownstream(node)));
                         break;
+                    case FlowSplitter { Rules.Count: > 0 } sorting:
+                        List<int> receiving = [.. _out[node].Where(edge => RulesAt(sorting, edge).Any(rule => rule.Kind != SortRuleKind.None))];
+                        ShareInputs(node, receiving.Sum(edge => _accept[edge]), receiving.Sum(edge => _spare[edge]));
+                        break;
                     case FlowSplitter or FlowMerger:
                         ShareInputs(node, AcceptedDownstream(node), SpareDownstream(node));
                         break;
@@ -215,6 +234,21 @@ public static class SteadyState
                         AcceptForMachine(node, machine);
                         _in[node].ForEach(edge => _spare[edge] = 0);
                         break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// A part that hasn't settled after <see cref="DampAfter"/> sweeps may be flip-flopping between two states: from
+        /// then on, what a connection accepts moves only halfway towards its new value each sweep.
+        /// </summary>
+        private static void Damp(double[] now, double[] before)
+        {
+            for (int edge = 0; edge < now.Length; edge++)
+            {
+                if (!double.IsPositiveInfinity(now[edge]) && !double.IsPositiveInfinity(before[edge]))
+                {
+                    now[edge] = (now[edge] + before[edge]) / 2;
                 }
             }
         }
@@ -251,11 +285,23 @@ public static class SteadyState
         /// </summary>
         private void ShareInputs(int node, double available, double spare)
         {
-            Share(_in[node], available, _accept);
-            Share(_in[node], spare, _spare);
+            int[] priorities = [.. _in[node].Select(edge => PriorityOf(node, edge))];
+            Share(_in[node], available, _accept, priorities);
+            Share(_in[node], spare, _spare, priorities);
         }
 
-        private void Share(List<int> inputs, double available, double[] accept)
+        /// <summary>BR-A5: the priority of a merger's input; a plain merger's inputs, and everything else's, are all 0.</summary>
+        private int PriorityOf(int node, int edge) =>
+            _network.Nodes[node] is FlowMerger { Priorities: { Count: > 0 } priorities }
+            && _network.Ports[edge].To is int port && port < priorities.Count
+                ? priorities[port]
+                : 0;
+
+        /// <summary>
+        /// Shares <paramref name="available"/> over the inputs by what each offers: the highest priority first, evenly
+        /// within one priority, and what's left to the next priority down.
+        /// </summary>
+        private void Share(List<int> inputs, double available, double[] accept, int[] priorities)
         {
             if (inputs.Count == 1)
             {
@@ -263,7 +309,21 @@ public static class SteadyState
                 return;
             }
 
-            double[] taken = Waterfill(available, [.. inputs.Select(edge => Total(_offered[edge]))]);
+            double[] offers = [.. inputs.Select(edge => Total(_offered[edge]))];
+            double[] taken = new double[inputs.Count];
+            double left = available;
+            foreach (int priority in priorities.Distinct().OrderDescending())
+            {
+                int[] group = [.. Enumerable.Range(0, inputs.Count).Where(k => priorities[k] == priority)];
+                double[] share = Waterfill(left, [.. group.Select(k => offers[k])]);
+                for (int j = 0; j < group.Length; j++)
+                {
+                    taken[group[j]] = share[j];
+                }
+
+                left = Left(left, share.Sum());
+            }
+
             double total = taken.Sum();
             for (int k = 0; k < inputs.Count; k++)
             {
@@ -389,6 +449,9 @@ public static class SteadyState
                         break;
                     case FlowUnknownSource:
                         SendAsked(node);
+                        break;
+                    case FlowSplitter { Rules.Count: > 0 } sorting:
+                        SendSorted(node, sorting, Supplied(node), Offered(node));
                         break;
                     case FlowConduit or FlowSplitter or FlowMerger:
                         Send(node, Supplied(node), Offered(node));
@@ -532,6 +595,87 @@ public static class SteadyState
 
                     room[k] -= firm[k];
                     spare[k] -= extra[k];
+                }
+            }
+        }
+
+        /// <summary>The rules of the splitter output a connection leaves from. None when its port isn't known.</summary>
+        private IEnumerable<SortRule> RulesAt(FlowSplitter splitter, int edge) =>
+            _network.Ports[edge].From is { } port ? splitter.Rules!.Where(rule => rule.Output == port) : [];
+
+        /// <summary>
+        /// BR-A4: a smart or programmable splitter sends each item to the outputs its rules name: the item itself,
+        /// <i>any</i>, or <i>any undefined</i> when no output names it. Evenly over those, as far as they take it; what
+        /// they can't take goes to the <i>overflow</i> outputs. An output set to <i>none</i> gets nothing.
+        /// Items going to the same outputs are sent together; groups are served one after the other.
+        /// </summary>
+        private void SendSorted(int node, FlowSplitter splitter, Dictionary<ItemId, double> items, Dictionary<ItemId, double> offer)
+        {
+            List<int> outputs = _out[node];
+            foreach (int edge in outputs)
+            {
+                _flow[edge].Clear();
+                _offered[edge].Clear();
+            }
+
+            List<SortRule>[] rules = [.. outputs.Select(edge => RulesAt(splitter, edge).ToList())];
+            HashSet<ItemId> named = [.. splitter.Rules!.Where(rule => rule.Kind == SortRuleKind.Item).Select(rule => rule.Item!)];
+            bool Takes(int k, ItemId item) => CanCarry(outputs[k], item) && rules[k].Any(rule => rule.Kind switch
+            {
+                SortRuleKind.Any => true,
+                SortRuleKind.Item => rule.Item == item,
+                SortRuleKind.AnyUndefined => !named.Contains(item),
+                _ => false,
+            });
+            bool Overflows(int k, ItemId item) => CanCarry(outputs[k], item) && rules[k].Any(rule => rule.Kind == SortRuleKind.Overflow);
+
+            double[] room = [.. outputs.Select(Room)];
+            var groups = items.Keys.Union(offer.Keys)
+                .GroupBy(item => string.Join(",", Enumerable.Range(0, outputs.Count).Select(k => Takes(k, item) ? "t" : Overflows(k, item) ? "o" : "-")))
+                .OrderBy(group => group.Key, StringComparer.Ordinal);
+
+            foreach (IGrouping<string, ItemId> group in groups)
+            {
+                ItemId first = group.First();
+                bool[] takes = [.. Enumerable.Range(0, outputs.Count).Select(k => Takes(k, first))];
+                bool[] overflows = [.. Enumerable.Range(0, outputs.Count).Select(k => !takes[k] && Overflows(k, first))];
+                Dictionary<ItemId, double> sending = group.ToDictionary(item => item, item => items.GetValueOrDefault(item));
+                Dictionary<ItemId, double> offering = group.ToDictionary(item => item, item => offer.GetValueOrDefault(item));
+                double total = Total(sending);
+                double offerTotal = Total(offering);
+
+                double[] main = Waterfill(total, [.. Enumerable.Range(0, outputs.Count).Select(k => takes[k] ? room[k] : 0)]);
+                double mainSent = main.Sum();
+                double[] over = Waterfill(total - mainSent, [.. Enumerable.Range(0, outputs.Count).Select(k => overflows[k] ? room[k] : 0)]);
+                double overSent = over.Sum();
+
+                for (int k = 0; k < outputs.Count; k++)
+                {
+                    if (!takes[k] && !overflows[k])
+                    {
+                        continue;
+                    }
+
+                    double sent = main[k] + over[k];
+                    // The main outputs are offered all but what the other main outputs take; an overflow output only
+                    // what the main outputs leave.
+                    double offeredHere = takes[k]
+                        ? Math.Max(0, offerTotal - (mainSent - main[k]))
+                        : Math.Max(0, offerTotal - mainSent - (overSent - over[k]));
+                    foreach (ItemId item in group)
+                    {
+                        if (total > 0)
+                        {
+                            _flow[outputs[k]][item] = sending[item] * sent / total;
+                        }
+
+                        if (offerTotal > 0)
+                        {
+                            _offered[outputs[k]][item] = offering[item] * offeredHere / offerTotal;
+                        }
+                    }
+
+                    room[k] -= sent;
                 }
             }
         }

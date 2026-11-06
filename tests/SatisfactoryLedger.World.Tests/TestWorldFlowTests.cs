@@ -76,7 +76,33 @@ public class TestWorldFlowTests
     {
         var platform = Assert.IsType<FlowUnknownSource>(Node("Build_TrainDockingStation_C_2147427754"));
 
-        Assert.Equal(7666, platform.Stock[Item("Desc_IronScrew_C")]);
+        Assert.Equal(7118, platform.Stock[Item("Desc_IronScrew_C")]);
+    }
+
+    [Fact]
+    public void The_smart_splitter_keeps_its_rules_through_the_snapshot()
+    {
+        var splitter = Assert.IsType<FlowSplitter>(Node("Build_ConveyorAttachmentSplitterSmart_C_2147286684"));
+
+        Assert.Contains(new SortRule(1, SortRuleKind.Overflow), splitter.Rules!);
+    }
+
+    [Fact]
+    public void Constructor_Cs_plates_go_to_the_container_and_only_the_overflow_to_the_sink()
+    {
+        // The container at the end of the line takes everything (BR-A7), so nothing overflows to the sink.
+        BuildableId splitter = BuildableId.Of(Id("Build_ConveyorAttachmentSplitterSmart_C_2147286684"));
+
+        Assert.Equal(0, Result.Flow(splitter, BuildableId.Of(Id("Build_ConveyorBeltMk1_C_2147281116")), Item("Desc_IronPlate_C")), Precision);
+        Assert.True(Result.Flow(splitter, BuildableId.Of(BeltIntoContainer), Item("Desc_IronPlate_C")) > 0);
+    }
+
+    [Fact]
+    public void The_priority_merger_keeps_its_priorities_through_the_snapshot()
+    {
+        var merger = Assert.IsType<FlowMerger>(Node("Build_ConveyorAttachmentMergerPriority_C_2147471421"));
+
+        Assert.Equal([2, 0, 0], merger.Priorities!);
     }
 
     [Fact]

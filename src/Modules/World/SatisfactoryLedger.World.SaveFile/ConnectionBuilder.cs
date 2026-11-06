@@ -6,7 +6,8 @@ namespace SatisfactoryLedger.World.SaveFile;
 /// One end of a link, as the save stores it: the port <paramref name="Path"/> of <paramref name="Owner"/>, linked to
 /// the port <paramref name="LinkedTo"/> of another buildable, or to nothing.
 /// </summary>
-internal sealed record Connector(BuildableId Owner, string Path, Port Port, string? LinkedTo);
+/// <param name="Index">Which output of a splitter or input of a merger this is, counted from 0; null elsewhere.</param>
+internal sealed record Connector(BuildableId Owner, string Path, Port Port, string? LinkedTo, int? Index = null);
 
 /// <summary>Turns the save's links into connections with a direction.</summary>
 internal static class ConnectionBuilder
@@ -37,11 +38,11 @@ internal static class ConnectionBuilder
             {
                 case (Port.Out, Port.In or Port.Undirected):
                 case (Port.Undirected, Port.In):
-                    directed.Add(new Connection(one.Owner, other.Owner));
+                    directed.Add(new Connection(one.Owner, other.Owner, one.Index, other.Index));
                     break;
                 case (Port.In, Port.Out or Port.Undirected):
                 case (Port.Undirected, Port.Out):
-                    directed.Add(new Connection(other.Owner, one.Owner));
+                    directed.Add(new Connection(other.Owner, one.Owner, other.Index, one.Index));
                     break;
                 case (Port.Undirected, Port.Undirected):
                     undirected.Add((one.Owner, other.Owner));
