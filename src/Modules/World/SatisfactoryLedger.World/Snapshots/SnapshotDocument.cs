@@ -36,8 +36,11 @@ internal sealed record SnapshotDocument(
     IReadOnlyList<ResourceNodeDocument> ResourceNodes,
     IReadOnlyList<string> Fluids)
 {
-    /// <summary>Version 2 added extractors, transport tiers, resource nodes and fluids. A version 1 snapshot has none of them.</summary>
-    public const int CurrentVersion = 2;
+    /// <summary>
+    /// Version 2 added extractors, transport tiers, resource nodes and fluids; a version 1 snapshot has none of them.
+    /// Version 3 added the stock of stations and containers; a version 2 snapshot has none.
+    /// </summary>
+    public const int CurrentVersion = 3;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -91,8 +94,10 @@ internal sealed record SnapshotDocument(
         return document.Version switch
         {
             CurrentVersion => document,
+            // Imported before stock was read: everything else is the same.
+            2 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
-            1 => document with { Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
+            1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),
         };
     }
@@ -139,6 +144,8 @@ internal enum BuildableDocumentRole
 
 /// <param name="ClockPercent">The clock speed as the game shows it (33.3333), exact to its 4 decimals.</param>
 /// <param name="Resource">The item a provider extracts when its class decides it (water); otherwise its node decides.</param>
+/// <param name="Stock">What a station or container holds now, per item; null when the save says nothing about it.</param>
+/// <param name="Burns">The fuel a drone port or truck station burns; null for buildables without a fuel slot.</param>
 internal sealed record BuildableDocument(
     string Id,
     BuildableDocumentRole Role,
@@ -149,11 +156,15 @@ internal sealed record BuildableDocument(
     string? Node = null,
     LogisticsKind? Kind = null,
     PositionDocument? Position = null,
-    string? Resource = null)
+    string? Resource = null,
+    IReadOnlyDictionary<string, decimal>? Stock = null,
+    IReadOnlyList<string>? Burns = null)
 {
     public static BuildableDocument From(SavedBuildable saved) => FromKind(saved) with
     {
         Position = saved.Position is { } position ? new PositionDocument(position.X, position.Y, position.Z) : null,
+        Stock = saved.Stock,
+        Burns = saved.Burns?.Order(StringComparer.Ordinal).ToList(),
     };
 
     private static BuildableDocument FromKind(SavedBuildable saved) => saved switch
@@ -178,12 +189,13 @@ internal sealed record BuildableDocument(
                 Recipe is not null && catalog.Recipes.TryGetValue(Recipe, out RecipeDocument? recipe) ? recipe.ToRecipe() : null,
                 Clock(),
                 ProductionBoost ?? 1),
-            BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog)),
-            BuildableDocumentRole.Consumer => new Consumer(id),
+            BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf()),
+            BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf()),
             BuildableDocumentRole.Logistics => new Logistics(
                 id,
                 Kind ?? throw new JsonException($"Logistics {Id} has no kind"),
-                catalog.TransportTiers.TryGetValue(ClassName, out TransportTierDocument? tier) ? Rate.PerMinute(tier.CapacityPerMinute) : null),
+                catalog.TransportTiers.TryGetValue(ClassName, out TransportTierDocument? tier) ? Rate.PerMinute(tier.CapacityPerMinute) : null,
+                StockOf()),
             _ => throw new JsonException($"Buildable {Id} has an unknown role"),
         };
     }
@@ -209,6 +221,10 @@ internal sealed record BuildableDocument(
             ? null
             : ItemOffer.Extracting(ItemId.Of(resource), Rate.FromRecipe(extractor.AmountPerCycle, extractor.CycleSeconds), purity, Clock());
     }
+
+    private HashSet<ItemId>? BurnsOf() => Burns?.Select(ItemId.Of).ToHashSet();
+
+    private Dictionary<ItemId, decimal>? StockOf() => Stock?.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value);
 
     private ClockSpeed Clock() => ClockSpeed.Percent(ClockPercent ?? 100);
 

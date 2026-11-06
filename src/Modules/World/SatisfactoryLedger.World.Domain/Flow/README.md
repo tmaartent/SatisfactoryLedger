@@ -2,7 +2,7 @@
 
 This folder answers one question about a world: **once everything has run long enough to settle, how much flows over every belt and pipe, and how hard does every machine work?** The findings come from that answer: starved and blocked machines, bottlenecks, and unused supply.
 
-The rules it implements are BR-A1 to BR-A13 in [`docs/domain/business-rules.md`](../../../../../docs/domain/business-rules.md). Step logs 12 and 13 (`docs/guide/log/`) tell how it was built. This README explains how it works.
+The rules it implements are BR-A1 to BR-A13 in [`docs/domain/business-rules.md`](../../../../../docs/domain/business-rules.md). Step logs 12, 13 and 14 (`docs/guide/log/`) tell how it was built. This README explains how it works.
 
 | File | What's in it |
 |---|---|
@@ -20,12 +20,12 @@ A `FlowNetwork` is a set of **nodes** and directed **connections** (`Connection(
 | Node | In the world | What it knows |
 |---|---|---|
 | `FlowProvider` | Miner, oil, water or resource well extractor | `Item`, `Offer`: what it can deliver (BR-A2) |
-| `FlowUnknownSource` | Train, truck or drone station; a container nothing feeds; an extractor on a node the Catalog doesn't know | `Stock`: what it holds now (BR-A9) |
+| `FlowUnknownSource` | A station that unloads (train platform, drone port, truck station); a container nothing feeds; an extractor on a node the Catalog doesn't know | `Stock`: what it holds now (BR-A9); `Burns`: the fuel of a drone port or truck station (BR-A8) |
 | `FlowMachine` | Smelter, constructor, … | `Demand` and `Production` per item at 100% (BR-A1) |
 | `FlowConduit` | Belt, lift, pipe; a container inside a line | `Capacity` (BR-A3); a container passes through with an unlimited capacity |
 | `FlowSplitter` | Splitter, pipe junction | Nothing: it divides evenly (BR-A4, A6) |
 | `FlowMerger` | Merger | Nothing: it takes evenly (BR-A5) |
-| `FlowSink` | AWESOME Sink, depot uploader, generator, a container at the end of a line | Nothing: it takes everything (BR-A7, A8) |
+| `FlowSink` | AWESOME Sink, depot uploader, generator, a station that only loads, a container at the end of a line | It takes everything (BR-A7, A8); `Burns`: a loading truck station's fuel |
 
 Conduits, splitters, mergers and unknown sources also say what they **carry**: `Carries.Solids` or `Carries.Fluids` (section 2b). The network knows which items are fluids (`FlowNetwork.Fluids`).
 
@@ -83,6 +83,24 @@ A connection carries what both its ends allow: a belt only solids, a pipe only f
 - **`AcceptForMachine`** only expects the items its line can bring.
 - **An unknown source** only supplies what its line can carry. A container next to a packager sends canisters, not water.
 
+### 2c. Spare: fuel for drones and trucks
+
+A drone port or truck station burns fuel, but the save doesn't say how much (step 14). So it takes its fuel only from what the line's other consumers leave (BR-A8). Next to **accept**, each connection has **spare** (`_spare`): what it takes only when there's some left.
+- **A station** (`TakeEverything`) sets spare ∞ and accept 0 on an input whose items are all fuel it burns (`Burns`, from its fuel slot). On every other input, accept ∞.
+- **Belts, splitters and mergers** pass both on: accept as before, spare up to what the belt has left (`Left`).
+- **`Send`** fills what the outputs accept first, and gives the rest to spare.
+- **A machine** counts spare as room for its output, so a packager making rocket fuel only for a drone port still runs.
+
+Rocket fuel split between a generator burning 40 and a drone port: the generator gets its 40, the port the 20 left. With accept ∞ for the port, they'd get 30 each.
+
+### Why an unknown source offers its belt
+
+A provider offers its rate even when nothing takes it yet. A source of unknown rate first offered only what was accepted. Take a blender whose casings come from one station and its heavy frames from another:
+- it takes casings only as far as frames are offered (`ScarcestOtherThan`), and frames only as far as casings are offered;
+- so neither station was offered any room, and both stayed at 0.
+
+It now offers what its belts can carry (`CanCarryAtMost`), as BR-A9 says. On your big world, that brought 19 silent stations to life.
+
 ---
 
 ## 3. One sweep: backward, then forward
@@ -106,16 +124,18 @@ Every node sets `accept` on its **incoming** connections:
 
 | Node | Accept on its inputs |
 |---|---|
-| Sink | ∞ |
+| Sink, station | ∞; the fuel it burns: 0, but spare ∞ (section 2c) |
 | Conduit | `min(Capacity, what its outputs accept together)`; a belt that ends nowhere accepts 0 |
 | Splitter | what its outputs accept together |
 | Merger | what its output accepts, **shared** over its inputs (see `ShareInputs` below) |
-| Machine | per input item: `demand × min(output room, scarcest other input) − what other connections already bring of that item`. A connection bringing an item the machine doesn't ask for gets 0: it clogs. |
-| Provider, unknown source | (no inputs) |
+| Machine | per input item, `demand × min(output room, scarcest other input)`, **shared** over the connections that bring that item like a merger's inputs. A connection bringing an item the machine doesn't ask for gets 0: it clogs. |
+| Provider | (no inputs) |
 
-**Output room** (`OutputRoom`) is the share of 100% a machine's outputs can take: `min(1, accepted downstream ÷ total production)`. **Scarcest other input** (`ScarcestOtherThan`) is the lowest `offered ÷ demand` over the machine's *other* inputs. A machine can only use as much of one input as its other inputs allow.
+**Output room** (`OutputRoom`) is the share of 100% a machine's outputs can take: `min(1, (accepted + spare) downstream ÷ total production)`. **Scarcest other input** (`ScarcestOtherThan`) is the lowest `offered ÷ demand` over the machine's *other* inputs. A machine can only use as much of one input as its other inputs allow.
 
-**`ShareInputs`** is used by conduits, splitters and mergers with more than one input. It divides what the node can pass on (`available`) over its inputs like a merger does: `Waterfill` by what each input *offers*. Then each input may take what the others leave: `accept_k = available − (what the others take)`. So an input that offers more next sweep can grow into room the others don't use.
+**`ShareInputs`** is used by conduits, splitters and mergers with more than one input. It divides what the node can pass on (`available`) over its inputs like a merger does: `Waterfill` by what each input *offers*. Then each input may take what the others leave: `accept_k = available − (what the others take)`. So an input that offers more next sweep can grow into room the others don't use. It does this twice: for what is accepted, and for what is spare.
+
+A machine shares each input item over its belts the same way. Step 13 had "demand minus what the other belts bring". With two belts bringing the same item, both read last sweep's numbers and swapped every sweep: if the other brought a lot, take nothing; if it brought nothing, take everything. On your big world, a part of 15,328 buildables flip-flopped like that for 2,000 sweeps. Sharing like a merger settles it in 21.
 
 ### Forward pass: what each sending end sends
 
@@ -124,12 +144,12 @@ Every node sets `flow` and `offered` on its **outgoing** connections, through `S
 | Node | Sends |
 |---|---|
 | Provider | its `Offer` of its item |
-| Unknown source | what its outputs accept, of the items asked downstream (BR-A9) |
+| Unknown source | what its outputs accept, of the items asked downstream, in proportion to what the machines there ask. It **offers** what its belts can carry (BR-A9). |
 | Conduit, splitter, merger | what came in |
 | Machine | `production × utilisation` (and offers `production × offered share`) |
 | Sink | (no outputs) |
 
-**`Send`** divides what a node sends over its outgoing connections with `Waterfill`, by what each one *accepts*. That's the even split of BR-A4. Each output is then **offered** what the node offers in total, minus what the *other* outputs take. That's what this output could get if it took everything.
+**`Send`** divides what a node sends over its outgoing connections with `Waterfill`, by what each one *accepts*. That's the even split of BR-A4. What's left after that goes to the connections that take *spare* (section 2c). Each output is then **offered** what the node offers in total, minus what the *other* outputs take. That's what this output could get if it took everything.
 
 A **machine** works out three shares (`Run`):
 - `inputs`: lowest `supplied ÷ demand`, over what actually arrives;
@@ -245,10 +265,11 @@ All findings are read from the settled state, in `FlowResult`:
 
 - **Smart-splitter rules and priority mergers** (the rest of BR-A4 and A5) are treated as plain splitters and mergers. Their settings refer to ports (output 0, 1, 2; input priority), and connections don't carry ports yet.
 - **A machine with two solid products on two belts** (a manufacturer has one output, but some alternates make two solids) offers both on both belts. In the game each product leaves by its own port. Ports fix this too. Solid and fluid products are already kept apart (section 2b).
-- **Stock** isn't read from the save yet, so every unknown source is *assumed* supplied, never *confirmed*.
-- **Stations** aren't in the world yet (the adapter reports them as unsupported). A line a train unloads onto starts at nothing, so whatever it feeds is starved.
+- **Fluid stock** isn't found in the save, so fluid platforms and fluid buffers are always *assumed* supplied.
+- **How much fuel a station burns** isn't known; it takes what's left (section 2c). A drone port that ships rocket fuel as cargo and also burns it can't be told apart: its rocket fuel counts as fuel.
+- **A station unloading into nothing but sinks** sends nothing: no machine asks for its items.
 - **A belt carrying an item a machine doesn't ask for** clogs completely (accept 0). That's what the game does. The finding doesn't name it as its own cause yet: the machine shows as starved.
-- **Degenerate parts stay approximate.** Your big world (41,959 nodes, 1,016 parts) runs in 3 s. One part of 313 buildables doesn't settle: its ore supply and the room downstream bind at almost the same point. Then many splits over parallel smelters are nearly valid, and each sweep moves the split by a tiny slack (0.00045/min). It's reported as approximate. An exact solver (linear programming) is on the enhancements pile.
+- **Degenerate parts stay approximate.** Your big world (802 parts with stations) runs in 7 s. One part of 313 buildables doesn't settle: its ore supply and the room downstream bind at almost the same point. Then many splits over parallel smelters are nearly valid, and each sweep moves the split by a tiny slack (0.00045/min). It's reported as approximate. An exact solver (linear programming) is on the enhancements pile.
 
 ---
 
@@ -261,11 +282,12 @@ All findings are read from the settled state, in `FlowResult`:
 | Backward pass, per kind of node | `Backward` |
 | What a machine can take | `AcceptForMachine`, `OutputRoom`, `ScarcestOtherThan` |
 | Solids and fluids | `CanCarry`, `CarriesOf`, `Both`, `OfForm` |
-| Inputs sharing what a node passes on | `ShareInputs` |
+| Inputs sharing what a node passes on | `ShareInputs`, `Share` |
+| Spare: fuel for stations | `TakeEverything`, `Room`, `Left`, `SpareDownstream` |
 | Forward pass, per kind of node | `Forward` |
 | A machine's utilisation and cause | `Run(int, FlowMachine)`, `Scarcest` |
 | Dividing over outputs, flow and offered | `Send`, `Waterfill` |
-| What an unknown source supplies | `SendAsked`, `AskedItems` |
+| What an unknown source supplies | `SendAsked`, `AskedItems`, `CanCarryAtMost` |
 | The findings | `Bottlenecks`, `Saturated`, `Unused`, `Unknown` |
 | The order of the passes | `ForwardOrder` |
 | Buildable to node | `WorldFlow.NodeOf`, `WorldFlow.Container` |

@@ -4,6 +4,7 @@ using SatisfactoryLedger.World.Domain;
 using SatisfactorySaveNet;
 using SatisfactorySaveNet.Abstracts.Model;
 using SatisfactorySaveNet.Abstracts.Model.Properties;
+using SatisfactorySaveNet.Abstracts.Model.Typed;
 
 namespace SatisfactoryLedger.World.SaveFile;
 
@@ -66,6 +67,11 @@ public static class SaveFileReader
             List<(string Path, string Port, string? LinkedTo)> ports = PortsOf(actor, byPath);
             BuildableRole role = GameClasses.RoleOf(className);
             bool linked = ports.Any(port => port.LinkedTo is not null);
+            bool unloads = ports.Any(port => port.LinkedTo is not null && GameClasses.DirectionOf(port.Port, className) == Port.Out);
+            string? inventory = GameClasses.StockInventoryOf(className);
+            IReadOnlySet<string>? burns = GameClasses.FuelInventoryOf(className) is { } fuelInventory
+                ? StockOf(actor, fuelInventory, byPath).Keys.ToHashSet(StringComparer.Ordinal)
+                : null;
 
             SavedBuildable? buildable = role switch
             {
@@ -74,7 +80,17 @@ public static class SaveFileReader
                 BuildableRole.Provider => new SavedProvider(id, className, ShortNameOrNull(ObjectPath(actor, "mExtractableResource")),
                     ClockSpeedOf(actor), GameClasses.FixedResourceOf(className)),
                 BuildableRole.Consumer => new SavedConsumer(id, className),
-                BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className)),
+                // BR-W1, BR-W8: belts leaving a station's outputs make it unload; belts into its inputs only, load.
+                BuildableRole.Station when unloads => new SavedProvider(id, className, Node: null, ClockSpeed.Percent(100))
+                {
+                    Stock = StockOf(actor, inventory!, byPath),
+                    Burns = burns,
+                },
+                BuildableRole.Station when linked => new SavedConsumer(id, className) { Burns = burns },
+                BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className))
+                {
+                    Stock = inventory is null ? null : StockOf(actor, inventory, byPath),
+                },
                 _ => null,
             };
 
@@ -114,6 +130,30 @@ public static class SaveFileReader
             // Snap points hold up belts and pipes; they don't carry anything.
             .Where(port => !port.Port.StartsWith("SnapOnly", StringComparison.Ordinal))
     ];
+
+    /// <summary>
+    /// What one inventory of a buildable holds, per item: its stacks are an item path and a count each. An empty slot
+    /// has no item.
+    /// </summary>
+    private static Dictionary<string, decimal> StockOf(ActorObject actor, string inventory, Dictionary<string, ComponentObject> byPath)
+    {
+        Dictionary<string, decimal> stock = new(StringComparer.Ordinal);
+        ComponentObject? component = byPath.GetValueOrDefault($"{actor.ObjectReference.PathName}.{inventory}");
+        var stacks = component?.Properties.OfType<ArrayProperty>().FirstOrDefault(property => property.Name == "mInventoryStacks")?.Property
+            as ArrayStructProperty;
+
+        foreach (ArrayProperties stack in stacks?.Values.OfType<ArrayProperties>() ?? [])
+        {
+            if (stack.Values.OfType<StructProperty>().FirstOrDefault(property => property.Name == "Item")?.Value is InventoryItem { ItemType.Length: > 0 } item
+                && item.ExtraProperty is IntProperty { Value: > 0 } count)
+            {
+                string itemId = ShortName(item.ItemType);
+                stock[itemId] = stock.GetValueOrDefault(itemId) + count.Value;
+            }
+        }
+
+        return stock;
+    }
 
     /// <summary>
     /// The save leaves out values that equal the default, so a missing clock speed is 100%. The save stores a float

@@ -13,11 +13,19 @@ public sealed record FlowProvider(BuildableId Id, ItemId Item, double Offer) : F
 
 /// <summary>A source whose rate isn't known, such as a station or a container nothing feeds (BR-A9).</summary>
 /// <param name="Stock">What it holds right now, per item. Decides between assumed and confirmed supplied.</param>
-public sealed record FlowUnknownSource(BuildableId Id, IReadOnlyDictionary<ItemId, double> Stock, Carries Carries = Carries.Anything)
-    : FlowNode(Id);
+/// <param name="Burns">
+/// The fuel it burns, for a drone port or truck station: fuel coming in takes only what the line's other consumers
+/// leave. Everything else coming in, it takes like a consumer.
+/// </param>
+public sealed record FlowUnknownSource(
+    BuildableId Id,
+    IReadOnlyDictionary<ItemId, double> Stock,
+    Carries Carries = Carries.Anything,
+    IReadOnlySet<ItemId>? Burns = null) : FlowNode(Id);
 
 /// <summary>Takes everything it's offered: a consumer, or a container at the end of a line (BR-A7, BR-A8).</summary>
-public sealed record FlowSink(BuildableId Id) : FlowNode(Id);
+/// <param name="Burns">For a station that loads: the fuel it burns, which takes only what the others leave.</param>
+public sealed record FlowSink(BuildableId Id, IReadOnlySet<ItemId>? Burns = null) : FlowNode(Id);
 
 /// <summary>A belt, lift or pipe, or a container inside a line: passes items on, at most <paramref name="Capacity"/> per minute (BR-A3).</summary>
 public sealed record FlowConduit(BuildableId Id, double Capacity, Carries Carries = Carries.Anything) : FlowNode(Id);

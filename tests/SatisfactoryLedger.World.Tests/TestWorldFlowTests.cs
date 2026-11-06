@@ -64,4 +64,32 @@ public class TestWorldFlowTests
         Assert.Equal([Item("Desc_FluidCanister_C")], canisters.Delivered.Keys);
         Assert.Equal(1, Machine(Packager).Utilisation, Precision);
     }
+
+    private static FlowNode Node(string name)
+    {
+        FlowNetwork network = Document.ToFlowNetwork();
+        return network.Nodes[network.IndexOf[BuildableId.Of(Id(name))]];
+    }
+
+    [Fact]
+    public void An_unloading_freight_platform_is_a_source_with_the_stock_on_it()
+    {
+        var platform = Assert.IsType<FlowUnknownSource>(Node("Build_TrainDockingStation_C_2147427754"));
+
+        Assert.Equal(7666, platform.Stock[Item("Desc_IronScrew_C")]);
+    }
+
+    [Fact]
+    public void The_drone_port_burns_rocket_fuel()
+    {
+        var port = Assert.IsType<FlowUnknownSource>(Node("Build_DroneStation_C_2147399058"));
+
+        Assert.Equal([Item("Desc_PackagedRocketFuel_C")], port.Burns!);
+    }
+
+    [Fact]
+    public void A_loading_freight_platform_takes_everything_like_a_consumer()
+    {
+        Assert.IsType<FlowSink>(Node("Build_TrainDockingStation_C_2147409101"));
+    }
 }

@@ -40,6 +40,13 @@ internal sealed class TestFlow
 
     public TestFlow Sink(string id) => Add(new FlowSink(Id(id)));
 
+    /// <summary>A station that unloads to its outputs and burns <paramref name="fuels"/> that come in on its inputs.</summary>
+    public TestFlow StationBurning(string id, params ItemId[] fuels) =>
+        Add(new FlowUnknownSource(Id(id), new Dictionary<ItemId, double>(), Carries.Anything, fuels.ToHashSet()));
+
+    /// <summary>A station that only loads, and burns <paramref name="fuels"/> that come in on its inputs.</summary>
+    public TestFlow LoadingStationBurning(string id, params ItemId[] fuels) => Add(new FlowSink(Id(id), fuels.ToHashSet()));
+
     public TestFlow Connect(params string[] chain)
     {
         for (int i = 1; i < chain.Length; i++)

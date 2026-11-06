@@ -19,3 +19,17 @@ Ideas the owner wants kept, but not planned yet. Each says what it is, why it's 
 - **A solver library for .NET:** for example Google OR-Tools (`Google.OrTools`, with GLOP for LP), or HiGHS through its .NET bindings. That's a new dependency, so it needs an ADR.
 - **Size:** a world like the owner's big one has about 45,000 connections and a few items each, so tens of thousands of variables. That's fine for an LP solver.
 - **Testing:** the current sweep solver and its tests stay as the reference. Both can run on the same networks and are compared within the tolerance.
+
+### What a drone port or truck station burns
+*Raised 2026-11-05, step 14.*
+
+**What:** compute the fuel a drone port burns per minute, instead of treating it as a consumer of unknown rate: (energy per trip ÷ energy per fuel item) × trips per minute.
+
+**Why:** a fuel line shared with generators or other ports would be analysed with real numbers. The game shows the value; the analysis should too.
+
+**What it would take:**
+- **Energy per fuel item:** in the game's Docs file (`mEnergyValue`). The Catalog would import it.
+- **Energy per trip:** the save only has the cost of the *current* trip of a drone in flight, for 11 of 16 drones. For the rest, it would have to be computed from the route: the distance between the paired ports (their positions are in the save), drone speed, and the game's power formula. That formula needs research.
+- **Trip duration:** the save keeps only the latest trip per port, for 5 of 28. From the route instead, as above.
+- **Trucks:** the same idea, from their recorded route. Not verified: there are no truck stations in the owner's world.
+- The spike's numbers to check against are in [step 14](../guide/log/14-flow-stations-and-stock.md#fuel-for-drones-and-trucks).

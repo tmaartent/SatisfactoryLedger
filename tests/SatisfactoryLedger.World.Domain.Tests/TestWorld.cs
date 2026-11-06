@@ -46,7 +46,18 @@ internal sealed class TestWorld
 
     public TestWorld Merger(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Merger));
 
-    public TestWorld Container(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.StorageContainer));
+    public TestWorld Container(string id, params (ItemId Item, decimal Count)[] stock) =>
+        Add(new Logistics(BuildableId.Of(id), LogisticsKind.StorageContainer, stock: Stock(stock)));
+
+    /// <summary>A train platform or drone port: a provider without a known rate, with what it holds now.</summary>
+    public TestWorld Station(string id, params (ItemId Item, decimal Count)[] stock) =>
+        Add(new Provider(BuildableId.Of(id), offer: null, Stock(stock)));
+
+    /// <summary>A drone port or truck station that unloads, and burns <paramref name="fuel"/>.</summary>
+    public TestWorld StationBurning(string id, ItemId fuel) => Add(new Provider(BuildableId.Of(id), burns: new HashSet<ItemId> { fuel }));
+
+    /// <summary>A truck station that only loads, and burns <paramref name="fuel"/>.</summary>
+    public TestWorld LoadingStationBurning(string id, ItemId fuel) => Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }));
 
     public TestWorld Junction(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.PipeJunction));
 
@@ -66,6 +77,9 @@ internal sealed class TestWorld
     }
 
     public WorldGraph Build() => new(_buildables, _connections);
+
+    private static Dictionary<ItemId, decimal> Stock((ItemId Item, decimal Count)[] stock) =>
+        stock.ToDictionary(entry => entry.Item, entry => entry.Count);
 
     private static Dictionary<ItemId, Rate> PerMinute(ItemId[] items, decimal rate) =>
         items.ToDictionary(item => item, _ => Rate.PerMinute(rate));

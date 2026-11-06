@@ -10,6 +10,8 @@ internal enum BuildableRole
     Provider,
     Consumer,
     Logistics,
+    /// <summary>A train platform, drone port or truck station: a provider or a consumer, as its linked ports say.</summary>
+    Station,
     /// <summary>Known, in the item network, but not modelled yet. Reported, and its connections are left out.</summary>
     Unsupported,
 }
@@ -46,11 +48,20 @@ internal static class GameClasses
         "Build_GeneratorBiomass_Automated_C", "Build_AlienPowerBuilding_C", "Build_Portal_C",
     ];
 
-    /// <summary>Stations load or unload per platform (BR-W1). That isn't modelled yet.</summary>
-    private static readonly HashSet<string> Unsupported =
-    [
-        "Build_TrainDockingStation_C", "Build_TrainDockingStationLiquid_C", "Build_TruckStation_C", "Build_DroneStation_C",
-    ];
+    /// <summary>
+    /// Stations, with the inventory that holds what they unload. Whether one unloads or loads, its ports decide
+    /// (BR-W1, BR-W8): a drone port keeps what drones brought apart from what it sends and its fuel.
+    /// </summary>
+    private static readonly Dictionary<string, string> Stations = new(StringComparer.Ordinal)
+    {
+        ["Build_TrainDockingStation_C"] = "inventory",
+        ["Build_TrainDockingStationLiquid_C"] = "inventory",
+        ["Build_TruckStation_C"] = "inventory",
+        ["Build_DroneStation_C"] = "OutputInventory",
+    };
+
+    /// <summary>Known, in the item network, but not modelled yet. None at the moment.</summary>
+    private static readonly HashSet<string> Unsupported = [];
 
     /// <summary>The single unnamed fluid port (<c>FGPipeConnectionFactory</c>) puts fluid out on these classes; elsewhere it takes fluid in.</summary>
     private static readonly HashSet<string> FluidPortIsOutput = ["Build_Converter_C"];
@@ -72,6 +83,11 @@ internal static class GameClasses
             return BuildableRole.Consumer;
         }
 
+        if (Stations.ContainsKey(className))
+        {
+            return BuildableRole.Station;
+        }
+
         if (Unsupported.Contains(className))
         {
             return BuildableRole.Unsupported;
@@ -79,6 +95,19 @@ internal static class GameClasses
 
         return TryLogisticsKindOf(className) is null ? BuildableRole.Unknown : BuildableRole.Logistics;
     }
+
+    /// <summary>
+    /// The inventory component that holds what a buildable can supply: a station's cargo, a storage container's content.
+    /// Null for everything else. Fluid buffers keep their fluid elsewhere, and it isn't read yet.
+    /// </summary>
+    public static string? StockInventoryOf(string className) =>
+        Stations.TryGetValue(className, out string? inventory) ? inventory
+        : className.StartsWith("Build_StorageContainer", StringComparison.Ordinal) ? "StorageInventory"
+        : null;
+
+    /// <summary>The inventory a drone port or truck station keeps its fuel in. Null for buildables that burn nothing.</summary>
+    public static string? FuelInventoryOf(string className) =>
+        className is "Build_DroneStation_C" or "Build_TruckStation_C" ? "FuelInventory" : null;
 
     /// <summary>The item a provider extracts when its class decides it, not its node: a water extractor pumps water.</summary>
     public static string? FixedResourceOf(string className) => className == "Build_WaterPump_C" ? "Desc_Water_C" : null;

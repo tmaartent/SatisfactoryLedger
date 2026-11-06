@@ -257,6 +257,50 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void A_machine_with_each_input_from_its_own_station_is_supplied_fully()
+    {
+        // Each station offers what its belt can carry, without waiting for the machine to accept the other input first.
+        FlowResult result = new TestFlow()
+            .UnknownSource("casing station").Belt("casings", capacity: 120)
+            .UnknownSource("frame station").Belt("frames", capacity: 120)
+            .Machine("blender", [(Ore, 30), (Plate, 20)], [(Ingot, 30)]).Belt("out").Sink("sink")
+            .Connect("casing station", "casings", "blender", "out", "sink")
+            .Connect("frame station", "frames", "blender")
+            .Run();
+
+        Assert.True(result.Settled);
+        Assert.Equal(1.0, result.Machine(Id("blender")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void Two_belts_bringing_the_same_item_to_a_machine_share_what_it_asks()
+    {
+        // Each belt offers 30 and the smelter asks 30: it takes 15 from each, as from a merger, and that settles.
+        FlowResult result = new TestFlow()
+            .Provider("miner 1", Ore, 30).Belt("ore 1").Provider("miner 2", Ore, 30).Belt("ore 2")
+            .Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+            .Connect("miner 1", "ore 1", "smelter", "ingots", "sink")
+            .Connect("miner 2", "ore 2", "smelter")
+            .Run();
+
+        Assert.True(result.Settled);
+        Assert.Equal(15, result.Flow(Id("ore 1"), Id("smelter"), Ore), Precision);
+        Assert.Equal(15, result.Flow(Id("ore 2"), Id("smelter"), Ore), Precision);
+    }
+
+    [Fact]
+    public void A_source_whose_rate_is_not_known_offers_what_its_belt_can_carry()
+    {
+        FlowResult result = new TestFlow()
+            .UnknownSource("station").Belt("ore", capacity: 120).Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+            .Connect("station", "ore", "smelter", "ingots", "sink")
+            .Run();
+
+        Assert.Equal(30, result.Flow(Id("station"), Id("ore"), Ore), Precision);
+        Assert.Empty(result.Bottlenecks);
+    }
+
+    [Fact]
     public void A_source_with_stock_for_30_minutes_or_more_is_confirmed_supplied()
     {
         // The packager's canisters from the test world: 60 a minute asked, 1,800 in stock, exactly 30 minutes.
@@ -285,6 +329,76 @@ public class SteadyStateTests
         UnknownSupply supply = Assert.Single(result.UnknownSupply);
         Assert.False(supply.Confirmed);
         Assert.Equal(751.0 / 60, supply.StockMinutes!.Value, Precision);
+    }
+
+    [Fact]
+    public void A_drone_port_takes_everything_its_input_brings_and_supplies_its_output()
+    {
+        // It sends what comes in to another port, and unloads what drones bring: both at once.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 120).Belt("to port")
+            .UnknownSource("drone port").Belt("from port").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+            .Connect("miner", "to port", "drone port", "from port", "smelter", "ingots", "sink")
+            .Run();
+
+        Assert.Empty(result.UnusedSupply);
+        Assert.Equal(30, result.Flow(Id("drone port"), Id("from port"), Ore), Precision);
+    }
+
+    // ---- Fuel for drones and trucks: what the other consumers leave ------------------------------------------------
+
+    private static readonly ItemId RocketFuel = ItemId.Of("Desc_PackagedRocketFuel_C");
+
+    /// <summary>60 rocket fuel split between a machine that burns 40 and a station that burns it too.</summary>
+    private static TestFlow FuelLine(Func<TestFlow, TestFlow> station) => station(new TestFlow()
+            .Provider("fuel source", RocketFuel, 60).Belt("fuel").Splitter("split")
+            .Belt("to generator").Machine("generator", [(RocketFuel, 40)], [])
+            .Belt("to station"))
+        .Connect("fuel source", "fuel", "split", "to generator", "generator")
+        .Connect("split", "to station", "station");
+
+    [Fact]
+    public void A_drone_port_takes_only_the_fuel_the_other_consumers_on_the_line_leave()
+    {
+        FlowResult result = FuelLine(flow => flow.StationBurning("station", RocketFuel)).Run();
+
+        Assert.Equal(1.0, result.Machine(Id("generator")).Utilisation, Precision);
+        Assert.Equal(20, result.Flow(Id("to station"), Id("station"), RocketFuel), Precision);
+    }
+
+    [Fact]
+    public void A_truck_station_that_only_loads_takes_only_the_fuel_the_others_leave()
+    {
+        FlowResult result = FuelLine(flow => flow.LoadingStationBurning("station", RocketFuel)).Run();
+
+        Assert.Equal(1.0, result.Machine(Id("generator")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void Cargo_for_a_station_is_taken_like_by_any_consumer()
+    {
+        // Ore isn't what it burns: the splitter divides it evenly, so the machine gets 30 of its 40.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").Splitter("split")
+            .Belt("to smelter").Machine("smelter", [(Ore, 40)], [])
+            .Belt("to station").StationBurning("station", RocketFuel)
+            .Connect("miner", "ore", "split", "to smelter", "smelter")
+            .Connect("split", "to station", "station")
+            .Run();
+
+        Assert.Equal(0.75, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_machine_whose_fuel_only_goes_to_a_drone_port_still_runs()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("source", Ore, 60).Belt("in").Machine("packager", Ore, 60, RocketFuel, 60).Belt("out")
+            .StationBurning("drone port", RocketFuel)
+            .Connect("source", "in", "packager", "out", "drone port")
+            .Run();
+
+        Assert.Equal(1.0, result.Machine(Id("packager")).Utilisation, Precision);
     }
 
     // ---- Belts carry solids, pipes carry fluids ----------------------------------------------------------------

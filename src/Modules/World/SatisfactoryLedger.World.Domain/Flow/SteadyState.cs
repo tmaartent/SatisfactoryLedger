@@ -13,6 +13,8 @@ namespace SatisfactoryLedger.World.Domain.Flow;
 /// took everything. That tells a starved machine (too little offered) from a blocked one (offered, but its output
 /// can't leave), and keeps two inputs of one machine from waiting for each other.
 /// A connection carries solids or fluids, as its belt or pipe does: solids and fluids are divided separately.
+/// Next to what it accepts, a connection can accept <b>spare</b>: what it takes only when the others have what they
+/// want, such as the fuel of a drone port or truck station. A sender serves spare last.
 /// Computed in <c>double</c>: results are approximations to <see cref="Tolerance"/> (BR-A10, ADR-0004).
 /// Each connected part of the network is simulated on its own: it settles at its own pace, and one that doesn't
 /// settle within <see cref="MaxSweeps"/> is reported as approximate without holding up the rest.
@@ -132,9 +134,10 @@ public static class SteadyState
         private readonly Dictionary<ItemId, double>[] _flow;
         private readonly Dictionary<ItemId, double>[] _offered;
         private readonly double[] _accept;
+        private readonly double[] _spare;
         private readonly Carries[] _carries;
         private readonly int[] _order;
-        private readonly HashSet<ItemId>[] _asked;
+        private readonly Dictionary<ItemId, double>[] _asked;
         private readonly Dictionary<BuildableId, MachineState> _machines = [];
 
         public Solver(FlowNetwork network)
@@ -153,6 +156,7 @@ public static class SteadyState
             _flow = [.. Enumerable.Range(0, edges).Select(_ => new Dictionary<ItemId, double>())];
             _offered = [.. Enumerable.Range(0, edges).Select(_ => new Dictionary<ItemId, double>())];
             _accept = [.. Enumerable.Repeat(double.PositiveInfinity, edges)];
+            _spare = new double[edges];
             _carries = [.. network.Edges.Select(edge => Both(CarriesOf(edge.From), CarriesOf(edge.To)))];
             _order = ForwardOrder();
             _asked = [.. Enumerable.Range(0, nodes).Select(AskedItems)];
@@ -193,17 +197,23 @@ public static class SteadyState
                 int node = _order[i];
                 switch (_network.Nodes[node])
                 {
-                    case FlowSink:
-                        _in[node].ForEach(edge => _accept[edge] = double.PositiveInfinity);
+                    case FlowSink sink:
+                        TakeEverything(node, sink.Burns);
+                        break;
+                    // A station takes everything loaded onto it, like a consumer, while it unloads to its outputs (BR-A8, BR-A9).
+                    case FlowUnknownSource source:
+                        TakeEverything(node, source.Burns);
                         break;
                     case FlowConduit conduit:
-                        ShareInputs(node, Math.Min(conduit.Capacity, AcceptedDownstream(node)));
+                        double firm = Math.Min(conduit.Capacity, AcceptedDownstream(node));
+                        ShareInputs(node, firm, Math.Min(Left(conduit.Capacity, firm), SpareDownstream(node)));
                         break;
                     case FlowSplitter or FlowMerger:
-                        ShareInputs(node, AcceptedDownstream(node));
+                        ShareInputs(node, AcceptedDownstream(node), SpareDownstream(node));
                         break;
                     case FlowMachine machine:
                         AcceptForMachine(node, machine);
+                        _in[node].ForEach(edge => _spare[edge] = 0);
                         break;
                 }
             }
@@ -211,13 +221,45 @@ public static class SteadyState
 
         private double AcceptedDownstream(int node) => _out[node].Sum(edge => _accept[edge]);
 
-        /// <summary>A node that can pass on <paramref name="available"/>: its inputs share it like a merger's (BR-A5).</summary>
-        private void ShareInputs(int node, double available)
+        private double SpareDownstream(int node) => _out[node].Sum(edge => _spare[edge]);
+
+        /// <summary>What a connection can take in all: what it accepts, and what it takes when there's some to spare.</summary>
+        private double Room(int edge) => _accept[edge] + _spare[edge];
+
+        /// <summary>What's left of a capacity once <paramref name="used"/> is taken. Unlimited stays unlimited.</summary>
+        private static double Left(double capacity, double used) =>
+            double.IsPositiveInfinity(capacity) ? double.PositiveInfinity : Math.Max(0, capacity - used);
+
+        /// <summary>
+        /// A consumer or station takes everything that comes in, except the fuel it burns: that it takes only when the
+        /// line's other consumers have what they want (option 2, step 14).
+        /// </summary>
+        private void TakeEverything(int node, IReadOnlySet<ItemId>? burns)
         {
-            List<int> inputs = _in[node];
+            foreach (int edge in _in[node])
+            {
+                List<ItemId> items = [.. _offered[edge].Where(entry => entry.Value > 0).Select(entry => entry.Key)];
+                bool fuel = burns is { Count: > 0 } && items.Count > 0 && items.All(burns.Contains);
+                _accept[edge] = fuel ? 0 : double.PositiveInfinity;
+                _spare[edge] = fuel ? double.PositiveInfinity : 0;
+            }
+        }
+
+        /// <summary>
+        /// A node that can pass on <paramref name="available"/>, and <paramref name="spare"/> on top: its inputs share
+        /// each like a merger's (BR-A5).
+        /// </summary>
+        private void ShareInputs(int node, double available, double spare)
+        {
+            Share(_in[node], available, _accept);
+            Share(_in[node], spare, _spare);
+        }
+
+        private void Share(List<int> inputs, double available, double[] accept)
+        {
             if (inputs.Count == 1)
             {
-                _accept[inputs[0]] = available;
+                accept[inputs[0]] = available;
                 return;
             }
 
@@ -226,42 +268,59 @@ public static class SteadyState
             for (int k = 0; k < inputs.Count; k++)
             {
                 // An input may take what the others leave, so an input that offers more later can grow into it.
-                _accept[inputs[k]] = available - (total - taken[k]);
+                accept[inputs[k]] = available - (total - taken[k]);
             }
         }
 
         /// <summary>
-        /// BR-A1: of each input item, a machine takes what its scarcest other input and its outputs allow. A belt bringing
-        /// an item it doesn't ask for clogs: nothing comes in over it.
+        /// BR-A1: of each input item, a machine takes what its scarcest other input and its outputs allow. When several
+        /// belts bring the same item, they share that like a merger's inputs: evenly, by what each offers. A belt
+        /// bringing an item it doesn't ask for clogs: nothing comes in over it.
         /// </summary>
         private void AcceptForMachine(int node, FlowMachine machine)
         {
             (double outputs, _) = OutputRoom(node, machine);
             Dictionary<ItemId, double> offered = Offered(node);
+            List<int> inputs = _in[node];
+            double[] accept = new double[inputs.Count];
+            bool[] clogged = new bool[inputs.Count];
+            List<ItemId>[] brings = new List<ItemId>[inputs.Count];
 
-            foreach (int edge in _in[node])
+            for (int k = 0; k < inputs.Count; k++)
             {
-                List<ItemId> items = [.. _offered[edge].Where(entry => entry.Value > 0).Select(entry => entry.Key)];
-                if (items.Count == 0)
+                int edge = inputs[k];
+                brings[k] = [.. _offered[edge].Where(entry => entry.Value > 0).Select(entry => entry.Key)];
+                if (brings[k].Count == 0)
                 {
-                    items = [.. machine.Demand.Keys.Where(item => CanCarry(edge, item))];
+                    brings[k] = [.. machine.Demand.Keys.Where(item => CanCarry(edge, item))];
                 }
 
-                if (items.Any(item => !machine.Demand.ContainsKey(item)))
+                clogged[k] = brings[k].Any(item => !machine.Demand.ContainsKey(item));
+            }
+
+            foreach ((ItemId item, double demand) in machine.Demand)
+            {
+                List<int> bringing = [.. Enumerable.Range(0, inputs.Count).Where(k => !clogged[k] && brings[k].Contains(item))];
+                if (bringing.Count == 0)
                 {
-                    _accept[edge] = 0;
                     continue;
                 }
 
-                double accept = 0;
-                foreach (ItemId item in items)
+                double needed = demand * Math.Min(outputs, ScarcestOtherThan(machine, offered, item));
+                // A belt that hasn't offered this item yet may bring any of it.
+                double[] taken = Waterfill(needed, [.. bringing.Select(k =>
+                    _offered[inputs[k]].TryGetValue(item, out double offer) && offer > 0 ? offer : double.PositiveInfinity)]);
+                double total = taken.Sum();
+                for (int j = 0; j < bringing.Count; j++)
                 {
-                    double share = Math.Min(outputs, ScarcestOtherThan(machine, offered, item));
-                    double fromOthers = _in[node].Where(other => other != edge).Sum(other => _flow[other].GetValueOrDefault(item));
-                    accept += Math.Max(0, machine.Demand[item] * share - fromOthers);
+                    // Each belt may take what the others leave, so one that offers more later can grow into it.
+                    accept[bringing[j]] += needed - (total - taken[j]);
                 }
+            }
 
-                _accept[edge] = accept;
+            for (int k = 0; k < inputs.Count; k++)
+            {
+                _accept[inputs[k]] = clogged[k] ? 0 : accept[k];
             }
         }
 
@@ -281,7 +340,7 @@ public static class SteadyState
                     continue;
                 }
 
-                double room = Math.Min(1, _out[node].Where(edge => CanCarry(edge, fluid)).Sum(edge => _accept[edge]) / making);
+                double room = Math.Min(1, _out[node].Where(edge => CanCarry(edge, fluid)).Sum(Room) / making);
                 if (room < tightest.Room)
                 {
                     tightest = (room, products[0]);
@@ -341,25 +400,42 @@ public static class SteadyState
             }
         }
 
-        /// <summary>BR-A9: a source with an unknown rate sends what is asked of it, of the items asked downstream.</summary>
+        /// <summary>
+        /// BR-A9: a source with an unknown rate sends what is asked of it, of the items asked downstream, up to what its
+        /// belts can carry.
+        /// </summary>
         private void SendAsked(int node)
         {
-            HashSet<ItemId> asked = _asked[node];
-            if (asked.Count == 0)
+            Dictionary<ItemId, double> asked = _asked[node];
+            double weight = asked.Values.Sum();
+            if (weight <= 0)
             {
                 return;
             }
 
-            double total = AcceptedDownstream(node);
+            double total = _out[node].Sum(Room);
             if (double.IsPositiveInfinity(total))
             {
                 // Nothing downstream limits it yet; the next backward pass will.
                 total = 0;
             }
 
-            Dictionary<ItemId, double> sending = asked.ToDictionary(item => item, _ => total / asked.Count);
-            Send(node, sending, sending);
+            // It offers what its belts can carry, whatever is taken so far. A machine with two inputs from two
+            // stations would otherwise wait for each: each takes one input only as far as the other is offered.
+            double offer = Math.Max(total, _out[node].Sum(CanCarryAtMost));
+            // Of each item as much as the machines it reaches ask for, relative to the others.
+            Dictionary<ItemId, double> sending = asked.ToDictionary(entry => entry.Key, entry => total * entry.Value / weight);
+            Dictionary<ItemId, double> offering = asked.ToDictionary(entry => entry.Key, entry => offer * entry.Value / weight);
+            Send(node, sending, offering);
         }
+
+        /// <summary>What a connection can carry at most: the capacity of the belt or pipe it leads to; else what it takes, if limited.</summary>
+        private double CanCarryAtMost(int edge) => _network.Nodes[_network.Edges[edge].To] switch
+        {
+            FlowConduit { Capacity: < double.PositiveInfinity } conduit => conduit.Capacity,
+            _ when !double.IsPositiveInfinity(Room(edge)) => Room(edge),
+            _ => 0,
+        };
 
         /// <summary>BR-A1: a machine runs at the lowest of what its inputs supply and what its outputs take.</summary>
         private void Run(int node, FlowMachine machine)
@@ -412,6 +488,7 @@ public static class SteadyState
 
             // What each output can still take: an output that carries anything is shared by solids and fluids.
             double[] room = [.. outputs.Select(edge => _accept[edge])];
+            double[] spare = [.. outputs.Select(edge => _spare[edge])];
             foreach (bool fluid in Forms)
             {
                 Dictionary<ItemId, double> sending = OfForm(items, fluid);
@@ -423,7 +500,10 @@ public static class SteadyState
 
                 bool[] carries = [.. outputs.Select(edge => CanCarry(edge, fluid))];
                 double total = Total(sending);
-                double[] sent = Waterfill(total, [.. Enumerable.Range(0, outputs.Count).Select(k => carries[k] ? room[k] : 0)]);
+                // First what the outputs accept, then what's left over to the ones that take spare.
+                double[] firm = Waterfill(total, [.. Enumerable.Range(0, outputs.Count).Select(k => carries[k] ? room[k] : 0)]);
+                double[] extra = Waterfill(total - firm.Sum(), [.. Enumerable.Range(0, outputs.Count).Select(k => carries[k] ? spare[k] : 0)]);
+                double[] sent = [.. Enumerable.Range(0, outputs.Count).Select(k => firm[k] + extra[k])];
                 double allSent = sent.Sum();
                 double offerTotal = Total(offering);
                 for (int k = 0; k < outputs.Count; k++)
@@ -450,7 +530,8 @@ public static class SteadyState
                         }
                     }
 
-                    room[k] -= sent[k];
+                    room[k] -= firm[k];
+                    spare[k] -= extra[k];
                 }
             }
         }
@@ -648,15 +729,18 @@ public static class SteadyState
             return [.. order];
         }
 
-        /// <summary>For a source with an unknown rate: the items the machines it feeds ask for, and the items it holds.</summary>
-        private HashSet<ItemId> AskedItems(int node)
+        /// <summary>
+        /// For a source with an unknown rate: the items the machines it feeds ask for, with how much they ask in all,
+        /// narrowed to the items it holds.
+        /// </summary>
+        private Dictionary<ItemId, double> AskedItems(int node)
         {
             if (_network.Nodes[node] is not FlowUnknownSource source)
             {
                 return [];
             }
 
-            HashSet<ItemId> asked = [];
+            Dictionary<ItemId, double> asked = [];
             HashSet<int> seen = [node];
             Queue<int> next = new([node]);
             while (next.TryDequeue(out int current))
@@ -668,7 +752,11 @@ public static class SteadyState
                     {
                         case FlowMachine machine:
                             // Only what its line can bring: a belt into a packager brings canisters, not water.
-                            asked.UnionWith(machine.Demand.Keys.Where(item => CanCarry(edge, item)));
+                            foreach ((ItemId item, double rate) in machine.Demand.Where(demand => CanCarry(edge, demand.Key)))
+                            {
+                                asked[item] = asked.GetValueOrDefault(item) + rate;
+                            }
+
                             break;
                         case FlowConduit or FlowSplitter or FlowMerger:
                             next.Enqueue(to);
@@ -679,7 +767,9 @@ public static class SteadyState
 
             // What it holds narrows it down when it's known; a station holding nothing right now still supplies what's asked.
             HashSet<ItemId> held = [.. source.Stock.Where(stock => stock.Value > 0).Select(stock => stock.Key)];
-            return held.Count > 0 && held.Overlaps(asked) ? [.. asked.Intersect(held)] : asked;
+            return held.Count > 0 && held.Overlaps(asked.Keys)
+                ? asked.Where(entry => held.Contains(entry.Key)).ToDictionary(entry => entry.Key, entry => entry.Value)
+                : asked;
         }
     }
 }

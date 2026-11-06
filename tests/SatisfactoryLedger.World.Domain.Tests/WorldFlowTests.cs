@@ -91,6 +91,40 @@ public class WorldFlowTests
     }
 
     [Fact]
+    public void A_station_that_unloads_supplies_what_is_asked_and_knows_its_stock()
+    {
+        TestWorld world = new TestWorld().Station("platform", (Items.IronOre, 4800)).Belt("out").Connect("platform", "out");
+
+        var platform = Assert.IsType<FlowUnknownSource>(Node(world, "platform"));
+
+        Assert.Equal(4800, platform.Stock[Items.IronOre]);
+    }
+
+    [Fact]
+    public void A_station_that_unloads_knows_what_it_burns()
+    {
+        TestWorld world = new TestWorld().StationBurning("port", Items.IronPlate);
+
+        Assert.Equal([Items.IronPlate], Assert.IsType<FlowUnknownSource>(Node(world, "port")).Burns!);
+    }
+
+    [Fact]
+    public void A_station_that_only_loads_knows_what_it_burns()
+    {
+        TestWorld world = new TestWorld().LoadingStationBurning("truck station", Items.IronPlate);
+
+        Assert.Equal([Items.IronPlate], Assert.IsType<FlowSink>(Node(world, "truck station")).Burns!);
+    }
+
+    [Fact]
+    public void A_container_nothing_feeds_knows_its_stock()
+    {
+        TestWorld world = new TestWorld().Container("box", (Items.IronPlate, 751)).Belt("out").Connect("box", "out");
+
+        Assert.Equal(751, Assert.IsType<FlowUnknownSource>(Node(world, "box")).Stock[Items.IronPlate]);
+    }
+
+    [Fact]
     public void A_pipe_junction_splits_and_merges_like_a_splitter()
     {
         TestWorld world = new TestWorld().Junction("junction");

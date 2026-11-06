@@ -22,15 +22,24 @@ public class GameClassesTests
         Assert.Equal(Enum.Parse<BuildableRole>(role), GameClasses.RoleOf(className));
     }
 
-    // Stations load or unload per platform (BR-W1). Until that's modelled, they're reported, not guessed.
+    // Whether a station is a provider or a consumer, its linked ports decide (BR-W1, BR-W8): see SaveFileReaderTests.
     [Theory]
     [InlineData("Build_TrainDockingStation_C")]
     [InlineData("Build_TrainDockingStationLiquid_C")]
     [InlineData("Build_TruckStation_C")]
     [InlineData("Build_DroneStation_C")]
-    public void Stations_are_not_supported_yet(string className)
+    public void Platforms_drone_ports_and_truck_stations_are_stations(string className)
     {
-        Assert.Equal(BuildableRole.Unsupported, GameClasses.RoleOf(className));
+        Assert.Equal(BuildableRole.Station, GameClasses.RoleOf(className));
+    }
+
+    [Theory]
+    [InlineData("Build_TrainDockingStation_C", "inventory")]
+    [InlineData("Build_DroneStation_C", "OutputInventory")]
+    [InlineData("Build_StorageContainerMk2_C", "StorageInventory")]
+    public void Stock_is_read_from_the_inventory_that_holds_what_can_be_supplied(string className, string inventory)
+    {
+        Assert.Equal(inventory, GameClasses.StockInventoryOf(className));
     }
 
     [Fact]

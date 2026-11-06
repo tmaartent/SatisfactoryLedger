@@ -97,6 +97,86 @@ public class SaveFileReaderTests
     }
 
     [Fact]
+    public void A_freight_platform_with_a_belt_on_its_output_unloads_so_it_is_a_provider()
+    {
+        Assert.Equal("Build_TrainDockingStation_C", Get<SavedProvider>(FreightPlatformUnloading).ClassName);
+    }
+
+    [Fact]
+    public void A_freight_platform_with_a_belt_on_its_input_loads_so_it_is_a_consumer()
+    {
+        Assert.Equal("Build_TrainDockingStation_C", Get<SavedConsumer>(FreightPlatformLoading).ClassName);
+    }
+
+    [Fact]
+    public void An_unloading_platform_holds_what_is_on_it()
+    {
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronScrew_C"] = 7666 }, Get<SavedProvider>(FreightPlatformUnloading).Stock);
+    }
+
+    [Fact]
+    public void A_drone_port_with_belts_on_both_sides_is_a_provider_holding_what_drones_brought()
+    {
+        // What it sends (reinforced plates) and its fuel are not what it supplies.
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_ModularFrame_C"] = 669 }, Get<SavedProvider>(DronePort).Stock);
+    }
+
+    [Fact]
+    public void A_truck_station_that_unloads_is_a_provider_holding_its_cargo_but_not_its_fuel()
+    {
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronPlate_C"] = 688 }, Get<SavedProvider>(TruckStationUnloading).Stock);
+    }
+
+    [Fact]
+    public void A_truck_station_that_only_loads_is_a_consumer()
+    {
+        Assert.Equal("Build_TruckStation_C", Get<SavedConsumer>(TruckStationLoading).ClassName);
+    }
+
+    [Fact]
+    public void A_drone_port_burns_the_fuel_in_its_fuel_slot()
+    {
+        Assert.Equal(["Desc_PackagedRocketFuel_C"], Get<SavedProvider>(DronePort).Burns!);
+    }
+
+    [Fact]
+    public void A_truck_station_that_only_loads_burns_the_fuel_in_its_fuel_slot()
+    {
+        Assert.Equal(["Desc_Fuel_C"], Get<SavedConsumer>(TruckStationLoading).Burns!);
+    }
+
+    [Fact]
+    public void A_station_with_an_empty_fuel_slot_burns_nothing_the_save_can_tell()
+    {
+        Assert.Empty(Get<SavedProvider>(TruckStationUnloading).Burns!);
+    }
+
+    [Fact]
+    public void A_freight_platform_burns_nothing()
+    {
+        Assert.Null(Get<SavedProvider>(FreightPlatformUnloading).Burns);
+    }
+
+    [Fact]
+    public void A_storage_container_holds_its_stock()
+    {
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronScrew_C"] = 1561 }, Get<SavedLogistics>(ScrewContainer).Stock);
+    }
+
+    [Fact]
+    public void An_empty_storage_container_holds_nothing()
+    {
+        Assert.Empty(Get<SavedLogistics>(Id("Build_StorageContainerMk2_C_2147239114")).Stock!);
+    }
+
+    [Fact]
+    public void A_station_is_connected_to_its_belts()
+    {
+        Assert.Contains(new Connection(FreightPlatformUnloading, Id("Build_ConveyorBeltMk1_C_2147417128")), Save.Connections);
+        Assert.Contains(new Connection(Id("Build_ConveyorBeltMk1_C_2147401246"), FreightPlatformLoading), Save.Connections);
+    }
+
+    [Fact]
     public void The_sink_is_a_consumer()
     {
         Assert.Equal("Build_ResourceSink_C", Get<SavedConsumer>(Sink).ClassName);

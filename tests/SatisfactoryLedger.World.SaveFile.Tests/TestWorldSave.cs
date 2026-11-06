@@ -11,6 +11,10 @@ namespace SatisfactoryLedger.World.SaveFile.Tests;
 /// Constructor D (Iron Rod): input unconnected, output belt ends in the air
 /// Water Extractor → Pipeline Mk.1 → Clean Pipeline Mk.2 → Packager (Packaged Water),
 ///   with empty canisters from a storage container and its output to another one
+/// Stations, each with belts to or from containers and sinks:
+///   Freight platform A unloads screws; freight platform B loads rods
+///   Drone port: loads reinforced plates and rocket fuel, unloads modular frames
+///   Truck station A: fed fuel, unloads iron plates; truck station B: loads screws, fed fuel
 /// </code>
 /// </summary>
 internal static class TestWorldSave
@@ -41,6 +45,12 @@ internal static class TestWorldSave
     public static readonly BuildableId BeltIntoContainer = Id("Build_ConveyorBeltMk1_C_2147276358");
     public static readonly BuildableId Pipeline = Id("Build_Pipeline_C_2147257932");
     public static readonly BuildableId CleanPipeline = Id("Build_PipelineMK2_NoIndicator_C_2147257019");
+    public static readonly BuildableId FreightPlatformUnloading = Id("Build_TrainDockingStation_C_2147427754");
+    public static readonly BuildableId FreightPlatformLoading = Id("Build_TrainDockingStation_C_2147409101");
+    public static readonly BuildableId DronePort = Id("Build_DroneStation_C_2147399058");
+    public static readonly BuildableId TruckStationUnloading = Id("Build_TruckStation_C_2147469334");
+    public static readonly BuildableId TruckStationLoading = Id("Build_TruckStation_C_2147458005");
+    public static readonly BuildableId ScrewContainer = Id("Build_StorageContainerMk2_C_2147456833");
 
     public static T Get<T>(BuildableId id) where T : SavedBuildable =>
         Assert.IsType<T>(Assert.Single(Save.Buildables, buildable => buildable.Id == id));

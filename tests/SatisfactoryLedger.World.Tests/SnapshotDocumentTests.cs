@@ -45,7 +45,7 @@ public class SnapshotDocumentTests
     {
         SnapshotDocument snapshot = Stored(IngotIron, IronPlate, IronRod, PackagedWater);
 
-        Assert.Equal(new SnapshotCounts(Machines: 5, Providers: 2, Consumers: 1, Logistics: 22, Connections: 28), snapshot.Counts());
+        Assert.Equal(new SnapshotCounts(Machines: 5, Providers: 5, Consumers: 6, Logistics: 37, Connections: 46), snapshot.Counts());
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
-        Assert.Equal(2, Stored().Version);
+        Assert.Equal(3, Stored().Version);
     }
 
     [Fact]
@@ -179,11 +179,48 @@ public class SnapshotDocumentTests
         Assert.Equal(["Desc_Water_C"], TestWorldSnapshot.Document.Fluids);
     }
 
+    private const string CanisterContainer = "Build_StorageContainerMk2_C_2147239114";
+
+    /// <summary>The test world with stock in the container that feeds the packager, as the adapter will read it.</summary>
+    private static SnapshotDocument WithCanisters(decimal count) => SnapshotDocument.FromJson(SnapshotDocument.Create(
+        TestWorldSnapshot.Saved with
+        {
+            Buildables =
+            [
+                .. TestWorldSnapshot.Saved.Buildables.Select(buildable => buildable.Id == BuildableId.Of(Id(CanisterContainer).Id)
+                    ? buildable with { Stock = new Dictionary<string, decimal> { ["Desc_FluidCanister_C"] = count } }
+                    : buildable),
+            ],
+        },
+        TestWorldSnapshot.Catalog).ToJson());
+
+    [Fact]
+    public void A_container_keeps_its_stock_in_the_snapshot()
+    {
+        Logistics container = Find<Logistics>(WithCanisters(751).ToWorldGraph(), CanisterContainer);
+
+        Assert.Equal(751, container.Stock[ItemId.Of("Desc_FluidCanister_C")]);
+    }
+
+    [Fact]
+    public void A_buildable_without_stock_has_none()
+    {
+        Assert.Empty(Find<Logistics>(TestWorldSnapshot.Document.ToWorldGraph(), CanisterContainer).Stock);
+    }
+
+    [Fact]
+    public void A_snapshot_from_before_stock_was_read_can_still_be_read()
+    {
+        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":3", "\"version\":2", StringComparison.Ordinal);
+
+        Assert.Equal(3, SnapshotDocument.FromJson(version2).Version);
+    }
+
     [Fact]
     public void A_snapshot_imported_before_rates_were_copied_can_still_be_read_and_traced()
     {
         string version1 = TestWorldSnapshot.Document.ToJson()
-            .Replace("\"version\":2", "\"version\":1", StringComparison.Ordinal);
+            .Replace("\"version\":3", "\"version\":1", StringComparison.Ordinal);
 
         WorldGraph world = SnapshotDocument.FromJson(version1).ToWorldGraph();
 
