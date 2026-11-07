@@ -1351,7 +1351,9 @@
           "limit",
           "limitingItem",
           "position",
-          "approximate"
+          "approximate",
+          "starvedOf",
+          "blockedOn"
         ],
         "type": "object",
         "properties": {
@@ -1389,6 +1391,20 @@
           },
           "approximate": {
             "type": "boolean"
+          },
+          "starvedOf": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "blockedOn": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
           },
           "onStock": {
             "type": [
@@ -1606,7 +1622,9 @@
           "limit",
           "limitingItem",
           "position",
-          "approximate"
+          "approximate",
+          "starvedOf",
+          "blockedOn"
         ],
         "type": "object",
         "properties": {
@@ -1647,6 +1665,20 @@
           },
           "approximate": {
             "type": "boolean"
+          },
+          "starvedOf": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "blockedOn": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
           },
           "onStock": {
             "type": [

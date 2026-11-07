@@ -20,6 +20,8 @@ internal sealed record ApproximatePart(int Buildables, int Sweeps, string Exampl
 /// The input it runs on from what it holds, because its belts bring less than it uses (BR-A17); null when it doesn't.
 /// </param>
 /// <param name="StockMinutes">How long that stock lasts at the rate it's used up; null when it doesn't run on stock.</param>
+/// <param name="StarvedOf">Every input it's offered less of than it needs at 100%, with the share it's offered; the worst first.</param>
+/// <param name="BlockedOn">Every product that can't all leave, with the share that can; the worst first.</param>
 internal sealed record MachineFinding(
     string Id,
     string ClassName,
@@ -29,6 +31,8 @@ internal sealed record MachineFinding(
     string? LimitingItem,
     PositionDocument? Position,
     bool Approximate,
+    IReadOnlyDictionary<string, double> StarvedOf,
+    IReadOnlyDictionary<string, double> BlockedOn,
     string? OnStock = null,
     double? StockMinutes = null);
 
@@ -79,6 +83,8 @@ internal sealed record GeneratorFinding(
     string? LimitingItem,
     PositionDocument? Position,
     bool Approximate,
+    IReadOnlyDictionary<string, double> StarvedOf,
+    IReadOnlyDictionary<string, double> BlockedOn,
     string? OnStock = null,
     double? StockMinutes = null);
 
@@ -246,6 +252,8 @@ internal static class SnapshotAnalysis
                         machine.LimitingItem,
                         buildables[machine.Id].Position,
                         approximate.Contains(machine.Id),
+                        Shares(machine.StarvedOf),
+                        Shares(machine.BlockedOn),
                         Stock(machine).Item,
                         Stock(machine).Minutes))
             ],
@@ -298,6 +306,8 @@ internal static class SnapshotAnalysis
                         generator.LimitingItem,
                         buildables[generator.Id].Position,
                         approximate.Contains(generator.Id),
+                        Shares(generator.StarvedOf),
+                        Shares(generator.BlockedOn),
                         Stock(generator).Item,
                         Stock(generator).Minutes))
             ],
@@ -375,6 +385,18 @@ internal static class SnapshotAnalysis
                     buildables[port.Id].Position,
                     approximate.Contains(port.Id)))
         ];
+    }
+
+    /// <summary>Shares worst first, to 4 decimals; none when the analysis is older than version 6.</summary>
+    private static Dictionary<string, double> Shares(IReadOnlyDictionary<string, double>? shares)
+    {
+        Dictionary<string, double> ordered = new(StringComparer.Ordinal);
+        foreach ((string item, double share) in (shares ?? new Dictionary<string, double>()).OrderBy(entry => entry.Value).ThenBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            ordered[item] = Round(share);
+        }
+
+        return ordered;
     }
 
     private static double Round(double value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);

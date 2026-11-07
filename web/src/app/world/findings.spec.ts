@@ -17,6 +17,8 @@ const machine = (id: string, limit: MachineFinding['limit'], limitingItem: strin
   position: { x: 0, y: 0, z: 0 },
   onStock,
   stockMinutes: onStock ? 123.4 : null,
+  starvedOf: limitingItem && limit === 'starved' ? { [limitingItem]: 0.5 } : {},
+  blockedOn: {},
 });
 
 const findings: Findings = {
@@ -37,6 +39,8 @@ const findings: Findings = {
       limitingItem: 'Desc_Water_C',
       position: null,
       approximate: false,
+      starvedOf: { Desc_Water_C: 0.5 },
+      blockedOn: {},
     },
   ],
   dronePorts: [

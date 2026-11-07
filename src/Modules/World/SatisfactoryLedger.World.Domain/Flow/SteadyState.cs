@@ -570,6 +570,30 @@ public static class SteadyState
             return tightest;
         }
 
+        /// <summary>BR-A11: every product its outputs can't take all of at 100%, with the share they can take.</summary>
+        private Dictionary<ItemId, double> BlockedProducts(int node, FlowMachine machine)
+        {
+            Dictionary<ItemId, double> blocked = [];
+            foreach (bool fluid in Forms)
+            {
+                List<ItemId> products = [.. machine.Production.Where(product => product.Value > 0 && IsFluid(product.Key) == fluid).Select(product => product.Key)];
+                double making = products.Sum(product => machine.Production[product]);
+                if (making <= 0)
+                {
+                    continue;
+                }
+
+                // Products of one form share the outputs that carry it, as in OutputRoom.
+                double room = Math.Min(1, _out[node].Where(edge => CanCarry(edge, fluid)).Sum(Room) / making);
+                if (room < RunningFrom)
+                {
+                    products.ForEach(product => blocked[product] = room);
+                }
+            }
+
+            return blocked;
+        }
+
         private Dictionary<ItemId, double> Supplied(int node) => SumOver(_in[node], _flow);
 
         private Dictionary<ItemId, double> Offered(int node) => SumOver(_in[node], _offered);
@@ -679,7 +703,18 @@ public static class SteadyState
             (MachineLimit limit, ItemId? item) = utilisation >= RunningFrom ? (MachineLimit.None, (ItemId?)null)
                 : outputs < offeredShare - Settle ? (MachineLimit.OutputBlocked, blocked ?? machine.Production.Keys.First())
                 : (MachineLimit.Starved, scarcest);
-            _machines[machine.Id] = new MachineState(machine.Id, Math.Min(1, utilisation), limit, item);
+            Dictionary<ItemId, double> offered = Offered(node);
+            Dictionary<ItemId, double> shortOf = machine.Demand
+                .Where(demand => demand.Value > 0)
+                .Select(demand => (Item: demand.Key, Share: ShareOf(machine, demand.Key, offered.GetValueOrDefault(demand.Key), demand.Value)))
+                .Where(input => input.Share < RunningFrom)
+                .ToDictionary(input => input.Item, input => input.Share);
+            // Offered in full but not arriving (its sender is held back itself): what arrives of the item it's starved of.
+            if (limit == MachineLimit.Starved && shortOf.Count == 0 && item is { } starvedOf && machine.Demand.TryGetValue(starvedOf, out double needed))
+            {
+                shortOf[starvedOf] = Math.Min(1, Supplied(node).GetValueOrDefault(starvedOf) / needed);
+            }
+            _machines[machine.Id] = new MachineState(machine.Id, Math.Min(1, utilisation), limit, item, shortOf, BlockedProducts(node, machine));
 
             Send(node,
                 machine.Production.ToDictionary(product => product.Key, product => product.Value * utilisation),

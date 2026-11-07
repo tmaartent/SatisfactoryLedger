@@ -69,6 +69,15 @@ public class StockFindingsTests
     }
 
     [Fact]
+    public void A_starved_machine_names_every_input_it_is_short_of_with_the_share_it_is_offered()
+    {
+        MachineFinding smelter = Machine(Analyse(holds: 899), Holding);
+
+        Assert.Equal(new Dictionary<string, double> { [Ore] = 0 }, smelter.StarvedOf);
+        Assert.Empty(smelter.BlockedOn);
+    }
+
+    [Fact]
     public void A_machine_whose_belts_bring_all_it_uses_is_not_running_on_stock()
     {
         MachineFinding smelter = Machine(Analyse(holds: 900), Fed);

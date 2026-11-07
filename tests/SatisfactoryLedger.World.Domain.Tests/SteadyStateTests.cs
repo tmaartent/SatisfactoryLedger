@@ -658,6 +658,60 @@ public class SteadyStateTests
         Assert.Equal(30, result.Flow(Id("second line"), Id("merge"), Ore), Precision);
     }
 
+    // ---- Which inputs are short, which outputs can't leave (BR-A11) ------------------------------------------------
+
+    [Fact]
+    public void A_machine_short_of_two_inputs_names_both_with_the_share_it_is_offered_of_each()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 15).Belt("ore").Provider("coal mine", Coal, 12).Belt("coal")
+            .Machine("foundry", [(Ore, 30), (Coal, 15)], [(Ingot, 30)]).Belt("out").Sink("sink")
+            .Connect("miner", "ore", "foundry", "out", "sink")
+            .Connect("coal mine", "coal", "foundry")
+            .Run();
+
+        MachineState foundry = result.Machine(Id("foundry"));
+        Assert.Equal(0.5, foundry.StarvedOf![Ore], Precision);
+        Assert.Equal(0.8, foundry.StarvedOf[Coal], Precision);
+    }
+
+    [Fact]
+    public void A_machine_short_of_one_input_names_only_that_one()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 15).Belt("ore").Provider("coal mine", Coal, 60).Belt("coal")
+            .Machine("foundry", [(Ore, 30), (Coal, 15)], [(Ingot, 30)]).Belt("out").Sink("sink")
+            .Connect("miner", "ore", "foundry", "out", "sink")
+            .Connect("coal mine", "coal", "foundry")
+            .Run();
+
+        Assert.Equal([Ore], result.Machine(Id("foundry")).StarvedOf!.Keys);
+    }
+
+    [Fact]
+    public void A_machine_whose_output_cannot_leave_names_the_product_with_the_share_that_can()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("out", capacity: 15).Sink("sink")
+            .Connect("miner", "ore", "smelter", "out", "sink")
+            .Run();
+
+        MachineState smelter = result.Machine(Id("smelter"));
+        Assert.Equal(0.5, smelter.BlockedOn![Ingot], Precision);
+        Assert.Empty(smelter.StarvedOf!);
+    }
+
+    [Fact]
+    public void A_running_machine_names_nothing()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("out").Sink("sink")
+            .Connect("miner", "ore", "smelter", "out", "sink")
+            .Run();
+
+        Assert.Equal((0, 0), (result.Machine(Id("smelter")).StarvedOf!.Count, result.Machine(Id("smelter")).BlockedOn!.Count));
+    }
+
     // ---- Running on stock (BR-A17): what a machine holds counts as supplied when it lasts --------------------------
 
     private static readonly ItemId Coal = Items.Coal;

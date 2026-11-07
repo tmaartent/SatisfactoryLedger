@@ -1,5 +1,6 @@
 using System.Text.Json;
 
+using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
 
 namespace SatisfactoryLedger.World.Simulation;
@@ -29,11 +30,15 @@ public sealed record AnalysisDocument(
     /// Version 4: generators burning a known fuel take only what they burn and make their waste (BR-A8).
     /// Version 5: what a machine or generator holds counts as supplied while it lasts 30 minutes (BR-A17), and loops
     /// start as if running (BR-A10).
+    /// Version 6: every input a machine is short of, and every product that can't leave, with their shares (BR-A11).
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     /// <summary>Simulates a world's flow network and keeps what the findings need.</summary>
+    private static Dictionary<string, double>? Names(IReadOnlyDictionary<ItemId, double>? shares) =>
+        shares?.ToDictionary(share => share.Key.Id, share => share.Value, StringComparer.Ordinal);
+
     public static AnalysisDocument Compute(FlowNetwork network)
     {
         ArgumentNullException.ThrowIfNull(network);
@@ -53,7 +58,10 @@ public sealed record AnalysisDocument(
 
         return new AnalysisDocument(
             CurrentVersion,
-            [.. result.Machines.Select(machine => new MachineStateDocument(machine.Machine.Id, machine.Utilisation, machine.Limit, machine.LimitingItem?.Id))],
+            [
+                .. result.Machines.Select(machine => new MachineStateDocument(
+                    machine.Machine.Id, machine.Utilisation, machine.Limit, machine.LimitingItem?.Id, Names(machine.StarvedOf), Names(machine.BlockedOn)))
+            ],
             [.. result.Bottlenecks.Select(bottleneck => new BottleneckDocument(bottleneck.Conduit.Id, bottleneck.Capacity, bottleneck.Flow, bottleneck.OfferedMore))],
             [.. result.UnusedSupply.Select(supply => new UnusedSupplyDocument(supply.Provider.Id, supply.Item.Id, supply.Offered, supply.Delivered))],
             [
@@ -76,7 +84,15 @@ public sealed record AnalysisDocument(
     public HashSet<string> Approximate() => [.. UnsettledParts.SelectMany(part => part.Buildables)];
 }
 
-public sealed record MachineStateDocument(string Id, double Utilisation, MachineLimit Limit, string? LimitingItem = null);
+/// <param name="StarvedOf">Per input it's short of, the share it's offered; null in an analysis older than version 6.</param>
+/// <param name="BlockedOn">Per product that can't all leave, the share that can; null in an analysis older than version 6.</param>
+public sealed record MachineStateDocument(
+    string Id,
+    double Utilisation,
+    MachineLimit Limit,
+    string? LimitingItem = null,
+    IReadOnlyDictionary<string, double>? StarvedOf = null,
+    IReadOnlyDictionary<string, double>? BlockedOn = null);
 
 public sealed record BottleneckDocument(string Id, double Capacity, double Flow, double OfferedMore);
 

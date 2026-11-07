@@ -51,7 +51,11 @@ public class FlowNetworkDocumentTests
         FlowResult original = SteadyState.Of(Network());
         FlowResult readBack = SteadyState.Of(RoundTrip(Network()));
 
-        Assert.Equal(original.Machine(Id("smelter")), readBack.Machine(Id("smelter")));
+        // A record compares its dictionaries by reference: compare the state and the lists apart.
+        (MachineState before, MachineState after) = (original.Machine(Id("smelter")), readBack.Machine(Id("smelter")));
+        Assert.Equal(before with { StarvedOf = null, BlockedOn = null }, after with { StarvedOf = null, BlockedOn = null });
+        Assert.Equal(before.StarvedOf, after.StarvedOf);
+        Assert.Equal(before.BlockedOn, after.BlockedOn);
         Assert.Equal(original.Into(Id("overflow")), readBack.Into(Id("overflow")));
         Assert.Equal(original.UnusedSupply, readBack.UnusedSupply);
     }

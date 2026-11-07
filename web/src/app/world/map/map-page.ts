@@ -36,6 +36,7 @@ import {
   statusLabels,
   toMapPoint,
 } from './map-model';
+import { LimitFacts, limitText } from '../limit-text';
 
 /** Every kilometre a grid line, over the whole game world (about −3.3 to 4.3 km east, −3.8 to 3.8 km north). */
 const GridStep = 1000;
@@ -100,6 +101,8 @@ export class MapPage {
   private readonly utilisations = computed(
     () => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine.utilisation])),
   );
+  /** Each machine's finding, by id: its tooltip says what it's short of or can't get rid of (BR-A11). */
+  private readonly machineFindings = computed(() => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine])));
   private readonly bottlenecks = computed(
     () => new Map((this.analysis.value()?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck])),
   );
@@ -223,6 +226,7 @@ export class MapPage {
     const machines = this.world.value()?.machines ?? [];
     const statuses = this.statuses();
     const utilisations = this.utilisations();
+    const findings = this.machineFindings();
     const highlighted = this.factoryMachines();
     if (!this.map) return;
 
@@ -244,6 +248,7 @@ export class MapPage {
         .bindTooltip(
           `<b>${this.names.building(machine.className)}</b> · ${this.names.recipe(machine.recipe)}<br>` +
             `${statusLabels[status]}${utilisation !== undefined ? ` · ${percent(utilisation)}` : ''}<br>` +
+            (findings.get(machine.id) ? this.limitLine(findings.get(machine.id)!) : '') +
             (machine.inputContents ? `In: ${this.contents(machine.inputContents)}<br>` : '') +
             (machine.outputContents ? `Out: ${this.contents(machine.outputContents)}<br>` : '') +
             positionInMetres(machine.position),
@@ -345,9 +350,8 @@ export class MapPage {
           .bindTooltip(
             `<b>${this.names.building(building.className)}</b><br>` +
               (generator
-                ? `Burns ${this.names.item(generator.fuel)} · ${statusLabels[generator.limit]} · ${percent(generator.utilisation)}` +
-                  (generator.limitingItem ? ` (${this.names.item(generator.limitingItem)})` : '') +
-                  '<br>'
+                ? `Burns ${this.names.item(generator.fuel)} · ${statusLabels[generator.limit]} · ${percent(generator.utilisation)}<br>` +
+                  this.limitLine(generator)
                 : '') +
               (building.contents ? `Holds: ${this.contents(building.contents)}<br>` : '') +
               positionInMetres(building.position),
@@ -356,6 +360,12 @@ export class MapPage {
         this.shapes.set(building.id, shape);
       }
     }
+  }
+
+  /** Why it runs as it does, as a tooltip line; empty when there's nothing to say. */
+  private limitLine(finding: LimitFacts): string {
+    const text = limitText(finding, (item) => this.names.item(item));
+    return text ? `${text}<br>` : '';
   }
 
   /** Contents in words, with the Catalog's item names. */

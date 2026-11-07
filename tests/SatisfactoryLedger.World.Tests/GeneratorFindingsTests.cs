@@ -64,4 +64,19 @@ public class GeneratorFindingsTests
         Assert.Equal((MachineLimit.OutputBlocked, "Desc_FluidCanister_C"), (packager.Limit, packager.LimitingItem));
         Assert.Equal((MachineLimit.Starved, "Desc_LiquidTurboFuel_C"), (Generator(FuelGenerator).Limit, Generator(FuelGenerator).LimitingItem));
     }
+
+    [Fact]
+    public void A_machine_whose_output_cannot_leave_names_every_product_that_cannot_with_the_share_that_can()
+    {
+        MachineFinding packager = Assert.Single(Analysis.Machines, machine => machine.Recipe == "Recipe_UnpackageTurboFuel_C");
+
+        Assert.Contains("Desc_FluidCanister_C", packager.BlockedOn.Keys);
+        Assert.All(packager.BlockedOn.Values, share => Assert.InRange(share, 0, 0.999));
+    }
+
+    [Fact]
+    public void A_starved_generator_names_the_fuel_it_is_short_of()
+    {
+        Assert.Contains("Desc_LiquidTurboFuel_C", Generator(FuelGenerator).StarvedOf.Keys);
+    }
 }

@@ -19,6 +19,7 @@ import { MachineLimit } from '../api/models/machine-limit';
 import { UnknownSupplyFinding } from '../api/models/unknown-supply-finding';
 import { CatalogNames } from '../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../shared/display';
+import { LimitFacts, limitText } from './limit-text';
 
 /**
  * What the world's analysis and a factory's analysis have in common (BR-A9 to A13). Only the world's has generators
@@ -115,19 +116,7 @@ export class FindingsView {
   }
 
   /** Why a machine or generator runs below 100%, in words; and when it runs on what it holds (BR-A17), on what. */
-  protected why(machine: Pick<MachineFinding, 'limit' | 'limitingItem' | 'onStock' | 'stockMinutes'>): string {
-    if (machine.limit === 'none' && machine.onStock) {
-      return `On stock: ${this.names.item(machine.onStock)}, lasts ${Math.round(machine.stockMinutes ?? 0)} min`;
-    }
-    switch (machine.limit) {
-      case 'starved':
-        return `Not enough ${this.names.item(machine.limitingItem)}`;
-      case 'outputBlocked':
-        return `${this.names.item(machine.limitingItem)} can't leave`;
-      case 'noRecipe':
-        return 'No recipe set';
-      default:
-        return '';
-    }
+  protected why(machine: LimitFacts): string {
+    return limitText(machine, (item) => this.names.item(item));
   }
 }

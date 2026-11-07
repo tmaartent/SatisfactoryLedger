@@ -95,6 +95,16 @@ You saw the encased uranium cell makers reported as starved of ore, while full o
 - **Tests** (`SteadyStateTests`): what an uploader takes from the leftovers is still offered to the factory, behind a smart splitter and behind a plain one. Both failed before the fix.
 - **Found by** solving your snapshot locally, with and without the uploader: without it, the cells came out output blocked at 76%.
 
+## Then: every input short, every output blocked
+
+You asked which inputs are starved and which outputs blocked: a finding named only one item, and the map tooltip none.
+
+- **Solver** (`SteadyState.Run`, `BlockedProducts`): `MachineState.StarvedOf` holds every input offered less than its demand at 100%, with that share; `BlockedOn` every product whose outputs can't take it all, with the share they can. A machine starved of something that's offered in full but doesn't arrive (its sender is held back) names that item with the share that arrives.
+- **Findings** carry both, worst first; the analysis version is 6 so stored analyses get them.
+- **Web** (`limit-text.ts`): one wording for the findings table and the map tooltip: "Not enough Uranium Ore (50%), Sulfur (80%)", "Can't all leave: Uranium Cell (76%)". *Choice to overrule:* shares are floored, so 99.5% shows as 99%, never 100%.
+- **Tests:** `SteadyStateTests`: short of two inputs names both with their shares · short of one names only that · an output that can't leave names the product with its share · a running machine names nothing. `StockFindingsTests`: a starved machine names every input it's short of. `GeneratorFindingsTests`: the blocked packager names its canisters; the starved fuel generator its turbofuel. Web `limit-text.spec.ts`: five cases.
+- **A record compares its dictionaries by reference**: `MachineState` with its new dictionaries broke a round-trip test. In the primer (Testing).
+
 ## Next
 
 The linear programme, as its own step: it finds the largest steady state, so balanced loops such as your Ficsonium pairs run at the top.
