@@ -9,11 +9,26 @@ namespace SatisfactoryLedger.World.SaveFile;
 /// <param name="Index">Which output of a splitter or input of a merger this is, counted from 0; null elsewhere.</param>
 internal sealed record Connector(BuildableId Owner, string Path, Port Port, string? LinkedTo, int? Index = null);
 
+/// <summary>The save's links as connections with a direction, and the pipe networks they made into hubs.</summary>
+internal sealed record Wiring(IReadOnlyList<Connection> Connections, IReadOnlyList<PipeNetwork> PipeNetworks);
+
+/// <summary>
+/// A connected pipe network (BR-A6): one hub that takes from every output feeding it and shares over every input it
+/// feeds, as the game treats a pipe network as one. <see cref="Pipes"/> are its pipes, junctions, pumps, valves and
+/// fluid buffers.
+/// </summary>
+internal sealed record PipeNetwork(BuildableId Hub, IReadOnlyList<BuildableId> Pipes)
+{
+    /// <summary>The hub's id: named after the network's pipe whose id sorts first, so it stays the same from save to save.</summary>
+    public static BuildableId HubOf(BuildableId firstPipe) => BuildableId.Of($"PipeNetwork:{firstPipe.Id}");
+}
+
 /// <summary>Turns the save's links into connections with a direction.</summary>
 internal static class ConnectionBuilder
 {
     /// <param name="inWorld">The buildables in the world. Links to anything else (an unsupported station) are left out.</param>
-    public static IReadOnlyList<Connection> Build(IReadOnlyCollection<Connector> connectors, IReadOnlySet<BuildableId> inWorld)
+    /// <param name="fluidBuffers">The fluid buffers in the world: in a pipe network, a buffer is no pipe (see <see cref="Networks"/>).</param>
+    public static Wiring Build(IReadOnlyCollection<Connector> connectors, IReadOnlySet<BuildableId> inWorld, IReadOnlySet<BuildableId> fluidBuffers)
     {
         Dictionary<string, Connector> byPath = connectors.ToDictionary(connector => connector.Path, StringComparer.Ordinal);
         List<Connection> directed = [];
@@ -52,44 +67,80 @@ internal static class ConnectionBuilder
             }
         }
 
-        return [.. directed, .. OrientAwayFromSources(directed, undirected)];
+        return Networks(directed, undirected, fluidBuffers);
     }
 
     /// <summary>
-    /// Pipes have no direction of their own. Fluid flows away from where it enters the pipe network (an extractor or
-    /// a machine's output), so walk the network outward from those points, breadth first.
-    /// A pipe that no source reaches gets no direction, and no connection.
+    /// Pipes have no direction of their own (decided 2026-11-07): each connected set of pipe links becomes one hub.
+    /// <list type="bullet">
+    /// <item>A pipe an output feeds sends into the hub; a pipe that feeds an input gets from the hub. Those pipes stay in
+    /// the flow, so their capacity still counts. A pipe that does both sends into the hub, and its input gets its share
+    /// straight from the hub.</item>
+    /// <item>The pipes inside a network aren't connected: they no longer carry anything of their own.</item>
+    /// <item>A fluid buffer in a network something feeds is full in steady state: it passes nothing. In a network nothing
+    /// else feeds, it feeds the hub (BR-A9).</item>
+    /// </list>
     /// </summary>
-    private static List<Connection> OrientAwayFromSources(List<Connection> directed, List<(BuildableId A, BuildableId B)> undirected)
+    private static Wiring Networks(List<Connection> directed, List<(BuildableId A, BuildableId B)> undirected, IReadOnlySet<BuildableId> fluidBuffers)
     {
-        ILookup<BuildableId, BuildableId> neighbours = undirected
-            .SelectMany(edge => new[] { (From: edge.A, To: edge.B), (From: edge.B, To: edge.A) })
-            .ToLookup(edge => edge.From, edge => edge.To);
-
-        Dictionary<BuildableId, int> depth = directed
-            .Select(connection => connection.To)
-            .Where(neighbours.Contains)
-            .Distinct()
-            .ToDictionary(fed => fed, _ => 0);
-        Queue<BuildableId> toVisit = new(depth.Keys);
-
-        while (toVisit.TryDequeue(out BuildableId? current))
+        Dictionary<BuildableId, BuildableId> root = [];
+        BuildableId Find(BuildableId id)
         {
-            foreach (BuildableId next in neighbours[current].Where(next => depth.TryAdd(next, depth[current] + 1)))
+            while (root.TryGetValue(id, out BuildableId? parent) && parent != id)
             {
-                toVisit.Enqueue(next);
+                id = parent;
             }
+
+            return id;
         }
 
-        List<Connection> oriented = [];
         foreach ((BuildableId a, BuildableId b) in undirected)
         {
-            if (depth.TryGetValue(a, out int depthA) && depth.TryGetValue(b, out int depthB) && depthA != depthB)
+            root.TryAdd(a, a);
+            root.TryAdd(b, b);
+            (BuildableId ra, BuildableId rb) = (Find(a), Find(b));
+            if (ra != rb)
             {
-                oriented.Add(depthA < depthB ? new Connection(a, b) : new Connection(b, a));
+                root[ra] = rb;
             }
         }
 
-        return oriented;
+        List<PipeNetwork> networks = [];
+        Dictionary<BuildableId, BuildableId> hubOf = [];
+        foreach (IGrouping<BuildableId, BuildableId> members in root.Keys.GroupBy(Find))
+        {
+            List<BuildableId> pipes = [.. members.OrderBy(id => id.Id, StringComparer.Ordinal)];
+            BuildableId hub = PipeNetwork.HubOf(pipes[0]);
+            networks.Add(new PipeNetwork(hub, pipes));
+            pipes.ForEach(pipe => hubOf[pipe] = hub);
+        }
+
+        HashSet<BuildableId> fed = [.. directed.Where(connection => hubOf.ContainsKey(connection.To)).Select(connection => connection.To)];
+        HashSet<BuildableId> fedHubs = [.. fed.Select(pipe => hubOf[pipe])];
+        List<Connection> connections = [];
+        foreach (Connection connection in directed)
+        {
+            if (hubOf.TryGetValue(connection.From, out BuildableId? hub) && fed.Contains(connection.From))
+            {
+                // A pipe an output feeds sends everything into the hub; its input gets its share from there.
+                connections.Add(connection with { From = hub, FromPort = null });
+            }
+            else if (hubOf.TryGetValue(connection.From, out hub))
+            {
+                connections.Add(connection);
+                connections.Add(new Connection(hub, connection.From));
+            }
+            else
+            {
+                connections.Add(connection);
+            }
+        }
+
+        connections.AddRange(fed.Select(pipe => new Connection(pipe, hubOf[pipe])));
+        connections.AddRange(networks
+            .Where(network => !fedHubs.Contains(network.Hub))
+            .SelectMany(network => network.Pipes.Where(fluidBuffers.Contains).Select(buffer => new Connection(buffer, network.Hub))));
+
+        return new Wiring([.. connections.Distinct()], networks);
     }
 }

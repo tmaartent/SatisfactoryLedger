@@ -114,8 +114,11 @@ export class FindingsView {
     return short > 0.005 ? `${perMinute(short)} short` : '';
   }
 
-  /** Why a machine or generator runs below 100%, in words. */
-  protected why(machine: Pick<MachineFinding, 'limit' | 'limitingItem'>): string {
+  /** Why a machine or generator runs below 100%, in words; and when it runs on what it holds (BR-A17), on what. */
+  protected why(machine: Pick<MachineFinding, 'limit' | 'limitingItem' | 'onStock' | 'stockMinutes'>): string {
+    if (machine.limit === 'none' && machine.onStock) {
+      return `On stock: ${this.names.item(machine.onStock)}, lasts ${Math.round(machine.stockMinutes ?? 0)} min`;
+    }
     switch (machine.limit) {
       case 'starved':
         return `Not enough ${this.names.item(machine.limitingItem)}`;

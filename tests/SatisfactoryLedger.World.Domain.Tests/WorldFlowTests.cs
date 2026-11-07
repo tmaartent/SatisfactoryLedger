@@ -118,6 +118,32 @@ public class WorldFlowTests
     }
 
     [Fact]
+    public void An_input_whose_stock_lasts_thirty_minutes_counts_as_stocked()
+    {
+        // 30 a minute for 30 minutes.
+        TestWorld world = new TestWorld().MachineHolding("smelter", Items.IronOre, 30, Items.IronIngot, 30, holds: 900);
+
+        Assert.Equal([Items.IronOre], Assert.IsType<FlowMachine>(Node(world, "smelter")).Stocked!);
+    }
+
+    [Fact]
+    public void An_input_whose_stock_runs_out_sooner_does_not()
+    {
+        TestWorld world = new TestWorld().MachineHolding("smelter", Items.IronOre, 30, Items.IronIngot, 30, holds: 899);
+
+        Assert.Empty(Assert.IsType<FlowMachine>(Node(world, "smelter")).Stocked!);
+    }
+
+    [Fact]
+    public void A_generator_whose_fuel_stock_lasts_counts_it_as_stocked()
+    {
+        // A plutonium plant burns 0.1 rod a minute: 50 rods last 500 minutes.
+        TestWorld world = new TestWorld().GeneratorHolding("plant", Items.Coal, 0.1m, holds: 50);
+
+        Assert.Equal([Items.Coal], Assert.IsType<FlowMachine>(Node(world, "plant")).Stocked!);
+    }
+
+    [Fact]
     public void A_drone_port_that_unloads_knows_how_much_it_burns()
     {
         TestWorld world = new TestWorld().StationBurning("port", Items.IronPlate, Rate.Of(5, 3));

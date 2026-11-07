@@ -20,9 +20,9 @@ Ideas the owner wants kept, but not planned yet. Each says what it is, why it's 
 - **Size:** a world like the owner's big one has about 45,000 connections and a few items each, so tens of thousands of variables. That's fine for an LP solver.
 - **Testing:** the current sweep solver and its tests stay as the reference. Both can run on the same networks and are compared within the tolerance.
 
-### Loops the iterative solver finds at zero (step 23)
+### Loops the iterative solver can't push to the top (steps 23 and 25)
 
-The owner's nitric acid and non-fissile uranium blenders each need what the other makes. "Both at zero" is a steady state, and the sweeps, which start from zero, find it. Starting from the top (every connection offering plenty) found the loop running, but shifted results elsewhere: four inputs of one machine locked at the same 68%. A linear programme maximising flow finds the largest steady state directly, with no start point. That's one more reason for it.
+The owner's nitric acid and non-fissile uranium blenders each need what the other makes; so do the Ficsonium encoders and colliders. Step 25 starts loops as if running (BR-A10), so they no longer stay at zero. But in a balanced loop with nothing outside it to limit it, **every speed is a steady state**: in the big world the four Ficsonium encoder–collider pairs settle at 4% to 55%, while in the game they run at 100%. Sweeps have no reason to prefer the top. A linear programme maximising flow finds the largest steady state directly. That's now the main reason for it.
 
 ### What a truck station burns
 *Raised 2026-11-05, step 14. Drones done in step 24 (BR-A16, ADR-0022).*

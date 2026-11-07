@@ -80,6 +80,9 @@ public sealed record SavedConsumer(BuildableId Id, string ClassName) : SavedBuil
 
     /// <summary>True for a dimensional depot uploader: it takes only what's left over (BR-A8).</summary>
     public bool TakesLeftoversOnly { get; init; }
+
+    /// <summary>For a generator: the fuel in it now (<c>mFuelInventory</c>), per item class name. Null for other consumers.</summary>
+    public IReadOnlyDictionary<string, decimal>? FuelContents { get; init; }
 }
 
 /// <param name="SortRules">A smart or programmable splitter's rules; null for every other piece of logistics.</param>

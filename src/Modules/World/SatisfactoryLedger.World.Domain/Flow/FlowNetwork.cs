@@ -5,8 +5,15 @@ public abstract record FlowNode(BuildableId Id);
 
 /// <param name="Demand">Per input item, what it asks per minute at 100% utilisation: recipe rate × clock speed.</param>
 /// <param name="Production">Per output item, what it makes per minute at 100%: recipe rate × clock speed × production boost.</param>
-public sealed record FlowMachine(BuildableId Id, IReadOnlyDictionary<ItemId, double> Demand, IReadOnlyDictionary<ItemId, double> Production)
-    : FlowNode(Id);
+/// <param name="Stocked">
+/// The inputs whose stock inside it lasts at least <see cref="SteadyState.ConfirmedMinutes"/> at its demand: they count
+/// as supplied, whatever comes in (BR-A17). It still takes what its belts bring of them.
+/// </param>
+public sealed record FlowMachine(
+    BuildableId Id,
+    IReadOnlyDictionary<ItemId, double> Demand,
+    IReadOnlyDictionary<ItemId, double> Production,
+    IReadOnlySet<ItemId>? Stocked = null) : FlowNode(Id);
 
 /// <param name="Offer">What it can deliver per minute (BR-A2).</param>
 public sealed record FlowProvider(BuildableId Id, ItemId Item, double Offer) : FlowNode(Id);

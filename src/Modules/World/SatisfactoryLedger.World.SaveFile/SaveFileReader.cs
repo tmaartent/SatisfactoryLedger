@@ -93,6 +93,8 @@ public static class SaveFileReader
                     Fuel = ShortNameOrNull(ObjectPath(actor, "mCurrentFuelClass")),
                     ClockSpeed = GameClasses.IsGenerator(className) ? ClockSpeedOf(actor) : null,
                     TakesLeftoversOnly = GameClasses.IsUploader(className),
+                    // BR-A17: what it holds of its fuel; a stock that lasts counts as supplied.
+                    FuelContents = GameClasses.IsGenerator(className) ? InventoryOf(actor, "mFuelInventory", byPath) : null,
                 },
                 // BR-W1, BR-W8: belts leaving a station's outputs make it unload; belts into its inputs only, load.
                 BuildableRole.Station when unloads => new SavedProvider(id, className, Node: null, ClockSpeed.Percent(100))
@@ -132,10 +134,14 @@ public static class SaveFileReader
         }
 
         HashSet<BuildableId> inWorld = [.. buildables.Select(buildable => buildable.Id)];
+        HashSet<BuildableId> fluidBuffers = [.. buildables.OfType<SavedLogistics>().Where(logistics => logistics.Kind == LogisticsKind.FluidBuffer).Select(logistics => logistics.Id)];
+        Wiring wiring = ConnectionBuilder.Build(connectors, inWorld, fluidBuffers);
+        // BR-A6: each pipe network is one hub; it stands nowhere, so the map doesn't draw it.
+        buildables.AddRange(wiring.PipeNetworks.Select(network => new SavedLogistics(network.Hub, GameClasses.PipeNetworkClass, LogisticsKind.PipeNetwork)));
         return new SavedWorld(
             new SaveInfo(header.SessionName, header.BuildVersion, header.SaveDateTimeUtc),
             buildables,
-            ConnectionBuilder.Build(connectors, inWorld),
+            wiring.Connections,
             [.. unsupported.OrderBy(entry => entry.Key, StringComparer.Ordinal).Select(entry => new UnsupportedBuildables(entry.Key, entry.Value))]);
     }
 

@@ -301,11 +301,24 @@ public class SaveFileReaderTests
     }
 
     [Fact]
-    public void Water_flows_from_the_extractor_through_both_pipelines_into_the_packager()
+    public void Water_flows_from_the_extractor_through_the_pipe_network_into_the_packager()
     {
+        // BR-A6: the two pipelines are one network; its hub is named after the pipe that sorts first.
+        BuildableId hub = PipeNetwork.HubOf(new[] { Pipeline, CleanPipeline }.MinBy(id => id.Id, StringComparer.Ordinal)!);
+
         Assert.Contains(new Connection(WaterExtractor, Pipeline), Save.Connections);
-        Assert.Contains(new Connection(Pipeline, CleanPipeline), Save.Connections);
+        Assert.Contains(new Connection(Pipeline, hub), Save.Connections);
+        Assert.Contains(new Connection(hub, CleanPipeline), Save.Connections);
         Assert.Contains(new Connection(CleanPipeline, Packager), Save.Connections);
+    }
+
+    [Fact]
+    public void A_pipe_network_is_a_logistics_hub_that_stands_nowhere()
+    {
+        List<SavedLogistics> hubs = [.. Save.Buildables.OfType<SavedLogistics>().Where(logistics => logistics.Kind == LogisticsKind.PipeNetwork)];
+
+        Assert.NotEmpty(hubs);
+        Assert.All(hubs, hub => Assert.Equal(("PipeNetwork", (SavedPosition?)null), (hub.ClassName, hub.Position)));
     }
 
     [Fact]
@@ -485,6 +498,14 @@ public class SaveFileReaderTests
         Assert.All(
             Save.Buildables.OfType<SavedConsumer>().Where(consumer => consumer.ClassName == "Build_ResourceSink_C"),
             sink => Assert.Null(sink.Fuel));
+    }
+
+    [Fact]
+    public void A_generator_holds_the_fuel_in_it_and_its_water_in_litres()
+    {
+        var plant = Assert.IsType<SavedConsumer>(GeneratorsSave.Buildables.Single(buildable => buildable.Id == NuclearPlant));
+
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_NuclearFuelRod_C"] = 50, ["Desc_Water_C"] = 50_000 }, plant.FuelContents);
     }
 
     [Fact]

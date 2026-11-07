@@ -53,8 +53,9 @@ internal sealed record SnapshotDocument(
     /// version 6 snapshot every generator takes everything, as before.
     /// Version 8 added drones: each home port's route, and the Catalog's drone port (BR-A16); in a version 7 snapshot
     /// every drone port takes its fuel from what's left, as before.
+    /// Version 9 made each pipe network one hub (BR-A6); a version 8 snapshot keeps the pipe directions guessed at import.
     /// </summary>
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 9;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -123,7 +124,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 or 5 or 6 or 7 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 or 7 or 8 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),
@@ -134,7 +135,8 @@ internal sealed record SnapshotDocument(
         Buildables.Count(buildable => buildable.Role == BuildableDocumentRole.Machine),
         Buildables.Count(buildable => buildable.Role == BuildableDocumentRole.Provider),
         Buildables.Count(buildable => buildable.Role == BuildableDocumentRole.Consumer),
-        Buildables.Count(buildable => buildable.Role == BuildableDocumentRole.Logistics),
+        // A pipe network's hub isn't built by the player (BR-A6): not counted.
+        Buildables.Count(buildable => buildable.Role == BuildableDocumentRole.Logistics && buildable.Kind != LogisticsKind.PipeNetwork),
         Connections.Count);
 
     /// <summary>The world as a network the flow analysis can run on.</summary>
@@ -231,7 +233,7 @@ internal sealed record BuildableDocument(
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
     {
         Contents = (saved as SavedLogistics)?.Contents,
-        InputContents = CubicMetres((saved as SavedMachine)?.InputContents, fluids),
+        InputContents = CubicMetres((saved as SavedMachine)?.InputContents ?? (saved as SavedConsumer)?.FuelContents, fluids),
         OutputContents = CubicMetres((saved as SavedMachine)?.OutputContents, fluids),
         Position = saved.Position is { } position ? new PositionDocument(position.X, position.Y, position.Z) : null,
         Yaw = Math.Round(saved.Yaw, 2),
@@ -270,9 +272,15 @@ internal sealed record BuildableDocument(
                 id,
                 Recipe is not null && catalog.Recipes.TryGetValue(Recipe, out RecipeDocument? recipe) ? recipe.ToRecipe() : null,
                 Clock(),
-                ProductionBoost ?? 1),
+                ProductionBoost ?? 1)
+            {
+                InputStock = InputStockOf(),
+            },
             BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf(), burnRate),
-            BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf(), GenerationOf(catalog), TakesLeftoversOnly, burnRate),
+            BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf(), GenerationOf(catalog), TakesLeftoversOnly, burnRate)
+            {
+                InputStock = InputStockOf(),
+            },
             BuildableDocumentRole.Logistics => new Logistics(
                 id,
                 Kind ?? throw new JsonException($"Logistics {Id} has no kind"),
@@ -329,6 +337,10 @@ internal sealed record BuildableDocument(
             ? null
             : ItemOffer.Extracting(ItemId.Of(resource), Rate.FromRecipe(extractor.AmountPerCycle, extractor.CycleSeconds), purity, Clock());
     }
+
+    /// <summary>BR-A17: what a machine or generator holds of its inputs; none in a snapshot older than its contents.</summary>
+    private Dictionary<ItemId, decimal> InputStockOf() =>
+        (InputContents ?? new Dictionary<string, decimal>()).ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value);
 
     private HashSet<ItemId>? BurnsOf() => Burns?.Select(ItemId.Of).ToHashSet();
 

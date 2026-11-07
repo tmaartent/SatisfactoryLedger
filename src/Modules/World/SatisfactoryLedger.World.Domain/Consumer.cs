@@ -31,6 +31,11 @@ public sealed class Consumer(
     /// <summary>How much of its fuel it burns per minute; null when that isn't known (BR-A16).</summary>
     public Rate? BurnRate { get; } = burnRate;
 
+    /// <summary>
+    /// For a generator: the fuel it holds at save time, per item. A stock that lasts counts as supplied (BR-A17).
+    /// </summary>
+    public IReadOnlyDictionary<ItemId, decimal> InputStock { get; init; } = new Dictionary<ItemId, decimal>();
+
     /// <summary>Null for a sink, an uploader, a station, or a generator whose fuel isn't known: it takes everything.</summary>
     public Generation? Generation { get; } = generation;
 }

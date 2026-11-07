@@ -72,7 +72,7 @@ public abstract record FlowNodeDocument(string Id)
     {
         FlowProvider provider => new ProviderDocument(provider.Id.Id, provider.Item.Id, provider.Offer),
         FlowUnknownSource source => new UnknownSourceDocument(source.Id.Id, Items(source.Stock), source.Carries, Names(source.Burns), source.BurnRate),
-        FlowMachine machine => new MachineDocument(machine.Id.Id, Items(machine.Demand), Items(machine.Production)),
+        FlowMachine machine => new MachineDocument(machine.Id.Id, Items(machine.Demand), Items(machine.Production), Names(machine.Stocked)),
         // JSON has no infinity: a conduit without a limit has no capacity.
         FlowConduit conduit => new ConduitDocument(conduit.Id.Id, double.IsPositiveInfinity(conduit.Capacity) ? null : conduit.Capacity, conduit.Carries),
         FlowSplitter splitter => new SplitterDocument(splitter.Id.Id, splitter.Carries,
@@ -107,10 +107,12 @@ public sealed record UnknownSourceDocument(
     public override FlowNode ToNode() => new FlowUnknownSource(BuildableId.Of(Id), Items(Stock), Carries, Items(Burns), BurnRate);
 }
 
-public sealed record MachineDocument(string Id, IReadOnlyDictionary<string, double> Demand, IReadOnlyDictionary<string, double> Production)
+/// <param name="Stocked">The inputs whose stock inside it lasts (BR-A17); null when none.</param>
+public sealed record MachineDocument(
+    string Id, IReadOnlyDictionary<string, double> Demand, IReadOnlyDictionary<string, double> Production, IReadOnlyList<string>? Stocked = null)
     : FlowNodeDocument(Id)
 {
-    public override FlowNode ToNode() => new FlowMachine(BuildableId.Of(Id), Items(Demand), Items(Production));
+    public override FlowNode ToNode() => new FlowMachine(BuildableId.Of(Id), Items(Demand), Items(Production), Items(Stocked));
 }
 
 /// <param name="Capacity">Per minute; null when there's no limit.</param>

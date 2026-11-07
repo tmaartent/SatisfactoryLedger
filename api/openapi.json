@@ -1389,6 +1389,19 @@
           },
           "approximate": {
             "type": "boolean"
+          },
+          "onStock": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stockMinutes": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
@@ -1634,6 +1647,19 @@
           },
           "approximate": {
             "type": "boolean"
+          },
+          "onStock": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stockMinutes": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },

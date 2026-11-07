@@ -19,6 +19,10 @@ internal sealed class TestFlow
     public TestFlow Machine(string id, (ItemId Item, double Rate)[] demand, (ItemId Item, double Rate)[] production) =>
         Add(new FlowMachine(Id(id), demand.ToDictionary(e => e.Item, e => e.Rate), production.ToDictionary(e => e.Item, e => e.Rate)));
 
+    /// <summary>A machine whose stock of <paramref name="stocked"/> lasts at least 30 minutes (BR-A17).</summary>
+    public TestFlow MachineOnStock(string id, (ItemId Item, double Rate)[] demand, (ItemId Item, double Rate)[] production, params ItemId[] stocked) =>
+        Add(new FlowMachine(Id(id), demand.ToDictionary(e => e.Item, e => e.Rate), production.ToDictionary(e => e.Item, e => e.Rate), stocked.ToHashSet()));
+
     /// <summary>A machine with one input and one output.</summary>
     public TestFlow Machine(string id, ItemId input, double asks, ItemId output, double makes) =>
         Machine(id, [(input, asks)], [(output, makes)]);
@@ -33,6 +37,9 @@ internal sealed class TestFlow
     public TestFlow Belt(string id, double capacity = 1200) => Add(new FlowConduit(Id(id), capacity, Carries.Solids));
 
     public TestFlow Pipe(string id, double capacity = 600) => Add(new FlowConduit(Id(id), capacity, Carries.Fluids));
+
+    /// <summary>A pipe network as one hub (BR-A6): it merges what feeds it and shares it over what it feeds.</summary>
+    public TestFlow PipeNetwork(string id) => Add(new FlowSplitter(Id(id), Carries.Fluids));
 
     public TestFlow Splitter(string id) => Add(new FlowSplitter(Id(id), Carries.Solids));
 

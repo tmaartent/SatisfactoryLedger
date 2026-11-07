@@ -44,6 +44,16 @@ public class GeneratorSnapshotTests
     }
 
     [Fact]
+    public void A_nuclear_plant_holding_50_rods_counts_its_fuel_as_stocked_but_not_its_few_minutes_of_water()
+    {
+        // 50 rods at 0.2 a minute last 250 minutes; 50 m³ of water at 240 a minute, 12.5 seconds (BR-A17).
+        var plant = Assert.IsType<SatisfactoryLedger.World.Domain.Flow.FlowMachine>(
+            WithGenerators.ToFlowNetwork().Nodes.Single(node => node.Id == BuildableId.Of(NuclearPlant)));
+
+        Assert.Equal([ItemId.Of("Desc_NuclearFuelRod_C")], plant.Stocked!);
+    }
+
+    [Fact]
     public void Water_and_turbofuel_are_fluids_of_the_snapshot()
     {
         Assert.Superset(new HashSet<string> { "Desc_Water_C", "Desc_LiquidTurboFuel_C" }, WithGenerators.Fluids.ToHashSet());

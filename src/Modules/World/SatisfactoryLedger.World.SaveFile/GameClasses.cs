@@ -150,6 +150,9 @@ internal static class GameClasses
     };
 
     /// <summary>The inventory a drone port or truck station keeps its fuel in. Null for buildables that burn nothing.</summary>
+    /// <summary>The class name of a pipe network's hub (BR-A6): not a class of the game, since the game has no such buildable.</summary>
+    public const string PipeNetworkClass = "PipeNetwork";
+
     /// <summary>A drone port: its drone's route decides what it burns (BR-A16).</summary>
     public static bool IsDronePort(string className) => className == "Build_DroneStation_C";
 

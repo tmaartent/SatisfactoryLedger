@@ -6,7 +6,7 @@ import { CatalogNames } from '../shared/catalog-names';
 import { classNameAsWords } from '../shared/display';
 import { Findings, FindingsView } from './findings';
 
-const machine = (id: string, limit: MachineFinding['limit'], limitingItem: string | null = null): MachineFinding => ({
+const machine = (id: string, limit: MachineFinding['limit'], limitingItem: string | null = null, onStock: string | null = null): MachineFinding => ({
   id,
   className: 'Build_ConstructorMk1_C',
   recipe: 'Recipe_IronPlate_C',
@@ -15,12 +15,14 @@ const machine = (id: string, limit: MachineFinding['limit'], limitingItem: strin
   limitingItem,
   approximate: false,
   position: { x: 0, y: 0, z: 0 },
+  onStock,
+  stockMinutes: onStock ? 123.4 : null,
 });
 
 const findings: Findings = {
   // As the API sends them: every machine, the one running worst first.
   summary: { machines: 3, running: 1, starved: 1, outputBlocked: 1, noRecipe: 0 },
-  machines: [machine('a', 'starved', 'Desc_IronIngot_C'), machine('b', 'outputBlocked', 'Desc_IronPlate_C'), machine('c', 'none')],
+  machines: [machine('a', 'starved', 'Desc_IronIngot_C'), machine('b', 'outputBlocked', 'Desc_IronPlate_C'), machine('c', 'none', null, 'Desc_PlutoniumWaste_C')],
   bottlenecks: [],
   unusedSupply: [],
   unknownSupply: [],
@@ -150,5 +152,13 @@ describe('FindingsView', () => {
     const link = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row a') as HTMLAnchorElement;
 
     expect(link.getAttribute('href')).toBe('/snapshots/s1/map?focus=a');
+  });
+
+  it('says what a machine running on stock runs on, and how long its stock lasts', async () => {
+    const fixture = await render();
+
+    await filterOn(fixture, 'Running');
+
+    expect(rows(fixture.nativeElement)[0]).toContain('On stock: Plutonium Waste, lasts 123 min');
   });
 });

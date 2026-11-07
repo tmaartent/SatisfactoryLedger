@@ -268,6 +268,43 @@ public class SteadyStateTests
         .Run();
 
     [Fact]
+    public void A_loop_that_gives_back_all_it_needs_runs_as_it_does_once_started_in_the_game()
+    {
+        FlowResult result = NitricAcidLoop(waterBack: 10);
+
+        Assert.Equal(1.0, result.Machine(Id("acid blender")).Utilisation, Precision);
+        Assert.Equal(1.0, result.Machine(Id("non-fissile blender")).Utilisation, Precision);
+    }
+
+    private static readonly ItemId Ficsonium = ItemId.Of("Desc_Ficsonium_C");
+    private static readonly ItemId DarkMatterResidue = ItemId.Of("Desc_DarkEnergy_C");
+    private static readonly ItemId PlutoniumWaste = ItemId.Of("Desc_PlutoniumWaste_C");
+    private static readonly ItemId FicsoniumRod = ItemId.Of("Desc_FicsoniumFuelRod_C");
+
+    [Fact]
+    public void An_encoder_and_a_collider_that_feed_each_other_run_as_they_do_in_the_game()
+    {
+        // The owner's Ficsonium loop: the collider needs the residue the encoder leaves, half of it; a converter makes
+        // the other half. The encoder needs the collider's Ficsonium. The residue meets in one pipe network.
+        FlowResult result = new TestFlow()
+            .Fluid(DarkMatterResidue)
+            .Provider("converter", DarkMatterResidue, 60).Pipe("converter pipe")
+            .Provider("waste", PlutoniumWaste, 6).Belt("waste belt")
+            .Machine("encoder", [(Ficsonium, 6)], [(FicsoniumRod, 3), (DarkMatterResidue, 60)]).Pipe("encoder pipe")
+            .PipeNetwork("residue network")
+            .Pipe("collider pipe")
+            .Machine("collider", [(DarkMatterResidue, 120), (PlutoniumWaste, 6)], [(Ficsonium, 6)]).Belt("ficsonium")
+            .Belt("rods").Sink("plant")
+            .Connect("converter", "converter pipe", "residue network", "collider pipe", "collider", "ficsonium", "encoder", "encoder pipe", "residue network")
+            .Connect("waste", "waste belt", "collider")
+            .Connect("encoder", "rods", "plant")
+            .Run();
+
+        Assert.Equal(1.0, result.Machine(Id("encoder")).Utilisation, Precision);
+        Assert.Equal(1.0, result.Machine(Id("collider")).Utilisation, Precision);
+    }
+
+    [Fact]
     public void A_loop_that_gives_back_too_little_winds_down()
     {
         // Half the water comes back each round: 50%, 25%, … down to nothing.
@@ -586,6 +623,59 @@ public class SteadyStateTests
         FlowResult result = Merge(60, 60, firstPriority: 0);
 
         Assert.Equal(30, result.Flow(Id("second line"), Id("merge"), Ore), Precision);
+    }
+
+    // ---- Running on stock (BR-A17): what a machine holds counts as supplied when it lasts --------------------------
+
+    private static readonly ItemId Coal = Items.Coal;
+
+    [Fact]
+    public void A_machine_whose_stock_of_an_input_lasts_runs_while_nothing_brings_that_input()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore")
+            .MachineOnStock("foundry", [(Ore, 30), (Coal, 15)], [(Ingot, 30)], Coal).Belt("out").Sink("sink")
+            .Connect("miner", "ore", "foundry", "out", "sink")
+            .Run();
+
+        Assert.Equal((1.0, MachineLimit.None), (result.Machine(Id("foundry")).Utilisation, result.Machine(Id("foundry")).Limit));
+    }
+
+    [Fact]
+    public void A_machine_running_on_stock_still_takes_what_its_belt_brings()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore")
+            .Provider("coal mine", Coal, 5).Belt("coal")
+            .MachineOnStock("foundry", [(Ore, 30), (Coal, 15)], [(Ingot, 30)], Coal).Belt("out").Sink("sink")
+            .Connect("miner", "ore", "foundry", "out", "sink")
+            .Connect("coal mine", "coal", "foundry")
+            .Run();
+
+        Assert.Equal(5, result.Flow(Id("coal"), Id("foundry"), Coal), Precision);
+    }
+
+    [Fact]
+    public void What_a_machine_running_on_stock_makes_flows_on()
+    {
+        FlowResult result = new TestFlow()
+            .MachineOnStock("smelter", [(Ore, 30)], [(Ingot, 30)], Ore).Belt("out").Sink("sink")
+            .Connect("smelter", "out", "sink")
+            .Run();
+
+        Assert.Equal(30, result.Flow(Id("out"), Id("sink"), Ingot), Precision);
+    }
+
+    [Fact]
+    public void A_machine_without_stock_is_still_starved_of_what_nothing_brings()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore")
+            .Machine("foundry", [(Ore, 30), (Coal, 15)], [(Ingot, 30)]).Belt("out").Sink("sink")
+            .Connect("miner", "ore", "foundry", "out", "sink")
+            .Run();
+
+        Assert.Equal((MachineLimit.Starved, (ItemId?)Coal), (result.Machine(Id("foundry")).Limit, result.Machine(Id("foundry")).LimitingItem));
     }
 
     // ---- Fuel for drones and trucks: what the other consumers leave ------------------------------------------------

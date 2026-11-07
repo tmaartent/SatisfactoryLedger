@@ -18,15 +18,17 @@ public static class WorldFlow
 
     private static FlowNode NodeOf(Buildable buildable, WorldGraph world) => buildable switch
     {
-        Machine machine => new FlowMachine(machine.Id, PerMinute(machine.Demand), PerMinute(machine.Production)),
+        Machine machine => new FlowMachine(machine.Id, PerMinute(machine.Demand), PerMinute(machine.Production), Stocked(machine.Demand, machine.InputStock)),
         Provider { Offer: { } offer } provider => new FlowProvider(provider.Id, offer.Item, offer.PerMinute.ToDouble()),
         // BR-A9: its rate isn't known (a station, an unknown node), so it supplies what is asked. A station also
         // takes everything loaded onto it.
         Provider provider => new FlowUnknownSource(provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, provider.BurnRate?.ToDouble()),
         // BR-A8: a generator burning a known fuel takes what it burns and makes its waste, like a machine.
-        Consumer { Generation: { } generation } generator => new FlowMachine(generator.Id, Demand(generation), Leaves(generation)),
+        Consumer { Generation: { } generation } generator => new FlowMachine(
+            generator.Id, Demand(generation), Leaves(generation),
+            Stocked(new Dictionary<ItemId, Rate> { [generation.Fuel] = generation.Burns }, generator.InputStock)),
         Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly, consumer.BurnRate?.ToDouble()),
-        Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction } splitter =>
+        Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction or LogisticsKind.PipeNetwork } splitter =>
             new FlowSplitter(splitter.Id, CarriesOf(splitter), splitter.SortRules),
         Logistics { Kind: LogisticsKind.Merger } merger => new FlowMerger(merger.Id, CarriesOf(merger), merger.InputPriorities),
         Logistics { Kind: LogisticsKind.StorageContainer or LogisticsKind.FluidBuffer } container => Container(container, world),
@@ -51,7 +53,18 @@ public static class WorldFlow
     }
 
     private static Carries CarriesOf(Logistics logistics) =>
-        logistics.Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction or LogisticsKind.FluidBuffer ? Carries.Fluids : Carries.Solids;
+        logistics.Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction or LogisticsKind.PipeNetwork or LogisticsKind.FluidBuffer
+            ? Carries.Fluids
+            : Carries.Solids;
+
+    /// <summary>BR-A17: the inputs whose stock lasts at least as long as a station's must to be confirmed (BR-A9).</summary>
+    private static HashSet<ItemId> Stocked(IReadOnlyDictionary<ItemId, Rate> demand, IReadOnlyDictionary<ItemId, decimal> stock) =>
+    [
+        .. demand.Where(input => input.Value > Rate.Zero
+                && stock.TryGetValue(input.Key, out decimal held)
+                && (double)held >= input.Value.ToDouble() * SteadyState.ConfirmedMinutes)
+            .Select(input => input.Key),
+    ];
 
     private static Dictionary<ItemId, double> Count(IReadOnlyDictionary<ItemId, decimal> stock) =>
         stock.ToDictionary(entry => entry.Key, entry => (double)entry.Value);

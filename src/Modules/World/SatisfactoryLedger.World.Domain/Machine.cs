@@ -19,6 +19,11 @@ public sealed class Machine : Buildable
         Produces = Production.Keys.ToHashSet();
     }
 
+    /// <summary>
+    /// What it holds of its inputs, per item (fluids in m³), at save time. A stock that lasts counts as supplied (BR-A17).
+    /// </summary>
+    public IReadOnlyDictionary<ItemId, decimal> InputStock { get; init; } = new Dictionary<ItemId, decimal>();
+
     /// <summary>Per input item, what it asks per minute when it runs at 100%.</summary>
     public IReadOnlyDictionary<ItemId, Rate> Demand { get; }
 

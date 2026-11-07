@@ -16,6 +16,10 @@ internal sealed record ApproximatePart(int Buildables, int Sweeps, string Exampl
 /// <param name="Utilisation">Between 0 and 1, to 4 decimals.</param>
 /// <param name="LimitingItem">The item it's starved of or blocked on; null when it runs or has no known recipe.</param>
 /// <param name="Approximate">True when its part of the world didn't settle (BR-A10).</param>
+/// <param name="OnStock">
+/// The input it runs on from what it holds, because its belts bring less than it uses (BR-A17); null when it doesn't.
+/// </param>
+/// <param name="StockMinutes">How long that stock lasts at the rate it's used up; null when it doesn't run on stock.</param>
 internal sealed record MachineFinding(
     string Id,
     string ClassName,
@@ -24,7 +28,9 @@ internal sealed record MachineFinding(
     MachineLimit Limit,
     string? LimitingItem,
     PositionDocument? Position,
-    bool Approximate);
+    bool Approximate,
+    string? OnStock = null,
+    double? StockMinutes = null);
 
 /// <summary>A belt, lift or pipe at its capacity while more is offered upstream (BR-A12). Rates per minute.</summary>
 internal sealed record BottleneckFinding(
@@ -63,6 +69,7 @@ internal sealed record UnknownSupplyFinding(
 /// <param name="Fuel">The fuel it burns: the one in it at save time.</param>
 /// <param name="Utilisation">Between 0 and 1, to 4 decimals.</param>
 /// <param name="LimitingItem">The fuel or water it's starved of, or the waste it's blocked on; null when it runs.</param>
+/// <param name="OnStock">The fuel it burns from what it holds, as for a machine (BR-A17); null when it doesn't.</param>
 internal sealed record GeneratorFinding(
     string Id,
     string ClassName,
@@ -71,7 +78,9 @@ internal sealed record GeneratorFinding(
     MachineLimit Limit,
     string? LimitingItem,
     PositionDocument? Position,
-    bool Approximate);
+    bool Approximate,
+    string? OnStock = null,
+    double? StockMinutes = null);
 
 /// <summary>A drone port where drones refuel, what they burn there, and what fuel reaches it (BR-A16). Rates per minute.</summary>
 /// <param name="Fuel">The fuel in its slot at save time.</param>
@@ -204,6 +213,8 @@ internal static class SnapshotAnalysis
     {
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         HashSet<string> approximate = analysis.Approximate();
+        WorldGraph world = snapshot.ToWorldGraph();
+        (string? Item, double? Minutes) Stock(MachineStateDocument state) => OnStock(world, snapshot, analysis, state);
 
         // The flow simulates generators like machines (BR-A8), but they're consumers: their own findings (BR-A15).
         List<MachineStateDocument> machines = [.. analysis.Machines
@@ -234,7 +245,9 @@ internal static class SnapshotAnalysis
                         machine.Limit,
                         machine.LimitingItem,
                         buildables[machine.Id].Position,
-                        approximate.Contains(machine.Id)))
+                        approximate.Contains(machine.Id),
+                        Stock(machine).Item,
+                        Stock(machine).Minutes))
             ],
             [
                 .. analysis.Bottlenecks.Where(bottleneck => isConduit(bottleneck.Id))
@@ -284,21 +297,57 @@ internal static class SnapshotAnalysis
                         generator.Limit,
                         generator.LimitingItem,
                         buildables[generator.Id].Position,
-                        approximate.Contains(generator.Id)))
+                        approximate.Contains(generator.Id),
+                        Stock(generator).Item,
+                        Stock(generator).Minutes))
             ],
-            wholeWorld ? DronePorts(snapshot, analysis, buildables, approximate) : []);
+            wholeWorld ? DronePorts(world, snapshot, analysis, buildables, approximate) : []);
+    }
+
+    /// <summary>What reaches a buildable of an item per minute: what flows into the belts and pipes that end at it.</summary>
+    private static double Supplied(SnapshotDocument snapshot, AnalysisDocument analysis, string id, string item) =>
+        snapshot.Connections.Where(connection => connection.To == id)
+            .Sum(connection => analysis.Into.GetValueOrDefault(connection.From)?.GetValueOrDefault(item) ?? 0);
+
+    /// <summary>
+    /// BR-A17: the stocked input a machine or generator runs on, because its belts bring less than it uses, and how long
+    /// that stock lasts. When several do, the one that runs out first.
+    /// </summary>
+    private static (string? Item, double? Minutes) OnStock(WorldGraph world, SnapshotDocument snapshot, AnalysisDocument analysis, MachineStateDocument state)
+    {
+        (IReadOnlyDictionary<ItemId, SharedKernel.Rate> demand, IReadOnlyDictionary<ItemId, decimal> stock) = world.Find(BuildableId.Of(state.Id)) switch
+        {
+            Machine machine => (machine.Demand, machine.InputStock),
+            Consumer { Generation: { } generation } generator =>
+                ((IReadOnlyDictionary<ItemId, SharedKernel.Rate>)new Dictionary<ItemId, SharedKernel.Rate> { [generation.Fuel] = generation.Burns }, generator.InputStock),
+            _ => (new Dictionary<ItemId, SharedKernel.Rate>(), new Dictionary<ItemId, decimal>()),
+        };
+
+        (string? Item, double? Minutes) first = (null, null);
+        foreach ((ItemId item, SharedKernel.Rate rate) in demand)
+        {
+            double perMinute = rate.ToDouble();
+            if (!stock.TryGetValue(item, out decimal held) || perMinute <= 0 || (double)held < perMinute * SteadyState.ConfirmedMinutes)
+            {
+                continue;
+            }
+
+            double shortfall = perMinute * state.Utilisation - Supplied(snapshot, analysis, state.Id, item.Id);
+            if (shortfall > SteadyState.Tolerance && (first.Minutes is null || (double)held / shortfall < first.Minutes))
+            {
+                first = (item.Id, Round((double)held / shortfall));
+            }
+        }
+
+        return first;
     }
 
     /// <summary>BR-A16: every drone port where drones refuel at a known rate, the least supplied first.</summary>
     private static List<DronePortFinding> DronePorts(
-        SnapshotDocument snapshot, AnalysisDocument analysis, Dictionary<string, BuildableDocument> buildables, HashSet<string> approximate)
+        WorldGraph world, SnapshotDocument snapshot, AnalysisDocument analysis, Dictionary<string, BuildableDocument> buildables, HashSet<string> approximate)
     {
-        // What reaches a port is what flows into the belts that end at it.
-        double Supplied(string port, string fuel) => snapshot.Connections.Where(connection => connection.To == port)
-            .Sum(connection => analysis.Into.GetValueOrDefault(connection.From)?.GetValueOrDefault(fuel) ?? 0);
-
         List<(string Id, string Fuel, double Burns)> ports = [];
-        foreach (Buildable buildable in snapshot.ToWorldGraph().Buildables)
+        foreach (Buildable buildable in world.Buildables)
         {
             (IReadOnlySet<ItemId> burns, SharedKernel.Rate? rate) = buildable switch
             {
@@ -315,7 +364,7 @@ internal static class SnapshotAnalysis
         return
         [
             .. ports
-                .Select(port => (port.Id, port.Fuel, port.Burns, Supplied: Supplied(port.Id, port.Fuel)))
+                .Select(port => (port.Id, port.Fuel, port.Burns, Supplied: Supplied(snapshot, analysis, port.Id, port.Fuel)))
                 .OrderBy(port => port.Supplied / port.Burns).ThenBy(port => port.Id, StringComparer.Ordinal)
                 .Select(port => new DronePortFinding(
                     port.Id,

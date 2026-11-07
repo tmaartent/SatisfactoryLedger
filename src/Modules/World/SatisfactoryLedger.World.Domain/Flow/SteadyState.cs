@@ -173,6 +173,143 @@ public static class SteadyState
             _carries = [.. network.Edges.Select(edge => Both(CarriesOf(edge.From), CarriesOf(edge.To)))];
             _order = ForwardOrder();
             _asked = [.. Enumerable.Range(0, nodes).Select(AskedItems)];
+            PrimeLoops();
+        }
+
+        /// <summary>
+        /// BR-A10: machines in a loop wait on each other, so "all at zero" is a steady state too, and the sweeps, starting
+        /// from nothing, would find it. In the game a loop that was started once keeps itself going (decided 2026-11-07).
+        /// So before the first sweep, a machine in a loop is offered all it asks, and every link inside the loop what the
+        /// loop's machines make at 100%, as if it were running. The sweeps then find what it really runs at: a loop that can't keep itself going still winds down.
+        /// Everything outside loops starts from zero, as before.
+        /// </summary>
+        private void PrimeLoops()
+        {
+            int[] loopOf = Loops();
+            for (int node = 0; node < _network.Nodes.Count; node++)
+            {
+                if (loopOf[node] < 0 || _network.Nodes[node] is not FlowMachine machine)
+                {
+                    continue;
+                }
+
+                // As if fully supplied: every input is offered what it asks. A machine that is offered nothing of one input
+                // in the first sweep would take nothing from the loop, and the loop's links would stay shut.
+                foreach (int edge in _in[node])
+                {
+                    foreach ((ItemId item, double demand) in machine.Demand.Where(demand => demand.Value > 0 && CanCarry(edge, demand.Key)))
+                    {
+                        _offered[edge][item] = Math.Max(_offered[edge].GetValueOrDefault(item), demand);
+                    }
+                }
+
+                // Along the links its products take inside the loop, up to and including the link into the next machine.
+                foreach ((ItemId item, double rate) in machine.Production.Where(product => product.Value > 0))
+                {
+                    HashSet<int> seen = [node];
+                    Queue<int> next = new([node]);
+                    while (next.TryDequeue(out int current))
+                    {
+                        foreach (int edge in _out[current])
+                        {
+                            int to = _network.Edges[edge].To;
+                            if (loopOf[to] != loopOf[node] || !CanCarry(edge, item))
+                            {
+                                continue;
+                            }
+
+                            // Flowing too: a loop nothing feeds from outside would otherwise have nothing to start on.
+                            _offered[edge][item] = Math.Max(_offered[edge].GetValueOrDefault(item), rate);
+                            _flow[edge][item] = Math.Max(_flow[edge].GetValueOrDefault(item), rate);
+                            if (_network.Nodes[to] is not FlowMachine && seen.Add(to))
+                            {
+                                next.Enqueue(to);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Per node, the loop it's in: its strongly connected part of the network, when that has more than one node and a
+        /// machine in it; -1 when it's in none. Tarjan's algorithm, without recursion: a big world has long lines.
+        /// </summary>
+        private int[] Loops()
+        {
+            int count = _network.Nodes.Count;
+            int[] index = [.. Enumerable.Repeat(-1, count)];
+            int[] low = new int[count];
+            bool[] onStack = new bool[count];
+            int[] loopOf = [.. Enumerable.Repeat(-1, count)];
+            Stack<int> stack = new();
+            int counter = 0;
+            int loops = 0;
+
+            for (int start = 0; start < count; start++)
+            {
+                if (index[start] >= 0)
+                {
+                    continue;
+                }
+
+                // Each frame: a node, and how far through its outgoing links it is.
+                Stack<(int Node, int Next)> frames = new();
+                frames.Push((start, 0));
+                index[start] = low[start] = counter++;
+                stack.Push(start);
+                onStack[start] = true;
+                while (frames.Count > 0)
+                {
+                    (int node, int next) = frames.Pop();
+                    if (next < _out[node].Count)
+                    {
+                        frames.Push((node, next + 1));
+                        int to = _network.Edges[_out[node][next]].To;
+                        if (index[to] < 0)
+                        {
+                            index[to] = low[to] = counter++;
+                            stack.Push(to);
+                            onStack[to] = true;
+                            frames.Push((to, 0));
+                        }
+                        else if (onStack[to])
+                        {
+                            low[node] = Math.Min(low[node], index[to]);
+                        }
+
+                        continue;
+                    }
+
+                    if (frames.TryPeek(out (int Node, int Next) parent))
+                    {
+                        low[parent.Node] = Math.Min(low[parent.Node], low[node]);
+                    }
+
+                    if (low[node] != index[node])
+                    {
+                        continue;
+                    }
+
+                    List<int> part = [];
+                    int member;
+                    do
+                    {
+                        member = stack.Pop();
+                        onStack[member] = false;
+                        part.Add(member);
+                    }
+                    while (member != node);
+
+                    if (part.Count > 1 && part.Any(id => _network.Nodes[id] is FlowMachine))
+                    {
+                        part.ForEach(id => loopOf[id] = loops);
+                        loops++;
+                    }
+                }
+            }
+
+            return loopOf;
         }
 
 
@@ -454,7 +591,7 @@ public static class SteadyState
         /// <summary>The lowest share of its demand that the machine's other inputs are offered: what it can use of this one.</summary>
         private static double ScarcestOtherThan(FlowMachine machine, Dictionary<ItemId, double> offered, ItemId except) =>
             machine.Demand.Where(demand => demand.Key != except && demand.Value > 0)
-                .Select(demand => Math.Min(1, offered.GetValueOrDefault(demand.Key) / demand.Value))
+                .Select(demand => ShareOf(machine, demand.Key, offered.GetValueOrDefault(demand.Key), demand.Value))
                 .Append(1)
                 .Min();
 
@@ -549,11 +686,15 @@ public static class SteadyState
                 machine.Production.ToDictionary(product => product.Key, product => product.Value * offeredShare));
         }
 
+        /// <summary>The share of its demand a machine has of an input: all of it when its stock lasts (BR-A17).</summary>
+        private static double ShareOf(FlowMachine machine, ItemId item, double has, double demand) =>
+            machine.Stocked?.Contains(item) == true ? 1 : Math.Min(1, has / demand);
+
         /// <summary>The lowest share of its demand a machine gets of any input, and which item that is.</summary>
         private static (double Share, ItemId? Item) Scarcest(FlowMachine machine, Dictionary<ItemId, double> per) =>
             machine.Demand
                 .Where(demand => demand.Value > 0)
-                .Select(demand => (Share: Math.Min(1, per.GetValueOrDefault(demand.Key) / demand.Value), Item: (ItemId?)demand.Key))
+                .Select(demand => (Share: ShareOf(machine, demand.Key, per.GetValueOrDefault(demand.Key), demand.Value), Item: (ItemId?)demand.Key))
                 .Append((Share: 1.0, Item: null))
                 .MinBy(entry => entry.Share);
 

@@ -28,5 +28,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0020](0020-world-map-leaflet-on-a-plain-grid.md) | The world map draws a snapshot with Leaflet, on a plain grid | Accepted |
 | [0021](0021-generators-burn-at-full-power.md) | Generators burn their fuel at full power, at rates from the Docs file | Accepted |
 | [0022](0022-drone-fuel-from-the-latest-trip.md) | A drone port burns its drones' fuel at the rate of their latest trips | Accepted |
+| [0023](0023-pipe-networks-as-one-hub.md) | A pipe network is one hub in the analysis | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

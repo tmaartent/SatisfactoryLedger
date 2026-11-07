@@ -10,6 +10,7 @@ internal static class Items
     public static readonly ItemId IronRod = ItemId.Of("Desc_IronRod_C");
     public static readonly ItemId Screw = ItemId.Of("Desc_IronScrew_C");
     public static readonly ItemId ReinforcedIronPlate = ItemId.Of("Desc_IronPlateReinforced_C");
+    public static readonly ItemId Coal = ItemId.Of("Desc_Coal_C");
 }
 
 /// <summary>Builds a small world by hand: buildables by name, then connections in the direction items flow.</summary>
@@ -38,6 +39,20 @@ internal sealed class TestWorld
     /// <summary>A machine with one input and one output, at its rates per minute.</summary>
     public TestWorld Machine(string id, ItemId input, decimal asks, ItemId output, decimal makes) =>
         Add(new Machine(BuildableId.Of(id), new Recipe(PerMinute([input], asks), PerMinute([output], makes)), ClockSpeed.Percent(100)));
+
+    /// <summary>A machine with one input and one output that holds <paramref name="holds"/> of its input (BR-A17).</summary>
+    public TestWorld MachineHolding(string id, ItemId input, decimal asks, ItemId output, decimal makes, decimal holds) =>
+        Add(new Machine(BuildableId.Of(id), new Recipe(PerMinute([input], asks), PerMinute([output], makes)), ClockSpeed.Percent(100))
+        {
+            InputStock = new Dictionary<ItemId, decimal> { [input] = holds },
+        });
+
+    /// <summary>A generator burning <paramref name="burns"/> of <paramref name="fuel"/> a minute, holding <paramref name="holds"/> of it (BR-A17).</summary>
+    public TestWorld GeneratorHolding(string id, ItemId fuel, decimal burns, decimal holds) =>
+        Add(new Consumer(BuildableId.Of(id), generation: new Generation(fuel, Rate.PerMinute(burns), null, Rate.Zero, null, Rate.Zero))
+        {
+            InputStock = new Dictionary<ItemId, decimal> { [fuel] = holds },
+        });
 
     /// <param name="capacity">Per minute, or null when it isn't known.</param>
     public TestWorld Belt(string id, decimal? capacity = null) =>
