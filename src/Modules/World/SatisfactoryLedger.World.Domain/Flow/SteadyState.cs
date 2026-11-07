@@ -220,11 +220,11 @@ public static class SteadyState
                 switch (_network.Nodes[node])
                 {
                     case FlowSink sink:
-                        TakeEverything(node, sink.Burns, sink.LeftoversOnly);
+                        TakeEverything(node, sink.Burns, sink.LeftoversOnly, sink.BurnRate);
                         break;
                     // A station takes everything loaded onto it, like a consumer, while it unloads to its outputs (BR-A8, BR-A9).
                     case FlowUnknownSource source:
-                        TakeEverything(node, source.Burns);
+                        TakeEverything(node, source.Burns, burnRate: source.BurnRate);
                         break;
                     case FlowConduit conduit:
                         double firm = Math.Min(conduit.Capacity, AcceptedDownstream(node));
@@ -274,15 +274,31 @@ public static class SteadyState
         /// <summary>
         /// A consumer or station takes everything that comes in, except the fuel it burns: that it takes only when the
         /// line's other consumers have what they want (option 2, step 14). An uploader takes everything that way (BR-A8).
+        /// A drone port whose <paramref name="burnRate"/> is known takes its fuel like any consumer, up to that rate; more
+        /// than one belt bringing it share that like a merger's inputs (BR-A16).
         /// </summary>
-        private void TakeEverything(int node, IReadOnlySet<ItemId>? burns, bool leftoversOnly = false)
+        private void TakeEverything(int node, IReadOnlySet<ItemId>? burns, bool leftoversOnly = false, double? burnRate = null)
         {
+            List<int> fuelInputs = [];
             foreach (int edge in _in[node])
             {
                 List<ItemId> items = [.. _offered[edge].Where(entry => entry.Value > 0).Select(entry => entry.Key)];
-                bool fuel = leftoversOnly || (burns is { Count: > 0 } && items.Count > 0 && items.All(burns.Contains));
-                _accept[edge] = fuel ? 0 : double.PositiveInfinity;
-                _spare[edge] = fuel ? double.PositiveInfinity : 0;
+                bool fuel = burns is { Count: > 0 } && items.Count > 0 && items.All(burns.Contains);
+                if (fuel && burnRate is not null)
+                {
+                    fuelInputs.Add(edge);
+                    _spare[edge] = 0;
+                    continue;
+                }
+
+                bool spare = leftoversOnly || fuel;
+                _accept[edge] = spare ? 0 : double.PositiveInfinity;
+                _spare[edge] = spare ? double.PositiveInfinity : 0;
+            }
+
+            if (fuelInputs.Count > 0)
+            {
+                Share(fuelInputs, burnRate!.Value, _accept, new int[fuelInputs.Count]);
             }
         }
 
@@ -906,6 +922,14 @@ public static class SteadyState
             }
 
             Dictionary<ItemId, double> asked = [];
+            void Ask(IEnumerable<ItemId> items, double rate, int edge)
+            {
+                foreach (ItemId item in items.Where(item => CanCarry(edge, item)))
+                {
+                    asked[item] = asked.GetValueOrDefault(item) + rate;
+                }
+            }
+
             HashSet<int> seen = [node];
             Queue<int> next = new([node]);
             while (next.TryDequeue(out int current))
@@ -922,6 +946,13 @@ public static class SteadyState
                                 asked[item] = asked.GetValueOrDefault(item) + rate;
                             }
 
+                            break;
+                        // BR-A16: a drone port burning a known rate asks for its fuel, like a generator.
+                        case FlowSink { BurnRate: { } rate, Burns: { Count: > 0 } fuels }:
+                            Ask(fuels, rate, edge);
+                            break;
+                        case FlowUnknownSource { BurnRate: { } rate, Burns: { Count: > 0 } fuels }:
+                            Ask(fuels, rate, edge);
                             break;
                         case FlowConduit or FlowSplitter or FlowMerger:
                             next.Enqueue(to);

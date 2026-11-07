@@ -91,6 +91,23 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                                 .HasColumnName("buildings_updated");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "DronePorts", "SatisfactoryLedger.Catalog.Domain.CatalogImport.DronePorts#ImportCounts", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Added")
+                                .HasColumnType("integer")
+                                .HasColumnName("drone_ports_added");
+
+                            b1.Property<int>("NoLongerInGame")
+                                .HasColumnType("integer")
+                                .HasColumnName("drone_ports_no_longer_in_game");
+
+                            b1.Property<int>("Updated")
+                                .HasColumnType("integer")
+                                .HasColumnName("drone_ports_updated");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Extractors", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Extractors#ImportCounts", b1 =>
                         {
                             b1.IsRequired();
@@ -214,6 +231,49 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasName("pk_imports");
 
                     b.ToTable("imports", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.DronePort", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("IsInGame")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_in_game");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<decimal>("TripEnergyMegajoules")
+                        .HasColumnType("numeric")
+                        .HasColumnName("trip_energy_megajoules");
+
+                    b.Property<decimal>("TripEnergyPerMetreMegajoules")
+                        .HasColumnType("numeric")
+                        .HasColumnName("trip_energy_per_metre_megajoules");
+
+                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "_fuels", "SatisfactoryLedger.Catalog.Domain.DronePort._fuels#DroneFuel", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<decimal>("EnergyMegajoules");
+
+                            b1.Property<string>("Fuel")
+                                .IsRequired();
+
+                            b1
+                                .ToJson("fuels")
+                                .HasColumnType("jsonb");
+                        });
+
+                    b.HasKey("Id")
+                        .HasName("pk_drone_ports");
+
+                    b.ToTable("drone_ports", "catalog");
                 });
 
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Extractor", b =>

@@ -120,6 +120,20 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_drone_port_is_found_by_its_class_name_with_its_trip_cost_and_fuels()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogDronePort> ports = await catalog.GetDronePortsAsync(
+            ["Build_DroneStation_C", "Build_TruckStation_C"], TestContext.Current.CancellationToken);
+
+        Contracts.CatalogDronePort port = Assert.Single(ports);
+        Assert.Equal((24_000m, 6m), (port.TripEnergyMegajoules, port.TripEnergyPerMetreMegajoules));
+        Assert.Contains(new Contracts.CatalogDroneFuel("Desc_PackagedRocketFuel_C", 7_200), port.Fuels);
+    }
+
+    [Fact]
     public async Task Transport_tiers_are_found_by_class_name_with_their_capacity_per_minute()
     {
         await using AsyncServiceScope scope = api.Services.CreateAsyncScope();

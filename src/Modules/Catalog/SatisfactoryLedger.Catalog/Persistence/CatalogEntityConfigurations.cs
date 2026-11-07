@@ -136,6 +136,28 @@ internal sealed class GeneratorConfiguration : IEntityTypeConfiguration<Generato
     public const string FuelsField = "_fuels";
 }
 
+internal sealed class DronePortConfiguration : IEntityTypeConfiguration<DronePort>
+{
+    public void Configure(EntityTypeBuilder<DronePort> port)
+    {
+        port.HasKey(p => p.Id);
+        port.Property(p => p.Id).HasConversion(id => id.Id, value => DronePortId.Of(value));
+        port.Property(p => p.Name);
+        port.Property(p => p.TripEnergyMegajoules);
+        port.Property(p => p.TripEnergyPerMetreMegajoules);
+        port.Property(p => p.IsInGame);
+
+        // Like a generator's fuels: one jsonb column, mapped through the private List<T> field.
+        port.Ignore(p => p.Fuels);
+        port.ComplexCollection<List<DroneFuel>, DroneFuel>(GeneratorConfiguration.FuelsField, fuel =>
+        {
+            fuel.ToJson("fuels");
+            fuel.Property(f => f.Fuel).HasConversion(id => id.Id, value => ItemId.Of(value));
+            fuel.Property(f => f.EnergyMegajoules);
+        });
+    }
+}
+
 internal sealed class ResourceNodeConfiguration : IEntityTypeConfiguration<ResourceNode>
 {
     public void Configure(EntityTypeBuilder<ResourceNode> node)
@@ -171,6 +193,7 @@ internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<Cata
         import.ComplexProperty(i => i.Extractors);
         import.ComplexProperty(i => i.Footprints);
         import.ComplexProperty(i => i.Generators);
+        import.ComplexProperty(i => i.DronePorts);
         import.ComplexProperty(i => i.ResourceNodes);
 
         // A list of strings becomes a PostgreSQL text[] column.

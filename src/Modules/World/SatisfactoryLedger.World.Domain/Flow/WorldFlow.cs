@@ -22,10 +22,10 @@ public static class WorldFlow
         Provider { Offer: { } offer } provider => new FlowProvider(provider.Id, offer.Item, offer.PerMinute.ToDouble()),
         // BR-A9: its rate isn't known (a station, an unknown node), so it supplies what is asked. A station also
         // takes everything loaded onto it.
-        Provider provider => new FlowUnknownSource(provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns),
+        Provider provider => new FlowUnknownSource(provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, provider.BurnRate?.ToDouble()),
         // BR-A8: a generator burning a known fuel takes what it burns and makes its waste, like a machine.
         Consumer { Generation: { } generation } generator => new FlowMachine(generator.Id, Demand(generation), Leaves(generation)),
-        Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly),
+        Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly, consumer.BurnRate?.ToDouble()),
         Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction } splitter =>
             new FlowSplitter(splitter.Id, CarriesOf(splitter), splitter.SortRules),
         Logistics { Kind: LogisticsKind.Merger } merger => new FlowMerger(merger.Id, CarriesOf(merger), merger.InputPriorities),

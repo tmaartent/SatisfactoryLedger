@@ -26,7 +26,20 @@ public interface ICatalogQueries
 
     /// <summary>The generators with these class names that the Catalog knows (BR-A8). Unknown ids are left out.</summary>
     Task<IReadOnlyList<CatalogGenerator>> GetGeneratorsAsync(IReadOnlyCollection<string> generatorIds, CancellationToken cancellationToken);
+
+    /// <summary>The drone ports with these class names that the Catalog knows (BR-A16). Unknown ids are left out.</summary>
+    Task<IReadOnlyList<CatalogDronePort>> GetDronePortsAsync(IReadOnlyCollection<string> dronePortIds, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// A drone port: a round trip of its drone costs <see cref="TripEnergyMegajoules"/> plus
+/// <see cref="TripEnergyPerMetreMegajoules"/> per metre flown, paid with fuel at its home port.
+/// </summary>
+/// <param name="Id">The building's class name, <c>Build_DroneStation_C</c>.</param>
+public sealed record CatalogDronePort(string Id, decimal TripEnergyMegajoules, decimal TripEnergyPerMetreMegajoules, IReadOnlyList<CatalogDroneFuel> Fuels);
+
+/// <param name="EnergyMegajoules">Per item.</param>
+public sealed record CatalogDroneFuel(string Fuel, decimal EnergyMegajoules);
 
 /// <summary>
 /// A generator: it burns a fuel at <see cref="PowerMegawatts"/> ÷ the fuel's energy per second, and needs its

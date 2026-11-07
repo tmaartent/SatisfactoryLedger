@@ -618,6 +618,68 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void A_drone_port_that_burns_a_known_rate_takes_no_more_fuel_than_that()
+    {
+        FlowResult result = FuelLine(flow => flow.StationBurning("station", RocketFuel, 10)).Run();
+
+        Assert.Equal(10, result.Flow(Id("to station"), Id("station"), RocketFuel), Precision);
+    }
+
+    [Fact]
+    public void A_drone_port_that_burns_a_known_rate_shares_the_line_with_the_other_consumers()
+    {
+        // 40 for the machine and 30 for the port is more than the 60 there is: the splitter divides it evenly.
+        FlowResult result = FuelLine(flow => flow.StationBurning("station", RocketFuel, 30)).Run();
+
+        Assert.Equal(0.75, result.Machine(Id("generator")).Utilisation, Precision);
+        Assert.Equal(30, result.Flow(Id("to station"), Id("station"), RocketFuel), Precision);
+    }
+
+    [Fact]
+    public void A_drone_port_that_only_loads_takes_no_more_fuel_than_it_burns()
+    {
+        FlowResult result = FuelLine(flow => flow.LoadingStationBurning("station", RocketFuel, 10)).Run();
+
+        Assert.Equal(10, result.Flow(Id("to station"), Id("station"), RocketFuel), Precision);
+    }
+
+    [Fact]
+    public void Fuel_over_two_belts_into_a_drone_port_together_makes_up_what_it_burns()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("first source", RocketFuel, 60).Belt("first")
+            .Provider("second source", RocketFuel, 60).Belt("second")
+            .StationBurning("drone port", RocketFuel, 10)
+            .Connect("first source", "first", "drone port")
+            .Connect("second source", "second", "drone port")
+            .Run();
+
+        Assert.Equal(10, result.Flow(Id("first"), Id("drone port"), RocketFuel) + result.Flow(Id("second"), Id("drone port"), RocketFuel), Precision);
+    }
+
+    [Fact]
+    public void A_source_whose_rate_is_not_known_sends_a_drone_port_the_fuel_it_burns()
+    {
+        FlowResult result = new TestFlow()
+            .UnknownSource("container").Belt("fuel").StationBurning("drone port", RocketFuel, 10)
+            .Connect("container", "fuel", "drone port")
+            .Run();
+
+        Assert.Equal(10, result.Flow(Id("fuel"), Id("drone port"), RocketFuel), Precision);
+    }
+
+    [Fact]
+    public void A_source_whose_rate_is_not_known_does_not_ask_for_what_a_station_burns_at_an_unknown_rate()
+    {
+        FlowResult result = new TestFlow()
+            .UnknownSource("container").Belt("fuel").StationBurning("drone port", RocketFuel)
+            .Connect("container", "fuel", "drone port")
+            .Run();
+
+        Assert.Equal(0, result.Flow(Id("fuel"), Id("drone port"), RocketFuel), Precision);
+    }
+
+    [Fact]
     public void Cargo_for_a_station_is_taken_like_by_any_consumer()
     {
         // Ore isn't what it burns: the splitter divides it evenly, so the machine gets 30 of its 40.

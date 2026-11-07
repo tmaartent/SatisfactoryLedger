@@ -71,14 +71,14 @@ public abstract record FlowNodeDocument(string Id)
     public static FlowNodeDocument From(FlowNode node) => node switch
     {
         FlowProvider provider => new ProviderDocument(provider.Id.Id, provider.Item.Id, provider.Offer),
-        FlowUnknownSource source => new UnknownSourceDocument(source.Id.Id, Items(source.Stock), source.Carries, Names(source.Burns)),
+        FlowUnknownSource source => new UnknownSourceDocument(source.Id.Id, Items(source.Stock), source.Carries, Names(source.Burns), source.BurnRate),
         FlowMachine machine => new MachineDocument(machine.Id.Id, Items(machine.Demand), Items(machine.Production)),
         // JSON has no infinity: a conduit without a limit has no capacity.
         FlowConduit conduit => new ConduitDocument(conduit.Id.Id, double.IsPositiveInfinity(conduit.Capacity) ? null : conduit.Capacity, conduit.Carries),
         FlowSplitter splitter => new SplitterDocument(splitter.Id.Id, splitter.Carries,
             splitter.Rules is { Count: > 0 } rules ? [.. rules.Select(rule => new SortRuleDocument(rule.Output, rule.Kind, rule.Item?.Id))] : null),
         FlowMerger merger => new MergerDocument(merger.Id.Id, merger.Carries, merger.Priorities is { Count: > 0 } priorities ? [.. priorities] : null),
-        FlowSink sink => new SinkDocument(sink.Id.Id, Names(sink.Burns), sink.LeftoversOnly),
+        FlowSink sink => new SinkDocument(sink.Id.Id, Names(sink.Burns), sink.LeftoversOnly, sink.BurnRate),
         _ => throw new ArgumentException($"{node} is not a kind of node the document knows", nameof(node)),
     };
 
@@ -99,10 +99,12 @@ public sealed record ProviderDocument(string Id, string Item, double Offer) : Fl
     public override FlowNode ToNode() => new FlowProvider(BuildableId.Of(Id), ItemId.Of(Item), Offer);
 }
 
-public sealed record UnknownSourceDocument(string Id, IReadOnlyDictionary<string, double> Stock, Carries Carries, IReadOnlyList<string>? Burns = null)
+/// <param name="BurnRate">For a drone port: its fuel per minute; null when that isn't known (BR-A16).</param>
+public sealed record UnknownSourceDocument(
+    string Id, IReadOnlyDictionary<string, double> Stock, Carries Carries, IReadOnlyList<string>? Burns = null, double? BurnRate = null)
     : FlowNodeDocument(Id)
 {
-    public override FlowNode ToNode() => new FlowUnknownSource(BuildableId.Of(Id), Items(Stock), Carries, Items(Burns));
+    public override FlowNode ToNode() => new FlowUnknownSource(BuildableId.Of(Id), Items(Stock), Carries, Items(Burns), BurnRate);
 }
 
 public sealed record MachineDocument(string Id, IReadOnlyDictionary<string, double> Demand, IReadOnlyDictionary<string, double> Production)
@@ -130,9 +132,10 @@ public sealed record MergerDocument(string Id, Carries Carries, IReadOnlyList<in
     public override FlowNode ToNode() => new FlowMerger(BuildableId.Of(Id), Carries, Priorities);
 }
 
-public sealed record SinkDocument(string Id, IReadOnlyList<string>? Burns = null, bool LeftoversOnly = false) : FlowNodeDocument(Id)
+/// <param name="BurnRate">For a drone port that loads: its fuel per minute; null when that isn't known (BR-A16).</param>
+public sealed record SinkDocument(string Id, IReadOnlyList<string>? Burns = null, bool LeftoversOnly = false, double? BurnRate = null) : FlowNodeDocument(Id)
 {
-    public override FlowNode ToNode() => new FlowSink(BuildableId.Of(Id), Items(Burns), LeftoversOnly);
+    public override FlowNode ToNode() => new FlowSink(BuildableId.Of(Id), Items(Burns), LeftoversOnly, BurnRate);
 }
 
 /// <summary>The JSON settings of the documents both services read and write: camelCase, enums as camelCase strings.</summary>

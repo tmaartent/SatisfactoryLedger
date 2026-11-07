@@ -12,13 +12,24 @@ namespace SatisfactoryLedger.World.Domain;
 /// For a dimensional depot uploader: it takes only what the line's other consumers leave. In steady state a depot is
 /// full (BR-A8).
 /// </param>
-public sealed class Consumer(BuildableId id, IReadOnlySet<ItemId>? burns = null, Generation? generation = null, bool takesLeftoversOnly = false)
-    : Buildable(id)
+/// <param name="burnRate">For a drone port: how much of its fuel it burns per minute, when that's known (BR-A16).</param>
+public sealed class Consumer(
+    BuildableId id,
+    IReadOnlySet<ItemId>? burns = null,
+    Generation? generation = null,
+    bool takesLeftoversOnly = false,
+    Rate? burnRate = null) : Buildable(id)
 {
     public bool TakesLeftoversOnly { get; } = takesLeftoversOnly;
 
-    /// <summary>The fuel it burns: fuel coming in takes only what the line's other consumers leave (step 14).</summary>
+    /// <summary>
+    /// The fuel it burns: fuel coming in takes only what the line's other consumers leave (step 14), unless its
+    /// <see cref="BurnRate"/> is known.
+    /// </summary>
     public IReadOnlySet<ItemId> Burns { get; } = burns ?? new HashSet<ItemId>();
+
+    /// <summary>How much of its fuel it burns per minute; null when that isn't known (BR-A16).</summary>
+    public Rate? BurnRate { get; } = burnRate;
 
     /// <summary>Null for a sink, an uploader, a station, or a generator whose fuel isn't known: it takes everything.</summary>
     public Generation? Generation { get; } = generation;

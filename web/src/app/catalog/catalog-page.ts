@@ -68,6 +68,7 @@ export class CatalogPage {
       { kind: 'Transport tiers', counts: i.transportTiers },
       { kind: 'Footprints', counts: i.footprints },
       { kind: 'Generators', counts: i.generators },
+      { kind: 'Drone ports', counts: i.dronePorts },
       { kind: 'Resource nodes', counts: i.resourceNodes },
     ];
   });

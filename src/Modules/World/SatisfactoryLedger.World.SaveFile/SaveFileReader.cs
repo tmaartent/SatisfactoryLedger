@@ -118,6 +118,7 @@ public static class SaveFileReader
                 {
                     Position = new SavedPosition(actor.Position.X, actor.Position.Y, actor.Position.Z),
                     Yaw = YawOf(actor.Rotation),
+                    Drone = GameClasses.IsDronePort(className) ? DroneRouteOf(actor, byPath) : null,
                 });
                 connectors.AddRange(ports.Select(port =>
                     new Connector(id, port.Path, GameClasses.DirectionOf(port.Port, className), port.LinkedTo, GameClasses.PortIndexOf(port.Port, className))));
@@ -325,6 +326,37 @@ public static class SaveFileReader
     /// The save leaves out values that equal the default, so a missing clock speed is 100%. The save stores a float
     /// (0.333333); the game works to 4 decimals of a percent (BR-B9), so round there before making it exact.
     /// </summary>
+    /// <summary>
+    /// BR-A16: the route of the drone this port is home to (<c>mStationDrone</c>). Its <c>FGDroneStationInfo</c> names
+    /// the paired port's info (<c>mPairedStation</c>), and keeps the latest trips (<c>mLatestDroneTrips</c>).
+    /// </summary>
+    private static SavedDroneRoute? DroneRouteOf(ActorObject port, Dictionary<string, ComponentObject> byPath)
+    {
+        if (ObjectPath(port, "mStationDrone") is null
+            || ObjectPath(port, "mInfo") is not { } infoPath || !byPath.TryGetValue(infoPath, out ComponentObject? info))
+        {
+            return null;
+        }
+
+        ActorObject? paired = ObjectPath(info, "mPairedStation") is { } pairedInfoPath
+            && byPath.TryGetValue(pairedInfoPath, out ComponentObject? pairedInfo)
+            && ObjectPath(pairedInfo, "mStation") is { } pairedPath
+            && byPath.TryGetValue(pairedPath, out ComponentObject? pairedPort)
+                ? pairedPort as ActorObject
+                : null;
+        List<float> trips = info.Properties.OfType<ArrayProperty>().FirstOrDefault(property => property.Name == "mLatestDroneTrips")?.Property
+            is ArrayStructProperty { Values: var values }
+                ? [.. values.OfType<ArrayProperties>()
+                    .Select(trip => trip.Values.OfType<FloatProperty>().FirstOrDefault(property => property.Name == "TripDuration")?.Value)
+                    .OfType<float>()]
+                : [];
+
+        return DroneRoutes.Of(
+            new SavedPosition(port.Position.X, port.Position.Y, port.Position.Z),
+            paired is null ? null : (BuildableId.Of(paired.ObjectReference.PathName), new SavedPosition(paired.Position.X, paired.Position.Y, paired.Position.Z)),
+            trips);
+    }
+
     private static ClockSpeed ClockSpeedOf(ComponentObject buildable)
     {
         float? potential = Float(buildable, "mCurrentPotential");

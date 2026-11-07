@@ -17,11 +17,16 @@ public sealed record FlowProvider(BuildableId Id, ItemId Item, double Offer) : F
 /// The fuel it burns, for a drone port or truck station: fuel coming in takes only what the line's other consumers
 /// leave. Everything else coming in, it takes like a consumer.
 /// </param>
+/// <param name="BurnRate">
+/// For a drone port, how much of its fuel it burns per minute when that's known (BR-A16): it then takes its fuel like
+/// any consumer, up to that rate.
+/// </param>
 public sealed record FlowUnknownSource(
     BuildableId Id,
     IReadOnlyDictionary<ItemId, double> Stock,
     Carries Carries = Carries.Anything,
-    IReadOnlySet<ItemId>? Burns = null) : FlowNode(Id);
+    IReadOnlySet<ItemId>? Burns = null,
+    double? BurnRate = null) : FlowNode(Id);
 
 /// <summary>Takes everything it's offered: a consumer, or a container at the end of a line (BR-A7, BR-A8).</summary>
 /// <param name="Burns">For a station that loads: the fuel it burns, which takes only what the others leave.</param>
@@ -29,7 +34,8 @@ public sealed record FlowUnknownSource(
 /// For a dimensional depot uploader: it takes everything only from what the line's other consumers leave. In steady
 /// state a depot is full (BR-A8).
 /// </param>
-public sealed record FlowSink(BuildableId Id, IReadOnlySet<ItemId>? Burns = null, bool LeftoversOnly = false) : FlowNode(Id);
+/// <param name="BurnRate">For a drone port that loads: how much of its fuel it burns per minute, when known (BR-A16).</param>
+public sealed record FlowSink(BuildableId Id, IReadOnlySet<ItemId>? Burns = null, bool LeftoversOnly = false, double? BurnRate = null) : FlowNode(Id);
 
 /// <summary>A belt, lift or pipe, or a container inside a line: passes items on, at most <paramref name="Capacity"/> per minute (BR-A3).</summary>
 public sealed record FlowConduit(BuildableId Id, double Capacity, Carries Carries = Carries.Anything) : FlowNode(Id);

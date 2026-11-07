@@ -53,6 +53,14 @@ internal sealed class TestFlow
     public TestFlow StationBurning(string id, params ItemId[] fuels) =>
         Add(new FlowUnknownSource(Id(id), new Dictionary<ItemId, double>(), Carries.Anything, fuels.ToHashSet()));
 
+    /// <summary>A drone port that unloads to its outputs and burns <paramref name="perMinute"/> of <paramref name="fuel"/> (BR-A16).</summary>
+    public TestFlow StationBurning(string id, ItemId fuel, double perMinute) =>
+        Add(new FlowUnknownSource(Id(id), new Dictionary<ItemId, double>(), Carries.Anything, new HashSet<ItemId> { fuel }, perMinute));
+
+    /// <summary>A drone port that only loads, and burns <paramref name="perMinute"/> of <paramref name="fuel"/> (BR-A16).</summary>
+    public TestFlow LoadingStationBurning(string id, ItemId fuel, double perMinute) =>
+        Add(new FlowSink(Id(id), new HashSet<ItemId> { fuel }, BurnRate: perMinute));
+
     /// <summary>A station that only loads, and burns <paramref name="fuels"/> that come in on its inputs.</summary>
     public TestFlow LoadingStationBurning(string id, params ItemId[] fuels) => Add(new FlowSink(Id(id), fuels.ToHashSet()));
 

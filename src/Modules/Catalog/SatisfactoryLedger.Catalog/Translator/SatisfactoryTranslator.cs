@@ -177,6 +177,32 @@ internal class SatisfactoryTranslator
     }
 
     /// <summary>
+    /// The drone port with what a trip costs (BR-A16). A drone "can use any fuel type": every solid item with energy is
+    /// a fuel it can burn, at its <c>mEnergyValue</c> per item.
+    /// </summary>
+    public static List<DronePort> TranslateToDronePorts(List<GameDataGroupDto> dataList)
+    {
+        List<DroneFuel> fuels =
+        [
+            .. dataList.OfType<ItemGroupDto>().SelectMany(dto => dto.Items)
+                .DistinctBy(item => item.ClassName, StringComparer.Ordinal)
+                .Where(item => !item.IsFluid && ParseGameDecimal(item.EnergyValue) > 0)
+                .OrderBy(item => item.ClassName, StringComparer.Ordinal)
+                .Select(item => new DroneFuel(ItemId.Of(item.ClassName), ParseGameDecimal(item.EnergyValue)))
+        ];
+
+        return
+        [
+            .. dataList.OfType<DronePortGroupDto>().SelectMany(dto => dto.DronePorts).Select(dto => DronePort.Create(
+                DronePortId.Of(dto.ClassName),
+                dto.DisplayName,
+                ParseGameDecimal(dto.TripPowerCost),
+                ParseGameDecimal(dto.TripPowerPerMeterCost),
+                fuels))
+        ];
+    }
+
+    /// <summary>
     /// The footprint of every building with clearance boxes (ADR-0020). A class can be in more than one section; the
     /// first is taken.
     /// </summary>

@@ -1,3 +1,4 @@
+using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain.Flow;
 
 namespace SatisfactoryLedger.World.Domain.Tests;
@@ -114,6 +115,30 @@ public class WorldFlowTests
         TestWorld world = new TestWorld().LoadingStationBurning("truck station", Items.IronPlate);
 
         Assert.Equal([Items.IronPlate], Assert.IsType<FlowSink>(Node(world, "truck station")).Burns!);
+    }
+
+    [Fact]
+    public void A_drone_port_that_unloads_knows_how_much_it_burns()
+    {
+        TestWorld world = new TestWorld().StationBurning("port", Items.IronPlate, Rate.Of(5, 3));
+
+        Assert.Equal(5.0 / 3, Assert.IsType<FlowUnknownSource>(Node(world, "port")).BurnRate!.Value, 9);
+    }
+
+    [Fact]
+    public void A_drone_port_that_only_loads_knows_how_much_it_burns()
+    {
+        TestWorld world = new TestWorld().LoadingStationBurning("port", Items.IronPlate, Rate.PerMinute(2));
+
+        Assert.Equal(2.0, Assert.IsType<FlowSink>(Node(world, "port")).BurnRate);
+    }
+
+    [Fact]
+    public void A_station_whose_burn_rate_is_not_known_has_none()
+    {
+        TestWorld world = new TestWorld().StationBurning("port", Items.IronPlate);
+
+        Assert.Null(Assert.IsType<FlowUnknownSource>(Node(world, "port")).BurnRate);
     }
 
     [Fact]

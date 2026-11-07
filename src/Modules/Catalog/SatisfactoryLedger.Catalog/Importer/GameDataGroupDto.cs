@@ -24,6 +24,7 @@ namespace SatisfactoryLedger.Catalog.Importer;
 [JsonDerivedType(typeof(FrackingExtractorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableFrackingExtractor'")]
 [JsonDerivedType(typeof(FuelGeneratorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableGeneratorFuel'")]
 [JsonDerivedType(typeof(NuclearGeneratorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableGeneratorNuclear'")]
+[JsonDerivedType(typeof(DronePortGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableDroneStation'")]
 internal class GameDataGroupDto
 {
     

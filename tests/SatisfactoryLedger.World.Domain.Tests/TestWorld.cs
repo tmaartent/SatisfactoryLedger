@@ -65,6 +65,14 @@ internal sealed class TestWorld
         Add(new Consumer(BuildableId.Of(id), generation: new Generation(
             fuel, Rate.PerMinute(burns), water, Rate.PerMinute(needs), waste, Rate.PerMinute(leaves))));
 
+    /// <summary>A drone port that unloads and burns <paramref name="perMinute"/> of <paramref name="fuel"/> (BR-A16).</summary>
+    public TestWorld StationBurning(string id, ItemId fuel, Rate perMinute) =>
+        Add(new Provider(BuildableId.Of(id), burns: new HashSet<ItemId> { fuel }, burnRate: perMinute));
+
+    /// <summary>A drone port that only loads and burns <paramref name="perMinute"/> of <paramref name="fuel"/> (BR-A16).</summary>
+    public TestWorld LoadingStationBurning(string id, ItemId fuel, Rate perMinute) =>
+        Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }, burnRate: perMinute));
+
     public TestWorld LoadingStationBurning(string id, ItemId fuel) => Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }));
 
     public TestWorld Junction(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.PipeJunction));

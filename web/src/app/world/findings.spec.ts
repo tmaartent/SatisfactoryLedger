@@ -36,6 +36,17 @@ const findings: Findings = {
       approximate: false,
     },
   ],
+  dronePorts: [
+    {
+      id: 'hub',
+      className: 'Build_DroneStation_C',
+      fuel: 'Desc_PackagedRocketFuel_C',
+      burns: 4.4567,
+      supplied: 1.25,
+      position: null,
+      approximate: false,
+    },
+  ],
 };
 
 // The catalog's names, without the API: Iron Ingot for Desc_IronIngot_C.
@@ -95,21 +106,39 @@ describe('FindingsView', () => {
     expect(shown[0]).toContain("Iron Plate can't leave");
   });
 
-  it('lists each generator with its fuel and why it runs below full power', async () => {
-    const fixture = await render();
-    const generatorsTab = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')).find((tab) =>
-      tab.textContent?.includes('Generators'),
+  async function openTab(fixture: Awaited<ReturnType<typeof render>>, label: string): Promise<string[]> {
+    const tab = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')).find((candidate) =>
+      candidate.textContent?.includes(label),
     ) as HTMLElement;
 
-    generatorsTab.click();
+    tab.click();
     await fixture.whenStable();
 
     // Only the open tab: the machines tab's rows may still be in the page.
-    const shown = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.mat-mdc-tab-body-active tr.mat-mdc-row')).map(
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.mat-mdc-tab-body-active tr.mat-mdc-row')).map(
       (row) => row.textContent ?? '',
     );
+  }
+
+  it('lists each generator with its fuel and why it runs below full power', async () => {
+    const fixture = await render();
+
+    const shown = await openTab(fixture, 'Generators');
+
     expect(shown).toHaveLength(1);
     expect(shown[0]).toContain('Nuclear Fuel Rod');
     expect(shown[0]).toContain('Not enough Water');
+  });
+
+  it('lists each drone port with what its drones burn, what reaches it, and how much is short', async () => {
+    const fixture = await render();
+
+    const shown = await openTab(fixture, 'Drone ports');
+
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toContain('Packaged Rocket Fuel');
+    expect(shown[0]).toContain('4.46/min');
+    expect(shown[0]).toContain('1.25/min');
+    expect(shown[0]).toContain('3.21/min short');
   });
 });

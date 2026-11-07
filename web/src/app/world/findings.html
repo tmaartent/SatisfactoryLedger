@@ -211,4 +211,47 @@
       </div>
     </mat-tab>
   }
+  @if (f.dronePorts; as dronePorts) {
+    <mat-tab [label]="'Drone ports (' + dronePorts.length + ')'">
+      <p class="muted explanation">
+        Drone ports where drones refuel (BR-A16): what their drones burn, from each drone's latest trip, and what fuel the
+        belts bring.
+      </p>
+      <div class="table-scroll">
+        <table mat-table [dataSource]="dronePorts">
+          <ng-container matColumnDef="port">
+            <th mat-header-cell *matHeaderCellDef>Port</th>
+            <td mat-cell *matCellDef="let d">
+              {{ names.building(d.className) }}
+              @if (d.approximate) {
+                <mat-icon inline matTooltip="Approximate">blur_on</mat-icon>
+              }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="fuel">
+            <th mat-header-cell *matHeaderCellDef>Fuel</th>
+            <td mat-cell *matCellDef="let d">{{ names.item(d.fuel) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="burns">
+            <th mat-header-cell *matHeaderCellDef>Drones burn</th>
+            <td mat-cell *matCellDef="let d" class="number">{{ perMinute(d.burns) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="supplied">
+            <th mat-header-cell *matHeaderCellDef>Belts bring</th>
+            <td mat-cell *matCellDef="let d" class="utilisation">
+              <mat-progress-bar [value]="suppliedShare(d) * 100" />
+              <span class="number">{{ perMinute(d.supplied) }}</span>
+              <span class="muted">{{ shortBy(d) }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="position">
+            <th mat-header-cell *matHeaderCellDef>Where</th>
+            <td mat-cell *matCellDef="let d" class="muted">{{ position(d.position) }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="dronePortColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: dronePortColumns"></tr>
+        </table>
+      </div>
+    </mat-tab>
+  }
 </mat-tab-group>

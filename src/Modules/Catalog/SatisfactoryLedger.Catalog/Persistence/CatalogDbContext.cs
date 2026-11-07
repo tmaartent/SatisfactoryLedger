@@ -26,6 +26,8 @@ internal sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> option
 
     public DbSet<Generator> Generators => Set<Generator>();
 
+    public DbSet<DronePort> DronePorts => Set<DronePort>();
+
     public DbSet<ResourceNode> ResourceNodes => Set<ResourceNode>();
 
     public DbSet<CatalogImport> Imports => Set<CatalogImport>();

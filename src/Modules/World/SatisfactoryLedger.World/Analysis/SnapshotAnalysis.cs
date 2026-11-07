@@ -73,6 +73,19 @@ internal sealed record GeneratorFinding(
     PositionDocument? Position,
     bool Approximate);
 
+/// <summary>A drone port where drones refuel, what they burn there, and what fuel reaches it (BR-A16). Rates per minute.</summary>
+/// <param name="Fuel">The fuel in its slot at save time.</param>
+/// <param name="Burns">What the drones refuelling there burn, from their latest trips.</param>
+/// <param name="Supplied">What its belts bring of that fuel.</param>
+internal sealed record DronePortFinding(
+    string Id,
+    string ClassName,
+    string Fuel,
+    double Burns,
+    double Supplied,
+    PositionDocument? Position,
+    bool Approximate);
+
 /// <summary>The findings of a snapshot: worst first in every list.</summary>
 /// <param name="Settled">False when a part of the world didn't settle; its findings are marked approximate.</param>
 internal sealed record AnalysisResponse(
@@ -83,7 +96,8 @@ internal sealed record AnalysisResponse(
     IReadOnlyList<BottleneckFinding> Bottlenecks,
     IReadOnlyList<UnusedSupplyFinding> UnusedSupply,
     IReadOnlyList<UnknownSupplyFinding> UnknownSupply,
-    IReadOnlyList<GeneratorFinding> Generators);
+    IReadOnlyList<GeneratorFinding> Generators,
+    IReadOnlyList<DronePortFinding> DronePorts);
 
 /// <summary>What a factory makes of one item: on its output belt now, and if its machines all ran at 100% (BR-A14).</summary>
 /// <param name="Now">What flows onto the output belt per minute.</param>
@@ -113,7 +127,7 @@ internal static class SnapshotAnalysis
 
     /// <summary>The findings of the whole world.</summary>
     public static AnalysisResponse For(SnapshotDocument snapshot, AnalysisDocument analysis) =>
-        Findings(snapshot, analysis, analysis.UnsettledParts, _ => true, _ => true, _ => true, withGenerators: true);
+        Findings(snapshot, analysis, analysis.UnsettledParts, _ => true, _ => true, _ => true, wholeWorld: true);
 
     /// <summary>
     /// The findings of one factory (BR-A14): its machines and logistics, and its suppliers. The simulation was of the
@@ -139,8 +153,8 @@ internal static class SnapshotAnalysis
             id => members.Machines.Contains(BuildableId.Of(id)),
             id => members.Logistics.Contains(BuildableId.Of(id)),
             id => members.Suppliers.Contains(BuildableId.Of(id)),
-            // A generator is a consumer, never part of a factory (BR-W8).
-            withGenerators: false);
+            // A generator or a drone port is never part of a factory (BR-W1, BR-W8).
+            wholeWorld: false);
 
         return new FactoryAnalysisResponse(
             factory.Id,
@@ -178,6 +192,7 @@ internal static class SnapshotAnalysis
     /// The findings of the machines, conduits and suppliers the filters let through; worst first. Whether they settled
     /// is read from <paramref name="unsettled"/>: the parts of the world they're in that didn't settle.
     /// </summary>
+    /// <param name="wholeWorld">True for the whole world: generators and drone ports are listed too.</param>
     private static AnalysisResponse Findings(
         SnapshotDocument snapshot,
         AnalysisDocument analysis,
@@ -185,7 +200,7 @@ internal static class SnapshotAnalysis
         Func<string, bool> isMachine,
         Func<string, bool> isConduit,
         Func<string, bool> isSupplier,
-        bool withGenerators)
+        bool wholeWorld)
     {
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         HashSet<string> approximate = analysis.Approximate();
@@ -193,7 +208,7 @@ internal static class SnapshotAnalysis
         // The flow simulates generators like machines (BR-A8), but they're consumers: their own findings (BR-A15).
         List<MachineStateDocument> machines = [.. analysis.Machines
             .Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Machine && isMachine(machine.Id))];
-        List<MachineStateDocument> generators = withGenerators
+        List<MachineStateDocument> generators = wholeWorld
             ? [.. analysis.Machines.Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Consumer && buildables[machine.Id].Fuel is not null)]
             : [];
         return new AnalysisResponse(
@@ -270,7 +285,47 @@ internal static class SnapshotAnalysis
                         generator.LimitingItem,
                         buildables[generator.Id].Position,
                         approximate.Contains(generator.Id)))
-            ]);
+            ],
+            wholeWorld ? DronePorts(snapshot, analysis, buildables, approximate) : []);
+    }
+
+    /// <summary>BR-A16: every drone port where drones refuel at a known rate, the least supplied first.</summary>
+    private static List<DronePortFinding> DronePorts(
+        SnapshotDocument snapshot, AnalysisDocument analysis, Dictionary<string, BuildableDocument> buildables, HashSet<string> approximate)
+    {
+        // What reaches a port is what flows into the belts that end at it.
+        double Supplied(string port, string fuel) => snapshot.Connections.Where(connection => connection.To == port)
+            .Sum(connection => analysis.Into.GetValueOrDefault(connection.From)?.GetValueOrDefault(fuel) ?? 0);
+
+        List<(string Id, string Fuel, double Burns)> ports = [];
+        foreach (Buildable buildable in snapshot.ToWorldGraph().Buildables)
+        {
+            (IReadOnlySet<ItemId> burns, SharedKernel.Rate? rate) = buildable switch
+            {
+                Provider provider => (provider.Burns, provider.BurnRate),
+                Consumer consumer => (consumer.Burns, consumer.BurnRate),
+                _ => (new HashSet<ItemId>(), null),
+            };
+            if (rate is not null)
+            {
+                ports.Add((buildable.Id.Id, burns.First().Id, rate.ToDouble()));
+            }
+        }
+
+        return
+        [
+            .. ports
+                .Select(port => (port.Id, port.Fuel, port.Burns, Supplied: Supplied(port.Id, port.Fuel)))
+                .OrderBy(port => port.Supplied / port.Burns).ThenBy(port => port.Id, StringComparer.Ordinal)
+                .Select(port => new DronePortFinding(
+                    port.Id,
+                    buildables[port.Id].ClassName,
+                    port.Fuel,
+                    Round(port.Burns),
+                    Round(port.Supplied),
+                    buildables[port.Id].Position,
+                    approximate.Contains(port.Id)))
+        ];
     }
 
     private static double Round(double value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);

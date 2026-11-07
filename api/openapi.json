@@ -849,7 +849,8 @@
           "bottlenecks",
           "unusedSupply",
           "unknownSupply",
-          "generators"
+          "generators",
+          "dronePorts"
         ],
         "type": "object",
         "properties": {
@@ -893,6 +894,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GeneratorFinding"
+            }
+          },
+          "dronePorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DronePortFinding"
             }
           }
         }
@@ -1077,6 +1084,50 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "DronePortFinding": {
+        "required": [
+          "id",
+          "className",
+          "fuel",
+          "burns",
+          "supplied",
+          "position",
+          "approximate"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "fuel": {
+            "type": "string"
+          },
+          "burns": {
+            "type": "number",
+            "format": "double"
+          },
+          "supplied": {
+            "type": "number",
+            "format": "double"
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PositionDocument"
+              }
+            ]
+          },
+          "approximate": {
+            "type": "boolean"
           }
         }
       },
@@ -1425,6 +1476,7 @@
           "extractors",
           "footprints",
           "generators",
+          "dronePorts",
           "resourceNodes",
           "noLongerInGame"
         ],
@@ -1463,6 +1515,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "generators": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "dronePorts": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "resourceNodes": {

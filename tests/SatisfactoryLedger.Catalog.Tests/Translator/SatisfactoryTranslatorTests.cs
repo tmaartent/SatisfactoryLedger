@@ -393,4 +393,28 @@ public class SatisfactoryTranslatorTests
 
         Assert.Equal((Rate.PerMinute(15), Rate.PerMinute(45)), (generator.BurnRate(ItemId.Of("Desc_Coal_C")), generator.SupplementalRate));
     }
+
+    // ---- The drone port (BR-A16): what a trip costs, and the fuels a drone can burn --------------------------------
+
+    [Fact]
+    public async Task A_drone_trip_from_the_game_file_costs_24000_megajoules_and_6_more_per_metre()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        DronePort port = Assert.Single(SatisfactoryTranslator.TranslateToDronePorts(resources));
+
+        Assert.Equal(("Build_DroneStation_C", 24_000m, 6m), (port.Id.Id, port.TripEnergyMegajoules, port.TripEnergyPerMetreMegajoules));
+    }
+
+    [Fact]
+    public async Task A_drone_can_burn_every_solid_fuel_in_the_game_file_at_its_energy_per_item()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        DronePort port = Assert.Single(SatisfactoryTranslator.TranslateToDronePorts(resources));
+
+        Assert.Equal((7_200m, 6_000m, 750_000m, (decimal?)null),
+            (port.EnergyOf(ItemId.Of("Desc_PackagedRocketFuel_C")), port.EnergyOf(ItemId.Of("Desc_Battery_C")),
+                port.EnergyOf(ItemId.Of("Desc_NuclearFuelRod_C")), port.EnergyOf(ItemId.Of("Desc_LiquidFuel_C"))));
+    }
 }

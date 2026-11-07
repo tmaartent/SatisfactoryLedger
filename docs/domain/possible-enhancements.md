@@ -24,19 +24,19 @@ Ideas the owner wants kept, but not planned yet. Each says what it is, why it's 
 
 The owner's nitric acid and non-fissile uranium blenders each need what the other makes. "Both at zero" is a steady state, and the sweeps, which start from zero, find it. Starting from the top (every connection offering plenty) found the loop running, but shifted results elsewhere: four inputs of one machine locked at the same 68%. A linear programme maximising flow finds the largest steady state directly, with no start point. That's one more reason for it.
 
-### What a drone port or truck station burns
-*Raised 2026-11-05, step 14.*
+### What a truck station burns
+*Raised 2026-11-05, step 14. Drones done in step 24 (BR-A16, ADR-0022).*
 
-**What:** compute the fuel a drone port burns per minute, instead of treating it as a consumer of unknown rate: (energy per trip ÷ energy per fuel item) × trips per minute.
-
-**Why:** a fuel line shared with generators or other ports would be analysed with real numbers. The game shows the value; the analysis should too.
+**What:** compute the fuel a truck station's trucks burn per minute, as step 24 does for drones, instead of taking it from what's left (BR-A8).
 
 **What it would take:**
-- **Energy per fuel item:** in the game's Docs file (`mEnergyValue`). The Catalog would import it.
-- **Energy per trip:** the save only has the cost of the *current* trip of a drone in flight, for 11 of 16 drones. For the rest, it would have to be computed from the route: the distance between the paired ports (their positions are in the save), drone speed, and the game's power formula. That formula needs research.
-- **Trip duration:** the save keeps only the latest trip per port, for 5 of 28. From the route instead, as above.
-- **Trucks:** the same idea, from their recorded route. Not verified: there are no truck stations in the owner's world.
-- The spike's numbers to check against are in [step 14](../guide/log/14-flow-stations-and-stock.md#fuel-for-drones-and-trucks).
+- **The rate:** the Docs file gives a truck's fuel use only in MW on autopilot (`mAutopilotFuelConsumption`), so it depends on how long its recorded route takes, and how much of it is driven.
+- **The route:** recorded per truck in the save. Not verified: the owner's big world has no truck stations; Development.sav has two.
+
+### Drones that wait at a port
+*Raised 2026-11-07, step 24.*
+
+A drone's latest trip (BR-A16) is one sample: a drone that waited docked for hours shows a tiny rate, one that just made a fast trip after waiting a long time shows the full one. The game shows the same number, so it's honest, but a few trips averaged would be steadier. The game keeps one (`mTripInformationSampleCount = 1`), so the save can't give more.
 
 ### What a generator really burns
 

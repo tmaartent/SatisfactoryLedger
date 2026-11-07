@@ -36,9 +36,19 @@ public abstract record SavedBuildable(BuildableId Id, string ClassName)
     /// slot is empty, so the save can't tell; null for buildables without a fuel slot.
     /// </summary>
     public IReadOnlySet<string>? Burns { get; init; }
+
+    /// <summary>
+    /// For a drone port that is home to a drone: its route to the port it's paired with (BR-A16). Null when it has no
+    /// drone or no paired port.
+    /// </summary>
+    public SavedDroneRoute? Drone { get; init; }
 }
 
 public sealed record SavedPosition(double X, double Y, double Z);
+
+/// <summary>A drone's route (BR-A16): the port it's paired with, the flat distance to it, and how long its latest round trip took.</summary>
+/// <param name="LatestTripSeconds">Null when its drone hasn't made a trip yet.</param>
+public sealed record SavedDroneRoute(BuildableId Paired, decimal DistanceMetres, decimal? LatestTripSeconds);
 
 /// <param name="Recipe">The recipe's class name (<c>Recipe_IronPlate_C</c>), or null when none is set.</param>
 /// <param name="ProductionBoost">The output multiplier from somersloops: 1 without, 2 when all slots are filled.</param>

@@ -71,6 +71,7 @@ internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox,
             nodesKnown,
             await catalog.GetItemsAsync(items, cancellationToken),
             await catalog.GetFootprintsAsync(classes, cancellationToken),
-            generators);
+            generators,
+            await catalog.GetDronePortsAsync(classes, cancellationToken));
     }
 }

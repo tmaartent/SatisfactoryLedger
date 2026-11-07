@@ -18,14 +18,14 @@ public class FlowNetworkDocumentTests
         [
             new FlowProvider(Id("miner"), Ore, 60),
             new FlowProvider(Id("pump"), Water, 120),
-            new FlowUnknownSource(Id("station"), new Dictionary<ItemId, double> { [Ore] = 1800 }, Carries.Solids, new HashSet<ItemId> { Fuel }),
+            new FlowUnknownSource(Id("station"), new Dictionary<ItemId, double> { [Ore] = 1800 }, Carries.Solids, new HashSet<ItemId> { Fuel }, 1.5),
             new FlowConduit(Id("ore"), 60, Carries.Solids),
             new FlowConduit(Id("container"), double.PositiveInfinity, Carries.Solids),
             new FlowConduit(Id("water"), 300, Carries.Fluids),
             new FlowMerger(Id("merge"), Carries.Solids, [2, 0]),
             new FlowSplitter(Id("split"), Carries.Solids, [new SortRule(0, SortRuleKind.Any), new SortRule(1, SortRuleKind.Overflow)]),
             new FlowMachine(Id("smelter"), new Dictionary<ItemId, double> { [Ore] = 30 }, new Dictionary<ItemId, double> { [Ingot] = 30 }),
-            new FlowSink(Id("sink"), new HashSet<ItemId> { Fuel }),
+            new FlowSink(Id("sink"), new HashSet<ItemId> { Fuel }, BurnRate: 2.25),
             new FlowSink(Id("overflow")),
             new FlowSink(Id("tank")),
         ],
@@ -77,6 +77,23 @@ public class FlowNetworkDocumentTests
         var station = Assert.IsType<FlowUnknownSource>(Node("station"));
         Assert.Equal((1800.0, true), (station.Stock[Ore], station.Burns!.Contains(Fuel)));
         Assert.Equal([Water], network.Fluids);
+    }
+
+    [Fact]
+    public void What_a_drone_port_burns_survives_the_document()
+    {
+        FlowNetwork network = RoundTrip(Network());
+        FlowNode Node(string id) => network.Nodes[network.IndexOf[Id(id)]];
+
+        Assert.Equal((1.5, 2.25), (Assert.IsType<FlowUnknownSource>(Node("station")).BurnRate, Assert.IsType<FlowSink>(Node("sink")).BurnRate));
+    }
+
+    [Fact]
+    public void A_station_whose_burn_rate_is_not_known_keeps_having_none()
+    {
+        FlowNetwork network = RoundTrip(Network());
+
+        Assert.Null(Assert.IsType<FlowSink>(network.Nodes[network.IndexOf[Id("overflow")]]).BurnRate);
     }
 
     [Fact]

@@ -150,6 +150,9 @@ internal static class GameClasses
     };
 
     /// <summary>The inventory a drone port or truck station keeps its fuel in. Null for buildables that burn nothing.</summary>
+    /// <summary>A drone port: its drone's route decides what it burns (BR-A16).</summary>
+    public static bool IsDronePort(string className) => className == "Build_DroneStation_C";
+
     public static string? FuelInventoryOf(string className) =>
         className is "Build_DroneStation_C" or "Build_TruckStation_C" or "Build_FluidTruckStation_C" ? "FuelInventory" : null;
 

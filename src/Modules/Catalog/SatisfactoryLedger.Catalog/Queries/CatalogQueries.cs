@@ -117,4 +117,22 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
                     ]))
         ];
     }
+
+    public async Task<IReadOnlyList<CatalogDronePort>> GetDronePortsAsync(IReadOnlyCollection<string> dronePortIds, CancellationToken cancellationToken)
+    {
+        List<DronePortId> ids = [.. dronePortIds.Select(DronePortId.Of)];
+        List<DronePort> ports = await db.DronePorts.AsNoTracking()
+            .Where(port => ids.Contains(port.Id))
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. ports.OrderBy(port => port.Id.Id, StringComparer.Ordinal)
+                .Select(port => new CatalogDronePort(
+                    port.Id.Id,
+                    port.TripEnergyMegajoules,
+                    port.TripEnergyPerMetreMegajoules,
+                    [.. port.Fuels.Select(fuel => new CatalogDroneFuel(fuel.Fuel.Id, fuel.EnergyMegajoules))]))
+        ];
+    }
 }

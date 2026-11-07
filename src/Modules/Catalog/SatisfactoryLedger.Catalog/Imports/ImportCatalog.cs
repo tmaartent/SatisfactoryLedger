@@ -32,6 +32,7 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         var extractors = CatalogEntries.Reconcile(await db.Extractors.ToListAsync(cancellationToken), fromGame.Extractors);
         var footprints = CatalogEntries.Reconcile(await db.Footprints.ToListAsync(cancellationToken), fromGame.Footprints);
         var generators = CatalogEntries.Reconcile(await db.Generators.ToListAsync(cancellationToken), fromGame.Generators);
+        var dronePorts = CatalogEntries.Reconcile(await db.DronePorts.ToListAsync(cancellationToken), fromGame.DronePorts);
 
         db.Items.AddRange(items.Added);
         db.Buildings.AddRange(buildings.Added);
@@ -40,9 +41,10 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         db.Extractors.AddRange(extractors.Added);
         db.Footprints.AddRange(footprints.Added);
         db.Generators.AddRange(generators.Added);
+        db.DronePorts.AddRange(dronePorts.Added);
 
         var import = CatalogImport.Record(CatalogImportId.New(), command.GameVersion, clock.GetUtcNow(),
-            items, buildings, transportTiers, recipes, extractors, footprints, generators);
+            items, buildings, transportTiers, recipes, extractors, footprints, generators, dronePorts);
         db.Imports.Add(import);
 
         await db.SaveChangesAsync(cancellationToken);
@@ -51,7 +53,7 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
 
     private sealed record GameData(
         List<Item> Items, List<Building> Buildings, List<TransportTier> TransportTiers, List<Recipe> Recipes, List<Extractor> Extractors,
-        List<Footprint> Footprints, List<Generator> Generators);
+        List<Footprint> Footprints, List<Generator> Generators, List<DronePort> DronePorts);
 
     private static async Task<GameData> ReadDocsFileAsync(Stream docsFile, CancellationToken cancellationToken)
     {
@@ -66,7 +68,8 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
                 SatisfactoryTranslator.TranslateToRecipes(groups),
                 SatisfactoryTranslator.TranslateToExtractors(groups),
                 SatisfactoryTranslator.TranslateToFootprints(groups),
-                SatisfactoryTranslator.TranslateToGenerators(groups));
+                SatisfactoryTranslator.TranslateToGenerators(groups),
+                SatisfactoryTranslator.TranslateToDronePorts(groups));
         }
         catch (Exception e) when (e is JsonException or ArgumentException or KeyNotFoundException or FormatException)
         {

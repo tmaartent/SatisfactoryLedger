@@ -138,6 +138,16 @@ public class CatalogImportTests
     }
 
     [Fact]
+    public void An_import_counts_the_drone_ports_it_changed()
+    {
+        var port = DronePort.Create(DronePortId.Of("Build_DroneStation_C"), "Drone Port", 24_000, 6, []);
+
+        var import = RecordImport("1.2", dronePorts: CatalogEntries.Reconcile([], [port]));
+
+        Assert.Equal(new ImportCounts(Added: 1, Updated: 0, NoLongerInGame: 0), import.DronePorts);
+    }
+
+    [Fact]
     public void An_import_counts_the_generators_it_changed()
     {
         var generator = Generator.Create(GeneratorId.Of("Build_GeneratorCoal_C"), "Coal-Powered Generator", 75, 10, []);
@@ -173,7 +183,8 @@ public class CatalogImportTests
         CatalogEntryChanges<Item>? items = null,
         CatalogEntryChanges<Extractor>? extractors = null,
         CatalogEntryChanges<Footprint>? footprints = null,
-        CatalogEntryChanges<Generator>? generators = null) =>
+        CatalogEntryChanges<Generator>? generators = null,
+        CatalogEntryChanges<DronePort>? dronePorts = null) =>
         CatalogImport.Record(
             CatalogImportId.New(),
             gameVersion,
@@ -184,5 +195,6 @@ public class CatalogImportTests
             CatalogEntries.None<Recipe>(),
             extractors ?? CatalogEntries.None<Extractor>(),
             footprints ?? CatalogEntries.None<Footprint>(),
-            generators ?? CatalogEntries.None<Generator>());
+            generators ?? CatalogEntries.None<Generator>(),
+            dronePorts ?? CatalogEntries.None<DronePort>());
 }
