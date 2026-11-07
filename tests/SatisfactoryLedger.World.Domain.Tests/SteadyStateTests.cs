@@ -234,6 +234,39 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void What_an_uploader_takes_from_the_leftovers_is_still_offered_to_the_factory()
+    {
+        // The owner's uranium line: the machine takes only half its ore, because only half its coal comes. The uploader
+        // gets the rest, but the machine is starved of coal, not of ore: all the ore is still offered to it.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").SmartSplitter("split", new SortRule(0, SortRuleKind.Overflow), new SortRule(2, SortRuleKind.Any))
+            .Belt("to factory").Machine("foundry", [(Ore, 60), (Coal, 30)], []).Belt("to depot").Uploader("uploader")
+            .Provider("coal mine", Coal, 15).Belt("coal")
+            .Connect("miner", "ore", "split").ConnectPort("split", 0, "to factory").Connect("to factory", "foundry")
+            .ConnectPort("split", 2, "to depot").Connect("to depot", "uploader")
+            .Connect("coal mine", "coal", "foundry")
+            .Run();
+
+        Assert.Equal((0.5, MachineLimit.Starved, (ItemId?)Coal), (result.Machine(Id("foundry")).Utilisation, result.Machine(Id("foundry")).Limit, result.Machine(Id("foundry")).LimitingItem));
+        Assert.Equal(30, result.Flow(Id("to depot"), Id("uploader"), Ore), Precision);
+    }
+
+    [Fact]
+    public void What_an_uploader_takes_behind_a_plain_splitter_is_still_offered_to_the_factory()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").Splitter("split")
+            .Belt("to factory").Machine("foundry", [(Ore, 60), (Coal, 30)], []).Belt("to depot").Uploader("uploader")
+            .Provider("coal mine", Coal, 15).Belt("coal")
+            .Connect("miner", "ore", "split", "to factory", "foundry")
+            .Connect("split", "to depot", "uploader")
+            .Connect("coal mine", "coal", "foundry")
+            .Run();
+
+        Assert.Equal((MachineLimit.Starved, (ItemId?)Coal), (result.Machine(Id("foundry")).Limit, result.Machine(Id("foundry")).LimitingItem));
+    }
+
+    [Fact]
     public void An_uploader_at_the_end_of_a_line_takes_everything_that_reaches_it()
     {
         FlowResult result = new TestFlow()

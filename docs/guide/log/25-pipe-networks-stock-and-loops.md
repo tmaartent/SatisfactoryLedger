@@ -87,6 +87,14 @@ Red first: the three new pipe tests failed on the old guessing, the stock and lo
 4. **Analysis version 5**: stored analyses are computed again, since stock changes results for every snapshot that has contents (version 6 and later).
 5. **What I tried and dropped:** pointing pipe links towards the nearest machine. It fixed collection manifolds and broke distribution manifolds, which led to the hub.
 
+## Then: the uploader that made cell makers look starved
+
+You saw the encased uranium cell makers reported as starved of ore, while full of it. They were really **output blocked**: the fuel rod makers after them are starved of electromagnetic control rods and take only 76% of the cells. The splitter in front of them sends *any* to a dimensional depot uploader and *overflow* to the factory. The uploader rightly took only the leftovers, but what it took was also subtracted from what the splitter **offered** the machines. That pulled the chain down to 68% and flipped the label to "starved of uranium ore". Plain splitters had the same flaw.
+
+- **Fix** (`SteadyState.Send`, `SendSorted`): what an output takes as spare no longer lowers what the other outputs are offered.
+- **Tests** (`SteadyStateTests`): what an uploader takes from the leftovers is still offered to the factory, behind a smart splitter and behind a plain one. Both failed before the fix.
+- **Found by** solving your snapshot locally, with and without the uploader: without it, the cells came out output blocked at 76%.
+
 ## Next
 
 The linear programme, as its own step: it finds the largest steady state, so balanced loops such as your Ficsonium pairs run at the top.

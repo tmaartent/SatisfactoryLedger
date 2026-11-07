@@ -731,7 +731,8 @@ public static class SteadyState
                 double[] firm = Waterfill(total, [.. Enumerable.Range(0, outputs.Count).Select(k => carries[k] ? room[k] : 0)]);
                 double[] extra = Waterfill(total - firm.Sum(), [.. Enumerable.Range(0, outputs.Count).Select(k => carries[k] ? spare[k] : 0)]);
                 double[] sent = [.. Enumerable.Range(0, outputs.Count).Select(k => firm[k] + extra[k])];
-                double allSent = sent.Sum();
+                // Spare is taken only from what's left over, so it doesn't lower what the other outputs are offered.
+                double allFirm = firm.Sum();
                 double offerTotal = Total(offering);
                 for (int k = 0; k < outputs.Count; k++)
                 {
@@ -748,7 +749,7 @@ public static class SteadyState
                         }
                     }
 
-                    double offeredHere = Math.Max(0, offerTotal - (allSent - sent[k]));
+                    double offeredHere = Math.Max(0, offerTotal - (allFirm - firm[k]));
                     if (offerTotal > 0)
                     {
                         foreach ((ItemId item, double rate) in offering)
@@ -816,14 +817,16 @@ public static class SteadyState
                 double[] mainSpare = Waterfill(total - main.Sum() - over.Sum(), [.. Enumerable.Range(0, outputs.Count).Select(k => takes[k] ? spare[k] : 0)]);
                 double[] overSpare = Waterfill(
                     total - main.Sum() - over.Sum() - mainSpare.Sum(), [.. Enumerable.Range(0, outputs.Count).Select(k => overflows[k] ? spare[k] : 0)]);
+                // Spare is taken only from what's left over, so it doesn't lower what the other outputs are offered.
+                double mainFirm = main.Sum();
+                double overFirm = over.Sum();
+                double[] mainFirmOf = [.. main];
+                double[] overFirmOf = [.. over];
                 for (int k = 0; k < outputs.Count; k++)
                 {
                     main[k] += mainSpare[k];
                     over[k] += overSpare[k];
                 }
-
-                double mainSent = main.Sum();
-                double overSent = over.Sum();
 
                 for (int k = 0; k < outputs.Count; k++)
                 {
@@ -836,8 +839,8 @@ public static class SteadyState
                     // The main outputs are offered all but what the other main outputs take; an overflow output only
                     // what the main outputs leave.
                     double offeredHere = takes[k]
-                        ? Math.Max(0, offerTotal - (mainSent - main[k]))
-                        : Math.Max(0, offerTotal - mainSent - (overSent - over[k]));
+                        ? Math.Max(0, offerTotal - (mainFirm - mainFirmOf[k]))
+                        : Math.Max(0, offerTotal - mainFirm - (overFirm - overFirmOf[k]));
                     foreach (ItemId item in group)
                     {
                         if (total > 0)
