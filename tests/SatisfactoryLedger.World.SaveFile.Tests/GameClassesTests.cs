@@ -87,4 +87,11 @@ public class GameClassesTests
     {
         Assert.Equal(Enum.Parse<Port>(expected), GameClasses.DirectionOf("FGPipeConnectionFactory", className));
     }
+
+    [Fact]
+    public void A_dimensional_depot_uploader_takes_only_what_is_left_over()
+    {
+        Assert.True(GameClasses.IsUploader("Build_CentralStorage_C"));
+        Assert.False(GameClasses.IsUploader("Build_ResourceSink_C"));
+    }
 }

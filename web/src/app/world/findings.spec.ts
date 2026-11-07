@@ -24,6 +24,18 @@ const findings: Findings = {
   unusedSupply: [],
   unknownSupply: [],
   settled: true,
+  generators: [
+    {
+      id: 'plant',
+      className: 'Build_GeneratorNuclear_C',
+      fuel: 'Desc_NuclearFuelRod_C',
+      utilisation: 0.5,
+      limit: 'starved',
+      limitingItem: 'Desc_Water_C',
+      position: null,
+      approximate: false,
+    },
+  ],
 };
 
 // The catalog's names, without the API: Iron Ingot for Desc_IronIngot_C.
@@ -81,5 +93,23 @@ describe('FindingsView', () => {
     const shown = rows(fixture.nativeElement);
     expect(shown).toHaveLength(1);
     expect(shown[0]).toContain("Iron Plate can't leave");
+  });
+
+  it('lists each generator with its fuel and why it runs below full power', async () => {
+    const fixture = await render();
+    const generatorsTab = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')).find((tab) =>
+      tab.textContent?.includes('Generators'),
+    ) as HTMLElement;
+
+    generatorsTab.click();
+    await fixture.whenStable();
+
+    // Only the open tab: the machines tab's rows may still be in the page.
+    const shown = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.mat-mdc-tab-body-active tr.mat-mdc-row')).map(
+      (row) => row.textContent ?? '',
+    );
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toContain('Nuclear Fuel Rod');
+    expect(shown[0]).toContain('Not enough Water');
   });
 });

@@ -42,4 +42,8 @@ Every finding has a position, but tables don't show where things are, or how far
   - A class without a footprint (a lift) is a dot.
 - **Older snapshots** (version 4 and before) have no curves, yaws or footprints: re-import the save to see them. A catalog imported before footprints were read has none: re-import the Docs file first.
 - Lifts have no curve and no footprint: they're dots.
+- **Contents** (decided 2026-11-06, step 22): what's on belts, lifts, splitters and mergers, and in machines, at save time.
+  - Kept apart from stock, so it never counts as supply in the analysis.
+  - The map shows it in tooltips, and colours belts by their main item on request.
+  - Snapshot version 6; older snapshots have none.
 - Leaflet 1.9 is CommonJS, so it's allowed in `angular.json` (`allowedCommonJsDependencies`).

@@ -26,9 +26,10 @@ public sealed record AnalysisDocument(
     /// <summary>
     /// Version 1: the analysis of steps 12 to 17. Version 2: a machine at 99.99% or more is running (BR-A11).
     /// Version 3: from 99.9%.
+    /// Version 4: generators burning a known fuel take only what they burn and make their waste (BR-A8).
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     /// <summary>Simulates a world's flow network and keeps what the findings need.</summary>
     public static AnalysisDocument Compute(FlowNetwork network)

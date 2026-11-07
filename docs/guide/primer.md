@@ -93,7 +93,7 @@ Every technical term in the guide, in plain language: what it is, and where you'
 | **CA1829 / CA1826: `Count()` on a list** | With warnings as errors, `list.Count()` (the LINQ method) fails the build when the type has a `Count` or `Length` property, because the method may walk the sequence. Use the property. Arrays have `Length`, lists and collections `Count`. | The big-world probe (step 13) |
 | **UTF-8 string literals (`"…"u8`)** | `"text"u8` is a `ReadOnlySpan<byte>` with the UTF-8 bytes, made at compile time. It's like `"text".getBytes(StandardCharsets.UTF_8)` but without a runtime call. | `SaveFileReaderTests` |
 | **Public test methods can't take internal types (CS0051)** | xUnit needs public test classes and methods, and a public method can't have an `internal` type as a parameter. In a `[Theory]`, pass the value as a string and `Enum.Parse` it inside the test. | `GameClassesTests` |
-| **CA1859: concrete types on private members** | Java teaches "program to interfaces". For `private` methods, .NET's analyzer prefers the concrete type (`HashSet<T>` instead of `IReadOnlySet<T>`), because calls through an interface can't be devirtualized. Public signatures stay on interfaces. With warnings as errors, the build fails until you change it. | `FactoryDefinition.ReachableDownstream` |
+| **CA1859: concrete types on private members** | Java teaches "program to interfaces". For `private` methods, .NET's analyzer prefers the concrete type (`HashSet<T>` instead of `IReadOnlySet<T>`), because calls through an interface can't be devirtualized. Public signatures stay on interfaces. With warnings as errors, the build fails until you change it. | `FactoryDefinition.ReachableDownstream`, `BuildableDocument.CubicMetres` |
 
 ## Backend
 

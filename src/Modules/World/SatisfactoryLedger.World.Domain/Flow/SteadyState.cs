@@ -175,6 +175,7 @@ public static class SteadyState
             _asked = [.. Enumerable.Range(0, nodes).Select(AskedItems)];
         }
 
+
         public PartResult Run(int maxSweeps)
         {
             double[] previous = new double[_flow.Length];
@@ -219,7 +220,7 @@ public static class SteadyState
                 switch (_network.Nodes[node])
                 {
                     case FlowSink sink:
-                        TakeEverything(node, sink.Burns);
+                        TakeEverything(node, sink.Burns, sink.LeftoversOnly);
                         break;
                     // A station takes everything loaded onto it, like a consumer, while it unloads to its outputs (BR-A8, BR-A9).
                     case FlowUnknownSource source:
@@ -272,14 +273,14 @@ public static class SteadyState
 
         /// <summary>
         /// A consumer or station takes everything that comes in, except the fuel it burns: that it takes only when the
-        /// line's other consumers have what they want (option 2, step 14).
+        /// line's other consumers have what they want (option 2, step 14). An uploader takes everything that way (BR-A8).
         /// </summary>
-        private void TakeEverything(int node, IReadOnlySet<ItemId>? burns)
+        private void TakeEverything(int node, IReadOnlySet<ItemId>? burns, bool leftoversOnly = false)
         {
             foreach (int edge in _in[node])
             {
                 List<ItemId> items = [.. _offered[edge].Where(entry => entry.Value > 0).Select(entry => entry.Key)];
-                bool fuel = burns is { Count: > 0 } && items.Count > 0 && items.All(burns.Contains);
+                bool fuel = leftoversOnly || (burns is { Count: > 0 } && items.Count > 0 && items.All(burns.Contains));
                 _accept[edge] = fuel ? 0 : double.PositiveInfinity;
                 _spare[edge] = fuel ? double.PositiveInfinity : 0;
             }
@@ -613,7 +614,8 @@ public static class SteadyState
         /// BR-A4: a smart or programmable splitter sends each item to the outputs its rules name: the item itself,
         /// <i>any</i>, or <i>any undefined</i> when no output names it. Evenly over those, as far as they take it; what
         /// they can't take goes to the <i>overflow</i> outputs. An output set to <i>none</i> gets nothing.
-        /// Items going to the same outputs are sent together; groups are served one after the other.
+        /// Items going to the same outputs are sent together; groups are served one after the other. Spare, room taken only
+        /// from what's left (an uploader, a drone port's fuel), is served last: after the overflow outputs (BR-A8).
         /// </summary>
         private void SendSorted(int node, FlowSplitter splitter, Dictionary<ItemId, double> items, Dictionary<ItemId, double> offer)
         {
@@ -635,7 +637,8 @@ public static class SteadyState
             });
             bool Overflows(int k, ItemId item) => CanCarry(outputs[k], item) && rules[k].Any(rule => rule.Kind == SortRuleKind.Overflow);
 
-            double[] room = [.. outputs.Select(Room)];
+            double[] room = [.. outputs.Select(edge => _accept[edge])];
+            double[] spare = [.. outputs.Select(edge => _spare[edge])];
             var groups = items.Keys.Union(offer.Keys)
                 .GroupBy(item => string.Join(",", Enumerable.Range(0, outputs.Count).Select(k => Takes(k, item) ? "t" : Overflows(k, item) ? "o" : "-")))
                 .OrderBy(group => group.Key, StringComparer.Ordinal);
@@ -650,9 +653,19 @@ public static class SteadyState
                 double total = Total(sending);
                 double offerTotal = Total(offering);
 
+                // What the outputs take firmly first, the main ones before the overflow; then the spare, in the same order.
                 double[] main = Waterfill(total, [.. Enumerable.Range(0, outputs.Count).Select(k => takes[k] ? room[k] : 0)]);
+                double[] over = Waterfill(total - main.Sum(), [.. Enumerable.Range(0, outputs.Count).Select(k => overflows[k] ? room[k] : 0)]);
+                double[] mainSpare = Waterfill(total - main.Sum() - over.Sum(), [.. Enumerable.Range(0, outputs.Count).Select(k => takes[k] ? spare[k] : 0)]);
+                double[] overSpare = Waterfill(
+                    total - main.Sum() - over.Sum() - mainSpare.Sum(), [.. Enumerable.Range(0, outputs.Count).Select(k => overflows[k] ? spare[k] : 0)]);
+                for (int k = 0; k < outputs.Count; k++)
+                {
+                    main[k] += mainSpare[k];
+                    over[k] += overSpare[k];
+                }
+
                 double mainSent = main.Sum();
-                double[] over = Waterfill(total - mainSent, [.. Enumerable.Range(0, outputs.Count).Select(k => overflows[k] ? room[k] : 0)]);
                 double overSent = over.Sum();
 
                 for (int k = 0; k < outputs.Count; k++)
@@ -681,7 +694,9 @@ public static class SteadyState
                         }
                     }
 
-                    room[k] -= sent;
+                    double firmSent = Math.Min(sent, room[k]);
+                    room[k] -= firmSent;
+                    spare[k] -= sent - firmSent;
                 }
             }
         }

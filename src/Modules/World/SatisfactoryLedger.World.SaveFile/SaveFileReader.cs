@@ -52,6 +52,7 @@ public static class SaveFileReader
         }
 
         Dictionary<int, string> fluidOfNetwork = FluidsOfPipeNetworks(byPath.Values);
+        Dictionary<string, Dictionary<string, decimal>> onConveyors = ItemsOnConveyors(byPath.Values);
         List<SavedBuildable> buildables = [];
         List<Connector> connectors = [];
         Dictionary<string, int> unsupported = [];
@@ -79,10 +80,20 @@ public static class SaveFileReader
             SavedBuildable? buildable = role switch
             {
                 BuildableRole.Machine => new SavedMachine(id, className, ShortNameOrNull(ObjectPath(actor, "mCurrentRecipe")),
-                    ClockSpeedOf(actor), (decimal?)Float(actor, "mCurrentProductionBoost") ?? 1m),
+                    ClockSpeedOf(actor), (decimal?)Float(actor, "mCurrentProductionBoost") ?? 1m)
+                {
+                    InputContents = InventoryOf(actor, "mInputInventory", byPath),
+                    OutputContents = InventoryOf(actor, "mOutputInventory", byPath),
+                },
                 BuildableRole.Provider => new SavedProvider(id, className, ShortNameOrNull(ObjectPath(actor, "mExtractableResource")),
                     ClockSpeedOf(actor), GameClasses.FixedResourceOf(className)),
-                BuildableRole.Consumer => new SavedConsumer(id, className),
+                BuildableRole.Consumer => new SavedConsumer(id, className)
+                {
+                    // BR-A8: a generator burns the fuel in it; the save names it, and leaves it out when the slot is empty.
+                    Fuel = ShortNameOrNull(ObjectPath(actor, "mCurrentFuelClass")),
+                    ClockSpeed = GameClasses.IsGenerator(className) ? ClockSpeedOf(actor) : null,
+                    TakesLeftoversOnly = GameClasses.IsUploader(className),
+                },
                 // BR-W1, BR-W8: belts leaving a station's outputs make it unload; belts into its inputs only, load.
                 BuildableRole.Station when unloads => new SavedProvider(id, className, Node: null, ClockSpeed.Percent(100))
                 {
@@ -93,6 +104,7 @@ public static class SaveFileReader
                 BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className), SortRulesOf(actor), InputPrioritiesOf(actor))
                 {
                     Curve = CurveOf(actor),
+                    Contents = onConveyors.GetValueOrDefault(actor.ObjectReference.PathName) ?? InventoryOf(actor, "mBufferInventory", byPath),
                     Stock = GameClasses.LogisticsKindOf(className) == LogisticsKind.FluidBuffer
                         ? FluidStockOf(actor, byPath, fluidOfNetwork)
                         : inventory is null ? null : StockOf(actor, inventory, byPath),
@@ -244,10 +256,19 @@ public static class SaveFileReader
     /// What one inventory of a buildable holds, per item: its stacks are an item path and a count each. An empty slot
     /// has no item.
     /// </summary>
-    private static Dictionary<string, decimal> StockOf(ActorObject actor, string inventory, Dictionary<string, ComponentObject> byPath, bool litres = false)
+    private static Dictionary<string, decimal> StockOf(ActorObject actor, string inventory, Dictionary<string, ComponentObject> byPath, bool litres = false) =>
+        ItemsIn(byPath.GetValueOrDefault($"{actor.ObjectReference.PathName}.{inventory}"), litres);
+
+    /// <summary>
+    /// What an inventory the actor points at holds (a machine's <c>mInputInventory</c>, a splitter's
+    /// <c>mBufferInventory</c>); null when it has no such inventory.
+    /// </summary>
+    private static Dictionary<string, decimal>? InventoryOf(ActorObject actor, string property, Dictionary<string, ComponentObject> byPath) =>
+        ObjectPath(actor, property) is { } path ? ItemsIn(byPath.GetValueOrDefault(path)) : null;
+
+    private static Dictionary<string, decimal> ItemsIn(ComponentObject? component, bool litres = false)
     {
         Dictionary<string, decimal> stock = new(StringComparer.Ordinal);
-        ComponentObject? component = byPath.GetValueOrDefault($"{actor.ObjectReference.PathName}.{inventory}");
         var stacks = component?.Properties.OfType<ArrayProperty>().FirstOrDefault(property => property.Name == "mInventoryStacks")?.Property
             as ArrayStructProperty;
 
@@ -262,6 +283,42 @@ public static class SaveFileReader
         }
 
         return stock;
+    }
+
+    /// <summary>
+    /// What's on each belt and lift, by its path. Since 1.0 the items are kept on conveyor chains: one ring of items per
+    /// run of belts and lifts, listed from its head. Each conveyor says which stretch of the ring it has (first to last,
+    /// wrapping round; -1 when it has none).
+    /// </summary>
+    private static Dictionary<string, Dictionary<string, decimal>> ItemsOnConveyors(IEnumerable<ComponentObject> saved)
+    {
+        Dictionary<string, Dictionary<string, decimal>> onConveyors = new(StringComparer.Ordinal);
+        foreach (var chain in saved.Select(component => component.ExtraData).OfType<SatisfactorySaveNet.Abstracts.Extra.ConveyorChainActor>())
+        {
+            List<Item> items = [.. chain.Items];
+            int ring = chain.NumberItems;
+            foreach (var conveyor in chain.ConveyorActors)
+            {
+                Dictionary<string, decimal> contents = new(StringComparer.Ordinal);
+                if (conveyor.FirstItemIndex >= 0 && conveyor.LastItemIndex >= 0 && ring > 0)
+                {
+                    int count = ((conveyor.LastItemIndex - conveyor.FirstItemIndex + ring) % ring) + 1;
+                    for (int i = 0; i < count; i++)
+                    {
+                        int fromHead = (conveyor.FirstItemIndex + i - chain.HeadItemIndex + ring) % ring;
+                        if (fromHead < items.Count)
+                        {
+                            string item = ShortName(items[fromHead].Name.PathName);
+                            contents[item] = contents.GetValueOrDefault(item) + 1;
+                        }
+                    }
+                }
+
+                onConveyors[conveyor.ConveyorBase.PathName] = contents;
+            }
+        }
+
+        return onConveyors;
     }
 
     /// <summary>

@@ -23,9 +23,12 @@ import { problemMessage, whenAnalysed } from '../../shared/problem';
 import {
   MachineStatus,
   conveyorColours,
+  describeContents,
   footprintCorners,
   freeNodes,
+  itemColour,
   machineStatuses,
+  mainItem,
   purityColours,
   sampleCurve,
   statusColours,
@@ -84,9 +87,13 @@ export class MapPage {
 
   protected readonly factoryId = signal<string | null>(null);
   protected readonly showFreeNodes = signal(true);
+  /** Colour belts by what they carry most of, instead of grey (pipes stay teal, bottlenecks red). */
+  protected readonly colourByItem = signal(false);
   protected readonly pointer = signal<string>('');
 
   private readonly statuses = computed(() => machineStatuses(this.analysis.value()?.machines));
+  /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
+  private readonly generators = computed(() => new Map((this.analysis.value()?.generators ?? []).map((generator) => [generator.id, generator])));
   private readonly utilisations = computed(
     () => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine.utilisation])),
   );
@@ -108,6 +115,18 @@ export class MapPage {
     colour: statusColours[status],
   }));
   protected readonly problem = problemMessage;
+
+  /** The items on the belts, most belts first, with their colour: the legend while belts are coloured by item. */
+  protected readonly beltItems = computed(() => {
+    const belts = new Map<string, number>();
+    for (const conveyor of this.world.value()?.conveyors ?? []) {
+      const item = mainItem(conveyor.contents);
+      if (conveyor.kind === 'belt' && item) belts.set(item, (belts.get(item) ?? 0) + 1);
+    }
+    return [...belts.entries()]
+      .sort(([, a], [, b]) => b - a)
+      .map(([item]) => ({ item, name: this.names.item(item), colour: itemColour(item) }));
+  });
 
   private readonly container = viewChild.required<ElementRef<HTMLElement>>('map');
   private map?: L.Map;
@@ -215,6 +234,8 @@ export class MapPage {
         .bindTooltip(
           `<b>${this.names.building(machine.className)}</b> · ${this.names.recipe(machine.recipe)}<br>` +
             `${statusLabels[status]}${utilisation !== undefined ? ` · ${percent(utilisation)}` : ''}<br>` +
+            (machine.inputContents ? `In: ${this.contents(machine.inputContents)}<br>` : '') +
+            (machine.outputContents ? `Out: ${this.contents(machine.outputContents)}<br>` : '') +
             positionInMetres(machine.position),
         )
         .addTo(this.machineLayer);
@@ -231,24 +252,32 @@ export class MapPage {
   private drawConveyors(): void {
     const conveyors = this.world.value()?.conveyors ?? [];
     const bottlenecks = this.bottlenecks();
+    const byItem = this.colourByItem();
     if (!this.map) return;
 
     this.conveyorLayer.clearLayers();
     for (const conveyor of conveyors) {
       const bottleneck = bottlenecks.get(conveyor.id);
+      const item = conveyor.kind === 'belt' ? mainItem(conveyor.contents) : null;
+      const colour = bottleneck
+        ? conveyorColours.bottleneck
+        : byItem && conveyor.kind === 'belt'
+          ? item
+            ? itemColour(item)
+            : '#455a64'
+          : conveyorColours[conveyor.kind];
       const line = L.polyline(sampleCurve(conveyor.curve), {
-        color: bottleneck ? conveyorColours.bottleneck : conveyorColours[conveyor.kind],
-        weight: bottleneck ? 4 : conveyor.kind === 'pipe' ? 2.5 : 1.5,
-        opacity: bottleneck ? 1 : 0.6,
+        color: colour,
+        weight: bottleneck ? 4 : conveyor.kind === 'pipe' ? 2.5 : byItem && item ? 2.5 : 1.5,
+        opacity: bottleneck || (byItem && item) ? 1 : 0.6,
       });
-      if (bottleneck) {
-        line.bindTooltip(
-          `<b>Bottleneck</b> · ${this.names.building(conveyor.className)}<br>` +
-            `carries ${perMinute(bottleneck.flow)} of ${perMinute(bottleneck.capacity)}, ${perMinute(bottleneck.offeredMore)} more offered`,
-        );
-      } else {
-        line.bindTooltip(this.names.building(conveyor.className));
-      }
+      const carries = this.contents(conveyor.contents);
+      line.bindTooltip(
+        (bottleneck
+          ? `<b>Bottleneck</b> · ${this.names.building(conveyor.className)}<br>` +
+            `carries ${perMinute(bottleneck.flow)} of ${perMinute(bottleneck.capacity)}, ${perMinute(bottleneck.offeredMore)} more offered`
+          : `<b>${this.names.building(conveyor.className)}</b>`) + (carries ? `<br>On it: ${carries}` : ''),
+      );
       line.addTo(this.conveyorLayer);
     }
   }
@@ -278,6 +307,7 @@ export class MapPage {
   /** Splitters, mergers, lifts, storage, and the consumers belts end in (BR-W8): so belts don't stop in mid-air. */
   private drawOthers(): void {
     const world = this.world.value();
+    const generators = this.generators();
     if (!this.map) return;
 
     this.otherLayer.clearLayers();
@@ -289,11 +319,34 @@ export class MapPage {
     });
     for (const [buildings, consumer] of [[world?.logistics ?? [], false], [world?.consumers ?? [], true]] as const) {
       for (const building of buildings) {
-        this.shape(building.position, building.yaw, building.className, style(consumer), 2)
-          .bindTooltip(`<b>${this.names.building(building.className)}</b><br>${positionInMetres(building.position)}`)
+        // A generator burning a known fuel shows how it runs (BR-A15), in the machines' colours.
+        const generator = consumer ? generators.get(building.id) : undefined;
+        const colour = generator ? statusColours[generator.limit] : undefined;
+        this.shape(
+          building.position,
+          building.yaw,
+          building.className,
+          colour ? { color: colour, weight: 1, fillColor: colour, fillOpacity: 0.75 } : style(consumer),
+          2,
+        )
+          .bindTooltip(
+            `<b>${this.names.building(building.className)}</b><br>` +
+              (generator
+                ? `Burns ${this.names.item(generator.fuel)} · ${statusLabels[generator.limit]} · ${percent(generator.utilisation)}` +
+                  (generator.limitingItem ? ` (${this.names.item(generator.limitingItem)})` : '') +
+                  '<br>'
+                : '') +
+              (building.contents ? `Holds: ${this.contents(building.contents)}<br>` : '') +
+              positionInMetres(building.position),
+          )
           .addTo(this.otherLayer);
       }
     }
+  }
+
+  /** Contents in words, with the Catalog's item names. */
+  private contents(contents: Record<string, number> | null | undefined): string {
+    return describeContents(contents, (item) => this.names.item(item));
   }
 
   private drawFreeNodes(): void {

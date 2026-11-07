@@ -23,7 +23,22 @@ public interface ICatalogQueries
 
     /// <summary>The footprints of the buildings with these class names that the Catalog knows (ADR-0020). Unknown ids, such as lifts, are left out.</summary>
     Task<IReadOnlyList<CatalogFootprint>> GetFootprintsAsync(IReadOnlyCollection<string> buildingIds, CancellationToken cancellationToken);
+
+    /// <summary>The generators with these class names that the Catalog knows (BR-A8). Unknown ids are left out.</summary>
+    Task<IReadOnlyList<CatalogGenerator>> GetGeneratorsAsync(IReadOnlyCollection<string> generatorIds, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// A generator: it burns a fuel at <see cref="PowerMegawatts"/> ÷ the fuel's energy per second, and needs its
+/// supplemental fluid at <see cref="PowerMegawatts"/> × <see cref="SupplementalLitresPerMegajoule"/> litres per second.
+/// </summary>
+/// <param name="Id">The building's class name, e.g. <c>Build_GeneratorNuclear_C</c>.</param>
+public sealed record CatalogGenerator(string Id, decimal PowerMegawatts, decimal SupplementalLitresPerMegajoule, IReadOnlyList<CatalogGeneratorFuel> Fuels);
+
+/// <param name="EnergyMegajoules">Per item, or per cubic metre of a fluid fuel.</param>
+/// <param name="Supplemental">The fluid it needs besides the fuel (water); null when none.</param>
+/// <param name="Byproduct">What burning one item leaves (uranium waste), <paramref name="ByproductPerFuel"/> of it; null when nothing.</param>
+public sealed record CatalogGeneratorFuel(string Fuel, decimal EnergyMegajoules, string? Supplemental, string? Byproduct, decimal ByproductPerFuel);
 
 /// <summary>The ground a building covers, seen from above: a rectangle in its own coordinates, in centimetres.</summary>
 /// <param name="Id">The building's class name, e.g. <c>Build_ConstructorMk1_C</c>.</param>

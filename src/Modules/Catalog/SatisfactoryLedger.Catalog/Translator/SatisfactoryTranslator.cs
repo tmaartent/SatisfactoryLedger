@@ -142,6 +142,41 @@ internal class SatisfactoryTranslator
     }
 
     /// <summary>
+    /// Generators with the fuels they burn (BR-A8). A fuel's energy is the item's <c>mEnergyValue</c>: per item, or per
+    /// litre of a fluid, so ×1000 for a cubic metre. A fuel the file has no item or no energy for is left out.
+    /// </summary>
+    public static List<Generator> TranslateToGenerators(List<GameDataGroupDto> dataList)
+    {
+        Dictionary<string, ItemDto> items = dataList.OfType<ItemGroupDto>().SelectMany(dto => dto.Items)
+            .GroupBy(item => item.ClassName, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        static ItemId? ItemOrNone(string className) => string.IsNullOrWhiteSpace(className) ? null : ItemId.Of(className);
+
+        return
+        [
+            .. dataList.OfType<GeneratorGroupDto>().SelectMany(dto => dto.Generators).Select(dto => Generator.Create(
+                GeneratorId.Of(dto.ClassName),
+                dto.DisplayName,
+                ParseGameDecimal(dto.PowerProduction),
+                ParseGameDecimal(dto.SupplementalToPowerRatio),
+                [
+                    .. dto.Fuels
+                        .Where(fuel => items.TryGetValue(fuel.FuelClass, out ItemDto? item) && ParseGameDecimal(item.EnergyValue) > 0)
+                        .Select(fuel =>
+                        {
+                            ItemDto item = items[fuel.FuelClass];
+                            decimal energy = ParseGameDecimal(item.EnergyValue) * (item.IsFluid ? 1000 : 1);
+                            return new GeneratorFuel(
+                                ItemId.Of(fuel.FuelClass),
+                                energy,
+                                ItemOrNone(fuel.SupplementalResourceClass),
+                                ItemOrNone(fuel.Byproduct),
+                                string.IsNullOrWhiteSpace(fuel.ByproductAmount) ? 0 : ParseGameDecimal(fuel.ByproductAmount));
+                        })
+                ]))
+        ];
+    }
+
+    /// <summary>
     /// The footprint of every building with clearance boxes (ADR-0020). A class can be in more than one section; the
     /// first is taken.
     /// </summary>

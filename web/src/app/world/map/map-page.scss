@@ -22,6 +22,8 @@
   border-radius: 8px;
   background: color-mix(in srgb, var(--mat-sys-surface-container) 90%, transparent);
   font: var(--mat-sys-body-small);
+  max-height: 60%;
+  overflow-y: auto;
 
   .dot {
     display: inline-block;
@@ -64,6 +66,10 @@
 
     &.pipe {
       background: #4dd0e1;
+    }
+
+    &.empty {
+      background: #455a64;
     }
 
     &.bottleneck {

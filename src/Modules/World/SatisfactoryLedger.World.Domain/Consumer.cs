@@ -1,3 +1,5 @@
+using SatisfactoryLedger.SharedKernel;
+
 namespace SatisfactoryLedger.World.Domain;
 
 /// <summary>
@@ -5,8 +7,25 @@ namespace SatisfactoryLedger.World.Domain;
 /// that loads. Never part of a factory (BR-W8).
 /// </summary>
 /// <param name="burns">For a truck station or drone port that loads: the fuel it burns.</param>
-public sealed class Consumer(BuildableId id, IReadOnlySet<ItemId>? burns = null) : Buildable(id)
+/// <param name="generation">For a generator burning a known fuel: what it burns, needs and leaves (BR-A8).</param>
+/// <param name="takesLeftoversOnly">
+/// For a dimensional depot uploader: it takes only what the line's other consumers leave. In steady state a depot is
+/// full (BR-A8).
+/// </param>
+public sealed class Consumer(BuildableId id, IReadOnlySet<ItemId>? burns = null, Generation? generation = null, bool takesLeftoversOnly = false)
+    : Buildable(id)
 {
+    public bool TakesLeftoversOnly { get; } = takesLeftoversOnly;
+
     /// <summary>The fuel it burns: fuel coming in takes only what the line's other consumers leave (step 14).</summary>
     public IReadOnlySet<ItemId> Burns { get; } = burns ?? new HashSet<ItemId>();
+
+    /// <summary>Null for a sink, an uploader, a station, or a generator whose fuel isn't known: it takes everything.</summary>
+    public Generation? Generation { get; } = generation;
 }
+
+/// <summary>
+/// What a generator burning a known fuel does per minute at full power and its clock speed (BR-A8): burns its fuel,
+/// needs its supplemental fluid (water), and leaves its byproduct (uranium or plutonium waste).
+/// </summary>
+public sealed record Generation(ItemId Fuel, Rate Burns, ItemId? Supplemental, Rate SupplementalNeeded, ItemId? Byproduct, Rate Leaves);

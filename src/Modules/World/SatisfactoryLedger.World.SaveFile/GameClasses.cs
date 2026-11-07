@@ -41,6 +41,17 @@ internal static class GameClasses
         "Build_OilPump_C", "Build_WaterPump_C", "Build_FrackingExtractor_C",
     ];
 
+    /// <summary>Generators that burn fuel (BR-A8): the Catalog knows their burn rates. Geothermal burns nothing.</summary>
+    private static readonly HashSet<string> Generators =
+    [
+        "Build_GeneratorCoal_C", "Build_GeneratorFuel_C", "Build_GeneratorNuclear_C", "Build_GeneratorBiomass_Automated_C",
+    ];
+
+    public static bool IsGenerator(string className) => Generators.Contains(className);
+
+    /// <summary>A dimensional depot uploader: takes only what's left over (BR-A8).</summary>
+    public static bool IsUploader(string className) => className == "Build_CentralStorage_C";
+
     private static readonly HashSet<string> Consumers =
     [
         "Build_ResourceSink_C", "Build_CentralStorage_C",

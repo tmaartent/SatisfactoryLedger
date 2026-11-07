@@ -138,6 +138,16 @@ public class CatalogImportTests
     }
 
     [Fact]
+    public void An_import_counts_the_generators_it_changed()
+    {
+        var generator = Generator.Create(GeneratorId.Of("Build_GeneratorCoal_C"), "Coal-Powered Generator", 75, 10, []);
+
+        var import = RecordImport("1.2", generators: CatalogEntries.Reconcile([], [generator]));
+
+        Assert.Equal(new ImportCounts(Added: 1, Updated: 0, NoLongerInGame: 0), import.Generators);
+    }
+
+    [Fact]
     public void An_import_of_the_docs_file_says_so()
     {
         Assert.Equal(CatalogImportSource.DocsFile, RecordImport("1.2").Source);
@@ -162,7 +172,8 @@ public class CatalogImportTests
         string gameVersion,
         CatalogEntryChanges<Item>? items = null,
         CatalogEntryChanges<Extractor>? extractors = null,
-        CatalogEntryChanges<Footprint>? footprints = null) =>
+        CatalogEntryChanges<Footprint>? footprints = null,
+        CatalogEntryChanges<Generator>? generators = null) =>
         CatalogImport.Record(
             CatalogImportId.New(),
             gameVersion,
@@ -172,5 +183,6 @@ public class CatalogImportTests
             CatalogEntries.None<TransportTier>(),
             CatalogEntries.None<Recipe>(),
             extractors ?? CatalogEntries.None<Extractor>(),
-            footprints ?? CatalogEntries.None<Footprint>());
+            footprints ?? CatalogEntries.None<Footprint>(),
+            generators ?? CatalogEntries.None<Generator>());
 }

@@ -167,4 +167,48 @@
       </table>
     </div>
   </mat-tab>
+  @if (f.generators; as generators) {
+    <mat-tab [label]="'Generators (' + generators.length + ')'">
+      <p class="muted explanation">
+        Generators burning a known fuel, at full power (BR-A8): what they burn, and why they run below it.
+      </p>
+      <div class="table-scroll">
+        <table mat-table [dataSource]="generators">
+          <ng-container matColumnDef="generator">
+            <th mat-header-cell *matHeaderCellDef>Generator</th>
+            <td mat-cell *matCellDef="let g">
+              {{ names.building(g.className) }}
+              @if (g.approximate) {
+                <mat-icon inline matTooltip="Approximate">blur_on</mat-icon>
+              }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="fuel">
+            <th mat-header-cell *matHeaderCellDef>Burns</th>
+            <td mat-cell *matCellDef="let g">{{ names.item(g.fuel) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="utilisation">
+            <th mat-header-cell *matHeaderCellDef>Running at</th>
+            <td mat-cell *matCellDef="let g" class="utilisation">
+              <mat-progress-bar [value]="g.utilisation * 100" />
+              <span class="number">{{ percent(g.utilisation) }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="limit">
+            <th mat-header-cell *matHeaderCellDef>Why</th>
+            <td mat-cell *matCellDef="let g">
+              <mat-chip [class]="g.limit" disableRipple>{{ generatorLimit(g) }}</mat-chip>
+              <span class="muted">{{ why(g) }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="position">
+            <th mat-header-cell *matHeaderCellDef>Where</th>
+            <td mat-cell *matCellDef="let g" class="muted">{{ position(g.position) }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="generatorColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: generatorColumns"></tr>
+        </table>
+      </div>
+    </mat-tab>
+  }
 </mat-tab-group>

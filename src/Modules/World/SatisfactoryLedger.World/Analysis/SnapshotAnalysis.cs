@@ -59,6 +59,20 @@ internal sealed record UnknownSupplyFinding(
     PositionDocument? Position,
     bool Approximate);
 
+/// <summary>A generator burning a known fuel (BR-A15): how fast it runs, and why not faster when below full power.</summary>
+/// <param name="Fuel">The fuel it burns: the one in it at save time.</param>
+/// <param name="Utilisation">Between 0 and 1, to 4 decimals.</param>
+/// <param name="LimitingItem">The fuel or water it's starved of, or the waste it's blocked on; null when it runs.</param>
+internal sealed record GeneratorFinding(
+    string Id,
+    string ClassName,
+    string Fuel,
+    double Utilisation,
+    MachineLimit Limit,
+    string? LimitingItem,
+    PositionDocument? Position,
+    bool Approximate);
+
 /// <summary>The findings of a snapshot: worst first in every list.</summary>
 /// <param name="Settled">False when a part of the world didn't settle; its findings are marked approximate.</param>
 internal sealed record AnalysisResponse(
@@ -68,7 +82,8 @@ internal sealed record AnalysisResponse(
     IReadOnlyList<MachineFinding> Machines,
     IReadOnlyList<BottleneckFinding> Bottlenecks,
     IReadOnlyList<UnusedSupplyFinding> UnusedSupply,
-    IReadOnlyList<UnknownSupplyFinding> UnknownSupply);
+    IReadOnlyList<UnknownSupplyFinding> UnknownSupply,
+    IReadOnlyList<GeneratorFinding> Generators);
 
 /// <summary>What a factory makes of one item: on its output belt now, and if its machines all ran at 100% (BR-A14).</summary>
 /// <param name="Now">What flows onto the output belt per minute.</param>
@@ -98,7 +113,7 @@ internal static class SnapshotAnalysis
 
     /// <summary>The findings of the whole world.</summary>
     public static AnalysisResponse For(SnapshotDocument snapshot, AnalysisDocument analysis) =>
-        Findings(snapshot, analysis, analysis.UnsettledParts, _ => true, _ => true, _ => true);
+        Findings(snapshot, analysis, analysis.UnsettledParts, _ => true, _ => true, _ => true, withGenerators: true);
 
     /// <summary>
     /// The findings of one factory (BR-A14): its machines and logistics, and its suppliers. The simulation was of the
@@ -123,7 +138,9 @@ internal static class SnapshotAnalysis
             parts,
             id => members.Machines.Contains(BuildableId.Of(id)),
             id => members.Logistics.Contains(BuildableId.Of(id)),
-            id => members.Suppliers.Contains(BuildableId.Of(id)));
+            id => members.Suppliers.Contains(BuildableId.Of(id)),
+            // A generator is a consumer, never part of a factory (BR-W8).
+            withGenerators: false);
 
         return new FactoryAnalysisResponse(
             factory.Id,
@@ -167,12 +184,18 @@ internal static class SnapshotAnalysis
         IReadOnlyCollection<UnsettledPartDocument> unsettled,
         Func<string, bool> isMachine,
         Func<string, bool> isConduit,
-        Func<string, bool> isSupplier)
+        Func<string, bool> isSupplier,
+        bool withGenerators)
     {
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         HashSet<string> approximate = analysis.Approximate();
 
-        List<MachineStateDocument> machines = [.. analysis.Machines.Where(machine => isMachine(machine.Id))];
+        // The flow simulates generators like machines (BR-A8), but they're consumers: their own findings (BR-A15).
+        List<MachineStateDocument> machines = [.. analysis.Machines
+            .Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Machine && isMachine(machine.Id))];
+        List<MachineStateDocument> generators = withGenerators
+            ? [.. analysis.Machines.Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Consumer && buildables[machine.Id].Fuel is not null)]
+            : [];
         return new AnalysisResponse(
             unsettled.Count == 0,
             new AnalysisSummary(
@@ -234,6 +257,19 @@ internal static class SnapshotAnalysis
                         supply.Confirmed,
                         buildables[supply.Id].Position,
                         approximate.Contains(supply.Id)))
+            ],
+            [
+                .. generators
+                    .OrderBy(generator => generator.Utilisation).ThenBy(generator => generator.Id, StringComparer.Ordinal)
+                    .Select(generator => new GeneratorFinding(
+                        generator.Id,
+                        buildables[generator.Id].ClassName,
+                        buildables[generator.Id].Fuel!,
+                        Round(generator.Utilisation),
+                        generator.Limit,
+                        generator.LimitingItem,
+                        buildables[generator.Id].Position,
+                        approximate.Contains(generator.Id)))
             ]);
     }
 

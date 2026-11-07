@@ -26,6 +26,9 @@ internal sealed class TestWorld
 
     public TestWorld Sink(string id) => Add(new Consumer(BuildableId.Of(id)));
 
+    /// <summary>A dimensional depot uploader (BR-A8).</summary>
+    public TestWorld Uploader(string id) => Add(new Consumer(BuildableId.Of(id), takesLeftoversOnly: true));
+
     public TestWorld Machine(string id, ItemId consumes, ItemId produces) => Machine(id, [consumes], [produces]);
 
     /// <summary>A machine for tracing: only which items matter, so every rate is 1 per minute.</summary>
@@ -57,6 +60,11 @@ internal sealed class TestWorld
     public TestWorld StationBurning(string id, ItemId fuel) => Add(new Provider(BuildableId.Of(id), burns: new HashSet<ItemId> { fuel }));
 
     /// <summary>A truck station that only loads, and burns <paramref name="fuel"/>.</summary>
+    /// <summary>A generator burning a known fuel (BR-A8), at the rates given per minute.</summary>
+    public TestWorld Generator(string id, ItemId fuel, decimal burns, ItemId? water = null, decimal needs = 0, ItemId? waste = null, decimal leaves = 0) =>
+        Add(new Consumer(BuildableId.Of(id), generation: new Generation(
+            fuel, Rate.PerMinute(burns), water, Rate.PerMinute(needs), waste, Rate.PerMinute(leaves))));
+
     public TestWorld LoadingStationBurning(string id, ItemId fuel) => Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }));
 
     public TestWorld Junction(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.PipeJunction));

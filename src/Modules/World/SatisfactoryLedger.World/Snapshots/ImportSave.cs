@@ -56,10 +56,13 @@ internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox,
 
         IReadOnlyList<CatalogRecipe> recipesKnown = await catalog.GetRecipesAsync(recipes, cancellationToken);
         IReadOnlyList<CatalogResourceNode> nodesKnown = await catalog.GetResourceNodesAsync(nodes, cancellationToken);
+        IReadOnlyList<CatalogGenerator> generators = await catalog.GetGeneratorsAsync(
+            [.. saved.Buildables.OfType<SavedConsumer>().Select(consumer => consumer.ClassName).Distinct()], cancellationToken);
         HashSet<string> items = SnapshotDocument.ItemsUsed(
             saved,
             recipesKnown.Select(RecipeDocument.From),
-            nodesKnown.Select(node => new ResourceNodeDocument(node.Name, node.Resource, node.Purity)));
+            nodesKnown.Select(node => new ResourceNodeDocument(node.Name, node.Resource, node.Purity)),
+            generators.Select(GeneratorDocument.From));
 
         return new CatalogCopy(
             recipesKnown,
@@ -67,6 +70,7 @@ internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox,
             await catalog.GetTransportTiersAsync(tiers, cancellationToken),
             nodesKnown,
             await catalog.GetItemsAsync(items, cancellationToken),
-            await catalog.GetFootprintsAsync(classes, cancellationToken));
+            await catalog.GetFootprintsAsync(classes, cancellationToken),
+            generators);
     }
 }

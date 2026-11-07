@@ -100,4 +100,29 @@ public class WorldMapTests
 
         Assert.Equal((-400m, 400m), (constructor.MinX, constructor.MaxX));
     }
+
+    [Fact]
+    public void A_belt_on_the_map_shows_what_it_carries()
+    {
+        MapConveyor belt = Map.Conveyors.Single(conveyor => conveyor.Id == Id("Build_ConveyorBeltMk1_C_2147303056"));
+
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 7 }, belt.Contents);
+    }
+
+    [Fact]
+    public void A_splitter_on_the_map_shows_what_is_in_its_buffer()
+    {
+        MapBuilding splitter = Map.Logistics.Single(buildable => buildable.Id == Id("Build_ConveyorAttachmentSplitter_C_2147304077"));
+
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 2 }, splitter.Contents);
+    }
+
+    [Fact]
+    public void A_machine_on_the_map_shows_its_ingredients_and_the_products_waiting_to_leave()
+    {
+        MapMachine smelter = Map.Machines.Single(machine => machine.Id == SmelterA);
+
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 100 }, smelter.InputContents);
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronIngot_C"] = 98 }, smelter.OutputContents);
+    }
 }

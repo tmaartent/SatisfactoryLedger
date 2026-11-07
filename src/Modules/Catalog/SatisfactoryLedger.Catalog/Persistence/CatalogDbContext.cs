@@ -24,6 +24,8 @@ internal sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> option
 
     public DbSet<Footprint> Footprints => Set<Footprint>();
 
+    public DbSet<Generator> Generators => Set<Generator>();
+
     public DbSet<ResourceNode> ResourceNodes => Set<ResourceNode>();
 
     public DbSet<CatalogImport> Imports => Set<CatalogImport>();

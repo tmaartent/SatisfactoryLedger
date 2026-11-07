@@ -46,6 +46,9 @@ internal sealed class TestFlow
 
     public TestFlow Sink(string id) => Add(new FlowSink(Id(id)));
 
+    /// <summary>A dimensional depot uploader: takes only what the line's other consumers leave (BR-A8).</summary>
+    public TestFlow Uploader(string id) => Add(new FlowSink(Id(id), LeftoversOnly: true));
+
     /// <summary>A station that unloads to its outputs and burns <paramref name="fuels"/> that come in on its inputs.</summary>
     public TestFlow StationBurning(string id, params ItemId[] fuels) =>
         Add(new FlowUnknownSource(Id(id), new Dictionary<ItemId, double>(), Carries.Anything, fuels.ToHashSet()));

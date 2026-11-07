@@ -20,6 +20,10 @@ Ideas the owner wants kept, but not planned yet. Each says what it is, why it's 
 - **Size:** a world like the owner's big one has about 45,000 connections and a few items each, so tens of thousands of variables. That's fine for an LP solver.
 - **Testing:** the current sweep solver and its tests stay as the reference. Both can run on the same networks and are compared within the tolerance.
 
+### Loops the iterative solver finds at zero (step 23)
+
+The owner's nitric acid and non-fissile uranium blenders each need what the other makes. "Both at zero" is a steady state, and the sweeps, which start from zero, find it. Starting from the top (every connection offering plenty) found the loop running, but shifted results elsewhere: four inputs of one machine locked at the same 68%. A linear programme maximising flow finds the largest steady state directly, with no start point. That's one more reason for it.
+
 ### What a drone port or truck station burns
 *Raised 2026-11-05, step 14.*
 
@@ -33,3 +37,7 @@ Ideas the owner wants kept, but not planned yet. Each says what it is, why it's 
 - **Trip duration:** the save keeps only the latest trip per port, for 5 of 28. From the route instead, as above.
 - **Trucks:** the same idea, from their recorded route. Not verified: there are no truck stations in the owner's world.
 - The spike's numbers to check against are in [step 14](../guide/log/14-flow-stations-and-stock.md#fuel-for-drones-and-trucks).
+
+### What a generator really burns
+
+Generators are assumed to run at full power (ADR-0021). In the game they throttle down to what their power grid demands. The save has the power circuits; their demand would give each generator its real load, and so its real fuel burn and waste.

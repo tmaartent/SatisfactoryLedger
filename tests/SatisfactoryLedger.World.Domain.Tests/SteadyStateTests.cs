@@ -11,6 +11,9 @@ public class SteadyStateTests
     private static readonly ItemId Ore = Items.IronOre;
     private static readonly ItemId Ingot = Items.IronIngot;
     private static readonly ItemId Plate = Items.IronPlate;
+    private static readonly ItemId Fuel = ItemId.Of("Desc_LiquidFuel_C");
+    private static readonly ItemId Rods = ItemId.Of("Desc_NuclearFuelRod_C");
+    private static readonly ItemId Waste = ItemId.Of("Desc_NuclearWaste_C");
 
     // ---- BR-A1: machines ------------------------------------------------------------------------------------
 
@@ -186,6 +189,92 @@ public class SteadyStateTests
             .Run();
 
         Assert.Equal(MachineLimit.OutputBlocked, result.Machine(Id("smelter")).Limit);
+    }
+
+    // ---- BR-A8: generators -----------------------------------------------------------------------------------
+
+    [Fact]
+    public void A_generator_takes_only_the_fuel_it_burns_and_leaves_the_rest_on_the_belt()
+    {
+        // A fuel generator burns 20 m³ a minute; 50 are offered.
+        FlowResult result = new TestFlow()
+            .Fluid(Fuel).Provider("refinery", Fuel, 50).Pipe("pipe").Machine("generator", [(Fuel, 20)], [])
+            .Connect("refinery", "pipe", "generator")
+            .Run();
+
+        Assert.Equal(20, result.Into(Id("generator"))[Fuel], Precision);
+        Assert.Equal(MachineLimit.None, result.Machine(Id("generator")).Limit);
+    }
+
+    [Fact]
+    public void A_nuclear_plant_whose_waste_cannot_leave_stops()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("rods", Rods, 1).Belt("in").Machine("plant", Rods, 0.2, Waste, 10).Belt("waste")
+            .Connect("rods", "in", "plant", "waste")
+            .Run();
+
+        MachineState plant = result.Machine(Id("plant"));
+        Assert.Equal((0.0, MachineLimit.OutputBlocked, Waste), (plant.Utilisation, plant.Limit, plant.LimitingItem));
+    }
+
+    [Fact]
+    public void An_uploader_behind_a_smart_splitter_gets_only_what_the_factory_leaves()
+    {
+        // As in the owner's world: "any" to the uploader, "overflow" to the factory. A full depot takes nothing more.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 300).Belt("in").SmartSplitter("split", Rule(2, SortRuleKind.Any), Rule(0, SortRuleKind.Overflow))
+            .Belt("to factory").Machine("cells", [(Ore, 100)], []).Belt("to depot").Uploader("uploader")
+            .Connect("miner", "in", "split").ConnectPort("split", 0, "to factory").Connect("to factory", "cells")
+            .ConnectPort("split", 2, "to depot").Connect("to depot", "uploader")
+            .Run();
+
+        Assert.Equal(1.0, result.Machine(Id("cells")).Utilisation, Precision);
+        Assert.Equal(200, result.Flow(Id("to depot"), Id("uploader"), Ore), Precision);
+    }
+
+    [Fact]
+    public void An_uploader_at_the_end_of_a_line_takes_everything_that_reaches_it()
+    {
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("in").Uploader("uploader")
+            .Connect("miner", "in", "uploader")
+            .Run();
+
+        Assert.Equal(60, result.Flow(Id("in"), Id("uploader"), Ore), Precision);
+        Assert.Empty(result.UnusedSupply);
+    }
+
+    // ---- BR-A10: loops -------------------------------------------------------------------------------------------
+
+    private static readonly ItemId Nitrogen = ItemId.Of("Desc_NitrogenGas_C");
+    private static readonly ItemId NitricAcid = ItemId.Of("Desc_NitricAcid_C");
+    private static readonly ItemId NonFissile = ItemId.Of("Desc_NonFissibleUranium_C");
+
+    /// <summary>
+    /// The owner's nitric acid loop: the acid blender needs water that only the non-fissile blender gives back, and
+    /// that one needs the acid. Both at zero is a steady state too. Whether a loop that can keep itself going should be
+    /// found running is open: solving from the top was tried in step 23 and taken out (see its log).
+    /// </summary>
+    private static FlowResult NitricAcidLoop(double waterBack) => new TestFlow()
+        .Fluid(Water).Fluid(Nitrogen).Fluid(NitricAcid)
+        .Provider("nitrogen well", Nitrogen, 10).Provider("waste", Waste, 10)
+        .Pipe("nitrogen").Pipe("water").Pipe("acid").Belt("waste belt").Belt("product")
+        .Machine("acid blender", [(Nitrogen, 10), (Water, 10)], [(NitricAcid, 10)])
+        .Machine("non-fissile blender", [(NitricAcid, 10), (Waste, 10)], [(NonFissile, 10), (Water, waterBack)])
+        .Sink("sink")
+        .Connect("nitrogen well", "nitrogen", "acid blender", "acid", "non-fissile blender", "water", "acid blender")
+        .Connect("waste", "waste belt", "non-fissile blender", "product", "sink")
+        .Run();
+
+    [Fact]
+    public void A_loop_that_gives_back_too_little_winds_down()
+    {
+        // Half the water comes back each round: 50%, 25%, … down to nothing.
+        FlowResult result = NitricAcidLoop(waterBack: 5);
+
+        Assert.Equal(0, result.Machine(Id("acid blender")).Utilisation, 0.001);
+        Assert.Equal(MachineLimit.Starved, result.Machine(Id("acid blender")).Limit);
     }
 
     // ---- BR-A4: splitters -------------------------------------------------------------------------------------

@@ -125,6 +125,23 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                                 .HasColumnName("footprints_updated");
                         });
 
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Generators", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Generators#ImportCounts", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Added")
+                                .HasColumnType("integer")
+                                .HasColumnName("generators_added");
+
+                            b1.Property<int>("NoLongerInGame")
+                                .HasColumnType("integer")
+                                .HasColumnName("generators_no_longer_in_game");
+
+                            b1.Property<int>("Updated")
+                                .HasColumnType("integer")
+                                .HasColumnName("generators_updated");
+                        });
+
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Items", "SatisfactoryLedger.Catalog.Domain.CatalogImport.Items#ImportCounts", b1 =>
                         {
                             b1.IsRequired();
@@ -263,6 +280,55 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasName("pk_footprints");
 
                     b.ToTable("footprints", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Generator", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("IsInGame")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_in_game");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<decimal>("PowerMegawatts")
+                        .HasColumnType("numeric")
+                        .HasColumnName("power_megawatts");
+
+                    b.Property<decimal>("SupplementalLitresPerMegajoule")
+                        .HasColumnType("numeric")
+                        .HasColumnName("supplemental_litres_per_megajoule");
+
+                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "_fuels", "SatisfactoryLedger.Catalog.Domain.Generator._fuels#GeneratorFuel", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<string>("Byproduct");
+
+                            b1.Property<decimal>("ByproductPerFuel");
+
+                            b1.Property<decimal>("EnergyMegajoules");
+
+                            b1.Property<string>("Fuel")
+                                .IsRequired();
+
+                            b1.Property<string>("Supplemental");
+
+                            b1
+                                .ToJson("fuels")
+                                .HasColumnType("jsonb");
+                        });
+
+                    b.HasKey("Id")
+                        .HasName("pk_generators");
+
+                    b.ToTable("generators", "catalog");
                 });
 
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Item", b =>

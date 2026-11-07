@@ -199,4 +199,48 @@ public class WorldFlowTests
 
         Assert.Equal(1, result.Machine(BuildableId.Of("smelter")).Utilisation, 0.0001);
     }
+
+    // ---- BR-A8: generators -----------------------------------------------------------------------------------
+
+    private static readonly ItemId UraniumRod = ItemId.Of("Desc_NuclearFuelRod_C");
+    private static readonly ItemId UraniumWaste = ItemId.Of("Desc_NuclearWaste_C");
+
+    [Fact]
+    public void A_generator_burning_a_known_fuel_asks_for_its_fuel_and_water_and_makes_its_waste()
+    {
+        TestWorld world = new TestWorld().Generator("plant", UraniumRod, 0.2m, Water, 240, UraniumWaste, 10);
+
+        var plant = Assert.IsType<FlowMachine>(Node(world, "plant"));
+
+        Assert.Equal((0.2, 240.0), (plant.Demand[UraniumRod], plant.Demand[Water]));
+        Assert.Equal(10, plant.Production[UraniumWaste]);
+    }
+
+    [Fact]
+    public void A_generator_burning_a_fuel_without_waste_makes_nothing()
+    {
+        TestWorld world = new TestWorld().Generator("generator", ItemId.Of("Desc_LiquidFuel_C"), 20);
+
+        Assert.Empty(Assert.IsType<FlowMachine>(Node(world, "generator")).Production);
+    }
+
+    [Fact]
+    public void A_generator_whose_fuel_isnt_known_takes_everything_like_any_consumer()
+    {
+        TestWorld world = new TestWorld().Sink("generator");
+
+        Assert.IsType<FlowSink>(Node(world, "generator"));
+    }
+
+    [Fact]
+    public void An_uploader_takes_only_what_the_lines_other_consumers_leave()
+    {
+        Assert.True(Assert.IsType<FlowSink>(Node(new TestWorld().Uploader("uploader"), "uploader")).LeftoversOnly);
+    }
+
+    [Fact]
+    public void A_sink_takes_everything_it_is_offered()
+    {
+        Assert.False(Assert.IsType<FlowSink>(Node(new TestWorld().Sink("sink"), "sink")).LeftoversOnly);
+    }
 }

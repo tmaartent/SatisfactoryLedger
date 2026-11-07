@@ -11,14 +11,20 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AnalysisResponse } from '../api/models/analysis-response';
+import { GeneratorFinding } from '../api/models/generator-finding';
 import { MachineFinding } from '../api/models/machine-finding';
 import { MachineLimit } from '../api/models/machine-limit';
 import { UnknownSupplyFinding } from '../api/models/unknown-supply-finding';
 import { CatalogNames } from '../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../shared/display';
 
-/** What the world's analysis and a factory's analysis have in common (BR-A9 to A13). */
-export type Findings = Pick<AnalysisResponse, 'summary' | 'machines' | 'bottlenecks' | 'unusedSupply' | 'unknownSupply' | 'settled'>;
+/**
+ * What the world's analysis and a factory's analysis have in common (BR-A9 to A13). Only the world's has generators
+ * (BR-A15): a generator is never part of a factory.
+ */
+export type Findings = Pick<AnalysisResponse, 'summary' | 'machines' | 'bottlenecks' | 'unusedSupply' | 'unknownSupply' | 'settled'> & {
+  generators?: GeneratorFinding[];
+};
 
 /** The findings of an analysis: a summary, then a tab per kind of finding. The API orders each list worst first. */
 @Component({
@@ -65,6 +71,7 @@ export class FindingsView {
   protected readonly bottleneckColumns = ['belt', 'flow', 'offeredMore', 'position'];
   protected readonly unusedColumns = ['source', 'item', 'delivered', 'offered', 'position'];
   protected readonly unknownColumns = ['source', 'delivered', 'stock', 'position'];
+  protected readonly generatorColumns = ['generator', 'fuel', 'utilisation', 'limit', 'position'];
 
   protected readonly percent = percent;
   protected readonly perMinute = perMinute;
@@ -84,8 +91,13 @@ export class FindingsView {
     return Object.entries(source.delivered).map(([item, rate]) => ({ item, rate }));
   }
 
-  /** Why a machine runs below 100%, in words. */
-  protected why(machine: MachineFinding): string {
+  // Generator rows are untyped too.
+  protected generatorLimit(generator: GeneratorFinding): string {
+    return this.limits[generator.limit];
+  }
+
+  /** Why a machine or generator runs below 100%, in words. */
+  protected why(machine: Pick<MachineFinding, 'limit' | 'limitingItem'>): string {
     switch (machine.limit) {
       case 'starved':
         return `Not enough ${this.names.item(machine.limitingItem)}`;

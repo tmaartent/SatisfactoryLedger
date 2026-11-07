@@ -25,7 +25,11 @@ public sealed record FlowUnknownSource(
 
 /// <summary>Takes everything it's offered: a consumer, or a container at the end of a line (BR-A7, BR-A8).</summary>
 /// <param name="Burns">For a station that loads: the fuel it burns, which takes only what the others leave.</param>
-public sealed record FlowSink(BuildableId Id, IReadOnlySet<ItemId>? Burns = null) : FlowNode(Id);
+/// <param name="LeftoversOnly">
+/// For a dimensional depot uploader: it takes everything only from what the line's other consumers leave. In steady
+/// state a depot is full (BR-A8).
+/// </param>
+public sealed record FlowSink(BuildableId Id, IReadOnlySet<ItemId>? Burns = null, bool LeftoversOnly = false) : FlowNode(Id);
 
 /// <summary>A belt, lift or pipe, or a container inside a line: passes items on, at most <paramref name="Capacity"/> per minute (BR-A3).</summary>
 public sealed record FlowConduit(BuildableId Id, double Capacity, Carries Carries = Carries.Anything) : FlowNode(Id);

@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace SatisfactoryLedger.Catalog.Importer;
 
@@ -22,6 +22,8 @@ namespace SatisfactoryLedger.Catalog.Importer;
 [JsonDerivedType(typeof(ResourceExtractorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableResourceExtractor'")]
 [JsonDerivedType(typeof(WaterPumpGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableWaterPump'")]
 [JsonDerivedType(typeof(FrackingExtractorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableFrackingExtractor'")]
+[JsonDerivedType(typeof(FuelGeneratorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableGeneratorFuel'")]
+[JsonDerivedType(typeof(NuclearGeneratorGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableGeneratorNuclear'")]
 internal class GameDataGroupDto
 {
     

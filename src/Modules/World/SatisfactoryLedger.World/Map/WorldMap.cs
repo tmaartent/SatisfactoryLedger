@@ -5,7 +5,16 @@ namespace SatisfactoryLedger.World.Map;
 
 /// <summary>A machine on the map. How it runs comes from the findings, once the analysis is ready.</summary>
 /// <param name="Yaw">Which way it faces, seen from above: degrees from the game's x axis towards its y axis.</param>
-internal sealed record MapMachine(string Id, string ClassName, string? Recipe, PositionDocument Position, double Yaw);
+/// <param name="InputContents">The ingredients in it at save time, per item (fluids in m³); null in older snapshots.</param>
+/// <param name="OutputContents">The products waiting in it to leave at save time.</param>
+internal sealed record MapMachine(
+    string Id,
+    string ClassName,
+    string? Recipe,
+    PositionDocument Position,
+    double Yaw,
+    IReadOnlyDictionary<string, decimal>? InputContents,
+    IReadOnlyDictionary<string, decimal>? OutputContents);
 
 /// <summary>A provider on the map (BR-W1): a miner or extractor, or a station that brings items in.</summary>
 /// <param name="Resource">What it extracts: from its node, or its class (water); null for a station.</param>
@@ -14,7 +23,8 @@ internal sealed record MapMachine(string Id, string ClassName, string? Recipe, P
 internal sealed record MapProvider(string Id, string ClassName, string? Resource, string? Node, string? Purity, PositionDocument Position, double Yaw);
 
 /// <summary>Another building on the map: a splitter, merger, lift, container or buffer, or a consumer (BR-W8).</summary>
-internal sealed record MapBuilding(string Id, string ClassName, PositionDocument Position, double Yaw);
+/// <param name="Contents">What's on a lift or in a splitter's or merger's buffer at save time; null for the others.</param>
+internal sealed record MapBuilding(string Id, string ClassName, PositionDocument Position, double Yaw, IReadOnlyDictionary<string, decimal>? Contents);
 
 internal enum MapConveyorKind
 {
@@ -26,7 +36,9 @@ internal enum MapConveyorKind
 /// A belt or pipe on the map, with its curve as built: a cubic Hermite spline through its points (see
 /// <see cref="CurvePointDocument"/>). The map samples it into a line.
 /// </summary>
-internal sealed record MapConveyor(string Id, string ClassName, MapConveyorKind Kind, IReadOnlyList<CurvePointDocument> Curve);
+/// <param name="Contents">What's on it at save time, per item; null for a pipe or an older snapshot.</param>
+internal sealed record MapConveyor(
+    string Id, string ClassName, MapConveyorKind Kind, IReadOnlyList<CurvePointDocument> Curve, IReadOnlyDictionary<string, decimal>? Contents);
 
 /// <summary>What the world map draws of a snapshot. Positions in the game's units (centimetres).</summary>
 /// <param name="Logistics">Splitters, mergers, lifts, containers and the like: logistics without a curve.</param>
@@ -54,7 +66,8 @@ internal static class WorldMap
         return new WorldMapResponse(
             [
                 .. Having(BuildableDocumentRole.Machine)
-                    .Select(machine => new MapMachine(machine.Id, machine.ClassName, machine.Recipe, machine.Position!, machine.Yaw ?? 0))
+                    .Select(machine => new MapMachine(
+                        machine.Id, machine.ClassName, machine.Recipe, machine.Position!, machine.Yaw ?? 0, machine.InputContents, machine.OutputContents))
             ],
             [
                 .. Having(BuildableDocumentRole.Provider)
@@ -71,12 +84,14 @@ internal static class WorldMap
                         conveyor.Id,
                         conveyor.ClassName,
                         conveyor.Kind == LogisticsKind.Pipe ? MapConveyorKind.Pipe : MapConveyorKind.Belt,
-                        conveyor.Curve!))
+                        conveyor.Curve!,
+                        conveyor.Contents))
             ],
             [.. Having(BuildableDocumentRole.Logistics).Where(logistics => logistics.Curve is not { Count: > 0 }).Select(Building)],
             [.. Having(BuildableDocumentRole.Consumer).Select(Building)],
             snapshot.Footprints ?? []);
     }
 
-    private static MapBuilding Building(BuildableDocument buildable) => new(buildable.Id, buildable.ClassName, buildable.Position!, buildable.Yaw ?? 0);
+    private static MapBuilding Building(BuildableDocument buildable) =>
+        new(buildable.Id, buildable.ClassName, buildable.Position!, buildable.Yaw ?? 0, buildable.Contents);
 }

@@ -106,6 +106,20 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_generator_is_found_by_its_class_name_with_its_power_and_fuels()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogGenerator> generators = await catalog.GetGeneratorsAsync(
+            ["Build_GeneratorNuclear_C", "Build_ResourceSink_C"], TestContext.Current.CancellationToken);
+
+        Contracts.CatalogGenerator plant = Assert.Single(generators);
+        Assert.Equal((2500m, 1.6m), (plant.PowerMegawatts, plant.SupplementalLitresPerMegajoule));
+        Assert.Contains(new Contracts.CatalogGeneratorFuel("Desc_NuclearFuelRod_C", 750_000, "Desc_Water_C", "Desc_NuclearWaste_C", 50), plant.Fuels);
+    }
+
+    [Fact]
     public async Task Transport_tiers_are_found_by_class_name_with_their_capacity_per_minute()
     {
         await using AsyncServiceScope scope = api.Services.CreateAsyncScope();

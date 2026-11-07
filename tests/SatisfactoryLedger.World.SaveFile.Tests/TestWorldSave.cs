@@ -30,6 +30,22 @@ internal static class TestWorldSave
 
     public static SavedWorld Save => Saved.Value;
 
+    private static readonly Lazy<SavedWorld> WithGenerators = new(() =>
+    {
+        using FileStream file = File.OpenRead("Fixtures/Generators.sav");
+        return SaveFileReader.Read(file);
+    });
+
+    /// <summary>
+    /// The same world, saved later (Fixtures/Generators.sav), with three generators added: a nuclear plant on uranium
+    /// rods and water, its waste on a belt; a coal generator on compacted coal and water; a fuel generator on turbofuel.
+    /// </summary>
+    public static SavedWorld GeneratorsSave => WithGenerators.Value;
+
+    public static readonly BuildableId NuclearPlant = Id("Build_GeneratorNuclear_C_2147427188");
+    public static readonly BuildableId CoalGenerator = Id("Build_GeneratorCoal_C_2147408929");
+    public static readonly BuildableId FuelGenerator = Id("Build_GeneratorFuel_C_2147379250");
+
     /// <summary>A buildable of the test world by the last part of its path, e.g. "Build_MinerMk1_C_2147339296".</summary>
     public static BuildableId Id(string name) => BuildableId.Of($"Persistent_Level:PersistentLevel.{name}");
 

@@ -23,6 +23,7 @@ internal sealed record ImportResponse(
     ImportCountsResponse Recipes,
     ImportCountsResponse Extractors,
     ImportCountsResponse Footprints,
+    ImportCountsResponse Generators,
     ImportCountsResponse ResourceNodes,
     IReadOnlyList<string> NoLongerInGame)
 {
@@ -37,6 +38,7 @@ internal sealed record ImportResponse(
         ToResponse(import.Recipes),
         ToResponse(import.Extractors),
         ToResponse(import.Footprints),
+        ToResponse(import.Generators),
         ToResponse(import.ResourceNodes),
         import.NoLongerInGame);
 

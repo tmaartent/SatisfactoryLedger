@@ -47,6 +47,7 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Spare** | What a connection takes only when the line's other consumers have what they want: the fuel of a drone port or truck station (BR-A8). A sender serves spare last. | `SteadyState`: `_spare`, `TakeEverything` |
 | **Station** | A train platform, fluid platform, drone port or truck station. Its ports decide its role: belts leaving its outputs make it unload (a provider without a known rate), belts into its inputs make it load (a consumer). A drone port can do both (BR-W1, BR-W8). | `Provider` without an offer |
 | **Stock** | What a station or storage container holds right now, per item, as the save stores it. Decides whether a source of unknown rate is *confirmed* supplied (BR-A9). | `Provider.Stock`, `Logistics.Stock` |
+| **Contents** | What's on a belt or lift, in a splitter's or merger's buffer, or in a machine (its ingredients and the products waiting to leave) at save time, per item. Unlike stock, never counted as supply: shown on the map only. | `Contents`, `InputContents`, `OutputContents` |
 | **Item Offer** | What a provider can deliver: an item and a rate per minute. For an extractor: its extraction rate × its node's purity × its clock speed (BR-W9). Unknown for a station, or a node the Catalog doesn't know. | `ItemOffer`, `Provider.Offer` |
 | **Demand / Production** | What a machine asks and makes per minute when it runs at 100%: recipe rate × clock speed, and × production boost for what it makes (BR-A1). | `Machine.Demand`, `Machine.Production` |
 | **Solids / Fluids** | What a line can carry: belts, lifts, splitters, mergers and containers carry solids; pipes, junctions and fluid buffers carry fluids (BR-A3). | `Carries` |
@@ -63,6 +64,8 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Factory Members** | The machines and logistics that belong to a factory, traced from its output belt. | `FactoryMembers` |
 | **Factory Input** | An item the player declares as entering a factory. The input line starts at a splitter (BR-W4). | `FactoryDefinition.InputItems` |
 | **Consumer** | A building that takes items out of the network: AWESOME Sink, dimensional depot uploader, power generator, a station that loads. Never part of a factory (BR-W8). | `Consumer` |
+| **Generator** | A consumer that makes power by burning a fuel: coal, fuel, biomass, nuclear. Burning a known fuel, it takes only its **burn rate** (power ÷ the fuel's energy), needs water if it uses any, and leaves its **byproduct** (uranium or plutonium waste) (BR-A8, ADR-0021). | `Generator` (Catalog), `Generation` (World) |
+| **Burn rate** | How much fuel a generator burns a minute at full power: its power production ÷ the fuel's energy, × 60. | `Generator.BurnRate` |
 | **Undeclared Output** | An item other than the output item that leaves a factory, to a sink or elsewhere. A finding (BR-W7). | (planned) |
 | **Logistics** | Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers, fluid buffers. A belt, lift or pipe has a **capacity** from its tier. | `Logistics`, `LogisticsKind`, `Logistics.Capacity` |
 

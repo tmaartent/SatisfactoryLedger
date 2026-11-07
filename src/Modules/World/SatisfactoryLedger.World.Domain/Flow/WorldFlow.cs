@@ -23,7 +23,9 @@ public static class WorldFlow
         // BR-A9: its rate isn't known (a station, an unknown node), so it supplies what is asked. A station also
         // takes everything loaded onto it.
         Provider provider => new FlowUnknownSource(provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns),
-        Consumer consumer => new FlowSink(consumer.Id, consumer.Burns),
+        // BR-A8: a generator burning a known fuel takes what it burns and makes its waste, like a machine.
+        Consumer { Generation: { } generation } generator => new FlowMachine(generator.Id, Demand(generation), Leaves(generation)),
+        Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly),
         Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction } splitter =>
             new FlowSplitter(splitter.Id, CarriesOf(splitter), splitter.SortRules),
         Logistics { Kind: LogisticsKind.Merger } merger => new FlowMerger(merger.Id, CarriesOf(merger), merger.InputPriorities),
@@ -56,4 +58,18 @@ public static class WorldFlow
 
     private static Dictionary<ItemId, double> PerMinute(IReadOnlyDictionary<ItemId, Rate> rates) =>
         rates.ToDictionary(rate => rate.Key, rate => rate.Value.ToDouble());
+
+    private static Dictionary<ItemId, double> Demand(Generation generation)
+    {
+        Dictionary<ItemId, double> demand = new() { [generation.Fuel] = generation.Burns.ToDouble() };
+        if (generation.Supplemental is { } supplemental && generation.SupplementalNeeded > Rate.Zero)
+        {
+            demand[supplemental] = generation.SupplementalNeeded.ToDouble();
+        }
+
+        return demand;
+    }
+
+    private static Dictionary<ItemId, double> Leaves(Generation generation) =>
+        generation.Byproduct is { } byproduct && generation.Leaves > Rate.Zero ? new() { [byproduct] = generation.Leaves.ToDouble() } : [];
 }

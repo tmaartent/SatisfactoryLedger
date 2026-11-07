@@ -18,7 +18,8 @@ internal sealed record CatalogCopy(
     IReadOnlyCollection<CatalogTransportTier> TransportTiers,
     IReadOnlyCollection<CatalogResourceNode> ResourceNodes,
     IReadOnlyCollection<CatalogItem> Items,
-    IReadOnlyCollection<CatalogFootprint> Footprints);
+    IReadOnlyCollection<CatalogFootprint> Footprints,
+    IReadOnlyCollection<CatalogGenerator> Generators);
 
 /// <summary>
 /// The stored content of a world snapshot (ADR-0016): everything the save said, plus what the Catalog said about the
@@ -36,7 +37,8 @@ internal sealed record SnapshotDocument(
     IReadOnlyList<TransportTierDocument> TransportTiers,
     IReadOnlyList<ResourceNodeDocument> ResourceNodes,
     IReadOnlyList<string> Fluids,
-    IReadOnlyList<FootprintDocument>? Footprints = null)
+    IReadOnlyList<FootprintDocument>? Footprints = null,
+    IReadOnlyList<GeneratorDocument>? Generators = null)
 {
     /// <summary>
     /// Version 2 added extractors, transport tiers, resource nodes and fluids; a version 1 snapshot has none of them.
@@ -44,8 +46,11 @@ internal sealed record SnapshotDocument(
     /// Version 4 added splitter rules, merger priorities and the ports of connections; a version 3 snapshot has none.
     /// Version 5 added the curves of belts and pipes, which way buildables face, and the footprints of the buildings it
     /// has (ADR-0020); a version 4 snapshot has none of them.
+    /// Version 6 added contents: what's on belts, lifts, splitters and mergers, and in machines; a version 5 snapshot has none.
+    /// Version 7 added generators: the fuel each burns, its clock speed, and the Catalog's generators (BR-A8); in a
+    /// version 6 snapshot every generator takes everything, as before.
     /// </summary>
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 7;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -64,11 +69,14 @@ internal sealed record SnapshotDocument(
         HashSet<string> nodes = [.. saved.Buildables.OfType<SavedProvider>().Select(provider => provider.Node).OfType<string>()];
         List<ResourceNodeDocument> nodesUsed = [.. catalog.ResourceNodes.Where(node => nodes.Contains(node.Name))
             .Select(node => new ResourceNodeDocument(node.Name, node.Resource, node.Purity))];
-        HashSet<string> items = ItemsUsed(saved, known, nodesUsed);
+        List<GeneratorDocument> generators = [.. catalog.Generators.Where(generator => classes.Contains(generator.Id))
+            .OrderBy(generator => generator.Id, StringComparer.Ordinal).Select(GeneratorDocument.From)];
+        HashSet<string> items = ItemsUsed(saved, known, nodesUsed, generators);
+        HashSet<string> fluids = [.. catalog.Items.Where(item => item.IsFluid).Select(item => item.Id)];
 
         return new SnapshotDocument(
             CurrentVersion,
-            [.. saved.Buildables.Select(BuildableDocument.From)],
+            [.. saved.Buildables.Select(buildable => BuildableDocument.From(buildable, fluids))],
             [.. saved.Connections.Select(connection => new ConnectionDocument(connection.From.Id, connection.To.Id, connection.FromPort, connection.ToPort))],
             known,
             [.. used.Where(id => !knownIds.Contains(id)).Order(StringComparer.Ordinal)],
@@ -80,15 +88,20 @@ internal sealed record SnapshotDocument(
             nodesUsed,
             [.. catalog.Items.Where(item => item.IsFluid && items.Contains(item.Id)).Select(item => item.Id).Order(StringComparer.Ordinal)],
             [.. catalog.Footprints.Where(footprint => classes.Contains(footprint.Id)).OrderBy(footprint => footprint.Id, StringComparer.Ordinal)
-                .Select(footprint => new FootprintDocument(footprint.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY))]);
+                .Select(footprint => new FootprintDocument(footprint.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY))],
+            generators);
     }
 
     /// <summary>The items a save's recipes take and make, and its providers extract.</summary>
-    public static HashSet<string> ItemsUsed(SavedWorld saved, IEnumerable<RecipeDocument> recipes, IEnumerable<ResourceNodeDocument> nodes) =>
+    public static HashSet<string> ItemsUsed(
+        SavedWorld saved, IEnumerable<RecipeDocument> recipes, IEnumerable<ResourceNodeDocument> nodes, IEnumerable<GeneratorDocument> generators) =>
     [
         .. recipes.SelectMany(recipe => recipe.Inputs.Concat(recipe.Outputs)).Select(ingredient => ingredient.Item),
         .. saved.Buildables.OfType<SavedProvider>().Select(provider => provider.Resource).OfType<string>(),
         .. nodes.Select(node => node.Resource),
+        // A generator's fuel, water and waste: water and fluid fuels must be known as fluids for the pipes (step 14).
+        .. generators.SelectMany(generator => generator.Fuels)
+            .SelectMany(fuel => new[] { fuel.Fuel, fuel.Supplemental, fuel.Byproduct }).OfType<string>(),
     ];
 
     public string ToJson() => JsonSerializer.Serialize(this, Json);
@@ -102,7 +115,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),
@@ -126,7 +139,8 @@ internal sealed record SnapshotDocument(
             Recipes.ToDictionary(recipe => recipe.Id, StringComparer.Ordinal),
             Extractors.ToDictionary(extractor => extractor.Id, StringComparer.Ordinal),
             TransportTiers.ToDictionary(tier => tier.Id, StringComparer.Ordinal),
-            ResourceNodes.ToDictionary(node => node.Name, StringComparer.Ordinal));
+            ResourceNodes.ToDictionary(node => node.Name, StringComparer.Ordinal),
+            (Generators ?? []).ToDictionary(generator => generator.Id, StringComparer.Ordinal));
 
         return new WorldGraph(
             Buildables.Select(buildable => buildable.ToBuildable(copied)),
@@ -139,7 +153,8 @@ internal sealed record CopiedCatalog(
     IReadOnlyDictionary<string, RecipeDocument> Recipes,
     IReadOnlyDictionary<string, ExtractorDocument> Extractors,
     IReadOnlyDictionary<string, TransportTierDocument> TransportTiers,
-    IReadOnlyDictionary<string, ResourceNodeDocument> ResourceNodes);
+    IReadOnlyDictionary<string, ResourceNodeDocument> ResourceNodes,
+    IReadOnlyDictionary<string, GeneratorDocument> Generators);
 
 internal enum BuildableDocumentRole
 {
@@ -169,15 +184,27 @@ internal sealed record BuildableDocument(
     IReadOnlyList<SortRuleDocument>? SortRules = null,
     IReadOnlyList<int>? InputPriorities = null,
     IReadOnlyList<CurvePointDocument>? Curve = null,
-    double? Yaw = null)
+    double? Yaw = null,
+    IReadOnlyDictionary<string, decimal>? Contents = null,
+    IReadOnlyDictionary<string, decimal>? InputContents = null,
+    IReadOnlyDictionary<string, decimal>? OutputContents = null,
+    string? Fuel = null,
+    bool TakesLeftoversOnly = false)
 {
-    public static BuildableDocument From(SavedBuildable saved) => FromKind(saved) with
+    /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
+    public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
     {
+        Contents = (saved as SavedLogistics)?.Contents,
+        InputContents = CubicMetres((saved as SavedMachine)?.InputContents, fluids),
+        OutputContents = CubicMetres((saved as SavedMachine)?.OutputContents, fluids),
         Position = saved.Position is { } position ? new PositionDocument(position.X, position.Y, position.Z) : null,
         Yaw = Math.Round(saved.Yaw, 2),
         Stock = saved.Stock,
         Burns = saved.Burns?.Order(StringComparer.Ordinal).ToList(),
     };
+
+    private static Dictionary<string, decimal>? CubicMetres(IReadOnlyDictionary<string, decimal>? contents, IReadOnlySet<string> fluids) =>
+        contents?.ToDictionary(entry => entry.Key, entry => fluids.Contains(entry.Key) ? entry.Value / 1000 : entry.Value, StringComparer.Ordinal);
 
     private static BuildableDocument FromKind(SavedBuildable saved) => saved switch
     {
@@ -185,7 +212,9 @@ internal sealed record BuildableDocument(
             Recipe: machine.Recipe, ClockPercent: Percent(machine.ClockSpeed), ProductionBoost: machine.ProductionBoost),
         SavedProvider provider => new(provider.Id.Id, BuildableDocumentRole.Provider, provider.ClassName,
             ClockPercent: Percent(provider.ClockSpeed), Node: provider.Node, Resource: provider.Resource),
-        SavedConsumer consumer => new(consumer.Id.Id, BuildableDocumentRole.Consumer, consumer.ClassName),
+        SavedConsumer consumer => new(consumer.Id.Id, BuildableDocumentRole.Consumer, consumer.ClassName,
+            ClockPercent: consumer.ClockSpeed is { } clock ? Percent(clock) : null, Fuel: consumer.Fuel,
+            TakesLeftoversOnly: consumer.TakesLeftoversOnly),
         SavedLogistics logistics => new(logistics.Id.Id, BuildableDocumentRole.Logistics, logistics.ClassName, Kind: logistics.Kind,
             SortRules: logistics.SortRules?.Select(rule => new SortRuleDocument(rule.Output, rule.Kind, rule.Item?.Id)).ToList(),
             InputPriorities: logistics.InputPriorities,
@@ -205,7 +234,7 @@ internal sealed record BuildableDocument(
                 Clock(),
                 ProductionBoost ?? 1),
             BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf()),
-            BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf()),
+            BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf(), GenerationOf(catalog), TakesLeftoversOnly),
             BuildableDocumentRole.Logistics => new Logistics(
                 id,
                 Kind ?? throw new JsonException($"Logistics {Id} has no kind"),
@@ -215,6 +244,30 @@ internal sealed record BuildableDocument(
                 InputPriorities),
             _ => throw new JsonException($"Buildable {Id} has an unknown role"),
         };
+    }
+
+    /// <summary>
+    /// BR-A8: what a generator burning a known fuel takes and leaves per minute, at its clock speed. Null when it's no
+    /// generator, its fuel slot was empty, or the Catalog has no entry for it or its fuel: it then takes everything.
+    /// </summary>
+    private Generation? GenerationOf(CopiedCatalog catalog)
+    {
+        if (Fuel is null || !catalog.Generators.TryGetValue(ClassName, out GeneratorDocument? generator)
+            || generator.Fuels.FirstOrDefault(fuel => fuel.Fuel == Fuel) is not { } burnt)
+        {
+            return null;
+        }
+
+        ClockSpeed clock = Clock();
+        Rate burns = Rate.FromRecipe(generator.PowerMegawatts, burnt.EnergyMegajoules) * clock;
+        Rate water = generator.SupplementalLitresPerMegajoule > 0 && burnt.Supplemental is not null
+            ? Rate.FromRecipe(generator.PowerMegawatts * generator.SupplementalLitresPerMegajoule, 1000) * clock
+            : Rate.Zero;
+        Rate leaves = burnt.Byproduct is not null && burnt.ByproductPerFuel > 0 ? burns * burnt.ByproductPerFuel : Rate.Zero;
+        return new Generation(
+            ItemId.Of(burnt.Fuel), burns,
+            burnt.Supplemental is null ? null : ItemId.Of(burnt.Supplemental), water,
+            burnt.Byproduct is null ? null : ItemId.Of(burnt.Byproduct), leaves);
     }
 
     /// <summary>
@@ -303,4 +356,15 @@ internal sealed record TransportTierDocument(string Id, int CapacityPerMinute);
 internal sealed record ResourceNodeDocument(string Name, string Resource, string Purity);
 
 /// <summary>The ground a building class covers, seen from above, in its own coordinates (centimetres), as the Catalog said at import.</summary>
+/// <summary>A generator as the Catalog said at import (BR-A8): power, litres of water per MJ, and the fuels it burns.</summary>
+internal sealed record GeneratorDocument(string Id, decimal PowerMegawatts, decimal SupplementalLitresPerMegajoule, IReadOnlyList<GeneratorFuelDocument> Fuels)
+{
+    public static GeneratorDocument From(CatalogGenerator generator) => new(
+        generator.Id, generator.PowerMegawatts, generator.SupplementalLitresPerMegajoule,
+        [.. generator.Fuels.Select(fuel => new GeneratorFuelDocument(fuel.Fuel, fuel.EnergyMegajoules, fuel.Supplemental, fuel.Byproduct, fuel.ByproductPerFuel))]);
+}
+
+/// <param name="EnergyMegajoules">Per item, or per cubic metre of a fluid fuel.</param>
+internal sealed record GeneratorFuelDocument(string Fuel, decimal EnergyMegajoules, string? Supplemental, string? Byproduct, decimal ByproductPerFuel);
+
 internal sealed record FootprintDocument(string Id, decimal MinX, decimal MinY, decimal MaxX, decimal MaxY);

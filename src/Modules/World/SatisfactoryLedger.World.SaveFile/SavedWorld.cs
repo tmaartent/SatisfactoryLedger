@@ -43,7 +43,14 @@ public sealed record SavedPosition(double X, double Y, double Z);
 /// <param name="Recipe">The recipe's class name (<c>Recipe_IronPlate_C</c>), or null when none is set.</param>
 /// <param name="ProductionBoost">The output multiplier from somersloops: 1 without, 2 when all slots are filled.</param>
 public sealed record SavedMachine(BuildableId Id, string ClassName, string? Recipe, ClockSpeed ClockSpeed, decimal ProductionBoost)
-    : SavedBuildable(Id, ClassName);
+    : SavedBuildable(Id, ClassName)
+{
+    /// <summary>The ingredients in it now, per item class name: a moment, like stock, but never supply. Fluids in litres.</summary>
+    public IReadOnlyDictionary<string, decimal>? InputContents { get; init; }
+
+    /// <summary>The products waiting in it to leave, per item class name. Fluids in litres.</summary>
+    public IReadOnlyDictionary<string, decimal>? OutputContents { get; init; }
+}
 
 /// <param name="Node">What it extracts from: a resource node (<c>BP_ResourceNode35</c>) or a water volume.</param>
 /// <param name="Resource">
@@ -53,7 +60,17 @@ public sealed record SavedMachine(BuildableId Id, string ClassName, string? Reci
 public sealed record SavedProvider(BuildableId Id, string ClassName, string? Node, ClockSpeed ClockSpeed, string? Resource = null)
     : SavedBuildable(Id, ClassName);
 
-public sealed record SavedConsumer(BuildableId Id, string ClassName) : SavedBuildable(Id, ClassName);
+public sealed record SavedConsumer(BuildableId Id, string ClassName) : SavedBuildable(Id, ClassName)
+{
+    /// <summary>For a generator: the fuel in it at save time (<c>mCurrentFuelClass</c>); null when its slot is empty, or for other consumers.</summary>
+    public string? Fuel { get; init; }
+
+    /// <summary>For a generator: its clock speed (100% when the save says nothing); null for other consumers.</summary>
+    public ClockSpeed? ClockSpeed { get; init; }
+
+    /// <summary>True for a dimensional depot uploader: it takes only what's left over (BR-A8).</summary>
+    public bool TakesLeftoversOnly { get; init; }
+}
 
 /// <param name="SortRules">A smart or programmable splitter's rules; null for every other piece of logistics.</param>
 /// <param name="InputPriorities">
@@ -69,6 +86,12 @@ public sealed record SavedLogistics(
 {
     /// <summary>How a belt or pipe runs, as built: its spline, in world coordinates. Null for other logistics.</summary>
     public IReadOnlyList<SavedCurvePoint>? Curve { get; init; }
+
+    /// <summary>
+    /// What's on a belt or lift, or in a splitter's or merger's buffer, now: per item class name. Unlike stock it's
+    /// never counted as supply. Null for logistics that carry no items this way (pipes, containers).
+    /// </summary>
+    public IReadOnlyDictionary<string, decimal>? Contents { get; init; }
 }
 
 /// <summary>

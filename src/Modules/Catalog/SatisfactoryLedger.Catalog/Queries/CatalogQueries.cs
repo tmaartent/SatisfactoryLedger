@@ -96,4 +96,25 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
                 .Select(footprint => new CatalogFootprint(footprint.Id.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY))
         ];
     }
+
+    public async Task<IReadOnlyList<CatalogGenerator>> GetGeneratorsAsync(IReadOnlyCollection<string> generatorIds, CancellationToken cancellationToken)
+    {
+        List<GeneratorId> ids = [.. generatorIds.Select(GeneratorId.Of)];
+        List<Generator> generators = await db.Generators.AsNoTracking()
+            .Where(generator => ids.Contains(generator.Id))
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. generators.OrderBy(generator => generator.Id.Id, StringComparer.Ordinal)
+                .Select(generator => new CatalogGenerator(
+                    generator.Id.Id,
+                    generator.PowerMegawatts,
+                    generator.SupplementalLitresPerMegajoule,
+                    [
+                        .. generator.Fuels.Select(fuel => new CatalogGeneratorFuel(
+                            fuel.Fuel.Id, fuel.EnergyMegajoules, fuel.Supplemental?.Id, fuel.Byproduct?.Id, fuel.ByproductPerFuel))
+                    ]))
+        ];
+    }
 }

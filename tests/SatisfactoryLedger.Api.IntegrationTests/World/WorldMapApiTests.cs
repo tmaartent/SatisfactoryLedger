@@ -44,6 +44,7 @@ public sealed class WorldMapApiTests(LedgerApiFactory api) : IAsyncLifetime
         Assert.Equal("belt", belt["kind"]!.GetValue<string>());
         Assert.Equal(8, belt["curve"]!.AsArray().Count);
         Assert.NotNull(belt["curve"]![0]!["leaveTangent"]!["x"]);
+        Assert.Equal(7, belt["contents"]!["Desc_OreIron_C"]!.GetValue<decimal>());
     }
 
     [Fact]

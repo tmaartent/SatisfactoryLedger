@@ -128,6 +128,40 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void A_belt_keeps_what_it_carries()
+    {
+        BuildableDocument belt = Stored().Buildables.Single(b => b.Id == Id("Build_ConveyorBeltMk1_C_2147303056").Id);
+
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 7 }, belt.Contents);
+    }
+
+    [Fact]
+    public void A_machine_keeps_its_ingredients_and_products_with_fluids_in_cubic_metres()
+    {
+        // The save counts the packager's water in litres: 50,000 is 50 m³.
+        BuildableDocument packager = Stored().Buildables.Single(b => b.Id == Id("Build_Packager_C_2147260704").Id);
+        BuildableDocument smelter = Stored().Buildables.Single(b => b.Id == Id("Build_SmelterMk1_C_2147301226").Id);
+
+        Assert.Equal(50m, packager.InputContents!["Desc_Water_C"]);
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronIngot_C"] = 98 }, smelter.OutputContents);
+    }
+
+    [Fact]
+    public void A_snapshot_from_before_contents_were_read_can_still_be_read_without_them()
+    {
+        SnapshotDocument withoutContents = TestWorldSnapshot.Document with
+        {
+            Version = 5,
+            Buildables = [.. TestWorldSnapshot.Document.Buildables.Select(buildable => buildable with { Contents = null, InputContents = null, OutputContents = null })],
+        };
+
+        SnapshotDocument read = SnapshotDocument.FromJson(withoutContents.ToJson());
+
+        Assert.Equal(7, read.Version);
+        Assert.All(read.Buildables, buildable => Assert.Null(buildable.Contents));
+    }
+
+    [Fact]
     public void A_buildable_keeps_which_way_it_faces()
     {
         BuildableDocument smelter = Stored().Buildables.Single(b => b.Id == Id("Build_SmelterMk1_C_2147301226").Id);
@@ -153,14 +187,14 @@ public class SnapshotDocumentTests
 
         SnapshotDocument read = SnapshotDocument.FromJson(withoutCurves.ToJson());
 
-        Assert.Equal(5, read.Version);
+        Assert.Equal(7, read.Version);
         Assert.All(read.Buildables, buildable => Assert.Null(buildable.Curve));
     }
 
     [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
-        Assert.Equal(5, Stored().Version);
+        Assert.Equal(7, Stored().Version);
     }
 
     [Fact]
@@ -252,16 +286,16 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_from_before_stock_was_read_can_still_be_read()
     {
-        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":5", "\"version\":2", StringComparison.Ordinal);
+        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":7", "\"version\":2", StringComparison.Ordinal);
 
-        Assert.Equal(5, SnapshotDocument.FromJson(version2).Version);
+        Assert.Equal(7, SnapshotDocument.FromJson(version2).Version);
     }
 
     [Fact]
     public void A_snapshot_imported_before_rates_were_copied_can_still_be_read_and_traced()
     {
         string version1 = TestWorldSnapshot.Document.ToJson()
-            .Replace("\"version\":5", "\"version\":1", StringComparison.Ordinal);
+            .Replace("\"version\":7", "\"version\":1", StringComparison.Ordinal);
 
         WorldGraph world = SnapshotDocument.FromJson(version1).ToWorldGraph();
 

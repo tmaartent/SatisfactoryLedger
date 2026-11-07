@@ -78,7 +78,7 @@ public abstract record FlowNodeDocument(string Id)
         FlowSplitter splitter => new SplitterDocument(splitter.Id.Id, splitter.Carries,
             splitter.Rules is { Count: > 0 } rules ? [.. rules.Select(rule => new SortRuleDocument(rule.Output, rule.Kind, rule.Item?.Id))] : null),
         FlowMerger merger => new MergerDocument(merger.Id.Id, merger.Carries, merger.Priorities is { Count: > 0 } priorities ? [.. priorities] : null),
-        FlowSink sink => new SinkDocument(sink.Id.Id, Names(sink.Burns)),
+        FlowSink sink => new SinkDocument(sink.Id.Id, Names(sink.Burns), sink.LeftoversOnly),
         _ => throw new ArgumentException($"{node} is not a kind of node the document knows", nameof(node)),
     };
 
@@ -130,9 +130,9 @@ public sealed record MergerDocument(string Id, Carries Carries, IReadOnlyList<in
     public override FlowNode ToNode() => new FlowMerger(BuildableId.Of(Id), Carries, Priorities);
 }
 
-public sealed record SinkDocument(string Id, IReadOnlyList<string>? Burns = null) : FlowNodeDocument(Id)
+public sealed record SinkDocument(string Id, IReadOnlyList<string>? Burns = null, bool LeftoversOnly = false) : FlowNodeDocument(Id)
 {
-    public override FlowNode ToNode() => new FlowSink(BuildableId.Of(Id), Items(Burns));
+    public override FlowNode ToNode() => new FlowSink(BuildableId.Of(Id), Items(Burns), LeftoversOnly);
 }
 
 /// <summary>The JSON settings of the documents both services read and write: camelCase, enums as camelCase strings.</summary>

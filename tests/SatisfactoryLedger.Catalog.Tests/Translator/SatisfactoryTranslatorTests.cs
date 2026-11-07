@@ -350,4 +350,47 @@ public class SatisfactoryTranslatorTests
 
         Assert.Equal((60m, 400m), (Math.Round(barrier.Width), Math.Round(barrier.Length)));
     }
+
+    // ---- Generators (BR-A8): power, fuels and their energy, water, waste ------------------------------------------
+
+    private static async Task<Generator> GeneratorOfAsync(string id)
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        return Assert.Single(SatisfactoryTranslator.TranslateToGenerators(resources), generator => generator.Id.Id == id);
+    }
+
+    [Fact]
+    public async Task The_generators_from_the_game_file_are_the_ones_that_burn_fuel()
+    {
+        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+
+        string[] ids = [.. SatisfactoryTranslator.TranslateToGenerators(resources).Select(generator => generator.Id.Id).Order(StringComparer.Ordinal)];
+
+        Assert.Equal(["Build_GeneratorBiomass_Automated_C", "Build_GeneratorCoal_C", "Build_GeneratorFuel_C", "Build_GeneratorNuclear_C"], ids);
+    }
+
+    [Fact]
+    public async Task A_nuclear_plant_from_the_game_file_burns_a_uranium_rod_every_five_minutes_and_leaves_10_waste_a_minute()
+    {
+        Generator plant = await GeneratorOfAsync("Build_GeneratorNuclear_C");
+        ItemId rod = ItemId.Of("Desc_NuclearFuelRod_C");
+
+        Assert.Equal((Rate.PerMinute(0.2m), Rate.PerMinute(10), Rate.PerMinute(240)), (plant.BurnRate(rod), plant.ByproductRate(rod), plant.SupplementalRate));
+    }
+
+    [Fact]
+    public async Task A_fluid_fuels_energy_is_per_litre_in_the_game_file_so_a_fuel_generator_burns_20_cubic_metres_a_minute()
+    {
+        Generator generator = await GeneratorOfAsync("Build_GeneratorFuel_C");
+
+        Assert.Equal(Rate.PerMinute(20), generator.BurnRate(ItemId.Of("Desc_LiquidFuel_C")));
+    }
+
+    [Fact]
+    public async Task A_coal_generator_from_the_game_file_burns_15_coal_and_needs_45_cubic_metres_of_water_a_minute()
+    {
+        Generator generator = await GeneratorOfAsync("Build_GeneratorCoal_C");
+
+        Assert.Equal((Rate.PerMinute(15), Rate.PerMinute(45)), (generator.BurnRate(ItemId.Of("Desc_Coal_C")), generator.SupplementalRate));
+    }
 }

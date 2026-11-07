@@ -407,4 +407,95 @@ public class SaveFileReaderTests
 
         Assert.Equal(90, SaveFileReader.YawOf(quarterTurn), 3);
     }
+
+    // ---- Contents: what's on a belt, in a splitter, in a machine at save time (not stock: the analysis ignores it) -
+
+    [Fact]
+    public void A_belt_carries_the_items_its_conveyor_chain_has_on_it()
+    {
+        // The miner's chain: belt, lift, belt, with 12 iron ore; 7 of them on this belt.
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 7 }, Logistics("Build_ConveyorBeltMk1_C_2147303056").Contents);
+    }
+
+    [Fact]
+    public void A_lift_carries_its_part_of_the_chain()
+    {
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 3 }, Logistics("Build_ConveyorLiftMk1_C_2147312952").Contents);
+    }
+
+    [Fact]
+    public void Items_are_counted_on_a_belt_whose_stretch_of_the_chain_wraps_around()
+    {
+        // Its items run from index 5 of the chain's ring of 10 round to index 2: 8 items.
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 8 }, Logistics("Build_ConveyorBeltMk1_C_2147299536").Contents);
+    }
+
+    [Fact]
+    public void An_empty_belt_carries_nothing()
+    {
+        Assert.Empty(Logistics("Build_ConveyorBeltMk1_C_2147281116").Contents!);
+    }
+
+    [Fact]
+    public void A_splitter_holds_what_is_in_its_buffer()
+    {
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 2 }, Logistics("Build_ConveyorAttachmentSplitter_C_2147304077").Contents);
+    }
+
+    [Fact]
+    public void A_machine_holds_its_ingredients_and_the_products_waiting_to_leave()
+    {
+        // Smelter A is output blocked: its ingots pile up.
+        var smelter = Assert.IsType<SavedMachine>(Save.Buildables.Single(buildable => buildable.Id == SmelterA));
+
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 100 }, smelter.InputContents);
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronIngot_C"] = 98 }, smelter.OutputContents);
+    }
+
+    [Fact]
+    public void Contents_are_not_stock()
+    {
+        // Stock is what the analysis may count as supply (BR-A9); what's on a belt never is.
+        Assert.Null(Logistics("Build_ConveyorBeltMk1_C_2147303056").Stock);
+    }
+
+    // ---- Generators (BR-A8): the fuel in them at save time, and their clock speed ----------------------------
+
+    private static SavedConsumer GeneratorIn(BuildableId id) =>
+        Assert.IsType<SavedConsumer>(GeneratorsSave.Buildables.Single(buildable => buildable.Id == id));
+
+    [Theory]
+    [InlineData("Build_GeneratorNuclear_C_2147427188", "Desc_NuclearFuelRod_C")]
+    [InlineData("Build_GeneratorCoal_C_2147408929", "Desc_CompactedCoal_C")]
+    [InlineData("Build_GeneratorFuel_C_2147379250", "Desc_LiquidTurboFuel_C")]
+    public void A_generator_burns_the_fuel_it_has_in_it(string name, string fuel)
+    {
+        Assert.Equal(fuel, GeneratorIn(Id(name)).Fuel);
+    }
+
+    [Fact]
+    public void A_generator_without_a_saved_clock_speed_runs_at_100_percent()
+    {
+        Assert.Equal(ClockSpeed.Percent(100), GeneratorIn(NuclearPlant).ClockSpeed);
+    }
+
+    [Fact]
+    public void A_sink_burns_nothing()
+    {
+        Assert.All(
+            Save.Buildables.OfType<SavedConsumer>().Where(consumer => consumer.ClassName == "Build_ResourceSink_C"),
+            sink => Assert.Null(sink.Fuel));
+    }
+
+    [Fact]
+    public void A_nuclear_plants_waste_leaves_on_the_belt_on_its_output()
+    {
+        Assert.Contains(GeneratorsSave.Connections, connection => connection.From == NuclearPlant && connection.To == Id("Build_ConveyorBeltMk6_C_2147424725"));
+    }
+
+    [Fact]
+    public void A_generator_is_fed_water_by_a_pipe()
+    {
+        Assert.Contains(GeneratorsSave.Connections, connection => connection.From == Id("Build_PipelineMK2_C_2147412050") && connection.To == NuclearPlant);
+    }
 }

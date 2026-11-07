@@ -3,7 +3,7 @@ import { MapProvider } from '../../api/models/map-provider';
 import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
-import { footprintCorners, freeNodes, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { describeContents, footprintCorners, freeNodes, itemColour, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   it('places a position in metres, with north up', () => {
@@ -75,5 +75,33 @@ describe('map model', () => {
     const miner: FootprintDocument = { id: 'Build_MinerMk1_C', minX: -300, minY: -500, maxX: 300, maxY: 900 };
 
     expect(extent(footprintCorners({ x: 1000, y: 0, z: 0 }, 0, miner))).toEqual({ lat: [-9, 5], lng: [7, 13] });
+  });
+
+  const name = (id: string) => id.replace('Desc_', '').replace('_C', '');
+
+  it('describes what a belt carries, most first', () => {
+    expect(describeContents({ Desc_IronIngot_C: 2, Desc_OreIron_C: 7 }, name)).toBe('OreIron × 7, IronIngot × 2');
+  });
+
+  it('says a belt with nothing on it is empty', () => {
+    expect(describeContents({}, name)).toBe('empty');
+  });
+
+  it("says nothing when the snapshot doesn't know what's on it", () => {
+    expect(describeContents(null, name)).toBe('');
+  });
+
+  it('shows fluids in cubic metres, rounded', () => {
+    expect(describeContents({ Desc_Water_C: 12.3456 }, name)).toBe('Water × 12.35');
+  });
+
+  it('takes what a belt carries most of as its main item', () => {
+    expect(mainItem({ Desc_IronIngot_C: 2, Desc_OreIron_C: 7 })).toBe('Desc_OreIron_C');
+    expect(mainItem({})).toBeNull();
+  });
+
+  it('gives an item the same colour every time, and ore and ingots different ones', () => {
+    expect(itemColour('Desc_OreIron_C')).toBe(itemColour('Desc_OreIron_C'));
+    expect(itemColour('Desc_OreIron_C')).not.toBe(itemColour('Desc_IronIngot_C'));
   });
 });
