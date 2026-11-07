@@ -3,7 +3,8 @@ import { MapProvider } from '../../api/models/map-provider';
 import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
-import { describeContents, footprintCorners, freeNodes, itemColour, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
+import { WorldMapResponse } from '../../api/models/world-map-response';
+import { describeContents, footprintCorners, freeNodes, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   it('places a position in metres, with north up', () => {
@@ -103,5 +104,45 @@ describe('map model', () => {
   it('gives an item the same colour every time, and ore and ingots different ones', () => {
     expect(itemColour('Desc_OreIron_C')).toBe(itemColour('Desc_OreIron_C'));
     expect(itemColour('Desc_OreIron_C')).not.toBe(itemColour('Desc_IronIngot_C'));
+  });
+
+  describe('finding a buildable to zoom to', () => {
+    const building = (id: string, x: number, y: number) => ({ id, className: 'X', position: { x, y, z: 0 }, yaw: 0, contents: null });
+    const world = {
+      machines: [{ ...building('smelter', 10000, 20000), recipe: null }],
+      providers: [{ ...building('miner', 30000, 0), node: null, resource: null, purity: null }],
+      logistics: [building('splitter', 0, 0)],
+      consumers: [building('drone port', -50000, 0)],
+      conveyors: [
+        {
+          id: 'belt',
+          className: 'Build_ConveyorBeltMk1_C',
+          kind: 'belt',
+          contents: null,
+          curve: [point(0, 0, [1000, 0], [1000, 0]), point(1000, 0, [1000, 0], [1000, 0])],
+        },
+      ],
+      footprints: [],
+    } as unknown as WorldMapResponse;
+
+    it('finds a machine where it stands', () => {
+      expect(locate(world, 'smelter')).toEqual([-200, 100]);
+    });
+
+    it('finds providers, logistics and consumers too', () => {
+      expect([locate(world, 'miner'), locate(world, 'splitter'), locate(world, 'drone port')]).toEqual([
+        [-0, 300],
+        [-0, 0],
+        [-0, -500],
+      ]);
+    });
+
+    it('finds a belt halfway along it', () => {
+      expect(locate(world, 'belt')).toEqual([-0, 5]);
+    });
+
+    it('finds nothing for a buildable the map does not have', () => {
+      expect(locate(world, 'unknown')).toBeNull();
+    });
   });
 });

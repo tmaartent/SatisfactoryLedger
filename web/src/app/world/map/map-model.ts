@@ -6,6 +6,7 @@ import { MachineFinding } from '../../api/models/machine-finding';
 import { MachineLimit } from '../../api/models/machine-limit';
 import { MapProvider } from '../../api/models/map-provider';
 import { ResourceNodeResponse } from '../../api/models/resource-node-response';
+import { WorldMapResponse } from '../../api/models/world-map-response';
 import { Position } from '../../shared/display';
 
 /** How a machine runs, or 'unknown' while its snapshot's analysis isn't ready. */
@@ -75,6 +76,20 @@ function isStraight(from: Position, to: Position, leave: Position, arrive: Posit
     return size < 1e-9 || Math.abs(dx * tangent.y - dy * tangent.x) / (length * size) < 0.01;
   };
   return along(leave) && along(arrive);
+}
+
+/**
+ * Where a buildable is on the map, to zoom to it from a finding: where it stands, or halfway along a belt or pipe. Null
+ * when the map doesn't have it.
+ */
+export function locate(world: WorldMapResponse, id: string): [number, number] | null {
+  const building = [...world.machines, ...world.providers, ...world.logistics, ...world.consumers].find((b) => b.id === id);
+  if (building) return toMapPoint(building.position);
+
+  const conveyor = world.conveyors.find((c) => c.id === id);
+  if (!conveyor || conveyor.curve.length === 0) return null;
+  const [first, last] = [conveyor.curve[0].location, conveyor.curve[conveyor.curve.length - 1].location];
+  return toMapPoint({ x: (first.x + last.x) / 2, y: (first.y + last.y) / 2, z: 0 });
 }
 
 /** How each machine (or generator) runs, by id, from the findings; empty while there are none. */

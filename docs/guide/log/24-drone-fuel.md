@@ -94,6 +94,15 @@ Red first: the four solver tests failed on the old solver (20 instead of 10 and 
 5. **What a port gets** is read from what flows into the belts ending at it. Ports are always fed by belts, so that's what arrives.
 6. **The latest trip is one sample**, as in the game. Averaging is on the enhancements pile, but the save keeps just one.
 
+## Then: from a finding to the map
+
+You asked for this to check whether starved machines really are starved. **Where** in every findings table (machines, bottlenecks, unused supply, unknown supply, generators, drone ports, on the snapshot page and a factory's page) is now a link to the snapshot's map with `?focus=<buildable id>`. The map zooms to that buildable, rings it in yellow, and opens its tooltip (status, contents, position).
+
+- **By id, not by coordinates:** the map finds the exact machine or belt, so its tooltip can open. A belt is found halfway between its ends (`locate` in `map-model.ts`).
+- **Same tab:** the browser's back button returns to the findings. *Choice to overrule:* open the map in a new tab instead.
+- **Files:** `map/map-model.ts` (`locate`), `map/map-page.ts` (`focus` input, `focusOnBuildable`), `findings.ts` / `.html` (`snapshotId` input, the links), `snapshot-page.html`, `factory-page.html`.
+- **Tests:** `map-model.spec.ts`: finds a machine where it stands · providers, logistics and consumers too · a belt halfway along · nothing for an unknown id. `findings.spec.ts`: links where a machine stands to it on the snapshot's map. The Leaflet part (zoom, ring, tooltip) isn't unit-tested; check it in the browser.
+
 ## Next
 
 To see it in the app (the AppHost is running), do two imports. First the **Docs file**, so the Catalog gets the drone port (the migration runs on start). Then your **big save** again, because a snapshot copies the Catalog at import. Your "Desert Start Cleaned" snapshot from 18:08 was imported before the Docs file had the drone port, so it shows no drone ports. Then the *Drone ports* tab lists the ports where drones refuel, the least supplied first.

@@ -27,6 +27,7 @@ import {
   footprintCorners,
   freeNodes,
   itemColour,
+  locate,
   machineStatuses,
   mainItem,
   purityColours,
@@ -65,6 +66,8 @@ export class MapPage {
 
   /** From the route: /snapshots/:id/map. */
   readonly id = input.required<string>();
+  /** From the query, ?focus=<buildable id>: the buildable a finding links to. The map zooms to it and rings it. */
+  readonly focus = input<string>();
 
   protected readonly snapshot = resource({
     params: () => ({ id: this.id() }),
@@ -135,6 +138,9 @@ export class MapPage {
   private readonly providerLayer = L.layerGroup();
   private readonly otherLayer = L.layerGroup();
   private readonly nodeLayer = L.layerGroup();
+  private readonly focusLayer = L.layerGroup();
+  /** Every drawn buildable's shape, by id: to open the tooltip of the one in focus. */
+  private readonly shapes = new Map<string, L.Path>();
   private fitted = false;
 
   constructor() {
@@ -148,6 +154,8 @@ export class MapPage {
     effect(() => this.drawOthers());
     effect(() => this.drawFreeNodes());
     effect(() => this.fitToFactory());
+    // Last, so the shapes it opens a tooltip on are drawn.
+    effect(() => this.focusOnBuildable());
   }
 
   private createMap(): void {
@@ -165,6 +173,7 @@ export class MapPage {
     this.conveyorLayer.addTo(this.map);
     this.providerLayer.addTo(this.map);
     this.machineLayer.addTo(this.map);
+    this.focusLayer.addTo(this.map);
     L.control
       .layers(
         undefined,
@@ -186,6 +195,7 @@ export class MapPage {
     this.drawProviders();
     this.drawOthers();
     this.drawFreeNodes();
+    this.focusOnBuildable();
   }
 
   /**
@@ -224,7 +234,7 @@ export class MapPage {
       const point = toMapPoint(machine.position);
       points.push(point);
       const utilisation = utilisations.get(machine.id);
-      this.shape(machine.position, machine.yaw, machine.className, {
+      const shape = this.shape(machine.position, machine.yaw, machine.className, {
         color: inFactory ? '#ffffff' : statusColours[status],
         weight: inFactory ? 2 : 1,
         fillColor: statusColours[status],
@@ -239,6 +249,7 @@ export class MapPage {
             positionInMetres(machine.position),
         )
         .addTo(this.machineLayer);
+      this.shapes.set(machine.id, shape);
     }
 
     // The first time there's something to show, zoom to it.
@@ -279,6 +290,7 @@ export class MapPage {
           : `<b>${this.names.building(conveyor.className)}</b>`) + (carries ? `<br>On it: ${carries}` : ''),
       );
       line.addTo(this.conveyorLayer);
+      this.shapes.set(conveyor.id, line);
     }
   }
 
@@ -288,7 +300,7 @@ export class MapPage {
 
     this.providerLayer.clearLayers();
     for (const provider of providers) {
-      this.shape(provider.position, provider.yaw, provider.className, {
+      const shape = this.shape(provider.position, provider.yaw, provider.className, {
         color: provider.purity ? purityColours[provider.purity] : '#42a5f5',
         weight: 2,
         fillColor: '#42a5f5',
@@ -301,6 +313,7 @@ export class MapPage {
             `<br>${positionInMetres(provider.position)}`,
         )
         .addTo(this.providerLayer);
+      this.shapes.set(provider.id, shape);
     }
   }
 
@@ -322,7 +335,7 @@ export class MapPage {
         // A generator burning a known fuel shows how it runs (BR-A15), in the machines' colours.
         const generator = consumer ? generators.get(building.id) : undefined;
         const colour = generator ? statusColours[generator.limit] : undefined;
-        this.shape(
+        const shape = this.shape(
           building.position,
           building.yaw,
           building.className,
@@ -340,6 +353,7 @@ export class MapPage {
               positionInMetres(building.position),
           )
           .addTo(this.otherLayer);
+        this.shapes.set(building.id, shape);
       }
     }
   }
@@ -374,5 +388,22 @@ export class MapPage {
 
     const points = machines.filter((machine) => highlighted.has(machine.id)).map((machine) => toMapPoint(machine.position));
     if (points.length > 0) this.map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 1 });
+  }
+
+  /** A finding's buildable (?focus=): zoom to it, ring it, and open its tooltip. Nothing when the map doesn't have it. */
+  private focusOnBuildable(): void {
+    const world = this.world.value();
+    const id = this.focus();
+    if (!this.map || !world || !id) return;
+
+    const point = locate(world, id);
+    this.focusLayer.clearLayers();
+    if (!point) return;
+
+    L.circleMarker(point, { radius: 22, color: '#ffeb3b', weight: 3, fill: false, interactive: false }).addTo(this.focusLayer);
+    this.map.setView(point, 1);
+    // The first fit to all machines would otherwise zoom out again.
+    this.fitted = true;
+    this.shapes.get(id)?.openTooltip(point);
   }
 }

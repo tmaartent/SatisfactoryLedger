@@ -9,6 +9,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 
 import { AnalysisResponse } from '../api/models/analysis-response';
 import { DronePortFinding } from '../api/models/drone-port-finding';
@@ -42,6 +43,7 @@ export type Findings = Pick<AnalysisResponse, 'summary' | 'machines' | 'bottlene
     MatTableModule,
     MatTabsModule,
     MatTooltipModule,
+    RouterLink,
   ],
   templateUrl: './findings.html',
   styleUrl: './findings.scss',
@@ -49,6 +51,8 @@ export type Findings = Pick<AnalysisResponse, 'summary' | 'machines' | 'bottlene
 export class FindingsView {
   protected readonly names = inject(CatalogNames);
   readonly findings = input.required<Findings>();
+  /** The snapshot the findings are of: where they stand links to its map. Without it, positions are plain text. */
+  readonly snapshotId = input<string>();
 
   protected readonly limitFilter = signal<MachineLimit | 'all'>('all');
   protected readonly page = signal<PageEvent>({ pageIndex: 0, pageSize: 25, length: 0 });

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { MachineFinding } from '../api/models/machine-finding';
 import { CatalogNames } from '../shared/catalog-names';
@@ -60,10 +61,11 @@ describe('FindingsView', () => {
   async function render() {
     TestBed.configureTestingModule({
       imports: [FindingsView],
-      providers: [{ provide: CatalogNames, useValue: catalogNames }],
+      providers: [{ provide: CatalogNames, useValue: catalogNames }, provideRouter([])],
     });
     const fixture = TestBed.createComponent(FindingsView);
     fixture.componentRef.setInput('findings', findings);
+    fixture.componentRef.setInput('snapshotId', 's1');
     await fixture.whenStable();
     return fixture;
   }
@@ -140,5 +142,13 @@ describe('FindingsView', () => {
     expect(shown[0]).toContain('4.46/min');
     expect(shown[0]).toContain('1.25/min');
     expect(shown[0]).toContain('3.21/min short');
+  });
+
+  it("links where a machine stands to that machine on the snapshot's map", async () => {
+    const fixture = await render();
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row a') as HTMLAnchorElement;
+
+    expect(link.getAttribute('href')).toBe('/snapshots/s1/map?focus=a');
   });
 });

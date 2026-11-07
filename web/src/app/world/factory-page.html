@@ -22,7 +22,7 @@
     <tr mat-row *matRowDef="let row; columns: outputColumns"></tr>
   </table>
 
-  <app-findings [findings]="factory" />
+  <app-findings [findings]="factory" [snapshotId]="id()" />
 } @else if (analysis.error(); as error) {
   <p>The factory's findings couldn't be loaded: {{ problem(error) }}</p>
 } @else {

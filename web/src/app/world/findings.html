@@ -53,7 +53,13 @@
         </ng-container>
         <ng-container matColumnDef="position">
           <th mat-header-cell *matHeaderCellDef>Where</th>
-          <td mat-cell *matCellDef="let m" class="muted">{{ position(m.position) }}</td>
+          <td mat-cell *matCellDef="let m" class="muted">
+            @if (snapshotId(); as snapshot) {
+              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: m.id }" matTooltip="Show on the map">{{ position(m.position) }}</a>
+            } @else {
+              {{ position(m.position) }}
+            }
+          </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="machineColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: machineColumns"></tr>
@@ -86,7 +92,13 @@
         </ng-container>
         <ng-container matColumnDef="position">
           <th mat-header-cell *matHeaderCellDef>Where</th>
-          <td mat-cell *matCellDef="let b" class="muted">{{ position(b.position) }}</td>
+          <td mat-cell *matCellDef="let b" class="muted">
+            @if (snapshotId(); as snapshot) {
+              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: b.id }" matTooltip="Show on the map">{{ position(b.position) }}</a>
+            } @else {
+              {{ position(b.position) }}
+            }
+          </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="bottleneckColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: bottleneckColumns"></tr>
@@ -116,7 +128,13 @@
         </ng-container>
         <ng-container matColumnDef="position">
           <th mat-header-cell *matHeaderCellDef>Where</th>
-          <td mat-cell *matCellDef="let u" class="muted">{{ position(u.position) }}</td>
+          <td mat-cell *matCellDef="let u" class="muted">
+            @if (snapshotId(); as snapshot) {
+              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: u.id }" matTooltip="Show on the map">{{ position(u.position) }}</a>
+            } @else {
+              {{ position(u.position) }}
+            }
+          </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="unusedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: unusedColumns"></tr>
@@ -160,7 +178,13 @@
         </ng-container>
         <ng-container matColumnDef="position">
           <th mat-header-cell *matHeaderCellDef>Where</th>
-          <td mat-cell *matCellDef="let u" class="muted">{{ position(u.position) }}</td>
+          <td mat-cell *matCellDef="let u" class="muted">
+            @if (snapshotId(); as snapshot) {
+              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: u.id }" matTooltip="Show on the map">{{ position(u.position) }}</a>
+            } @else {
+              {{ position(u.position) }}
+            }
+          </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="unknownColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: unknownColumns"></tr>
@@ -203,7 +227,13 @@
           </ng-container>
           <ng-container matColumnDef="position">
             <th mat-header-cell *matHeaderCellDef>Where</th>
-            <td mat-cell *matCellDef="let g" class="muted">{{ position(g.position) }}</td>
+            <td mat-cell *matCellDef="let g" class="muted">
+            @if (snapshotId(); as snapshot) {
+              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: g.id }" matTooltip="Show on the map">{{ position(g.position) }}</a>
+            } @else {
+              {{ position(g.position) }}
+            }
+          </td>
           </ng-container>
           <tr mat-header-row *matHeaderRowDef="generatorColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: generatorColumns"></tr>
@@ -246,7 +276,13 @@
           </ng-container>
           <ng-container matColumnDef="position">
             <th mat-header-cell *matHeaderCellDef>Where</th>
-            <td mat-cell *matCellDef="let d" class="muted">{{ position(d.position) }}</td>
+            <td mat-cell *matCellDef="let d" class="muted">
+            @if (snapshotId(); as snapshot) {
+              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: d.id }" matTooltip="Show on the map">{{ position(d.position) }}</a>
+            } @else {
+              {{ position(d.position) }}
+            }
+          </td>
           </ng-container>
           <tr mat-header-row *matHeaderRowDef="dronePortColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: dronePortColumns"></tr>

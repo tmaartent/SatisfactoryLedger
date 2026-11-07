@@ -25,7 +25,7 @@
           }
           @default {
             @if (analysis.value(); as findings) {
-              <app-findings [findings]="findings" />
+              <app-findings [findings]="findings" [snapshotId]="id()" />
             } @else if (analysis.error(); as error) {
               <p>The findings couldn't be loaded: {{ problem(error) }}</p>
             } @else {
