@@ -2,6 +2,8 @@
 
 Ideas the owner wants kept, but not planned yet. Each says what it is, why it's worth doing, and what it would take. When one is picked up, it gets business rules, an ADR where needed, and a step log.
 
+Ideas for practising AI engineering on this project (an MCP server, evals, RAG, fine-tuning with Transformers and PEFT, MLflow) are kept apart, in [AI enhancements](ai-enhancements.md).
+
 ## Flow analysis
 
 ### An exact steady state, as a linear programme
