@@ -1,4 +1,4 @@
-using SatisfactoryLedger.Catalog.Importer;
+using SatisfactoryLedger.Catalog.GameData.DocsFile;
 
 namespace SatisfactoryLedger.Catalog.Tests;
 

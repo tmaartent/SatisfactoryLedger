@@ -3,9 +3,9 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Domain;
-using SatisfactoryLedger.Catalog.Importer;
+using SatisfactoryLedger.Catalog.GameData.DocsFile;
 using SatisfactoryLedger.Catalog.Persistence;
-using SatisfactoryLedger.Catalog.Translator;
+using SatisfactoryLedger.Catalog.GameData.Translator;
 
 namespace SatisfactoryLedger.Catalog.Imports;
 

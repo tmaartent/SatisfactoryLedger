@@ -1,0 +1,429 @@
+using System.Globalization;
+
+using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.GameData.DocsFile;
+using SatisfactoryLedger.Catalog.GameData.Translator;
+using SatisfactoryLedger.SharedKernel;
+
+namespace SatisfactoryLedger.Catalog.Tests.GameData.Translator;
+
+public class SatisfactoryTranslatorTests
+{
+    [Fact]
+    public async Task Items_can_be_translated()
+    {
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
+        var itemGroupDtos = resources.OfType<ItemGroupDto>().ToList();
+        var resourceItemGroupDto = itemGroupDtos.Single(dto => dto is ResourceItemGroupDto);
+        var totalCount = itemGroupDtos.Select(dto => dto.Items.Count).Sum();
+        var itemDtos = itemGroupDtos.SelectMany(dto => dto.Items).ToDictionary(dto => dto.ClassName, dto => dto);
+        
+        List<Item> items = SatisfactoryTranslator.TranslateToItems(resources);
+        int resourceCount = items.Count(item => item.IsRawResource);
+
+        Assert.Equal(totalCount, items.Count);
+        Assert.Equal(resourceItemGroupDto.Items.Count, resourceCount);
+        
+        items.ForEach(item =>
+        {
+            if (itemDtos.TryGetValue(item.Id.Id, out var itemDto))
+            {
+                Assert.Equal(itemDto.DisplayName, item.Name);
+                switch (item.ItemForm)
+                {
+                    case ItemForm.Fluid:
+                        Assert.True(itemDto.Form is "RF_LIQUID" or "RF_GAS");
+                        break;
+                    case ItemForm.Solid:
+                        Assert.Equal("RF_SOLID", itemDto.Form);
+                        break;
+                    default:
+                        Assert.Fail();
+                        break;
+                }
+            }
+            else
+            {
+                Assert.Fail();
+            }
+        });
+    }
+
+    [Fact]
+    public async Task Buildings_can_be_translated()
+    {
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
+        var buildingGroupDtos = resources.OfType<BuildingGroupDto>().ToList();
+        var totalCount = buildingGroupDtos.Select(dto => dto.Buildings.Count).Sum();
+        var buildingDtos = buildingGroupDtos.SelectMany(dto => dto.Buildings).ToDictionary(dto => dto.ClassName, dto => dto);
+        
+        List<Building> buildings = SatisfactoryTranslator.TranslateToBuildings(resources);
+        
+        Assert.Equal(totalCount, buildings.Count);
+        
+        buildings.ForEach(building =>
+        {
+            if (buildingDtos.TryGetValue(building.Id.Id, out var buildingDto))
+            {
+                Assert.Equal(buildingDto.DisplayName, building.Name);
+                Assert.Equal(int.Parse(buildingDto.ProductionShardSlotSize, CultureInfo.InvariantCulture), building.SomersloopSlots);
+            }
+            else
+            {
+                Assert.Fail();
+            }
+        });
+    }
+    
+    [Fact]
+    public async Task TransportTiers_can_be_translated()
+    {
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
+        var belTierGroupDtos = resources.OfType<BeltGroupDto>().ToList();
+        var totalCount = belTierGroupDtos.Select(dto => dto.Tiers.Count).Sum();
+        var pipeTierGroupDtos = resources.OfType<PipeGroupDto>().ToList();
+        totalCount += pipeTierGroupDtos.Select(dto => dto.Tiers.Count).Sum();
+        
+        List<TransportTierDto> allTierDtos =
+        [
+            .. belTierGroupDtos.SelectMany(dto => dto.Tiers),
+            .. pipeTierGroupDtos.SelectMany(dto => dto.Tiers)
+        ];
+        Dictionary<string, TransportTierDto> transportTierDtos = allTierDtos.ToDictionary(dto => dto.ClassName, dto => dto);
+        
+        List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
+        
+        Assert.Equal(totalCount, transportTiers.Count);
+        
+        transportTiers.ForEach(transportTier =>
+        {
+            if (transportTierDtos.TryGetValue(transportTier.Id.Id, out var transportTierDto))
+            {
+                Assert.Equal(transportTierDto.DisplayName, transportTier.Name);
+                if (transportTier.Form == TransportForm.Belt)
+                {
+                    Assert.True(transportTierDto is BeltDto);
+
+                    if (transportTierDto is BeltDto belt)
+                    {
+                        Assert.Equal(decimal.Parse(belt.Speed, CultureInfo.InvariantCulture), transportTier.Capacity * 2);
+                    }
+                }
+                else
+                {
+                    Assert.True(transportTierDto is PipeDto);
+                    if (transportTierDto is PipeDto pipe)
+                    {
+                        Assert.Equal(decimal.Parse(pipe.FlowLimit, CultureInfo.InvariantCulture) * 60, transportTier.Capacity);
+                    }
+                }
+            }
+            else
+            {
+                Assert.Fail();
+            }
+        });
+    }
+
+    [Fact]
+    public async Task Recipes_can_be_translated()
+    {
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
+        var recipeGroupDtos = resources.OfType<RecipeGroupDto>().ToList();
+        var totalCount = recipeGroupDtos.Select(dto => dto.Recipes.Count).Sum();
+        var recipeDtos = recipeGroupDtos.SelectMany(dto => dto.Recipes).ToDictionary(dto => dto.ClassName, dto => dto);
+        
+        List<Recipe> recipes = SatisfactoryTranslator.TranslateToRecipes(resources);
+        
+        Assert.Equal(totalCount, recipes.Count);
+        
+        recipes.ForEach(recipe =>
+        {
+            if (recipeDtos.TryGetValue(recipe.Id.Id, out var recipeDto))
+            {
+                Assert.Equal(recipeDto.DisplayName, recipe.Name);
+                Assert.Equal(recipeDto.RecipeBuilding!.ClassName, recipe.BuildingId.Id);
+                Assert.Equal(decimal.Parse(recipeDto.ManufactoringDuration, CultureInfo.InvariantCulture), recipe.CycleSeconds);
+                Assert.Equal(recipeDto.Ingredients.Count, recipe.Inputs.Count);
+                Assert.Equal(recipeDto.Products.Count, recipe.Outputs.Count);
+                Assert.Equal(recipeDto.ClassName.Contains("Alternate"), recipe.IsAlternate);
+            }
+            else
+            {
+                Assert.Fail();
+            }
+        });
+    }
+
+    // en-US.json is a snapshot of the game's Docs file. The expected values belong to that snapshot.
+    [Fact]
+    public async Task The_game_file_translates_into_a_complete_catalog()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.Equal(190, SatisfactoryTranslator.TranslateToItems(resources).Count);
+        Assert.Equal(11, SatisfactoryTranslator.TranslateToBuildings(resources).Count);
+        Assert.Equal(16, SatisfactoryTranslator.TranslateToTransportTiers(resources).Count);
+        Assert.Equal(291, SatisfactoryTranslator.TranslateToRecipes(resources).Count);
+        Assert.Equal(6, SatisfactoryTranslator.TranslateToExtractors(resources).Count);
+    }
+
+    [Fact]
+    public async Task Water_from_the_game_file_is_a_raw_fluid()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Item water = Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == "Desc_Water_C");
+        Assert.Equal(ItemForm.Fluid, water.ItemForm);
+        Assert.True(water.IsRawResource);
+    }
+
+    [Fact]
+    public async Task Transport_tiers_from_the_game_file_have_their_in_game_capacities()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+        List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
+
+        int[] beltCapacities =
+        [
+            .. transportTiers.Where(tier => tier.Id.Id.StartsWith("Build_ConveyorBelt", StringComparison.Ordinal))
+                .Select(tier => tier.Capacity).Order()
+        ];
+        int[] pipeCapacities =
+        [
+            .. transportTiers.Where(tier => tier.Form == TransportForm.Pipe && !tier.Name.StartsWith("Clean", StringComparison.Ordinal))
+                .Select(tier => tier.Capacity).Order()
+        ];
+
+        Assert.Equal([60, 120, 270, 480, 780, 1200], beltCapacities);
+        Assert.Equal([300, 600], pipeCapacities);
+    }
+
+    [Fact]
+    public async Task The_iron_plate_recipe_from_the_game_file_turns_3_ingots_into_2_plates_in_6_seconds()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Recipe ironPlate = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_IronPlate_C");
+        Assert.Equal("Build_ConstructorMk1_C", ironPlate.BuildingId.Id);
+        Assert.Equal(6m, ironPlate.CycleSeconds);
+        Assert.Equal([RecipeIngredient.Of(ItemId.Of("Desc_IronIngot_C"), 3)], ironPlate.Inputs);
+        Assert.Equal([RecipeIngredient.Of(ItemId.Of("Desc_IronPlate_C"), 2)], ironPlate.Outputs);
+        Assert.False(ironPlate.IsAlternate);
+    }
+
+    // The game writes "6.000000". A decimal keeps that scale, so without care the API would answer 6.000000.
+    [Fact]
+    public async Task Cycle_times_from_the_game_file_keep_no_trailing_zeros()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Recipe ironPlate = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_IronPlate_C");
+        Assert.Equal("6", ironPlate.CycleSeconds.ToString(CultureInfo.InvariantCulture));
+    }
+
+    // The game stores fluid amounts in litres (x1000); the catalog uses cubic metres, like the game's UI.
+    [Fact]
+    public async Task Fluid_amounts_from_the_game_file_are_in_cubic_metres()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Recipe plastic = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_Plastic_C");
+        Assert.Equal([RecipeIngredient.Of(ItemId.Of("Desc_LiquidOil_C"), 3)], plastic.Inputs);
+        Assert.Equal(
+            [RecipeIngredient.Of(ItemId.Of("Desc_Plastic_C"), 2), RecipeIngredient.Of(ItemId.Of("Desc_HeavyOilResidue_C"), 1)],
+            plastic.Outputs);
+    }
+
+    // A lift carries as much as the belt of the same mark: Mk.1 60 per minute up to Mk.6 1200.
+    [Fact]
+    public async Task Lifts_from_the_game_file_carry_as_much_as_belts_of_the_same_mark()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+        List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
+
+        TransportTier[] lifts =
+        [
+            .. transportTiers.Where(tier => tier.Id.Id.StartsWith("Build_ConveyorLift", StringComparison.Ordinal))
+                .OrderBy(tier => tier.Capacity)
+        ];
+
+        Assert.Equal([60, 120, 270, 480, 780, 1200], lifts.Select(lift => lift.Capacity));
+        Assert.All(lifts, lift => Assert.Equal(TransportForm.Belt, lift.Form));
+    }
+
+    // "Clean" pipelines have no flow indicator, nothing else. They carry as much as the pipeline of the same mark.
+    [Theory]
+    [InlineData("Build_Pipeline_NoIndicator_C", "Clean Pipeline Mk.1", 300)]
+    [InlineData("Build_PipelineMK2_NoIndicator_C", "Clean Pipeline Mk.2", 600)]
+    public async Task Clean_pipelines_from_the_game_file_carry_as_much_as_pipelines_of_the_same_mark(string id, string name, int capacity)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        TransportTier clean = Assert.Single(SatisfactoryTranslator.TranslateToTransportTiers(resources), tier => tier.Id.Id == id);
+
+        Assert.Equal(name, clean.Name);
+        Assert.Equal(capacity, clean.Capacity);
+        Assert.Equal(TransportForm.Pipe, clean.Form);
+    }
+
+    [Fact]
+    public async Task The_extractors_from_the_game_file_are_the_miners_and_the_oil_water_and_resource_well_extractors()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        string[] actual = [.. SatisfactoryTranslator.TranslateToExtractors(resources).Select(extractor => extractor.Id.Id).Order(StringComparer.Ordinal)];
+
+        Assert.Equal(
+            ["Build_FrackingExtractor_C", "Build_MinerMk1_C", "Build_MinerMk2_C", "Build_MinerMk3_C", "Build_OilPump_C", "Build_WaterPump_C"],
+            actual);
+    }
+
+    // Rates on a normal-purity node at 100% clock speed. Fluid amounts are in cubic metres, like recipes.
+    [Theory]
+    [InlineData("Build_MinerMk1_C", 60, ItemForm.Solid)]
+    [InlineData("Build_MinerMk3_C", 240, ItemForm.Solid)]
+    [InlineData("Build_WaterPump_C", 120, ItemForm.Fluid)]
+    [InlineData("Build_OilPump_C", 120, ItemForm.Fluid)]
+    [InlineData("Build_FrackingExtractor_C", 60, ItemForm.Fluid)]
+    public async Task Extractors_from_the_game_file_have_their_in_game_rates(string id, int perMinute, ItemForm form)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Extractor extractor = Assert.Single(SatisfactoryTranslator.TranslateToExtractors(resources), extractor => extractor.Id.Id == id);
+
+        Assert.Equal(Rate.PerMinute(perMinute), extractor.ExtractionRate);
+        Assert.Equal(form, extractor.Form);
+    }
+
+    // ---- Footprints (ADR-0020): the ground a building covers, from its clearance boxes ---------------------------
+
+    private static async Task<Footprint> FootprintOfAsync(string id)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+        return Assert.Single(SatisfactoryTranslator.TranslateToFootprints(resources), footprint => footprint.Id.Id == id);
+    }
+
+    [Fact]
+    public async Task A_constructor_from_the_game_file_covers_8_by_10_metres()
+    {
+        Footprint constructor = await FootprintOfAsync("Build_ConstructorMk1_C");
+
+        Assert.Equal((-400m, -500m, 400m, 500m), (constructor.MinX, constructor.MinY, constructor.MaxX, constructor.MaxY));
+    }
+
+    [Fact]
+    public async Task A_miners_boxes_are_moved_by_their_offsets_and_its_soft_box_left_out()
+    {
+        // Two boxes 2 m along y from where it stands, and a small soft one on top.
+        Footprint miner = await FootprintOfAsync("Build_MinerMk1_C");
+
+        Assert.Equal((-300m, -500m, 300m, 900m), (miner.MinX, miner.MinY, miner.MaxX, miner.MaxY));
+    }
+
+    [Fact]
+    public async Task A_splitter_covers_the_room_of_its_soft_box()
+    {
+        Footprint splitter = await FootprintOfAsync("Build_ConveyorAttachmentSplitter_C");
+
+        Assert.Equal((400m, 400m), (splitter.Width, splitter.Length));
+    }
+
+    [Fact]
+    public async Task Footprints_come_from_every_kind_of_building_in_the_game_file()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        HashSet<string> ids = [.. SatisfactoryTranslator.TranslateToFootprints(resources).Select(footprint => footprint.Id.Id)];
+
+        Assert.Superset(
+            new HashSet<string> { "Build_SmelterMk1_C", "Build_MinerMk1_C", "Build_WaterPump_C", "Build_StorageContainerMk2_C", "Build_DroneStation_C", "Build_TrainDockingStation_C" },
+            ids);
+        Assert.DoesNotContain("Build_ConveyorLiftMk1_C", ids);
+    }
+
+    [Fact]
+    public async Task A_box_turned_a_quarter_covers_its_turned_ground()
+    {
+        // A low barrier: its 4 m by 0.6 m box is turned a quarter about the vertical axis.
+        Footprint barrier = await FootprintOfAsync("Build_Barrier_Low_01_C");
+
+        Assert.Equal((60m, 400m), (Math.Round(barrier.Width), Math.Round(barrier.Length)));
+    }
+
+    // ---- Generators (BR-A8): power, fuels and their energy, water, waste ------------------------------------------
+
+    private static async Task<Generator> GeneratorOfAsync(string id)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+        return Assert.Single(SatisfactoryTranslator.TranslateToGenerators(resources), generator => generator.Id.Id == id);
+    }
+
+    [Fact]
+    public async Task The_generators_from_the_game_file_are_the_ones_that_burn_fuel()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        string[] ids = [.. SatisfactoryTranslator.TranslateToGenerators(resources).Select(generator => generator.Id.Id).Order(StringComparer.Ordinal)];
+
+        Assert.Equal(["Build_GeneratorBiomass_Automated_C", "Build_GeneratorCoal_C", "Build_GeneratorFuel_C", "Build_GeneratorNuclear_C"], ids);
+    }
+
+    [Fact]
+    public async Task A_nuclear_plant_from_the_game_file_makes_2500_megawatts_and_needs_1_6_litres_of_water_per_megajoule()
+    {
+        Generator plant = await GeneratorOfAsync("Build_GeneratorNuclear_C");
+
+        Assert.Equal((2500m, 1.6m), (plant.PowerMegawatts, plant.SupplementalLitresPerMegajoule));
+    }
+
+    [Fact]
+    public async Task A_uranium_rod_from_the_game_file_has_750000_megajoules_needs_water_and_leaves_50_waste()
+    {
+        Generator plant = await GeneratorOfAsync("Build_GeneratorNuclear_C");
+
+        Assert.Contains(new GeneratorFuel(ItemId.Of("Desc_NuclearFuelRod_C"), 750_000, ItemId.Of("Desc_Water_C"), ItemId.Of("Desc_NuclearWaste_C"), 50), plant.Fuels);
+    }
+
+    [Fact]
+    public async Task A_fluid_fuels_energy_is_per_litre_in_the_game_file_so_per_cubic_metre_it_is_a_thousand_times_more()
+    {
+        Generator generator = await GeneratorOfAsync("Build_GeneratorFuel_C");
+
+        Assert.Equal(750m, generator.Fuels.Single(fuel => fuel.Fuel == ItemId.Of("Desc_LiquidFuel_C")).EnergyMegajoules);
+    }
+
+    [Fact]
+    public async Task A_coal_generator_from_the_game_file_makes_75_megawatts_from_coal_of_300_megajoules_and_needs_10_litres_of_water_per_megajoule()
+    {
+        Generator generator = await GeneratorOfAsync("Build_GeneratorCoal_C");
+
+        Assert.Equal((75m, 10m, 300m),
+            (generator.PowerMegawatts, generator.SupplementalLitresPerMegajoule, generator.Fuels.Single(fuel => fuel.Fuel == ItemId.Of("Desc_Coal_C")).EnergyMegajoules));
+    }
+
+    // ---- The drone port (BR-A16): what a trip costs, and the fuels a drone can burn --------------------------------
+
+    [Fact]
+    public async Task A_drone_trip_from_the_game_file_costs_24000_megajoules_and_6_more_per_metre()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        DronePort port = Assert.Single(SatisfactoryTranslator.TranslateToDronePorts(resources));
+
+        Assert.Equal(("Build_DroneStation_C", 24_000m, 6m), (port.Id.Id, port.TripEnergyMegajoules, port.TripEnergyPerMetreMegajoules));
+    }
+
+    [Fact]
+    public async Task A_drone_can_burn_every_solid_fuel_in_the_game_file_at_its_energy_per_item()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        DronePort port = Assert.Single(SatisfactoryTranslator.TranslateToDronePorts(resources));
+
+        Assert.Contains(new DroneFuel(ItemId.Of("Desc_PackagedRocketFuel_C"), 7_200), port.Fuels);
+        Assert.Contains(new DroneFuel(ItemId.Of("Desc_Battery_C"), 6_000), port.Fuels);
+        Assert.Contains(new DroneFuel(ItemId.Of("Desc_NuclearFuelRod_C"), 750_000), port.Fuels);
+        Assert.DoesNotContain(port.Fuels, fuel => fuel.Fuel == ItemId.Of("Desc_LiquidFuel_C"));
+    }
+}
