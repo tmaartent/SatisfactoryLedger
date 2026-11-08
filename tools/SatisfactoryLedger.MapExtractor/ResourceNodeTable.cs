@@ -3,32 +3,6 @@ using System.Text.Json.Serialization;
 
 namespace SatisfactoryLedger.MapExtractor;
 
-/// <summary>What the game's map says about one resource node, as read: values the map didn't store are null.</summary>
-/// <param name="ResourceClass">The resource as the map stores it: <c>BlueprintGeneratedClass'/Game/…/Desc_OreIron.Desc_OreIron_C'</c>.</param>
-/// <param name="Purity">The stored purity (<c>RP_Inpure</c>, <c>RP_Pure</c>), or null when the default (normal) applies.</param>
-internal sealed record MapNode(string Name, NodeKind Kind, string? ResourceClass, string? Purity, NodePosition? Position);
-
-/// <summary>A node a miner or oil extractor stands on, or a satellite node of a resource well.</summary>
-internal enum NodeKind
-{
-    ResourceNode,
-    WellSatellite,
-}
-
-/// <summary>Where a node is, in the game's units (centimetres).</summary>
-internal sealed record NodePosition(double X, double Y, double Z);
-
-internal enum Purity
-{
-    Impure,
-    Normal,
-    Pure,
-}
-
-/// <param name="Name">The node's name, as the game and the save use it: <c>BP_ResourceNode35</c>.</param>
-/// <param name="Resource">The item's class name: <c>Desc_OreIron_C</c>.</param>
-internal sealed record ResourceNodeEntry(string Name, NodeKind Kind, string Resource, Purity Purity, NodePosition? Position);
-
 /// <summary>
 /// The node table the Catalog imports (ADR-0015): one entry per resource node, with the game's quirks translated
 /// (<c>RP_Inpure</c>, "not stored" meaning normal). Nothing of the game's format gets past this class.

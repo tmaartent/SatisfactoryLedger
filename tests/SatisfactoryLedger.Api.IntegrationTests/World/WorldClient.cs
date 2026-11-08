@@ -2,35 +2,6 @@ using System.Net.Http.Json;
 
 namespace SatisfactoryLedger.Api.IntegrationTests.World;
 
-public sealed record SnapshotCounts(int Machines, int Providers, int Consumers, int Logistics, int Connections);
-
-public sealed record UnsupportedClass(string ClassName, int Count);
-
-public sealed record Snapshot(
-    Guid Id,
-    string SessionName,
-    int GameBuild,
-    DateTimeOffset SavedAt,
-    DateTimeOffset ImportedAt,
-    SnapshotCounts Counts,
-    string[] UnknownRecipes,
-    UnsupportedClass[] Unsupported,
-    string Analysis);
-
-public sealed record SnapshotSummary(Guid Id, string SessionName, int GameBuild, DateTimeOffset SavedAt, DateTimeOffset ImportedAt, SnapshotCounts Counts);
-
-public sealed record Reference(string Id, string ClassName);
-
-public sealed record Position(double X, double Y, double Z);
-
-public sealed record OutputBelt(string Belt, string ClassName, string[] Items, Reference[] Into, Position? Position, Dictionary<string, int> Machines);
-
-public sealed record Factory(Guid Id, string World, string Name, string OutputBelt, string[] InputItems);
-
-public sealed record Machine(string Id, string ClassName, string? Recipe);
-
-public sealed record FactoryTrace(Guid FactoryId, string Name, bool Traceable, Machine[] Machines, int Logistics);
-
 internal static class WorldClient
 {
     public static string Id(string name) => $"Persistent_Level:PersistentLevel.{name}";

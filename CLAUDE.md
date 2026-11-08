@@ -19,6 +19,7 @@ This is a **learning project**. The owner's goal is to learn how .NET, ASP.NET C
 - Architecture: modular monolith, see `docs/architecture/overview.md` and the ADRs in `docs/adr/`.
 - A module's `*.Domain` project has no framework references. Other modules only reference `*.Contracts`.
 - Rates are exact rationals, never `double`/`decimal` (ADR-0004).
+- One type per file, the file named after it: class, record, interface, enum, struct. The build enforces it (StyleCop SA1402, SA1649). A `file`-local helper type may stay with the type it serves.
 - Tests: domain tests are written first, with one behaviour per test, and named in domain language.
 - Commits: Conventional Commits. No AI co-author lines.
 

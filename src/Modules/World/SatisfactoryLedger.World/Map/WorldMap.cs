@@ -3,54 +3,6 @@ using SatisfactoryLedger.World.Snapshots;
 
 namespace SatisfactoryLedger.World.Map;
 
-/// <summary>A machine on the map. How it runs comes from the findings, once the analysis is ready.</summary>
-/// <param name="Yaw">Which way it faces, seen from above: degrees from the game's x axis towards its y axis.</param>
-/// <param name="InputContents">The ingredients in it at save time, per item (fluids in m³); null in older snapshots.</param>
-/// <param name="OutputContents">The products waiting in it to leave at save time.</param>
-internal sealed record MapMachine(
-    string Id,
-    string ClassName,
-    string? Recipe,
-    PositionDocument Position,
-    double Yaw,
-    IReadOnlyDictionary<string, decimal>? InputContents,
-    IReadOnlyDictionary<string, decimal>? OutputContents);
-
-/// <summary>A provider on the map (BR-W1): a miner or extractor, or a station that brings items in.</summary>
-/// <param name="Resource">What it extracts: from its node, or its class (water); null for a station.</param>
-/// <param name="Node">What it stands on, as the save names it: a resource node (as the Catalog names them, ADR-0015) or a water volume.</param>
-/// <param name="Purity">The purity of that node: impure, normal or pure.</param>
-internal sealed record MapProvider(string Id, string ClassName, string? Resource, string? Node, string? Purity, PositionDocument Position, double Yaw);
-
-/// <summary>Another building on the map: a splitter, merger, lift, container or buffer, or a consumer (BR-W8).</summary>
-/// <param name="Contents">What's on a lift or in a splitter's or merger's buffer at save time; null for the others.</param>
-internal sealed record MapBuilding(string Id, string ClassName, PositionDocument Position, double Yaw, IReadOnlyDictionary<string, decimal>? Contents);
-
-internal enum MapConveyorKind
-{
-    Belt,
-    Pipe,
-}
-
-/// <summary>
-/// A belt or pipe on the map, with its curve as built: a cubic Hermite spline through its points (see
-/// <see cref="CurvePointDocument"/>). The map samples it into a line.
-/// </summary>
-/// <param name="Contents">What's on it at save time, per item; null for a pipe or an older snapshot.</param>
-internal sealed record MapConveyor(
-    string Id, string ClassName, MapConveyorKind Kind, IReadOnlyList<CurvePointDocument> Curve, IReadOnlyDictionary<string, decimal>? Contents);
-
-/// <summary>What the world map draws of a snapshot. Positions in the game's units (centimetres).</summary>
-/// <param name="Logistics">Splitters, mergers, lifts, containers and the like: logistics without a curve.</param>
-/// <param name="Footprints">The ground each building class covers, by class name: the map turns it with each building.</param>
-internal sealed record WorldMapResponse(
-    IReadOnlyList<MapMachine> Machines,
-    IReadOnlyList<MapProvider> Providers,
-    IReadOnlyList<MapConveyor> Conveyors,
-    IReadOnlyList<MapBuilding> Logistics,
-    IReadOnlyList<MapBuilding> Consumers,
-    IReadOnlyList<FootprintDocument> Footprints);
-
 /// <summary>
 /// Everything of a snapshot the map draws, where it stands and which way it faces (ADR-0020). A snapshot imported
 /// before version 5 has no curves, headings or footprints: its belts are missing and its buildings face along x.

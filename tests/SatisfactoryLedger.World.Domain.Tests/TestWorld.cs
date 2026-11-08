@@ -2,17 +2,6 @@ using SatisfactoryLedger.SharedKernel;
 
 namespace SatisfactoryLedger.World.Domain.Tests;
 
-internal static class Items
-{
-    public static readonly ItemId IronOre = ItemId.Of("Desc_OreIron_C");
-    public static readonly ItemId IronIngot = ItemId.Of("Desc_IronIngot_C");
-    public static readonly ItemId IronPlate = ItemId.Of("Desc_IronPlate_C");
-    public static readonly ItemId IronRod = ItemId.Of("Desc_IronRod_C");
-    public static readonly ItemId Screw = ItemId.Of("Desc_IronScrew_C");
-    public static readonly ItemId ReinforcedIronPlate = ItemId.Of("Desc_IronPlateReinforced_C");
-    public static readonly ItemId Coal = ItemId.Of("Desc_Coal_C");
-}
-
 /// <summary>Builds a small world by hand: buildables by name, then connections in the direction items flow.</summary>
 internal sealed class TestWorld
 {
@@ -120,13 +109,4 @@ internal sealed class TestWorld
         _buildables.Add(buildable);
         return this;
     }
-}
-
-internal static class Ids
-{
-    public static IEnumerable<BuildableId> Of(params string[] ids) => ids.Select(BuildableId.Of);
-
-    /// <summary>Asserts the set of ids regardless of order. A plain Assert.Equal on two sets compares them in order.</summary>
-    public static void AssertSet(IEnumerable<BuildableId> actual, params string[] expected) =>
-        Assert.Equal(expected.Order(), actual.Select(id => id.Id).Order());
 }

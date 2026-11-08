@@ -1,26 +1,5 @@
 namespace SatisfactoryLedger.Catalog.Domain;
 
-/// <summary>A building's class name, e.g. <c>Build_ConstructorMk1_C</c>: what its footprint belongs to.</summary>
-public sealed record FootprintId
-{
-    private FootprintId(string id)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        Id = id;
-    }
-
-    public string Id { get; }
-
-    public static FootprintId Of(string id) => new(id);
-}
-
-/// <summary>
-/// One of the boxes the game keeps clear for a building (<c>mClearanceData</c>), seen from above: in the building's own
-/// coordinates, in centimetres, already moved by its offset. A soft box is room around the building that other things
-/// may share, such as the space a belt passes through a splitter.
-/// </summary>
-public sealed record ClearanceBox(decimal MinX, decimal MinY, decimal MaxX, decimal MaxY, bool Soft);
-
 /// <summary>
 /// The ground a building covers, seen from above (ADR-0020): a rectangle in its own coordinates, in centimetres. The map
 /// turns it with the building. Read from the game's Docs file, like the other catalog entries.

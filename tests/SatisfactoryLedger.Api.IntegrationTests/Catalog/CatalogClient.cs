@@ -3,48 +3,6 @@ using System.Text.Json.Nodes;
 
 namespace SatisfactoryLedger.Api.IntegrationTests.Catalog;
 
-// The response shapes as a client sees them. Kept separate from the API's own types on purpose:
-// renaming a field in the API should break these tests, because it breaks the contract.
-public sealed record ImportCounts(int Added, int Updated, int NoLongerInGame);
-
-public sealed record ImportResult(
-    Guid Id,
-    string Source,
-    string GameVersion,
-    DateTimeOffset ImportedAt,
-    ImportCounts Items,
-    ImportCounts Buildings,
-    ImportCounts TransportTiers,
-    ImportCounts Recipes,
-    ImportCounts Extractors,
-    ImportCounts ResourceNodes,
-    string[] NoLongerInGame);
-
-public sealed record CatalogPosition(double X, double Y, double Z);
-
-public sealed record CatalogResourceNode(string Name, string Kind, string Resource, string Purity, CatalogPosition Position, bool InGame);
-
-public sealed record CatalogItem(string Id, string Name, string Form, bool IsRawResource, bool InGame);
-
-public sealed record CatalogRate(decimal PerMinute, string Exact);
-
-public sealed record CatalogIngredient(string ItemId, decimal AmountPerCycle, CatalogRate Rate);
-
-public sealed record CatalogRecipe(
-    string Id,
-    string Name,
-    string BuildingId,
-    decimal CycleSeconds,
-    bool IsAlternate,
-    bool InGame,
-    CatalogIngredient[] Inputs,
-    CatalogIngredient[] Outputs);
-
-public sealed record CatalogTransportTier(string Id, string Name, string Form, int Capacity, bool InGame);
-
-public sealed record CatalogExtractor(
-    string Id, string Name, string Form, decimal AmountPerCycle, decimal CycleSeconds, CatalogRate ExtractionRate, bool InGame);
-
 internal static class CatalogClient
 {
     public const string GameFile = "Fixtures/en-US.json";

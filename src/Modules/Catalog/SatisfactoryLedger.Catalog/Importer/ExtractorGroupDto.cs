@@ -11,11 +11,3 @@ internal abstract class ExtractorGroupDto : GameDataGroupDto
     [JsonPropertyName("Classes")]
     public List<ExtractorDto> Extractors { get; set; } = [];
 }
-
-/// <summary>Miners and the oil extractor.</summary>
-internal class ResourceExtractorGroupDto : ExtractorGroupDto;
-
-internal class WaterPumpGroupDto : ExtractorGroupDto;
-
-/// <summary>The resource well extractor. The pressurizer is a separate section: it extracts nothing itself.</summary>
-internal class FrackingExtractorGroupDto : ExtractorGroupDto;

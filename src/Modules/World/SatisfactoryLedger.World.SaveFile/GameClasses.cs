@@ -2,29 +2,6 @@ using SatisfactoryLedger.World.Domain;
 
 namespace SatisfactoryLedger.World.SaveFile;
 
-internal enum BuildableRole
-{
-    /// <summary>Not a class the adapter knows. Ignored, unless it's connected to belts or pipes: then it's reported.</summary>
-    Unknown,
-    Machine,
-    Provider,
-    Consumer,
-    Logistics,
-    /// <summary>A train platform, drone port or truck station: a provider or a consumer, as its linked ports say.</summary>
-    Station,
-    /// <summary>Known, in the item network, but not modelled yet. Reported, and its connections are left out.</summary>
-    Unsupported,
-}
-
-/// <summary>Which way items or fluid move through a port.</summary>
-internal enum Port
-{
-    In,
-    Out,
-    /// <summary>A pipe end: fluid can go either way, so the direction comes from the machines around it.</summary>
-    Undirected,
-}
-
 /// <summary>The game knowledge of the anti-corruption layer: what a building class is, and which way its ports point.</summary>
 internal static class GameClasses
 {

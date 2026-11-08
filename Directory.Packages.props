@@ -13,6 +13,8 @@
     <!-- Reads the game's packed files, for the map tool only (ADR-0015). -->
     <PackageVersion Include="CUE4Parse" Version="1.2.2.202611" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
+    <!-- Only for one type per file (SA1402, SA1649); every other StyleCop rule is off in .editorconfig. The 1.1 release predates records. -->
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.3.177-beta" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
     <!-- Not used directly: pins CUE4Parse's dependency (9.0.0) past GHSA-73j8-2gch-69rq, fixed in 9.0.14. -->

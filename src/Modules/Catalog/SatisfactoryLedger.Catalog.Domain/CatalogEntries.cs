@@ -1,14 +1,5 @@
 namespace SatisfactoryLedger.Catalog.Domain;
 
-/// <summary>What one import does to one kind of catalog entry.</summary>
-public sealed record CatalogEntryChanges<TEntry>(
-    IReadOnlyList<TEntry> Added,
-    IReadOnlyList<TEntry> Updated,
-    IReadOnlyList<TEntry> NoLongerInGame)
-{
-    public ImportCounts Counts => new(Added.Count, Updated.Count, NoLongerInGame.Count);
-}
-
 public static class CatalogEntries
 {
     /// <summary>No changes, for a kind of entry an import didn't touch.</summary>

@@ -6,72 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Persistence;
-using SatisfactoryLedger.SharedKernel;
 
 namespace SatisfactoryLedger.Catalog.Browsing;
-
-internal sealed record ItemResponse(string Id, string Name, ItemForm Form, bool IsRawResource, bool InGame);
-
-internal sealed record TransportTierResponse(string Id, string Name, TransportForm Form, int Capacity, bool InGame);
-
-/// <summary>A rate in both shapes (chapter 05, "Representation"): a decimal for display, the exact fraction for calculations.</summary>
-internal sealed record RateResponse(decimal PerMinute, string Exact)
-{
-    public static RateResponse From(Rate rate) => new(rate.ToDecimal(), rate.ToExactString());
-}
-
-internal sealed record ExtractorResponse(
-    string Id,
-    string Name,
-    ItemForm Form,
-    decimal AmountPerCycle,
-    decimal CycleSeconds,
-    RateResponse ExtractionRate,
-    bool InGame)
-{
-    public static ExtractorResponse From(Extractor extractor) => new(
-        extractor.Id.Id,
-        extractor.Name,
-        extractor.Form,
-        extractor.AmountPerCycle,
-        extractor.CycleSeconds,
-        RateResponse.From(extractor.ExtractionRate),
-        extractor.IsInGame);
-}
-
-internal sealed record PositionResponse(double X, double Y, double Z);
-
-internal sealed record ResourceNodeResponse(
-    string Name, ResourceNodeKind Kind, string Resource, Purity Purity, PositionResponse Position, bool InGame);
-
-internal sealed record IngredientResponse(string ItemId, decimal AmountPerCycle, RateResponse Rate);
-
-internal sealed record RecipeResponse(
-    string Id,
-    string Name,
-    string BuildingId,
-    decimal CycleSeconds,
-    bool IsAlternate,
-    bool InGame,
-    IReadOnlyList<IngredientResponse> Inputs,
-    IReadOnlyList<IngredientResponse> Outputs)
-{
-    public static RecipeResponse From(Recipe recipe) => new(
-        recipe.Id.Id,
-        recipe.Name,
-        recipe.BuildingId.Id,
-        recipe.CycleSeconds,
-        recipe.IsAlternate,
-        recipe.IsInGame,
-        ToResponses(recipe.Inputs, recipe.BaseInputRates()),
-        ToResponses(recipe.Outputs, recipe.BaseOutputRates()));
-
-    private static IngredientResponse[] ToResponses(IReadOnlyList<RecipeIngredient> ingredients, ItemRate[] rates) =>
-    [
-        .. ingredients.Zip(rates, (ingredient, rate) =>
-            new IngredientResponse(ingredient.ItemId.Id, ingredient.Amount, RateResponse.From(rate.Rate)))
-    ];
-}
 
 /// <summary>
 /// Read-only queries. They skip the use-case layer and read straight from the DbContext (chapter 04, light CQRS).

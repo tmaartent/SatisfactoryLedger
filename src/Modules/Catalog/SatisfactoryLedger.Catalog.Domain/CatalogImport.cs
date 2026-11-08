@@ -1,29 +1,5 @@
 namespace SatisfactoryLedger.Catalog.Domain;
 
-public sealed record ImportCounts(int Added, int Updated, int NoLongerInGame);
-
-/// <summary>What an import read: the game's Docs file, or the node table the map tool writes (ADR-0015).</summary>
-public enum CatalogImportSource
-{
-    DocsFile,
-    ResourceNodeTable,
-}
-
-public sealed record CatalogImportId
-{
-    private CatalogImportId(Guid id)
-    {
-        Id = id;
-    }
-
-    public Guid Id { get; }
-
-    /// <summary>A version 7 GUID: it starts with a timestamp, so new ids sort after old ones.</summary>
-    public static CatalogImportId New() => new(Guid.CreateVersion7());
-
-    public static CatalogImportId Of(Guid id) => new(id);
-}
-
 /// <summary>The record of one import of the game's Docs file (ADR-0005): which game version, when, and what changed.</summary>
 public sealed class CatalogImport
 {

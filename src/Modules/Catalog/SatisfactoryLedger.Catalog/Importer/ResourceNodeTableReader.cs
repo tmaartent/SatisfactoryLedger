@@ -4,9 +4,6 @@ using SatisfactoryLedger.Catalog.Domain;
 
 namespace SatisfactoryLedger.Catalog.Importer;
 
-/// <summary>A node table, read: its game version and its nodes as Catalog entries.</summary>
-internal sealed record ResourceNodeTable(string GameVersion, IReadOnlyList<ResourceNode> Nodes);
-
 /// <summary>
 /// Reads the node table the map tool writes (ADR-0015). The table is our own format, version 1; anything else is
 /// refused with an <see cref="InvalidDataException"/>, never half read.

@@ -83,21 +83,3 @@ public sealed record AnalysisDocument(
     /// <summary>The buildables in a part of the world that didn't settle: their findings are approximate (BR-A10).</summary>
     public HashSet<string> Approximate() => [.. UnsettledParts.SelectMany(part => part.Buildables)];
 }
-
-/// <param name="StarvedOf">Per input it's short of, the share it's offered; null in an analysis older than version 6.</param>
-/// <param name="BlockedOn">Per product that can't all leave, the share that can; null in an analysis older than version 6.</param>
-public sealed record MachineStateDocument(
-    string Id,
-    double Utilisation,
-    MachineLimit Limit,
-    string? LimitingItem = null,
-    IReadOnlyDictionary<string, double>? StarvedOf = null,
-    IReadOnlyDictionary<string, double>? BlockedOn = null);
-
-public sealed record BottleneckDocument(string Id, double Capacity, double Flow, double OfferedMore);
-
-public sealed record UnusedSupplyDocument(string Id, string Item, double Offered, double Delivered);
-
-public sealed record UnknownSupplyDocument(string Id, IReadOnlyDictionary<string, double> Delivered, double? StockMinutes, bool Confirmed);
-
-public sealed record UnsettledPartDocument(IReadOnlyList<string> Buildables, int Sweeps);

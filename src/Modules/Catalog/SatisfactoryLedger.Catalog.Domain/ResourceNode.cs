@@ -1,37 +1,5 @@
 namespace SatisfactoryLedger.Catalog.Domain;
 
-/// <summary>A node by the name the game and the save use: <c>BP_ResourceNode35</c>.</summary>
-public sealed record ResourceNodeId
-{
-    private ResourceNodeId(string id)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        Id = id;
-    }
-
-    public string Id { get; }
-
-    public static ResourceNodeId Of(string id) => new(id);
-}
-
-/// <summary>A node a miner or oil extractor stands on, or a satellite node of a resource well.</summary>
-public enum ResourceNodeKind
-{
-    ResourceNode,
-    WellSatellite,
-}
-
-/// <summary>How rich a node is. It multiplies an extractor's rate (BR-W9).</summary>
-public enum Purity
-{
-    Impure,
-    Normal,
-    Pure,
-}
-
-/// <summary>Where something is on the map, in the game's units (centimetres).</summary>
-public sealed record MapPosition(double X, double Y, double Z);
-
 /// <summary>
 /// A spot on the map where a resource can be extracted (ADR-0015). Game data like the rest of the Catalog, but it comes
 /// from the node table the map tool writes, not from the Docs file.

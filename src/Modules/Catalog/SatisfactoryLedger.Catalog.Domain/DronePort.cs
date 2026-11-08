@@ -1,24 +1,5 @@
 namespace SatisfactoryLedger.Catalog.Domain;
 
-public sealed record DronePortId
-{
-    private DronePortId(string id)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        Id = id;
-    }
-
-    public string Id { get; }
-
-    public static DronePortId Of(string id) => new(id);
-}
-
-/// <summary>A fuel a drone can burn, and the energy in one item of it.</summary>
-public sealed record DroneFuel(ItemId Fuel, decimal EnergyMegajoules)
-{
-    public decimal EnergyMegajoules { get; } = EnergyMegajoules > 0 ? EnergyMegajoules : throw new ArgumentOutOfRangeException(nameof(EnergyMegajoules), EnergyMegajoules, "A fuel has energy");
-}
-
 /// <summary>
 /// The drone port (BR-A16): a round trip of its drone costs <see cref="TripEnergyMegajoules"/>, plus
 /// <see cref="TripEnergyPerMetreMegajoules"/> for every metre flown. The drone pays for it with the fuel at its home port.

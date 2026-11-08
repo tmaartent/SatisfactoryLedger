@@ -11,30 +11,6 @@ using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Simulation;
 namespace SatisfactoryLedger.World.Snapshots;
 
-internal sealed record UnsupportedResponse(string ClassName, int Count);
-
-/// <param name="Analysis">Whether its analysis is ready (ADR-0017): pending until the background worker has computed it.</param>
-internal sealed record SnapshotResponse(
-    Guid Id,
-    string SessionName,
-    int GameBuild,
-    DateTimeOffset SavedAt,
-    DateTimeOffset ImportedAt,
-    SnapshotCounts Counts,
-    IReadOnlyList<string> UnknownRecipes,
-    IReadOnlyList<UnsupportedResponse> Unsupported,
-    AnalysisStatus Analysis)
-{
-    public static SnapshotResponse From(StoredSnapshot snapshot, AnalysisStatus analysis) => new(
-        snapshot.Id, snapshot.SessionName, snapshot.GameBuild, snapshot.SavedAt, snapshot.ImportedAt, snapshot.Counts,
-        snapshot.UnknownRecipes,
-        [.. snapshot.Unsupported.Select(unsupported => new UnsupportedResponse(unsupported.ClassName, unsupported.Count))],
-        analysis);
-}
-
-internal sealed record SnapshotSummaryResponse(
-    Guid Id, string SessionName, int GameBuild, DateTimeOffset SavedAt, DateTimeOffset ImportedAt, SnapshotCounts Counts, AnalysisStatus Analysis);
-
 internal static class SnapshotEndpoints
 {
     public const string InvalidSaveFileCode = "World.InvalidSaveFile";
@@ -121,8 +97,14 @@ internal static class SnapshotEndpoints
             .Where(snapshot => snapshot.Id == id)
             .Select(snapshot => new
             {
-                snapshot.Id, snapshot.SessionName, snapshot.GameBuild, snapshot.SavedAt, snapshot.ImportedAt,
-                snapshot.Counts, snapshot.UnknownRecipes, snapshot.Unsupported,
+                snapshot.Id,
+                snapshot.SessionName,
+                snapshot.GameBuild,
+                snapshot.SavedAt,
+                snapshot.ImportedAt,
+                snapshot.Counts,
+                snapshot.UnknownRecipes,
+                snapshot.Unsupported,
                 Analysis = db.Analyses.Where(analysis => analysis.SnapshotId == snapshot.Id && analysis.Version == AnalysisDocument.CurrentVersion)
                     .Select(analysis => (AnalysisStatus?)analysis.Status).FirstOrDefault() ?? AnalysisStatus.Pending,
             })

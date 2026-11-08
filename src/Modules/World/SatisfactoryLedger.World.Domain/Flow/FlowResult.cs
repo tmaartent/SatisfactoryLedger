@@ -1,51 +1,5 @@
 namespace SatisfactoryLedger.World.Domain.Flow;
 
-/// <summary>Why a machine runs below 100% (BR-A11).</summary>
-public enum MachineLimit
-{
-    /// <summary>It runs at 100%.</summary>
-    None,
-
-    /// <summary>It gets less of an input item than it asks.</summary>
-    Starved,
-
-    /// <summary>An output item can't (all) leave.</summary>
-    OutputBlocked,
-
-    /// <summary>It has no recipe the analysis knows, so it asks and makes nothing.</summary>
-    NoRecipe,
-}
-
-/// <param name="Utilisation">Between 0 and 1 (BR-A1).</param>
-/// <param name="LimitingItem">The item it's starved of or blocked on; null when <see cref="Limit"/> is None or NoRecipe.</param>
-/// <param name="StarvedOf">
-/// Every input it's offered less of than it needs at 100%, with the share it's offered (BR-A11). Empty when none is.
-/// </param>
-/// <param name="BlockedOn">Every product its outputs can't take all of at 100%, with the share they can take. Empty when none.</param>
-public sealed record MachineState(
-    BuildableId Machine,
-    double Utilisation,
-    MachineLimit Limit,
-    ItemId? LimitingItem,
-    IReadOnlyDictionary<ItemId, double>? StarvedOf = null,
-    IReadOnlyDictionary<ItemId, double>? BlockedOn = null);
-
-/// <summary>A belt, lift or pipe at its capacity while more is offered upstream of it (BR-A12).</summary>
-public sealed record Bottleneck(BuildableId Conduit, double Capacity, double Flow, double OfferedMore);
-
-/// <summary>What a provider could deliver on top of what it does (BR-A13).</summary>
-public sealed record UnusedSupply(BuildableId Provider, ItemId Item, double Offered, double Delivered);
-
-/// <param name="StockMinutes">How long its current stock lasts at what it delivers; null when its stock doesn't hold what it delivers.</param>
-/// <param name="Confirmed">True when the stock lasts at least 30 minutes (BR-A9).</param>
-public sealed record UnknownSupply(BuildableId Source, IReadOnlyDictionary<ItemId, double> Delivered, double? StockMinutes, bool Confirmed);
-
-/// <summary>
-/// A connected part of the world, simulated on its own. When it didn't settle within the limit of sweeps, its numbers
-/// are approximate: it came close, but some flows still moved by more than 0.0001 a minute (BR-A10).
-/// </summary>
-public sealed record FlowPart(IReadOnlyList<BuildableId> Buildables, bool Settled, int Sweeps);
-
 /// <summary>The steady state of a flow network: approximations to 0.0001/min (BR-A10, ADR-0004).</summary>
 public sealed class FlowResult
 {

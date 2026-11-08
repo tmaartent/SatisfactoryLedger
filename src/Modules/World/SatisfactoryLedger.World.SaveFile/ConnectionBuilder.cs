@@ -2,27 +2,6 @@ using SatisfactoryLedger.World.Domain;
 
 namespace SatisfactoryLedger.World.SaveFile;
 
-/// <summary>
-/// One end of a link, as the save stores it: the port <paramref name="Path"/> of <paramref name="Owner"/>, linked to
-/// the port <paramref name="LinkedTo"/> of another buildable, or to nothing.
-/// </summary>
-/// <param name="Index">Which output of a splitter or input of a merger this is, counted from 0; null elsewhere.</param>
-internal sealed record Connector(BuildableId Owner, string Path, Port Port, string? LinkedTo, int? Index = null);
-
-/// <summary>The save's links as connections with a direction, and the pipe networks they made into hubs.</summary>
-internal sealed record Wiring(IReadOnlyList<Connection> Connections, IReadOnlyList<PipeNetwork> PipeNetworks);
-
-/// <summary>
-/// A connected pipe network (BR-A6): one hub that takes from every output feeding it and shares over every input it
-/// feeds, as the game treats a pipe network as one. <see cref="Pipes"/> are its pipes, junctions, pumps, valves and
-/// fluid buffers.
-/// </summary>
-internal sealed record PipeNetwork(BuildableId Hub, IReadOnlyList<BuildableId> Pipes)
-{
-    /// <summary>The hub's id: named after the network's pipe whose id sorts first, so it stays the same from save to save.</summary>
-    public static BuildableId HubOf(BuildableId firstPipe) => BuildableId.Of($"PipeNetwork:{firstPipe.Id}");
-}
-
 /// <summary>Turns the save's links into connections with a direction.</summary>
 internal static class ConnectionBuilder
 {
