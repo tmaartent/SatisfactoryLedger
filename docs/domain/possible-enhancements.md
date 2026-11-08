@@ -43,3 +43,19 @@ A drone's latest trip (BR-A16) is one sample: a drone that waited docked for hou
 ### What a generator really burns
 
 Generators are assumed to run at full power (ADR-0021). In the game they throttle down to what their power grid demands. The save has the power circuits; their demand would give each generator its real load, and so its real fuel burn and waste.
+
+## World map
+
+### Buildings drawn as their outline, box by box
+*Raised 2026-11-08.*
+
+**What:** draw each building on the map as the outlines of its solid clearance boxes, instead of one rectangle around all of them (ADR-0020).
+
+**Why:** most buildings have one box, so nothing changes for them. But 34 have more, and for those the rectangle covers ground the building doesn't. The hadron collider has 24 boxes: its rectangle is 37 × 27 m, while its real outline is a long arch on a narrower base ([drawn here](https://claude.ai/artifact/AajzFr26K2VvseHqGTfZ5u), private to the owner). A building standing in the empty corner then looks as if it overlaps the collider.
+
+**What it would take:**
+- **Catalog:** keep each solid box's outline seen from above, not just the rectangle around them. Most boxes are turned (`RelativeTransform`), so an outline is the hull of a box's 8 corners projected onto the ground, as the drawing does. The parser (`ClearanceDataParser`) already reads the rotations and translations.
+- **Contract:** the footprint becomes a list of outlines, each a list of points in the building's own coordinates (centimetres).
+- **Map:** a building is drawn as several polygons, each turned the way the building faces (`footprintCorners` per outline). The tooltip stays on the building as a whole.
+- **Snapshot:** a new snapshot version for the outlines; older snapshots keep their one rectangle.
+
