@@ -1,0 +1,267 @@
+<title>Stacked Factory Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a header, then one large viewer with its controls on top and a legend below; notes in a narrow column after it. */
+:root {
+  --bg: #f3f5f7; --surface: #ffffff; --fg: #17202a; --muted: #5b6876; --line: #d5dce4;
+  --accent: #2b6cb0; --scene: #e9edf1;
+  --running: #3f9a55; --starved: #d64545; --blocked: #e09a2b; --norecipe: #8e98a3; --logistics: #9aa7b4; --belt: #7d8b99; --pipe: #2aa7b8;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e141a; --surface: #151e27; --fg: #e3e9ef; --muted: #95a3b1; --line: #29353f; --accent: #74a8e8; --scene: #111a22;
+    --running: #5cc27a; --starved: #f06a6a; --blocked: #f0b14a; --norecipe: #8a96a2; --logistics: #5f6d7a; --belt: #6d7c8a; --pipe: #45c4d4; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e141a; --surface: #151e27; --fg: #e3e9ef; --muted: #95a3b1; --line: #29353f; --accent: #74a8e8; --scene: #111a22;
+  --running: #5cc27a; --starved: #f06a6a; --blocked: #f0b14a; --norecipe: #8a96a2; --logistics: #5f6d7a; --belt: #6d7c8a; --pipe: #45c4d4; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 1rem; line-height: 1.55; padding-inline: 16px; padding-block: 28px 48px; }
+main { max-width: 72rem; margin-inline: auto; display: grid; gap: 22px; }
+h1, h2 { font-family: var(--font-display); line-height: 1.15; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(1.8rem, 1.3rem + 2vw, 2.5rem); }
+h2 { font-size: 1.15rem; }
+p { margin: 0; max-width: 68ch; }
+code { font-family: var(--font-mono); font-size: 0.86em; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+header { display: grid; gap: 10px; }
+.muted { color: var(--muted); }
+.viewer { display: grid; gap: 10px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.views { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.views button { font: inherit; font-size: 0.92rem; border: 0; background: transparent; color: var(--fg); padding: 7px 14px; cursor: pointer; }
+.views button + button { border-left: 1px solid var(--line); }
+.views button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.views button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cut { display: inline-flex; align-items: center; gap: 10px; font-size: 0.92rem; color: var(--muted); }
+.cut input { width: min(16rem, 50vw); accent-color: var(--accent); }
+.cut output { font-family: var(--font-mono); color: var(--fg); min-width: 5.5ch; font-variant-numeric: tabular-nums; }
+.stage { position: relative; background: var(--scene); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; height: min(68vh, 40rem); min-height: 22rem; touch-action: none; }
+.stage canvas { display: block; width: 100%; height: 100%; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 0.85rem; line-height: 1.4; max-width: 18rem; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+.hint { position: absolute; left: 10px; bottom: 8px; font-size: 0.78rem; color: var(--muted); pointer-events: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.88rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.swatch { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+.notes { display: grid; gap: 14px; max-width: 46rem; }
+.notes ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+.fallback { padding: 20px; color: var(--muted); }
+</style>
+<main>
+  <header>
+    <div class="eyebrow">Prototype · one stacked area of Desert Start Cleaned</div>
+    <h1>A stacked factory, floor by floor</h1>
+    <p>About 160 × 90 m around (3,180 m, −1,890 m): 210 machines on floors from 44 m to 185 m, as the save has them, with each machine coloured by what the analysis says. From above, the floors hide each other. From the front or the side, they don't.</p>
+  </header>
+
+  <section class="viewer" aria-label="Factory viewer">
+    <div class="controls">
+      <div class="views" role="group" aria-label="View">
+        <button type="button" id="view-3d" aria-pressed="true">3D</button>
+        <button type="button" id="view-front" aria-pressed="false">Front</button>
+        <button type="button" id="view-side" aria-pressed="false">Side</button>
+        <button type="button" id="view-top" aria-pressed="false">From above</button>
+      </div>
+      <label class="cut" for="cut">Show up to <input type="range" id="cut" min="40" max="190" step="1" value="190"> <output id="cut-value" for="cut">190 m</output></label>
+    </div>
+    <div class="stage" id="stage">
+      <div class="tip" id="tip" hidden></div>
+      <div class="hint" id="hint">Drag to turn, scroll to zoom, right-drag to move</div>
+    </div>
+    <div class="legend" aria-label="Legend">
+      <span><i class="swatch" style="background: var(--running)"></i>Running</span>
+      <span><i class="swatch" style="background: var(--starved)"></i>Starved</span>
+      <span><i class="swatch" style="background: var(--blocked)"></i>Output blocked</span>
+      <span><i class="swatch" style="background: var(--norecipe)"></i>No recipe</span>
+      <span><i class="swatch" style="background: var(--logistics)"></i>Splitter, merger, lift, storage</span>
+      <span><i class="swatch" style="background: var(--belt)"></i>Belt</span>
+      <span><i class="swatch" style="background: var(--pipe)"></i>Pipe</span>
+    </div>
+  </section>
+
+  <section class="notes">
+    <h2>What this shows</h2>
+    <ul>
+      <li><b>The data is already there.</b> Every building and belt in a snapshot has its height, belts have their curves in 3D, and the Docs file's clearance boxes give each machine's shape in 3D. Nothing new is read from the save.</li>
+      <li><b>The cut-off answers "is the top floor starved, or the whole factory?"</b> Slide it down and look from above: you see one floor's machines at a time.</li>
+      <li><b>Splitters, mergers and lifts</b> have no clearance boxes in the Docs file, so they're small cubes here; a lift's real height would come from the save.</li>
+      <li><b>For a factory,</b> the viewer would show its members, traced from its definition, instead of an area cut out of the map.</li>
+    </ul>
+  </section>
+  <noscript><p class="fallback">The viewer needs JavaScript.</p></noscript>
+</main>
+
+<script type="application/json" id="world-data">{{DATA}}</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+
+const world = JSON.parse(document.getElementById("world-data").textContent);
+const stage = document.getElementById("stage");
+const tip = document.getElementById("tip");
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// Game coordinates are centimetres, x east, y south, z up. Three.js wants metres with y up: (x, z, y) keeps north
+// at the top when looking down, and the swap of two axes turns the game's left-handed frame into Three.js's right-handed one.
+const [x0, x1, y0, y1] = world.area;
+const centre = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+const toScene = (x, y, z) => new THREE.Vector3((x - centre.x) / 100, z / 100, (y - centre.y) / 100);
+
+// One clearance box as 8 corners: corner k has x max when bit 2 is set, y max for bit 1, z max for bit 0.
+const FACES = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]];
+function boxGeometry(corners) {
+  const positions = [];
+  for (const [a, b, c, d] of FACES) for (const k of [a, b, c, a, c, d]) positions.push(...corners[k].toArray());
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+// A building's boxes: turned by its yaw around the vertical, then moved to where it stands. Without boxes, a 2 m cube.
+const CUBE = [[-100, -100, 0], [-100, -100, 200], [-100, 100, 0], [-100, 100, 200], [100, -100, 0], [100, -100, 200], [100, 100, 0], [100, 100, 200]];
+function buildingGeometry(b) {
+  const turn = (b.yaw * Math.PI) / 180, cos = Math.cos(turn), sin = Math.sin(turn);
+  const boxes = world.shapes[b.cls] ?? [CUBE];
+  return mergeGeometries(boxes.map((box) => boxGeometry(box.map(([lx, ly, lz]) =>
+    toScene(b.p[0] + lx * cos - ly * sin, b.p[1] + lx * sin + ly * cos, b.p[2] + lz)))));
+}
+
+// A belt's curve is a cubic Hermite spline between its points, as on the map.
+function curvePoints(curve) {
+  const points = [];
+  for (let i = 0; i + 1 < curve.length; i++) {
+    const [from, , leave] = curve[i], [to, arrive] = [curve[i + 1][0], curve[i + 1][1]];
+    for (let s = i === 0 ? 0 : 1; s <= 6; s++) {
+      const t = s / 6, h00 = 2 * t ** 3 - 3 * t ** 2 + 1, h10 = t ** 3 - 2 * t ** 2 + t, h01 = -2 * t ** 3 + 3 * t ** 2, h11 = t ** 3 - t ** 2;
+      points.push(toScene(...[0, 1, 2].map((a) => h00 * from[a] + h10 * leave[a] + h01 * to[a] + h11 * arrive[a])));
+    }
+  }
+  return points;
+}
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(60, 140, 90);
+scene.add(sun);
+
+const palette = {};
+const material = (token) => (palette[token] ??= new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }));
+const STATUS = { none: "--running", starved: "--starved", outputBlocked: "--blocked", noRecipe: "--norecipe" };
+const LABEL = { none: "Running", starved: "Starved", outputBlocked: "Output blocked", noRecipe: "No recipe" };
+const words = (id) => (id ?? "").replace(/^(Desc|Recipe|Build)_/, "").replace(/_C$/, "").replace(/^Alternate_/, "Alternate: ").replace(/_/g, " ").replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+
+const pickable = [];
+for (const b of world.buildings) {
+  const token = b.kind === "machines" || b.status ? STATUS[b.status] ?? "--norecipe" : "--logistics";
+  const mesh = new THREE.Mesh(buildingGeometry(b), material(token));
+  mesh.userData = { b, z: b.p[2] / 100 };
+  scene.add(mesh);
+  if (b.kind !== "logistics") pickable.push(mesh);
+}
+const conveyors = world.conveyors.map((c) => {
+  const points = curvePoints(c.curve);
+  const path = new THREE.CatmullRomCurve3(points);
+  const mesh = new THREE.Mesh(new THREE.TubeGeometry(path, Math.max(4, points.length * 2), c.pipe ? 0.45 : 0.3, 6, false), material(c.pipe ? "--pipe" : "--belt"));
+  mesh.userData = { z: Math.min(...points.map((p) => p.y)) };
+  scene.add(mesh);
+  return mesh;
+});
+
+function applyTheme() {
+  scene.background = new THREE.Color(css("--scene"));
+  for (const [token, m] of Object.entries(palette)) m.color.set(css(token));
+}
+applyTheme();
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// Cameras: a perspective one for 3D, an orthographic one for the flat views (true front, side and top elevations).
+const bounds = new THREE.Box3().setFromObject(scene);
+const size = bounds.getSize(new THREE.Vector3()), middle = bounds.getCenter(new THREE.Vector3());
+const perspective = new THREE.PerspectiveCamera(45, 1, 0.5, 5000);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -5000, 5000);
+let camera = perspective;
+let controls;
+const VIEWS = {
+  "3d": { from: new THREE.Vector3(1, 0.75, 1.15) },
+  front: { from: new THREE.Vector3(0, 0, 1), up: new THREE.Vector3(0, 1, 0) },  // looking north
+  side: { from: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0) },   // looking west
+  top: { from: new THREE.Vector3(0, 1, 0), up: new THREE.Vector3(0, 0, -1) },   // north up, as the map
+};
+function show(name) {
+  for (const id of Object.keys(VIEWS)) document.getElementById(`view-${id}`).setAttribute("aria-pressed", String(id === name));
+  controls?.dispose();
+  const view = VIEWS[name];
+  camera = name === "3d" ? perspective : ortho;
+  camera.up.copy(view.up ?? new THREE.Vector3(0, 1, 0));
+  const reach = Math.max(size.x, size.y, size.z);
+  camera.position.copy(middle).addScaledVector(view.from.clone().normalize(), reach * 1.25);
+  camera.zoom = 1;
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.copy(middle);
+  controls.enableRotate = name === "3d";
+  controls.screenSpacePanning = true;
+  document.getElementById("hint").textContent = name === "3d" ? "Drag to turn, scroll to zoom, right-drag to move" : "Scroll to zoom, drag to move";
+  resize();
+}
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  perspective.aspect = w / h;
+  perspective.updateProjectionMatrix();
+  const half = Math.max(size.x, size.y, size.z) * 0.6, aspect = w / h;
+  Object.assign(ortho, { left: -half * aspect, right: half * aspect, top: half, bottom: -half });
+  ortho.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+for (const id of Object.keys(VIEWS)) document.getElementById(`view-${id}`).addEventListener("click", () => show(id));
+
+// The height cut-off: everything whose base is above it disappears, so one floor can be seen from above.
+const cut = document.getElementById("cut"), cutValue = document.getElementById("cut-value");
+cut.addEventListener("input", () => {
+  const limit = Number(cut.value);
+  cutValue.textContent = `${limit} m`;
+  for (const mesh of scene.children) if (mesh.isMesh) mesh.visible = mesh.userData.z <= limit;
+});
+
+// A tooltip for the machine under the pointer.
+const ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
+renderer.domElement.addEventListener("pointermove", (event) => {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+  ray.setFromCamera(pointer, camera);
+  const hit = ray.intersectObjects(pickable.filter((m) => m.visible), false)[0];
+  if (!hit) { tip.hidden = true; return; }
+  const b = hit.object.userData.b;
+  const why = b.status && b.status !== "none" && b.item ? ` (${words(b.item)})` : "";
+  tip.innerHTML = `<b>${world.names[b.cls] ?? words(b.cls)}</b>${b.recipe ? `<br>${words(b.recipe)}` : ""}` +
+    (b.status ? `<br>${LABEL[b.status] ?? b.status}${b.util != null ? ` · ${Math.floor(b.util * 100)}%` : ""}${why}` : "") +
+    `<br><span class="muted">${(b.p[2] / 100).toFixed(1)} m high</span>`;
+  tip.hidden = false;
+  tip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - tip.offsetWidth - 6)}px`;
+  tip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - tip.offsetHeight - 6)}px`;
+});
+renderer.domElement.addEventListener("pointerleave", () => (tip.hidden = true));
+
+show("3d");
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+</script>

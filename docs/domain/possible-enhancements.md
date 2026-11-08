@@ -59,6 +59,15 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 - **Map:** a building is drawn as several polygons, each turned the way the building faces (`footprintCorners` per outline). The tooltip stays on the building as a whole.
 - **Snapshot:** a new snapshot version for the outlines; older snapshots keep their one rectangle.
 
+### Floors on the map: a height filter, and drawing by height
+*Raised 2026-11-08.*
+
+**What:** a height range on the world map, and machines drawn in order of height, so that from above you see one floor at a time.
+
+**Why:** the map draws every building at its x and y only. On stacked blueprints the floors cover each other, and whichever is drawn last hides the rest: a starved top floor can make a whole factory look starved.
+
+**What it would take:** every building in a snapshot already has its height (`PositionDocument.Z`), and belt curves have theirs. A slider on the map page that hides what's outside the range, and sorting the drawing by height. No backend change.
+
 ## Factory definitions
 
 ### A factory drawn as a rectangle on the map
@@ -83,4 +92,19 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 3. **Floors.** A rectangle is flat and factories are stacked: a height range, or one floor at a time?
 
 **What it would take:** drawing on the map (its first editing interaction: a Leaflet drawing plugin, so an ADR); an endpoint that takes a rectangle and returns a proposed definition with its edge crossings and mismatches; sink points in the Catalog if they're used for ranking. It gets better with [buildings drawn as their outline](#buildings-drawn-as-their-outline-box-by-box), since rectangles around large buildings then catch less.
+
+### A factory in 3D
+*Raised 2026-11-08.*
+
+**What:** on a factory's page, its members in 3D: machines as their real clearance boxes, belts and pipes along their curves, each machine coloured by the analysis, with a height cut-off and a tooltip per machine. Turn, zoom and move with the mouse.
+
+**Why:** stacked blueprints are hard to read from above. In 3D you see which floor is starved, and the owner found it "incredibly useful" in the [prototype](https://claude.ai/artifact/X76chLgH6ZznvLWbhXNYbC) (private to the owner): 210 machines on floors from 44 to 185 m, drawn smoothly in a browser. Front and side views were less useful there, so they aren't part of it; they'd come for free from the same scene if wanted.
+
+**What it would take:**
+- **A factory definition first:** the viewer shows the factory's traced members, not the whole world.
+- **3D shapes in the Catalog:** today it keeps one flat rectangle per building (ADR-0020). The importer already reads the full clearance boxes, rotations included; keep them per building class, as the solid boxes' corners. Pairs with [buildings drawn as their outline](#buildings-drawn-as-their-outline-box-by-box).
+- **Heights in the API:** a factory's buildings with their full position and yaw, and belt curves with their heights. The snapshot already holds all of it.
+- **Lifts, splitters and mergers** have no clearance boxes in the Docs file: small cubes, as in the prototype, until their sizes are known. A lift's height would come from the save.
+- **three.js in the web app** (npm `three`, with its `OrbitControls`), so an ADR. One coordinate rule to keep: the game is left-handed with z up, three.js right-handed with y up. Swapping y and z fixes both and keeps north at the top when looking down. Each building is turned by its yaw in game coordinates first, then converted.
+- The prototype's code is in [`docs/prototypes/factory-3d/`](../prototypes/factory-3d/README.md): boxes from 8 corners each, Hermite curves sampled into tubes, a perspective camera with orbit controls.
 
