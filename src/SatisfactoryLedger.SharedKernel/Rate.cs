@@ -99,16 +99,6 @@ public record Rate: IComparable<Rate> {
         return a.CompareTo(b) >= 0;
     }
     
-    public bool IsZero()
-    {
-        return this.Numerator == 0;
-    }
-
-    public bool IsNegative()
-    {
-        return this.Numerator < 0;
-    }
-
     private BigInteger Numerator => _fraction.Numerator;
     private BigInteger Denominator => _fraction.Denominator;
     

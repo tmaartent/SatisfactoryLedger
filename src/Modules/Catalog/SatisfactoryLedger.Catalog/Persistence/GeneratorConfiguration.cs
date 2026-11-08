@@ -15,7 +15,6 @@ internal sealed class GeneratorConfiguration : IEntityTypeConfiguration<Generato
         generator.Property(g => g.PowerMegawatts);
         generator.Property(g => g.SupplementalLitresPerMegajoule);
         generator.Property(g => g.IsInGame);
-        generator.Ignore(g => g.SupplementalRate);
 
         // The fuels only exist inside their generator: one jsonb column, mapped through the private List<T> field.
         generator.Ignore(g => g.Fuels);

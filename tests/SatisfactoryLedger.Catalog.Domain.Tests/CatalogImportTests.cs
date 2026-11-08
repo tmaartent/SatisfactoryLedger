@@ -185,16 +185,16 @@ public class CatalogImportTests
         CatalogEntryChanges<Footprint>? footprints = null,
         CatalogEntryChanges<Generator>? generators = null,
         CatalogEntryChanges<DronePort>? dronePorts = null) =>
-        CatalogImport.Record(
+        CatalogImport.RecordDocs(
             CatalogImportId.New(),
             gameVersion,
             ImportedAt,
-            items ?? CatalogEntries.None<Item>(),
-            CatalogEntries.None<Building>(),
-            CatalogEntries.None<TransportTier>(),
-            CatalogEntries.None<Recipe>(),
-            extractors ?? CatalogEntries.None<Extractor>(),
-            footprints ?? CatalogEntries.None<Footprint>(),
-            generators ?? CatalogEntries.None<Generator>(),
-            dronePorts ?? CatalogEntries.None<DronePort>());
+            items ?? CatalogEntries.Reconcile<Item>([], []),
+            CatalogEntries.Reconcile<Building>([], []),
+            CatalogEntries.Reconcile<TransportTier>([], []),
+            CatalogEntries.Reconcile<Recipe>([], []),
+            extractors ?? CatalogEntries.Reconcile<Extractor>([], []),
+            footprints ?? CatalogEntries.Reconcile<Footprint>([], []),
+            generators ?? CatalogEntries.Reconcile<Generator>([], []),
+            dronePorts ?? CatalogEntries.Reconcile<DronePort>([], []));
 }

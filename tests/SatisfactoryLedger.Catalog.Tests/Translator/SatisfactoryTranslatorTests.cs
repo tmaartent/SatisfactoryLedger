@@ -12,7 +12,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Items_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
         var itemGroupDtos = resources.OfType<ItemGroupDto>().ToList();
         var resourceItemGroupDto = itemGroupDtos.Single(dto => dto is ResourceItemGroupDto);
         var totalCount = itemGroupDtos.Select(dto => dto.Items.Count).Sum();
@@ -52,7 +52,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Buildings_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
         var buildingGroupDtos = resources.OfType<BuildingGroupDto>().ToList();
         var totalCount = buildingGroupDtos.Select(dto => dto.Buildings.Count).Sum();
         var buildingDtos = buildingGroupDtos.SelectMany(dto => dto.Buildings).ToDictionary(dto => dto.ClassName, dto => dto);
@@ -78,7 +78,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task TransportTiers_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
         var belTierGroupDtos = resources.OfType<BeltGroupDto>().ToList();
         var totalCount = belTierGroupDtos.Select(dto => dto.Tiers.Count).Sum();
         var pipeTierGroupDtos = resources.OfType<PipeGroupDto>().ToList();
@@ -128,7 +128,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Recipes_can_be_translated()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
         var recipeGroupDtos = resources.OfType<RecipeGroupDto>().ToList();
         var totalCount = recipeGroupDtos.Select(dto => dto.Recipes.Count).Sum();
         var recipeDtos = recipeGroupDtos.SelectMany(dto => dto.Recipes).ToDictionary(dto => dto.ClassName, dto => dto);
@@ -159,7 +159,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task The_game_file_translates_into_a_complete_catalog()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Assert.Equal(190, SatisfactoryTranslator.TranslateToItems(resources).Count);
         Assert.Equal(11, SatisfactoryTranslator.TranslateToBuildings(resources).Count);
@@ -171,7 +171,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Water_from_the_game_file_is_a_raw_fluid()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Item water = Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == "Desc_Water_C");
         Assert.Equal(ItemForm.Fluid, water.ItemForm);
@@ -181,7 +181,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Transport_tiers_from_the_game_file_have_their_in_game_capacities()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
         List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
 
         int[] beltCapacities =
@@ -202,7 +202,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task The_iron_plate_recipe_from_the_game_file_turns_3_ingots_into_2_plates_in_6_seconds()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Recipe ironPlate = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_IronPlate_C");
         Assert.Equal("Build_ConstructorMk1_C", ironPlate.BuildingId.Id);
@@ -216,7 +216,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Cycle_times_from_the_game_file_keep_no_trailing_zeros()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Recipe ironPlate = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_IronPlate_C");
         Assert.Equal("6", ironPlate.CycleSeconds.ToString(CultureInfo.InvariantCulture));
@@ -226,7 +226,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Fluid_amounts_from_the_game_file_are_in_cubic_metres()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Recipe plastic = Assert.Single(SatisfactoryTranslator.TranslateToRecipes(resources), recipe => recipe.Id.Id == "Recipe_Plastic_C");
         Assert.Equal([RecipeIngredient.Of(ItemId.Of("Desc_LiquidOil_C"), 3)], plastic.Inputs);
@@ -239,7 +239,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Lifts_from_the_game_file_carry_as_much_as_belts_of_the_same_mark()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
         List<TransportTier> transportTiers = SatisfactoryTranslator.TranslateToTransportTiers(resources);
 
         TransportTier[] lifts =
@@ -258,7 +258,7 @@ public class SatisfactoryTranslatorTests
     [InlineData("Build_PipelineMK2_NoIndicator_C", "Clean Pipeline Mk.2", 600)]
     public async Task Clean_pipelines_from_the_game_file_carry_as_much_as_pipelines_of_the_same_mark(string id, string name, int capacity)
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         TransportTier clean = Assert.Single(SatisfactoryTranslator.TranslateToTransportTiers(resources), tier => tier.Id.Id == id);
 
@@ -270,7 +270,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task The_extractors_from_the_game_file_are_the_miners_and_the_oil_water_and_resource_well_extractors()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         string[] actual = [.. SatisfactoryTranslator.TranslateToExtractors(resources).Select(extractor => extractor.Id.Id).Order(StringComparer.Ordinal)];
 
@@ -288,7 +288,7 @@ public class SatisfactoryTranslatorTests
     [InlineData("Build_FrackingExtractor_C", 60, ItemForm.Fluid)]
     public async Task Extractors_from_the_game_file_have_their_in_game_rates(string id, int perMinute, ItemForm form)
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Extractor extractor = Assert.Single(SatisfactoryTranslator.TranslateToExtractors(resources), extractor => extractor.Id.Id == id);
 
@@ -300,7 +300,7 @@ public class SatisfactoryTranslatorTests
 
     private static async Task<Footprint> FootprintOfAsync(string id)
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
         return Assert.Single(SatisfactoryTranslator.TranslateToFootprints(resources), footprint => footprint.Id.Id == id);
     }
 
@@ -332,7 +332,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task Footprints_come_from_every_kind_of_building_in_the_game_file()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         HashSet<string> ids = [.. SatisfactoryTranslator.TranslateToFootprints(resources).Select(footprint => footprint.Id.Id)];
 
@@ -355,14 +355,14 @@ public class SatisfactoryTranslatorTests
 
     private static async Task<Generator> GeneratorOfAsync(string id)
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
         return Assert.Single(SatisfactoryTranslator.TranslateToGenerators(resources), generator => generator.Id.Id == id);
     }
 
     [Fact]
     public async Task The_generators_from_the_game_file_are_the_ones_that_burn_fuel()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         string[] ids = [.. SatisfactoryTranslator.TranslateToGenerators(resources).Select(generator => generator.Id.Id).Order(StringComparer.Ordinal)];
 
@@ -370,28 +370,36 @@ public class SatisfactoryTranslatorTests
     }
 
     [Fact]
-    public async Task A_nuclear_plant_from_the_game_file_burns_a_uranium_rod_every_five_minutes_and_leaves_10_waste_a_minute()
+    public async Task A_nuclear_plant_from_the_game_file_makes_2500_megawatts_and_needs_1_6_litres_of_water_per_megajoule()
     {
         Generator plant = await GeneratorOfAsync("Build_GeneratorNuclear_C");
-        ItemId rod = ItemId.Of("Desc_NuclearFuelRod_C");
 
-        Assert.Equal((Rate.PerMinute(0.2m), Rate.PerMinute(10), Rate.PerMinute(240)), (plant.BurnRate(rod), plant.ByproductRate(rod), plant.SupplementalRate));
+        Assert.Equal((2500m, 1.6m), (plant.PowerMegawatts, plant.SupplementalLitresPerMegajoule));
     }
 
     [Fact]
-    public async Task A_fluid_fuels_energy_is_per_litre_in_the_game_file_so_a_fuel_generator_burns_20_cubic_metres_a_minute()
+    public async Task A_uranium_rod_from_the_game_file_has_750000_megajoules_needs_water_and_leaves_50_waste()
+    {
+        Generator plant = await GeneratorOfAsync("Build_GeneratorNuclear_C");
+
+        Assert.Contains(new GeneratorFuel(ItemId.Of("Desc_NuclearFuelRod_C"), 750_000, ItemId.Of("Desc_Water_C"), ItemId.Of("Desc_NuclearWaste_C"), 50), plant.Fuels);
+    }
+
+    [Fact]
+    public async Task A_fluid_fuels_energy_is_per_litre_in_the_game_file_so_per_cubic_metre_it_is_a_thousand_times_more()
     {
         Generator generator = await GeneratorOfAsync("Build_GeneratorFuel_C");
 
-        Assert.Equal(Rate.PerMinute(20), generator.BurnRate(ItemId.Of("Desc_LiquidFuel_C")));
+        Assert.Equal(750m, generator.Fuels.Single(fuel => fuel.Fuel == ItemId.Of("Desc_LiquidFuel_C")).EnergyMegajoules);
     }
 
     [Fact]
-    public async Task A_coal_generator_from_the_game_file_burns_15_coal_and_needs_45_cubic_metres_of_water_a_minute()
+    public async Task A_coal_generator_from_the_game_file_makes_75_megawatts_from_coal_of_300_megajoules_and_needs_10_litres_of_water_per_megajoule()
     {
         Generator generator = await GeneratorOfAsync("Build_GeneratorCoal_C");
 
-        Assert.Equal((Rate.PerMinute(15), Rate.PerMinute(45)), (generator.BurnRate(ItemId.Of("Desc_Coal_C")), generator.SupplementalRate));
+        Assert.Equal((75m, 10m, 300m),
+            (generator.PowerMegawatts, generator.SupplementalLitresPerMegajoule, generator.Fuels.Single(fuel => fuel.Fuel == ItemId.Of("Desc_Coal_C")).EnergyMegajoules));
     }
 
     // ---- The drone port (BR-A16): what a trip costs, and the fuels a drone can burn --------------------------------
@@ -399,7 +407,7 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task A_drone_trip_from_the_game_file_costs_24000_megajoules_and_6_more_per_metre()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         DronePort port = Assert.Single(SatisfactoryTranslator.TranslateToDronePorts(resources));
 
@@ -409,12 +417,13 @@ public class SatisfactoryTranslatorTests
     [Fact]
     public async Task A_drone_can_burn_every_solid_fuel_in_the_game_file_at_its_energy_per_item()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         DronePort port = Assert.Single(SatisfactoryTranslator.TranslateToDronePorts(resources));
 
-        Assert.Equal((7_200m, 6_000m, 750_000m, (decimal?)null),
-            (port.EnergyOf(ItemId.Of("Desc_PackagedRocketFuel_C")), port.EnergyOf(ItemId.Of("Desc_Battery_C")),
-                port.EnergyOf(ItemId.Of("Desc_NuclearFuelRod_C")), port.EnergyOf(ItemId.Of("Desc_LiquidFuel_C"))));
+        Assert.Contains(new DroneFuel(ItemId.Of("Desc_PackagedRocketFuel_C"), 7_200), port.Fuels);
+        Assert.Contains(new DroneFuel(ItemId.Of("Desc_Battery_C"), 6_000), port.Fuels);
+        Assert.Contains(new DroneFuel(ItemId.Of("Desc_NuclearFuelRod_C"), 750_000), port.Fuels);
+        Assert.DoesNotContain(port.Fuels, fuel => fuel.Fuel == ItemId.Of("Desc_LiquidFuel_C"));
     }
 }

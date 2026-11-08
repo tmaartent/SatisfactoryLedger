@@ -3,12 +3,9 @@ namespace SatisfactoryLedger.World.Domain.Flow;
 /// <summary>The steady state of a flow network: approximations to 0.0001/min (BR-A10, ADR-0004).</summary>
 public sealed class FlowResult
 {
-    private readonly FlowNetwork _network;
-    private readonly IReadOnlyList<IReadOnlyDictionary<ItemId, double>> _flows;
-    private readonly IReadOnlyDictionary<BuildableId, MachineState> _machines;
-    private readonly Dictionary<BuildableId, FlowPart> _partOf;
-    private ILookup<int, int>? _incoming;
+    private ILookup<BuildableId, ConnectionFlow>? _into;
 
+    /// <param name="flows">Per connection of <paramref name="network"/>, in its order: what flows over it.</param>
     public FlowResult(
         FlowNetwork network,
         IReadOnlyList<IReadOnlyDictionary<ItemId, double>> flows,
@@ -18,36 +15,30 @@ public sealed class FlowResult
         IReadOnlyList<UnknownSupply> unknownSupply,
         IReadOnlyList<FlowPart> parts)
     {
-        _network = network;
-        _flows = flows;
-        _machines = machines;
+        ArgumentNullException.ThrowIfNull(network);
+        ArgumentNullException.ThrowIfNull(flows);
+        ArgumentNullException.ThrowIfNull(machines);
+
+        Connections = [.. network.Edges.Select((edge, k) => new ConnectionFlow(network.Nodes[edge.From].Id, network.Nodes[edge.To].Id, flows[k]))];
+        Machines = [.. machines.Values];
         Bottlenecks = bottlenecks;
         UnusedSupply = unusedSupply;
         UnknownSupply = unknownSupply;
         Parts = parts;
-        _partOf = parts.SelectMany(part => part.Buildables.Select(id => (id, part))).ToDictionary(entry => entry.id, entry => entry.part);
     }
 
-    /// <summary>True when every part settled; false when one stopped at the limit of sweeps.</summary>
-    public bool Settled => Parts.All(part => part.Settled);
-
-    /// <summary>The most sweeps any part took.</summary>
-    public int Sweeps => Parts.Count == 0 ? 0 : Parts.Max(part => part.Sweeps);
+    /// <summary>Every connection, with what flows over it.</summary>
+    public IReadOnlyList<ConnectionFlow> Connections { get; }
 
     public IReadOnlyList<FlowPart> Parts { get; }
 
-    public IReadOnlyCollection<MachineState> Machines => _machines.Values.ToList();
+    public IReadOnlyCollection<MachineState> Machines { get; }
 
     public IReadOnlyList<Bottleneck> Bottlenecks { get; }
 
     public IReadOnlyList<UnusedSupply> UnusedSupply { get; }
 
     public IReadOnlyList<UnknownSupply> UnknownSupply { get; }
-
-    public MachineState Machine(BuildableId id) => _machines[id];
-
-    /// <summary>The part a buildable belongs to: whether its numbers settled.</summary>
-    public FlowPart PartOf(BuildableId id) => _partOf[id];
 
     /// <summary>
     /// What flows into a buildable over all its inputs together, per item and minute. The connections into each
@@ -56,26 +47,16 @@ public sealed class FlowResult
     /// </summary>
     public IReadOnlyDictionary<ItemId, double> Into(BuildableId id)
     {
-        _incoming ??= Enumerable.Range(0, _network.Edges.Count).ToLookup(edge => _network.Edges[edge].To);
+        _into ??= Connections.ToLookup(connection => connection.To);
         Dictionary<ItemId, double> into = [];
-        foreach (int edge in _incoming[_network.IndexOf[id]])
+        foreach (ConnectionFlow connection in _into[id])
         {
-            foreach ((ItemId item, double rate) in _flows[edge])
+            foreach ((ItemId item, double rate) in connection.Items)
             {
                 into[item] = into.GetValueOrDefault(item) + rate;
             }
         }
 
         return into;
-    }
-
-    /// <summary>What flows of an item over the connection from one buildable to another, per minute.</summary>
-    public double Flow(BuildableId from, BuildableId to, ItemId item)
-    {
-        int fromIndex = _network.IndexOf[from];
-        int toIndex = _network.IndexOf[to];
-        return Enumerable.Range(0, _network.Edges.Count)
-            .Where(edge => _network.Edges[edge] == (fromIndex, toIndex))
-            .Sum(edge => _flows[edge].GetValueOrDefault(item));
     }
 }

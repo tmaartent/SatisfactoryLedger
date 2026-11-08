@@ -12,7 +12,7 @@ public sealed class CatalogImport
         ImportedAt = importedAt;
     }
 
-    public static CatalogImport Record(
+    public static CatalogImport RecordDocs(
         CatalogImportId id,
         string gameVersion,
         DateTimeOffset importedAt,

@@ -1,5 +1,6 @@
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Tests;
 
 namespace SatisfactoryLedger.World.Simulation.Tests;
 

@@ -6,9 +6,6 @@ namespace SatisfactoryLedger.World.Factories;
 /// <summary>Factory definitions traced in a stored snapshot.</summary>
 internal static class FactoryTraces
 {
-    public static FactoryTrace Trace(SnapshotDocument snapshot, StoredFactory factory) =>
-        TraceAll(snapshot, [factory]).Single();
-
     /// <summary>Builds the snapshot's graph once and traces every factory in it.</summary>
     public static IReadOnlyList<FactoryTrace> TraceAll(SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
     {

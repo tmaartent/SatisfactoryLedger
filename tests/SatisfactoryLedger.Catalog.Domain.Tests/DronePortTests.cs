@@ -1,6 +1,6 @@
 namespace SatisfactoryLedger.Catalog.Domain.Tests;
 
-/// <summary>The drone port from the Docs file (BR-A16): what a trip costs, and the fuels a drone can burn.</summary>
+/// <summary>The drone port from the Docs file (BR-A16): what a trip costs, and the fuels a drone can burn with their energy.</summary>
 public class DronePortTests
 {
     private static readonly ItemId RocketFuel = ItemId.Of("Desc_PackagedRocketFuel_C");
@@ -9,18 +9,6 @@ public class DronePortTests
     // As the Docs file has it: 24,000 MJ a trip and 6 MJ per metre; packaged rocket fuel 7,200 MJ.
     private static DronePort DronePort() =>
         Domain.DronePort.Create(DronePortId.Of("Build_DroneStation_C"), "Drone Port", 24_000, 6, [new DroneFuel(RocketFuel, 7_200)]);
-
-    [Fact]
-    public void A_drone_port_knows_the_energy_of_each_fuel_a_drone_can_burn()
-    {
-        Assert.Equal(7_200, DronePort().EnergyOf(RocketFuel));
-    }
-
-    [Fact]
-    public void A_drone_port_does_not_know_the_energy_of_what_is_no_fuel()
-    {
-        Assert.Null(DronePort().EnergyOf(ItemId.Of("Desc_IronPlate_C")));
-    }
 
     [Fact]
     public void A_drone_fuel_has_energy()
@@ -44,7 +32,7 @@ public class DronePortTests
         stored.UpdateFromGame(Domain.DronePort.Create(DronePortId.Of("Build_DroneStation_C"), "Drone Port", 20_000, 5,
             [new DroneFuel(Battery, 6_000)]));
 
-        Assert.Equal((20_000m, 5m, 6_000m, (decimal?)null, true),
-            (stored.TripEnergyMegajoules, stored.TripEnergyPerMetreMegajoules, stored.EnergyOf(Battery), stored.EnergyOf(RocketFuel), stored.IsInGame));
+        Assert.Equal((20_000m, 5m, true), (stored.TripEnergyMegajoules, stored.TripEnergyPerMetreMegajoules, stored.IsInGame));
+        Assert.Equal([new DroneFuel(Battery, 6_000)], stored.Fuels);
     }
 }

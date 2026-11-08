@@ -7,16 +7,9 @@ namespace SatisfactoryLedger.Catalog.Tests.Importer;
 public class SatisfactoryImporterTests
 {
     [Fact]
-    public async Task Import_throws_if_file_does_not_exist()
-    {
-        await Assert.ThrowsAsync<FileNotFoundException>(async () => await SatisfactoryImporter.Import("C:\\Foo.bar"));
-        
-    }
-
-    [Fact]
     public async Task Import_parses_file_if_file_exists()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
         
         Assert.NotNull(resources);
     }
@@ -24,19 +17,19 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_Throws_if_no_item_descriptor_group_exists()
     {
-        await Assert.ThrowsAsync<JsonException>(async () => await SatisfactoryImporter.Import("Fixtures/NoItemGroup.json"));
+        await Assert.ThrowsAsync<JsonException>(async () => await DocsFixture.Import("Fixtures/NoItemGroup.json"));
     }
     
     [Fact]
     public async Task Import_Throws_if_recipe_group_does_not_exist()
     {
-        await Assert.ThrowsAsync<JsonException>(async () => await SatisfactoryImporter.Import("Fixtures/NoRecipeGroup.json"));
+        await Assert.ThrowsAsync<JsonException>(async () => await DocsFixture.Import("Fixtures/NoRecipeGroup.json"));
     }
 
     [Fact]
     public async Task Import_links_input_and_output_resources()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
 
         RecipeGroupDto? recipes = resources.OfType<RecipeGroupDto>().FirstOrDefault();
         Assert.NotNull(recipes);
@@ -68,7 +61,7 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_bundles_items_from_different_groups()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
 
         List<ItemGroupDto> itemDescriptorGroupDtos = [.. resources.OfType<ItemGroupDto>()];
         Assert.NotNull(itemDescriptorGroupDtos);
@@ -103,13 +96,13 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_Throws_if_building_group_does_not_exist()
     {
-        await Assert.ThrowsAsync<JsonException>(async () => await SatisfactoryImporter.Import("Fixtures/NoBuildingGroup.json"));
+        await Assert.ThrowsAsync<JsonException>(async () => await DocsFixture.Import("Fixtures/NoBuildingGroup.json"));
     }
 
     [Fact]
     public async Task Import_links_buildings()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var resources = await DocsFixture.Import("Fixtures/Valid.json");
 
         RecipeGroupDto? recipes = resources.OfType<RecipeGroupDto>().FirstOrDefault();
         Assert.NotNull(recipes);
@@ -128,29 +121,29 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_Throws_if_recipe_ingredient_cannot_be_found()
     {
-        await Assert.ThrowsAsync<JsonException>(async () => await SatisfactoryImporter.Import("Fixtures/InvalidRecipeInput.json"));
+        await Assert.ThrowsAsync<JsonException>(async () => await DocsFixture.Import("Fixtures/InvalidRecipeInput.json"));
     }
     
     [Fact]
     public async Task Import_Throws_if_recipe_product_cannot_be_found()
     {
-        await Assert.ThrowsAsync<JsonException>(async () => await SatisfactoryImporter.Import("Fixtures/InvalidRecipeOutput.json"));
+        await Assert.ThrowsAsync<JsonException>(async () => await DocsFixture.Import("Fixtures/InvalidRecipeOutput.json"));
     }
     
     [Fact]
     public async Task Import_Throws_if_recipe_building_cannot_be_found()
     {
-        await Assert.ThrowsAsync<JsonException>(async () => await SatisfactoryImporter.Import("Fixtures/InvalidRecipeBuilding.json"));
+        await Assert.ThrowsAsync<JsonException>(async () => await DocsFixture.Import("Fixtures/InvalidRecipeBuilding.json"));
     }
     
     [Fact]
     public async Task Import_parses_utf16_file()
     {
-        var utf16Resources = await SatisfactoryImporter.Import("Fixtures/Valid.utf16.json");
+        var utf16Resources = await DocsFixture.Import("Fixtures/Valid.utf16.json");
         
         Assert.NotNull(utf16Resources);
         
-        var utf8Resources = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var utf8Resources = await DocsFixture.Import("Fixtures/Valid.json");
         
         Assert.Equal(utf8Resources.Count, utf16Resources.Count);
     }
@@ -158,8 +151,8 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_ignores_sections_it_does_not_import()
     {
-        var withUnsupportedSection = await SatisfactoryImporter.Import("Fixtures/UnsupportedSection.json");
-        var withoutUnsupportedSection = await SatisfactoryImporter.Import("Fixtures/Valid.json");
+        var withUnsupportedSection = await DocsFixture.Import("Fixtures/UnsupportedSection.json");
+        var withoutUnsupportedSection = await DocsFixture.Import("Fixtures/Valid.json");
 
         Assert.Equal(withoutUnsupportedSection.Count, withUnsupportedSection.Count);
     }
@@ -168,7 +161,7 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_of_the_game_file_keeps_only_production_recipes()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         RecipeGroupDto recipeGroup = Assert.Single(resources.OfType<RecipeGroupDto>());
         Assert.Equal(291, recipeGroup.Recipes.Count);
@@ -177,7 +170,7 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_of_the_game_file_finds_all_production_buildings()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         string[] expected =
         [
@@ -198,7 +191,7 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_of_the_game_file_finds_all_transport_tiers()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         BeltGroupDto beltGroup = Assert.Single(resources.OfType<BeltGroupDto>());
         Assert.Equal(6, beltGroup.Tiers.Count);
@@ -213,7 +206,7 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_of_the_game_file_finds_the_extractors_in_their_three_sections()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Assert.Equal(4, Assert.Single(resources.OfType<ResourceExtractorGroupDto>()).Extractors.Count);
         Assert.Single(Assert.Single(resources.OfType<WaterPumpGroupDto>()).Extractors);
@@ -223,7 +216,7 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_of_the_game_file_finds_all_items()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         int itemCount = resources.OfType<ItemGroupDto>().Sum(group => group.Items.Count);
         Assert.Equal(190, itemCount);
@@ -232,7 +225,7 @@ public class SatisfactoryImporterTests
     [Fact]
     public async Task Import_of_the_game_file_finds_all_raw_resources()
     {
-        var resources = await SatisfactoryImporter.Import("Fixtures/en-US.json");
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         string[] expected =
         [

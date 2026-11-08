@@ -77,17 +77,6 @@ internal class SatisfactoryImporter
         }
     }
     
-    internal static async Task<List<GameDataGroupDto>> Import(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            throw new FileNotFoundException("File not found", filePath);
-        }
-
-        await using FileStream file = File.OpenRead(filePath);
-        return await Import(file);
-    }
-
     // The game writes the file as UTF-16. StreamReader picks the encoding from the byte order mark.
     internal static async Task<List<GameDataGroupDto>> Import(Stream docsFile, CancellationToken cancellationToken = default)
     {

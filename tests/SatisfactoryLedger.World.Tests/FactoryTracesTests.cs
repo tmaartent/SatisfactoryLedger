@@ -19,7 +19,7 @@ public class FactoryTracesTests
     [Fact]
     public void A_factory_traced_in_a_snapshot_lists_its_machines_with_their_class_and_recipe()
     {
-        FactoryTrace trace = FactoryTraces.Trace(Document, IronPlates());
+        FactoryTrace trace = FactoryTraces.TraceAll(Document, [IronPlates()]).Single();
 
         Assert.True(trace.Traceable);
         Assert.Equal(
@@ -30,7 +30,7 @@ public class FactoryTracesTests
     [Fact]
     public void A_factory_whose_output_belt_is_not_in_the_snapshot_is_not_traceable_there()
     {
-        FactoryTrace trace = FactoryTraces.Trace(Without(BeltIntoContainer), IronPlates());
+        FactoryTrace trace = FactoryTraces.TraceAll(Without(BeltIntoContainer), [IronPlates()]).Single();
 
         Assert.False(trace.Traceable);
         Assert.Empty(trace.Machines);

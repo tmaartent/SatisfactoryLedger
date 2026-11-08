@@ -23,4 +23,9 @@
     <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World\SatisfactoryLedger.World.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The steady-state queries the tests share (written once, in World.Domain.Tests). -->
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\FlowResultQueries.cs" Link="FlowResultQueries.cs" />
+  </ItemGroup>
+
 </Project>

@@ -40,9 +40,6 @@ public class DronePort : ICatalogEntry<DronePort>
 
     public IReadOnlyList<DroneFuel> Fuels => _fuels;
 
-    /// <summary>The energy in one item of this fuel; null when a drone can't burn it.</summary>
-    public decimal? EnergyOf(ItemId fuel) => _fuels.FirstOrDefault(entry => entry.Fuel == fuel)?.EnergyMegajoules;
-
     public bool IsInGame { get; private set; } = true;
 
     public void UpdateFromGame(DronePort fromGame)

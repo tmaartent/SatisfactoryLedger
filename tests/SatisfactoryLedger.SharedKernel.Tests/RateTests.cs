@@ -194,8 +194,6 @@ public class RateTests
         var emptyRate = rate - sub - sub - sub;
 
         Assert.Equal(Rate.Zero, emptyRate);
-        
-        Assert.True(emptyRate.IsZero());
     }
 
     [Fact]
@@ -207,7 +205,7 @@ public class RateTests
 
         var emptyRate = rate - sub - sub - sub - sub;
 
-        Assert.True(emptyRate.IsNegative());
+        Assert.True(emptyRate < Rate.Zero);
     }
 
     [Fact]

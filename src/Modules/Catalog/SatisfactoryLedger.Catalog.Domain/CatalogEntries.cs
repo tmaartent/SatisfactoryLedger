@@ -2,9 +2,6 @@ namespace SatisfactoryLedger.Catalog.Domain;
 
 public static class CatalogEntries
 {
-    /// <summary>No changes, for a kind of entry an import didn't touch.</summary>
-    public static CatalogEntryChanges<TEntry> None<TEntry>() => new([], [], []);
-
     /// <summary>
     /// Brings the stored entries in line with a game file (ADR-0005): entries only in the file are added,
     /// stored entries in the file are updated from it, and stored entries missing from the file are

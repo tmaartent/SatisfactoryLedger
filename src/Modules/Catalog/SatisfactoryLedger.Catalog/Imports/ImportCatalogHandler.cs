@@ -38,7 +38,7 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         db.Generators.AddRange(generators.Added);
         db.DronePorts.AddRange(dronePorts.Added);
 
-        var import = CatalogImport.Record(CatalogImportId.New(), command.GameVersion, clock.GetUtcNow(),
+        var import = CatalogImport.RecordDocs(CatalogImportId.New(), command.GameVersion, clock.GetUtcNow(),
             items, buildings, transportTiers, recipes, extractors, footprints, generators, dronePorts);
         db.Imports.Add(import);
 
