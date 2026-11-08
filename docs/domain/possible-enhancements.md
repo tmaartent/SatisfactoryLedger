@@ -59,3 +59,28 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 - **Map:** a building is drawn as several polygons, each turned the way the building faces (`footprintCorners` per outline). The tooltip stays on the building as a whole.
 - **Snapshot:** a new snapshot version for the outlines; older snapshots keep their one rectangle.
 
+## Factory definitions
+
+### A factory drawn as a rectangle on the map
+*Raised 2026-11-08.*
+
+**What:** draw a rectangle around a factory on the map, and get its definition proposed from what's inside: the output belt and the input items (BR-W*). You confirm it, and it's stored as any definition is.
+
+**Why:** on the map a factory's layout is plain to see. Picking its output belt from a list is not.
+
+**How it would work:**
+- **What's inside:** the buildings, and the belts and pipes whose curves lie within the rectangle.
+- **Inputs from the edge:** belts and pipes entering the rectangle; their items are the input items. A belt that passes straight through without touching a machine inside is ignored.
+- **Output from the edge:** belts and pipes leaving it, or a storage container inside that nothing leaves (BR-A7). When there are several, rank them by how advanced their item is, and let the player choose:
+  - **sink points** (`mResourceSinkPoints`, already read by the importer's `ItemDto`, not stored by the Catalog yet), roughly growing with an item's complexity;
+  - or **recipe depth** (production steps from raw resources), more faithful but ambiguous with alternate recipes.
+  - Fallback when no belt leaves: the machine inside with the most advanced product.
+- **A check for free:** compare the trace from the chosen output belt with the rectangle's contents. A machine inside the trace doesn't reach is probably a separate line; a machine outside the trace reaches is probably a supplier.
+
+**Open questions (the owner's):**
+1. **Tool or definition?** The rectangle only proposes today's definition, or a factory *is* an area on the map (membership by place, not by flow; it would survive rebuilds inside it). Leaning: a tool first, and decide the rest after using it.
+2. **One output or several** per factory. Today's definition has one output belt; many factories have two (plastic and rubber, or a byproduct).
+3. **Floors.** A rectangle is flat and factories are stacked: a height range, or one floor at a time?
+
+**What it would take:** drawing on the map (its first editing interaction: a Leaflet drawing plugin, so an ADR); an endpoint that takes a rectangle and returns a proposed definition with its edge crossings and mismatches; sink points in the Catalog if they're used for ranking. It gets better with [buildings drawn as their outline](#buildings-drawn-as-their-outline-box-by-box), since rectangles around large buildings then catch less.
+
