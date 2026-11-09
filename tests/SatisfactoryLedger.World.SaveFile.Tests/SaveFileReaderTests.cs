@@ -385,12 +385,27 @@ public class SaveFileReaderTests
     }
 
     [Fact]
-    public void A_splitter_has_no_curve()
+    public void A_splitter_or_merger_has_no_curve()
     {
         Assert.All(
-            Save.Buildables.OfType<SavedLogistics>().Where(logistics => logistics.Kind is LogisticsKind.Splitter or LogisticsKind.Merger or LogisticsKind.Lift),
+            Save.Buildables.OfType<SavedLogistics>().Where(logistics => logistics.Kind is LogisticsKind.Splitter or LogisticsKind.Merger),
             logistics => Assert.Null(logistics.Curve));
     }
+
+    [Fact]
+    public void A_lift_runs_straight_up_from_where_it_stands_to_its_top()
+    {
+        SavedLogistics lift = Assert.IsType<SavedLogistics>(Save.Buildables.Single(buildable => buildable.Id == TestWorldSave.Lift));
+
+        IReadOnlyList<SavedCurvePoint> curve = lift.Curve!;
+
+        Assert.Equal(2, curve.Count);
+        Assert.Equal(lift.Position, curve[0].Location);
+        Assert.Equal((0, 0, LiftHeight), (Math.Round(curve[1].Location.X - curve[0].Location.X), Math.Round(curve[1].Location.Y - curve[0].Location.Y), Math.Round(curve[1].Location.Z - curve[0].Location.Z)));
+    }
+
+    /// <summary>How high the test world's lift goes, in centimetres: from the belt on the ground to the one a 4 m wall up.</summary>
+    private const double LiftHeight = 400;
 
     [Fact]
     public void A_turned_belt_turns_its_curve_with_it()

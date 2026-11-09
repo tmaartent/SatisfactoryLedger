@@ -14,7 +14,8 @@ Everything needed is in a snapshot already: each building's height, belt and pip
 - **three.js** (npm `three`, with `OrbitControls` and `BufferGeometryUtils` from its addons), in a plain Angular component: the scene is built in `afterNextRender` and redrawn from an `effect`. The logic that needs no WebGL (what lies in the area, where each box's corners go, the swap to three.js's axes) is in `area-model.ts` and tested there.
 - **Shapes:** the Catalog keeps each building's clearance boxes in 3D next to its rectangle: a *volume* per box, as the Docs file has it (corners in its own frame, a rotation quaternion, an offset). The snapshot copies them (version 10); the map API returns them. The web app turns each volume into 8 corners, then turns those by the building's yaw and places them.
   - **Without volumes** (a snapshot older than version 10, or a Catalog not re-imported yet), a building is its flat footprint raised to 4 m.
-  - **Without a footprint** (lifts, which have no clearance boxes), it's a 2 m cube.
+  - **Without a footprint** (splitters, mergers; lifts in a snapshot older than version 11), it's a 2 m cube.
+  - **Lifts** (since 2026-11-09, snapshot version 11) have a straight curve from where they stand to their top (the save's `mTopTransform`), and are drawn as belts at their full height. On the 2D map that's a dot where the belts meet.
 - **Axes:** the game is left-handed with z up, three.js right-handed with y up. Swapping y and z does both and keeps north at the top when looking down. Buildings are turned in game coordinates first, then converted.
 - **Belts and pipes are merged** into one mesh per kind, so a large area stays fast; buildings stay one mesh each, so a click can find them.
 

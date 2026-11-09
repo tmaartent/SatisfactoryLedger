@@ -105,7 +105,7 @@ public static class SaveFileReader
                 BuildableRole.Station when linked => new SavedConsumer(id, className) { Burns = burns },
                 BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className), SortRulesOf(actor), InputPrioritiesOf(actor))
                 {
-                    Curve = CurveOf(actor),
+                    Curve = GameClasses.LogisticsKindOf(className) == LogisticsKind.Lift ? LiftCurveOf(actor) : CurveOf(actor),
                     Contents = onConveyors.GetValueOrDefault(actor.ObjectReference.PathName) ?? InventoryOf(actor, "mBufferInventory", byPath),
                     Stock = GameClasses.LogisticsKindOf(className) == LogisticsKind.FluidBuffer
                         ? FluidStockOf(actor, byPath, fluidOfNetwork)
@@ -227,6 +227,27 @@ public static class SaveFileReader
                     Vector(point, "ArriveTangent"),
                     Vector(point, "LeaveTangent"));
             })
+        ];
+    }
+
+    /// <summary>
+    /// A lift as a straight curve: from where it stands to its top (<c>mTopTransform</c>, in the lift's own coordinates).
+    /// No tangents, so the curve is the straight line between them. Null when the save doesn't say where its top is.
+    /// </summary>
+    private static List<SavedCurvePoint>? LiftCurveOf(ActorObject actor)
+    {
+        if (actor.Properties.OfType<StructProperty>().FirstOrDefault(property => property.Name == "mTopTransform")?.Value is not ArrayProperties top
+            || top.Values.OfType<StructProperty>().FirstOrDefault(property => property.Name == "Translation")?.Value is not VectorD { Value: var translation })
+        {
+            return null;
+        }
+
+        SavedPosition up = Rotate(actor.Rotation, new SavedPosition(translation.X, translation.Y, translation.Z));
+        var none = new SavedPosition(0, 0, 0);
+        return
+        [
+            new SavedCurvePoint(new SavedPosition(actor.Position.X, actor.Position.Y, actor.Position.Z), none, none),
+            new SavedCurvePoint(new SavedPosition(actor.Position.X + up.X, actor.Position.Y + up.Y, actor.Position.Z + up.Z), none, none),
         ];
     }
 

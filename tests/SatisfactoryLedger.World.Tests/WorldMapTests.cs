@@ -62,13 +62,22 @@ public class WorldMapTests
     }
 
     [Fact]
-    public void Splitters_and_lifts_are_not_drawn_as_conveyors()
+    public void Splitters_and_mergers_are_not_drawn_as_conveyors()
     {
-        // They have no curve: a splitter is a point on a belt, a lift goes straight up.
+        // They have no curve: a splitter is a point on a belt.
         HashSet<string> withoutCurve = [.. Document.Buildables.Where(buildable => buildable.Curve is null).Select(buildable => buildable.Id)];
 
         Assert.DoesNotContain(Map.Conveyors, conveyor => withoutCurve.Contains(conveyor.Id));
         Assert.Equal(Document.Buildables.Count(buildable => buildable.Curve is not null), Map.Conveyors.Count);
+    }
+
+    [Fact]
+    public void A_lift_is_drawn_as_a_belt_straight_up_from_where_it_stands()
+    {
+        MapConveyor lift = Map.Conveyors.Single(conveyor => conveyor.Id == Id("Build_ConveyorLiftMk1_C_2147312952"));
+
+        Assert.Equal(MapConveyorKind.Belt, lift.Kind);
+        Assert.Equal(400, lift.Curve[1].Location.Z - lift.Curve[0].Location.Z, 3);
     }
 
     [Fact]
@@ -78,12 +87,11 @@ public class WorldMapTests
     }
 
     [Fact]
-    public void Splitters_mergers_and_lifts_are_on_the_map_where_belts_meet_them()
+    public void Splitters_and_mergers_are_on_the_map_where_belts_meet_them()
     {
         HashSet<string> logistics = [.. Map.Logistics.Select(buildable => buildable.Id)];
 
         Assert.Contains(Id("Build_ConveyorAttachmentSplitter_C_2147304077"), logistics);
-        Assert.Contains(Id("Build_ConveyorLiftMk1_C_2147312952"), logistics);
         Assert.Contains(Map.Logistics, buildable => buildable.ClassName == "Build_ConveyorAttachmentMergerPriority_C");
     }
 

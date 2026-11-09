@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.Persistence;
 
 namespace SatisfactoryLedger.Catalog.Queries;

@@ -106,7 +106,7 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 - **A factory definition first:** the viewer shows the factory's traced members, not the whole world.
 - **3D shapes in the Catalog:** today it keeps one flat rectangle per building (ADR-0020). The importer already reads the full clearance boxes, rotations included; keep them per building class, as the solid boxes' corners. Pairs with [buildings drawn as their outline](#buildings-drawn-as-their-outline-box-by-box).
 - **Heights in the API:** a factory's buildings with their full position and yaw, and belt curves with their heights. The snapshot already holds all of it.
-- **Lifts, splitters and mergers** have no clearance boxes in the Docs file: small cubes, as in the prototype, until their sizes are known. A lift's height would come from the save.
+- **Splitters and mergers** have no clearance boxes in the Docs file: small cubes, as in the prototype, until their sizes are known. *Lifts are drawn at full height since snapshot version 11 (step 28).*
 - **three.js in the web app** (npm `three`, with its `OrbitControls`), so an ADR. One coordinate rule to keep: the game is left-handed with z up, three.js right-handed with y up. Swapping y and z fixes both and keeps north at the top when looking down. Each building is turned by its yaw in game coordinates first, then converted.
 - The prototype's code is in [`docs/prototypes/factory-3d/`](../prototypes/factory-3d/README.md): boxes from 8 corners each, Hermite curves sampled into tubes, a perspective camera with orbit controls.
 

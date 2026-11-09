@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.GameData.DocsFile;
 
 namespace SatisfactoryLedger.Catalog.GameData.Translator;

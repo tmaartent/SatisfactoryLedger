@@ -1,4 +1,5 @@
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.Import;
 
 namespace SatisfactoryLedger.Catalog.Imports;
 

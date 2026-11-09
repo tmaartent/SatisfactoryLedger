@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.Import;
 
 namespace SatisfactoryLedger.Catalog.Persistence;
 

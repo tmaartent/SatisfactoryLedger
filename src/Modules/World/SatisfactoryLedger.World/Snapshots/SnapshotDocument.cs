@@ -41,8 +41,10 @@ internal sealed record SnapshotDocument(
     /// every drone port takes its fuel from what's left, as before.
     /// Version 9 made each pipe network one hub (BR-A6); a version 8 snapshot keeps the pipe directions guessed at import.
     /// Version 10 added the volumes of footprints, to draw buildings in 3D; a version 9 snapshot has none.
+    /// Version 11 gave lifts a curve, straight from where they stand to their top, to draw them at full height; in a
+    /// version 10 snapshot lifts have none, and stay a point on the map and a cube in 3D.
     /// </summary>
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 11;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -113,7 +115,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),

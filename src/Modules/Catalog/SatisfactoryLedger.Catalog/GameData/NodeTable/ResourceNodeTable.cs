@@ -1,4 +1,5 @@
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.GameObjects;
 
 namespace SatisfactoryLedger.Catalog.GameData.NodeTable;
 

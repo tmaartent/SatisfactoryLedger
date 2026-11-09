@@ -1,6 +1,7 @@
 ﻿using Microsoft.ApplicationInsights.Extensibility.Implementation;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.GameData.Translator;
 
 namespace SatisfactoryLedger.Catalog.Tests.GameData.Translator;

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.Import;
 using SatisfactoryLedger.Catalog.GameData.NodeTable;
 using SatisfactoryLedger.Catalog.Persistence;
 

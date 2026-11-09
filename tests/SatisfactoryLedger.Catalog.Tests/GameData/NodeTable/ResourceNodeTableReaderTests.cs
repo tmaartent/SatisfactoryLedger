@@ -1,6 +1,7 @@
 using System.Text;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.GameData.NodeTable;
 
 namespace SatisfactoryLedger.Catalog.Tests.GameData.NodeTable;

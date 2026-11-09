@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.GameObjects;
+using SatisfactoryLedger.Catalog.Domain.Import;
 
 namespace SatisfactoryLedger.Catalog.Persistence;
 

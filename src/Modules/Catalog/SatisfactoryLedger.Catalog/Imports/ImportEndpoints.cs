@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.Import;
 using SatisfactoryLedger.Catalog.Persistence;
 
 namespace SatisfactoryLedger.Catalog.Imports;

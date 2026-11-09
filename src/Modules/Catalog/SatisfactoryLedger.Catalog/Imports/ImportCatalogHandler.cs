@@ -3,6 +3,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Domain;
+using SatisfactoryLedger.Catalog.Domain.GameObjects;
+using SatisfactoryLedger.Catalog.Domain.Import;
 using SatisfactoryLedger.Catalog.GameData.DocsFile;
 using SatisfactoryLedger.Catalog.Persistence;
 using SatisfactoryLedger.Catalog.GameData.Translator;

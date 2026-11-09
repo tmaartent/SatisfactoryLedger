@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 
+
 namespace SatisfactoryLedger.ArchitectureTests;
 
 internal static class SolutionAssemblies
