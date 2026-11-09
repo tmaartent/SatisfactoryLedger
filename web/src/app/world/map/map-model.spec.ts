@@ -4,9 +4,13 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { describeContents, footprintCorners, freeNodes, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
+import { describeContents, footprintCorners, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
+  it('turns a point on the map back into a game position, the opposite of placing it', () => {
+    expect(fromMapPoint(500, 123.45)).toEqual({ x: 12345, y: -50000, z: 0 });
+  });
+
   it('places a position in metres, with north up', () => {
     // The game's y grows southwards; the map's latitude grows upwards.
     expect(toMapPoint({ x: 12345, y: -50000, z: 900 })).toEqual([500, 123.45]);

@@ -6,6 +6,9 @@ namespace SatisfactoryLedger.Catalog.Domain;
 /// </summary>
 public class Footprint : ICatalogEntry<Footprint>
 {
+    // EF Core stores this field (it needs a mutable List<T>); the domain only hands out a read-only view.
+    private List<ClearanceVolume> _volumes = [];
+
     private Footprint(FootprintId id, decimal minX, decimal minY, decimal maxX, decimal maxY)
     {
         Id = id;
@@ -38,10 +41,15 @@ public class Footprint : ICatalogEntry<Footprint>
 
         List<ClearanceBox> solid = [.. boxes.Where(box => !box.Soft)];
         IReadOnlyCollection<ClearanceBox> covered = solid.Count > 0 ? solid : boxes;
-        return Create(id, covered.Min(box => box.MinX), covered.Min(box => box.MinY), covered.Max(box => box.MaxX), covered.Max(box => box.MaxY));
+        Footprint footprint = Create(id, covered.Min(box => box.MinX), covered.Min(box => box.MinY), covered.Max(box => box.MaxX), covered.Max(box => box.MaxY));
+        footprint._volumes = [.. covered.Select(box => box.Volume).OfType<ClearanceVolume>()];
+        return footprint;
     }
 
     public FootprintId Id { get; }
+
+    /// <summary>The boxes it covers, in 3D: the same ones as the rectangle, to draw the building in 3D.</summary>
+    public IReadOnlyList<ClearanceVolume> Volumes => _volumes;
 
     public decimal MinX { get; private set; }
 
@@ -67,6 +75,7 @@ public class Footprint : ICatalogEntry<Footprint>
         }
 
         (MinX, MinY, MaxX, MaxY) = (fromGame.MinX, fromGame.MinY, fromGame.MaxX, fromGame.MaxY);
+        _volumes = [.. fromGame._volumes];
         IsInGame = true;
     }
 

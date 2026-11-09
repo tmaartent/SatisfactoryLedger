@@ -322,6 +322,17 @@ public class SatisfactoryTranslatorTests
     }
 
     [Fact]
+    public async Task A_hadron_collider_from_the_game_file_keeps_the_volumes_of_its_23_solid_boxes_as_the_file_has_them()
+    {
+        Footprint collider = await FootprintOfAsync("Build_HadronCollider_C");
+
+        Assert.Equal(23, collider.Volumes.Count);
+        Assert.Equal(new ClearanceVolume(900, 300, 0, 1900, 1300, 800, 0, 0, 0, 1, 0, 0, 0), collider.Volumes[0]);
+        // The first box of its arch: turned around the y axis, and moved up and along.
+        Assert.Equal(new ClearanceVolume(100, 100, 0, 500, 400, 1200, 0, -0.258819m, 0, 0.965926m, 1150, 450, 1600), collider.Volumes[1]);
+    }
+
+    [Fact]
     public async Task A_splitter_covers_the_room_of_its_soft_box()
     {
         Footprint splitter = await FootprintOfAsync("Build_ConveyorAttachmentSplitter_C");

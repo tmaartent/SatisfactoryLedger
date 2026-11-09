@@ -24,6 +24,9 @@ internal static class TestWorldSnapshot
     public static readonly CatalogRecipe UnpackageTurboFuel =
         new("Recipe_UnpackageTurboFuel_C", "Build_Packager_C", 6, [new("Desc_TurboFuel_C", 2)], [new("Desc_LiquidTurboFuel_C", 2), new("Desc_FluidCanister_C", 2)]);
 
+    /// <summary>The constructor's one box in 3D: 8 by 10 metres and 10 metres high, not turned or moved.</summary>
+    public static readonly CatalogVolume ConstructorVolume = new(-400, -500, 0, 400, 500, 1000, 0, 0, 0, 1, 0, 0, 0);
+
     /// <summary>What the Catalog says, with values as the game's Docs file has them. The Mk.2 belt isn't in the test world.</summary>
     public static readonly CatalogCopy Catalog = new(
         [IngotIron, IronPlate, IronRod, PackagedWater, UnpackageTurboFuel],
@@ -40,8 +43,8 @@ internal static class TestWorldSnapshot
             new("Desc_LiquidTurboFuel_C", "Turbofuel", true),
         ],
         [
-            new("Build_SmelterMk1_C", -250, -500, 250, 500), new("Build_ConstructorMk1_C", -400, -500, 400, 500),
-            new("Build_AssemblerMk1_C", -500, -750, 500, 750),
+            new("Build_SmelterMk1_C", -250, -500, 250, 500, []), new("Build_ConstructorMk1_C", -400, -500, 400, 500, [ConstructorVolume]),
+            new("Build_AssemblerMk1_C", -500, -750, 500, 750, []),
         ],
         // As the Docs file has them: power, litres of water per MJ, and per fuel its energy (per item, or per m³).
         [

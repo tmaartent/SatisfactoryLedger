@@ -5,6 +5,7 @@ export const routes: Routes = [
   { path: 'snapshots', title: 'Snapshots', loadComponent: () => import('./world/snapshots-page').then((m) => m.SnapshotsPage) },
   { path: 'snapshots/:id', title: 'Snapshot', loadComponent: () => import('./world/snapshot-page').then((m) => m.SnapshotPage) },
   { path: 'snapshots/:id/map', title: 'Map', loadComponent: () => import('./world/map/map-page').then((m) => m.MapPage) },
+  { path: 'snapshots/:id/area', title: '3D', loadComponent: () => import('./world/area/area-page').then((m) => m.AreaPage) },
   {
     path: 'snapshots/:id/factories/:factoryId',
     title: 'Factory',

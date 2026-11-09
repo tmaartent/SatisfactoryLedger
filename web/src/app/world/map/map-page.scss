@@ -8,6 +8,11 @@
 
 .map {
   height: calc(100vh - 190px);
+
+  &.drawing {
+    cursor: crosshair;
+  }
+
   min-height: 400px;
   border-radius: 12px;
   background: var(--mat-sys-surface-container-lowest);
@@ -93,4 +98,8 @@
     color: var(--mat-sys-on-surface);
     border-color: var(--mat-sys-outline-variant);
   }
+}
+
+button.active {
+  background: var(--mat-sys-primary-container);
 }

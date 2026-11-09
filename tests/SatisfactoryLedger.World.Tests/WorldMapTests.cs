@@ -102,6 +102,14 @@ public class WorldMapTests
     }
 
     [Fact]
+    public void The_map_has_each_footprints_volumes_to_draw_a_building_in_3D()
+    {
+        FootprintDocument constructor = Assert.Single(Map.Footprints, footprint => footprint.Id == "Build_ConstructorMk1_C");
+
+        Assert.Equal(1000m, Assert.Single(constructor.Volumes!).MaxZ);
+    }
+
+    [Fact]
     public void A_belt_on_the_map_shows_what_it_carries()
     {
         MapConveyor belt = Map.Conveyors.Single(conveyor => conveyor.Id == Id("Build_ConveyorBeltMk1_C_2147303056"));

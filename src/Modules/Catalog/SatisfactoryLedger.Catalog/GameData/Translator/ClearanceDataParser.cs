@@ -8,7 +8,7 @@ namespace SatisfactoryLedger.Catalog.GameData.Translator;
 /// <summary>
 /// Reads the game's <c>mClearanceData</c> text: a list of boxes, each with a Min and Max corner, an optional offset
 /// (<c>RelativeTransform</c>: Translation and Rotation), and <c>Type=CT_Soft</c> for room kept free around the building.
-/// Seen from above, so z is left out.
+/// Each box twice: seen from above (its rectangle, turned and moved), and in 3D as the file has it (its volume).
 /// </summary>
 internal static partial class ClearanceDataParser
 {
@@ -44,7 +44,15 @@ internal static partial class ClearanceDataParser
             boxes.Add(new ClearanceBox(
                 Centimetres(corners.Min(corner => corner.X)), Centimetres(corners.Min(corner => corner.Y)),
                 Centimetres(corners.Max(corner => corner.X)), Centimetres(corners.Max(corner => corner.Y)),
-                Soft: box.Contains("Type=CT_Soft", StringComparison.Ordinal)));
+                Soft: box.Contains("Type=CT_Soft", StringComparison.Ordinal))
+            {
+                Volume = new ClearanceVolume(
+                    Exact(min, "x"), Exact(min, "y"), Exact(min, "z"), Exact(max, "x"), Exact(max, "y"), Exact(max, "z"),
+                    rotation.Success ? Exact(rotation, "x") : 0, rotation.Success ? Exact(rotation, "y") : 0,
+                    rotation.Success ? Exact(rotation, "z") : 0, rotation.Success ? Exact(rotation, "w") : 1,
+                    translation.Success ? Exact(translation, "x") : 0, translation.Success ? Exact(translation, "y") : 0,
+                    translation.Success ? Exact(translation, "z") : 0),
+            });
         }
 
         return boxes;
@@ -77,6 +85,10 @@ internal static partial class ClearanceDataParser
     }
 
     private static double Yaw(double x, double y, double z, double w) => Math.Atan2(2 * ((w * z) + (x * y)), 1 - (2 * ((y * y) + (z * z))));
+
+    /// <summary>A number as the file writes it ("0.965926"), without the trailing zeros a decimal would keep.</summary>
+    private static decimal Exact(Match match, string group) =>
+        decimal.Parse(match.Groups[group].Value, CultureInfo.InvariantCulture) / 1.000000000000000000000000000000000m;
 
     private static double Number(Match match, string group) => double.Parse(match.Groups[group].Value, CultureInfo.InvariantCulture);
 

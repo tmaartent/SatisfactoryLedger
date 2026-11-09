@@ -18,5 +18,11 @@ internal sealed class FootprintConfiguration : IEntityTypeConfiguration<Footprin
         footprint.Property(f => f.IsInGame);
         footprint.Ignore(f => f.Width);
         footprint.Ignore(f => f.Length);
+
+        // The volumes only exist inside their footprint: one jsonb column, mapped through the private List<T> field.
+        footprint.Ignore(f => f.Volumes);
+        footprint.ComplexCollection<List<ClearanceVolume>, ClearanceVolume>(VolumesField, volume => volume.ToJson("volumes"));
     }
+
+    public const string VolumesField = "_volumes";
 }

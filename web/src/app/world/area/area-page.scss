@@ -1,0 +1,112 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.viewer {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.stage {
+  // The scene's background, read by the page when it starts.
+  --scene: var(--mat-sys-surface-container-lowest);
+  position: relative;
+  height: calc(100vh - 230px);
+  min-height: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--scene);
+  touch-action: none;
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.hint {
+  position: absolute;
+  left: 12px;
+  bottom: 8px;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+  pointer-events: none;
+}
+
+.cut {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: var(--mat-sys-body-medium);
+
+  mat-slider {
+    flex: 1;
+    max-width: 420px;
+  }
+}
+
+.panel {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+  }
+
+  p {
+    margin: 0;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    margin: 4px 0 8px;
+  }
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.recipe {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.status {
+  font-weight: 600;
+
+  &.starved {
+    color: #ef5350;
+  }
+
+  &.outputBlocked {
+    color: #ffa726;
+  }
+
+  &.none {
+    color: #4caf50;
+  }
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}

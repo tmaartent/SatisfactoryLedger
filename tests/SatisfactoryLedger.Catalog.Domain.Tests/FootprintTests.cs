@@ -51,6 +51,30 @@ public class FootprintTests
         Assert.Equal((400m, 400m), (footprint.Width, footprint.Length));
     }
 
+    private static ClearanceVolume Volume(decimal height) => new(-400, -500, 0, 400, 500, height, 0, 0, 0, 1, 0, 0, 0);
+
+    [Fact]
+    public void A_footprint_keeps_the_volume_of_each_solid_box_for_drawing_the_building_in_3D()
+    {
+        Footprint footprint = Footprint.Around(Constructor,
+        [
+            new ClearanceBox(-400, -500, 400, 500, Soft: false) { Volume = Volume(800) },
+            new ClearanceBox(-100, 500, 100, 700, Soft: false) { Volume = Volume(300) },
+            new ClearanceBox(-600, -700, 600, 700, Soft: true) { Volume = Volume(100) },
+        ]);
+
+        Assert.Equal([Volume(800), Volume(300)], footprint.Volumes);
+    }
+
+    [Fact]
+    public void A_building_with_only_soft_boxes_keeps_their_volumes()
+    {
+        Footprint footprint = Footprint.Around(FootprintId.Of("Build_ConveyorAttachmentSplitter_C"),
+            [new ClearanceBox(-200, -200, 200, 200, Soft: true) { Volume = Volume(200) }]);
+
+        Assert.Equal([Volume(200)], footprint.Volumes);
+    }
+
     [Fact]
     public void A_building_without_boxes_has_no_footprint()
     {
@@ -69,8 +93,9 @@ public class FootprintTests
         Footprint stored = Footprint.Create(Constructor, -400, -500, 400, 500);
         stored.MarkNoLongerInGame();
 
-        stored.UpdateFromGame(Footprint.Create(Constructor, -450, -500, 450, 500));
+        stored.UpdateFromGame(Footprint.Around(Constructor, [new ClearanceBox(-450, -500, 450, 500, Soft: false) { Volume = Volume(900) }]));
 
         Assert.Equal((900m, true), (stored.Width, stored.IsInGame));
+        Assert.Equal([Volume(900)], stored.Volumes);
     }
 }

@@ -96,6 +96,8 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 ### A factory in 3D
 *Raised 2026-11-08.*
 
+**Step 26 built the first half:** draw a rectangle on the map and see that area in 3D, with each machine's recipe, stock and findings (ADR-0024). Still to do: selecting a factory's machines in that view and defining the factory from them.
+
 **What:** on a factory's page, its members in 3D: machines as their real clearance boxes, belts and pipes along their curves, each machine coloured by the analysis, with a height cut-off and a tooltip per machine. Turn, zoom and move with the mouse.
 
 **Why:** stacked blueprints are hard to read from above. In 3D you see which floor is starved, and the owner found it "incredibly useful" in the [prototype](https://claude.ai/artifact/X76chLgH6ZznvLWbhXNYbC) (private to the owner): 210 machines on floors from 44 to 185 m, drawn smoothly in a browser. Front and side views were less useful there, so they aren't part of it; they'd come for free from the same scene if wanted.

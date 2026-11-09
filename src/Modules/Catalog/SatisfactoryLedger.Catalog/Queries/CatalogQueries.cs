@@ -93,7 +93,9 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
         return
         [
             .. footprints.OrderBy(footprint => footprint.Id.Id, StringComparer.Ordinal)
-                .Select(footprint => new CatalogFootprint(footprint.Id.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY))
+                .Select(footprint => new CatalogFootprint(footprint.Id.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY,
+                    [.. footprint.Volumes.Select(v => new CatalogVolume(
+                        v.MinX, v.MinY, v.MinZ, v.MaxX, v.MaxY, v.MaxZ, v.RotationX, v.RotationY, v.RotationZ, v.RotationW, v.OffsetX, v.OffsetY, v.OffsetZ))]))
         ];
     }
 

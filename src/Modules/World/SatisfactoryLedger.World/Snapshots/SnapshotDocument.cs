@@ -40,8 +40,9 @@ internal sealed record SnapshotDocument(
     /// Version 8 added drones: each home port's route, and the Catalog's drone port (BR-A16); in a version 7 snapshot
     /// every drone port takes its fuel from what's left, as before.
     /// Version 9 made each pipe network one hub (BR-A6); a version 8 snapshot keeps the pipe directions guessed at import.
+    /// Version 10 added the volumes of footprints, to draw buildings in 3D; a version 9 snapshot has none.
     /// </summary>
-    public const int CurrentVersion = 9;
+    public const int CurrentVersion = 10;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -82,7 +83,9 @@ internal sealed record SnapshotDocument(
             nodesUsed,
             [.. catalog.Items.Where(item => item.IsFluid && items.Contains(item.Id)).Select(item => item.Id).Order(StringComparer.Ordinal)],
             [.. catalog.Footprints.Where(footprint => classes.Contains(footprint.Id)).OrderBy(footprint => footprint.Id, StringComparer.Ordinal)
-                .Select(footprint => new FootprintDocument(footprint.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY))],
+                .Select(footprint => new FootprintDocument(footprint.Id, footprint.MinX, footprint.MinY, footprint.MaxX, footprint.MaxY,
+                    [.. footprint.Volumes.Select(v => new VolumeDocument(
+                        v.MinX, v.MinY, v.MinZ, v.MaxX, v.MaxY, v.MaxZ, v.RotationX, v.RotationY, v.RotationZ, v.RotationW, v.OffsetX, v.OffsetY, v.OffsetZ))]))],
             generators,
             dronePorts);
     }
@@ -110,7 +113,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 or 5 or 6 or 7 or 8 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),

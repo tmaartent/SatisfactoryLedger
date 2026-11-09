@@ -1339,6 +1339,15 @@
           "maxY": {
             "type": "number",
             "format": "double"
+          },
+          "volumes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/VolumeDocument"
+            }
           }
         }
       },
@@ -2400,6 +2409,78 @@
           },
           "approximate": {
             "type": "boolean"
+          }
+        }
+      },
+      "VolumeDocument": {
+        "required": [
+          "minX",
+          "minY",
+          "minZ",
+          "maxX",
+          "maxY",
+          "maxZ",
+          "rotationX",
+          "rotationY",
+          "rotationZ",
+          "rotationW",
+          "offsetX",
+          "offsetY",
+          "offsetZ"
+        ],
+        "type": "object",
+        "properties": {
+          "minX": {
+            "type": "number",
+            "format": "double"
+          },
+          "minY": {
+            "type": "number",
+            "format": "double"
+          },
+          "minZ": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxX": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxY": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxZ": {
+            "type": "number",
+            "format": "double"
+          },
+          "rotationX": {
+            "type": "number",
+            "format": "double"
+          },
+          "rotationY": {
+            "type": "number",
+            "format": "double"
+          },
+          "rotationZ": {
+            "type": "number",
+            "format": "double"
+          },
+          "rotationW": {
+            "type": "number",
+            "format": "double"
+          },
+          "offsetX": {
+            "type": "number",
+            "format": "double"
+          },
+          "offsetY": {
+            "type": "number",
+            "format": "double"
+          },
+          "offsetZ": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

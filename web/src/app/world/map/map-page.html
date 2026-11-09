@@ -2,6 +2,10 @@
   <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"><mat-icon>arrow_back</mat-icon></a>
   <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · map</h1>
   <span class="spacer"></span>
+  <button mat-stroked-button type="button" (click)="toggleDrawing()" [class.active]="drawing()">
+    <mat-icon>view_in_ar</mat-icon>
+    {{ drawing() ? 'Drag a rectangle around the factory' : 'Open an area in 3D' }}
+  </button>
   <mat-slide-toggle [checked]="showFreeNodes()" (change)="showFreeNodes.set($event.checked)">Free resource nodes</mat-slide-toggle>
   <mat-slide-toggle [checked]="colourByItem()" (change)="colourByItem.set($event.checked)">Colour belts by what they carry</mat-slide-toggle>
   <mat-form-field subscriptSizing="dynamic" class="factory">
@@ -23,7 +27,7 @@
 }
 
 <div class="map-frame">
-  <div #map class="map"></div>
+  <div #map class="map" [class.drawing]="drawing()"></div>
   <div class="legend">
     @for (entry of legend; track entry.status) {
       <div><span class="dot" [style.background]="entry.colour"></span>{{ entry.label }}</div>

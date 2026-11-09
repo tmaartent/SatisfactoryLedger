@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
@@ -20,12 +20,14 @@ import { PositionDocument } from '../../api/models/position-document';
 import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
+import { areaBetween } from '../area/area-model';
 import {
   MachineStatus,
   conveyorColours,
   describeContents,
   footprintCorners,
   freeNodes,
+  fromMapPoint,
   itemColour,
   locate,
   machineStatuses,
@@ -64,6 +66,7 @@ const GridExtent = { from: -5000, to: 5000 };
 export class MapPage {
   private readonly api = inject(Api);
   private readonly names = inject(CatalogNames);
+  private readonly router = inject(Router);
 
   /** From the route: /snapshots/:id/map. */
   readonly id = input.required<string>();
@@ -94,6 +97,8 @@ export class MapPage {
   /** Colour belts by what they carry most of, instead of grey (pipes stay teal, bottlenecks red). */
   protected readonly colourByItem = signal(false);
   protected readonly pointer = signal<string>('');
+  /** Drawing a rectangle to open in 3D: the map stops panning, and a drag draws instead. */
+  protected readonly drawing = signal(false);
 
   private readonly statuses = computed(() => machineStatuses(this.analysis.value()?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
@@ -190,6 +195,7 @@ export class MapPage {
       )
       .addTo(this.map);
     this.map.setView([0, 0], -3);
+    this.listenForArea(this.map);
     this.map.on('mousemove', (event: L.LeafletMouseEvent) =>
       this.pointer.set(positionInMetres({ x: event.latlng.lng * 100, y: -event.latlng.lat * 100, z: 0 }).replace(/, 0 m$/, ' m')),
     );
@@ -199,6 +205,36 @@ export class MapPage {
     this.drawOthers();
     this.drawFreeNodes();
     this.focusOnBuildable();
+  }
+
+  protected toggleDrawing(): void {
+    this.drawing.update((on) => !on);
+    if (this.drawing()) this.map?.dragging.disable();
+    else this.map?.dragging.enable();
+  }
+
+  /** While drawing, a drag draws a rectangle; letting go opens what's inside it in 3D. */
+  private listenForArea(map: L.Map): void {
+    let start: L.LatLng | null = null;
+    let rectangle: L.Rectangle | null = null;
+    map.on('mousedown', (event: L.LeafletMouseEvent) => {
+      if (!this.drawing()) return;
+      start = event.latlng;
+      rectangle = L.rectangle(L.latLngBounds(start, start), { color: '#ffeb3b', weight: 2, fillOpacity: 0.1, interactive: false }).addTo(map);
+    });
+    map.on('mousemove', (event: L.LeafletMouseEvent) => {
+      if (start && rectangle) rectangle.setBounds(L.latLngBounds(start, event.latlng));
+    });
+    map.on('mouseup', (event: L.LeafletMouseEvent) => {
+      if (!start) return;
+      const area = areaBetween(fromMapPoint(start.lat, start.lng), fromMapPoint(event.latlng.lat, event.latlng.lng));
+      rectangle?.remove();
+      [start, rectangle] = [null, null];
+      // A click without a drag draws nothing.
+      if (area.x1 - area.x0 < 200 || area.y1 - area.y0 < 200) return;
+      this.toggleDrawing();
+      void this.router.navigate(['/snapshots', this.id(), 'area'], { queryParams: area });
+    });
   }
 
   /**

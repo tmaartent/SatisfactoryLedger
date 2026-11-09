@@ -20,6 +20,11 @@ export function toMapPoint(position: Position): [number, number] {
   return [-position.y / 100, position.x / 100];
 }
 
+/** A point on the map (latitude and longitude in metres) as a game position at height 0: the opposite of toMapPoint. */
+export function fromMapPoint(lat: number, lng: number): Position {
+  return { x: Math.round(lng * 100), y: Math.round(-lat * 100), z: 0 };
+}
+
 /**
  * The four corners of a building's footprint on the map: its rectangle, in its own coordinates, turned by its yaw and
  * moved to where it stands (ADR-0020).

@@ -1,0 +1,65 @@
+<div class="page-header">
+  <a mat-icon-button [routerLink]="['/snapshots', id(), 'map']" aria-label="Map"><mat-icon>arrow_back</mat-icon></a>
+  <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · 3D</h1>
+  <span class="spacer"></span>
+  <span class="muted">{{ machineCount() }} machines, {{ buildings().length }} buildings in the area</span>
+</div>
+
+@if (world.isLoading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (world.error(); as error) {
+  <p>The area couldn't be loaded: {{ problem(error) }}</p>
+}
+
+<div class="layout">
+  <div class="viewer">
+    <div #stage class="stage">
+      <span class="hint">Drag to turn, scroll to zoom, right-drag to move. Click a machine to see it.</span>
+    </div>
+    @if (heights().high > heights().low) {
+      <label class="cut">
+        <span>Show up to {{ cutOff() ?? heights().high }} m</span>
+        <mat-slider [min]="heights().low" [max]="heights().high" step="1" discrete>
+          <input matSliderThumb [value]="cutOff() ?? heights().high" (valueChange)="cutOff.set($event === heights().high ? null : $event)" aria-label="Height cut-off in metres" />
+        </mat-slider>
+      </label>
+    }
+  </div>
+
+  <aside class="panel" aria-live="polite">
+    @if (selected(); as building) {
+      <h2>{{ names.building(building.className) }}</h2>
+      @if (building.recipe) {
+        <p class="recipe">{{ names.recipe(building.recipe) }}</p>
+      }
+      @if (selectedFinding(); as finding) {
+        <p class="status {{ finding.limit }}">{{ statusLabel(finding) }} · {{ percent(finding.utilisation) }}</p>
+        @if (why(finding); as reason) {
+          <p>{{ reason }}</p>
+        }
+      } @else if (building.kind === 'machine') {
+        <p class="muted">Not analysed yet</p>
+      }
+      <dl>
+        @if (building.inputContents) {
+          <dt>Holds</dt>
+          <dd>{{ contents(building.inputContents) }}</dd>
+        }
+        @if (building.outputContents) {
+          <dt>Waiting to leave</dt>
+          <dd>{{ contents(building.outputContents) }}</dd>
+        }
+        @if (building.contents) {
+          <dt>Holds</dt>
+          <dd>{{ contents(building.contents) }}</dd>
+        }
+        <dt>Where</dt>
+        <dd>{{ position(building.position) }}</dd>
+      </dl>
+      <a mat-stroked-button [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ focus: building.id }">Show on the map</a>
+    } @else {
+      <p class="muted">Click a machine to see its recipe, what it holds, and why it runs as it does.</p>
+    }
+  </aside>
+</div>

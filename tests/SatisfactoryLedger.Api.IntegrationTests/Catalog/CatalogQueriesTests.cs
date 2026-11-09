@@ -102,7 +102,9 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
         IReadOnlyList<Contracts.CatalogFootprint> footprints = await catalog.GetFootprintsAsync(
             ["Build_ConstructorMk1_C", "Build_ConveyorLiftMk1_C"], TestContext.Current.CancellationToken);
 
-        Assert.Equal([new Contracts.CatalogFootprint("Build_ConstructorMk1_C", -400, -500, 400, 500)], footprints);
+        Contracts.CatalogFootprint constructor = Assert.Single(footprints);
+        Assert.Equal(("Build_ConstructorMk1_C", -400m, -500m, 400m, 500m), (constructor.Id, constructor.MinX, constructor.MinY, constructor.MaxX, constructor.MaxY));
+        Assert.NotEmpty(constructor.Volumes);
     }
 
     [Fact]

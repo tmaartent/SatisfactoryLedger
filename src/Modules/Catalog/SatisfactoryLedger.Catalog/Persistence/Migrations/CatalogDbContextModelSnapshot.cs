@@ -336,6 +336,41 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("min_y");
 
+                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "_volumes", "SatisfactoryLedger.Catalog.Domain.Footprint._volumes#ClearanceVolume", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<decimal>("MaxX");
+
+                            b1.Property<decimal>("MaxY");
+
+                            b1.Property<decimal>("MaxZ");
+
+                            b1.Property<decimal>("MinX");
+
+                            b1.Property<decimal>("MinY");
+
+                            b1.Property<decimal>("MinZ");
+
+                            b1.Property<decimal>("OffsetX");
+
+                            b1.Property<decimal>("OffsetY");
+
+                            b1.Property<decimal>("OffsetZ");
+
+                            b1.Property<decimal>("RotationW");
+
+                            b1.Property<decimal>("RotationX");
+
+                            b1.Property<decimal>("RotationY");
+
+                            b1.Property<decimal>("RotationZ");
+
+                            b1
+                                .ToJson("volumes")
+                                .HasColumnType("jsonb");
+                        });
+
                     b.HasKey("Id")
                         .HasName("pk_footprints");
 
