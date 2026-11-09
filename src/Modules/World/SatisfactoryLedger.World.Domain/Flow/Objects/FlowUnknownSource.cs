@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>A source whose rate isn't known, such as a station or a container nothing feeds (BR-A9).</summary>
 /// <param name="Stock">What it holds right now, per item. Decides between assumed and confirmed supplied.</param>

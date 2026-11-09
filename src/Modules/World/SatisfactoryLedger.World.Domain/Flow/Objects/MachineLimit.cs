@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>Why a machine runs below 100% (BR-A11).</summary>
 public enum MachineLimit

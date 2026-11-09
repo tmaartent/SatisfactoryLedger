@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <param name="Utilisation">Between 0 and 1 (BR-A1).</param>
 /// <param name="LimitingItem">The item it's starved of or blocked on; null when <see cref="Limit"/> is None or NoRecipe.</param>

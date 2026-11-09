@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>Takes everything it's offered: a consumer, or a container at the end of a line (BR-A7, BR-A8).</summary>
 /// <param name="Burns">For a station that loads: the fuel it burns, which takes only what the others leave.</param>

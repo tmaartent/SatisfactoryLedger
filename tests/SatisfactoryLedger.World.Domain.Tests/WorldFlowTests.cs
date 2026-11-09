@@ -1,5 +1,6 @@
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 
 namespace SatisfactoryLedger.World.Domain.Tests;
 

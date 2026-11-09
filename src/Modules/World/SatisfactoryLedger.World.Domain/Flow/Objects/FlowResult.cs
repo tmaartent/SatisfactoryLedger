@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>The steady state of a flow network: approximations to 0.0001/min (BR-A10, ADR-0004).</summary>
 public sealed class FlowResult

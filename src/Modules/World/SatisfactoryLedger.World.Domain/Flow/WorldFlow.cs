@@ -1,4 +1,5 @@
 using SatisfactoryLedger.SharedKernel;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 
 namespace SatisfactoryLedger.World.Domain.Flow;
 

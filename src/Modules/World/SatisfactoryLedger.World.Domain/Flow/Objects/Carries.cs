@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>What a node can move: belts, splitters, mergers and containers move solids; pipes, junctions and fluid buffers fluids.</summary>
 public enum Carries

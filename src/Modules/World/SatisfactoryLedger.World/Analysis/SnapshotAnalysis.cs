@@ -1,5 +1,6 @@
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.Simulation;
 using SatisfactoryLedger.World.Snapshots;
 namespace SatisfactoryLedger.World.Analysis;

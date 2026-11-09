@@ -1,3 +1,4 @@
+using SatisfactoryLedger.ServiceDefaults;
 using SatisfactoryLedger.World.Simulation;
 
 using Wolverine;

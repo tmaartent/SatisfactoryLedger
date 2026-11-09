@@ -2,6 +2,7 @@ using System.Text.Json;
 
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 
 namespace SatisfactoryLedger.World.Simulation;
 

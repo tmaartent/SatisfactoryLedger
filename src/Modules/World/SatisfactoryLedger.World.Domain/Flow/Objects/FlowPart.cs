@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>
 /// A connected part of the world, simulated on its own. When it didn't settle within the limit of sweeps, its numbers

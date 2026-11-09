@@ -1,4 +1,6 @@
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
+
 using static SatisfactoryLedger.World.Domain.Tests.TestFlow;
 
 namespace SatisfactoryLedger.World.Domain.Tests;

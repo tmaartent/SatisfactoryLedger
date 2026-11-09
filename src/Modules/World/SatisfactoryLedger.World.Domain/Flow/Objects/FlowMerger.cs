@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>Takes evenly from its inputs, up to what its output can carry (BR-A5).</summary>
 /// <param name="Priorities">

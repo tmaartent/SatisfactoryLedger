@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using SatisfactoryLedger.Catalog;
+using SatisfactoryLedger.ServiceDefaults;
 using SatisfactoryLedger.World;
 
 using Scalar.AspNetCore;

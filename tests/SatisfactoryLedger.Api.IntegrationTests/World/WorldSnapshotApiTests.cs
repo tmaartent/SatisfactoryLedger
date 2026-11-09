@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SatisfactoryLedger.Api.IntegrationTests.Catalog;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
 

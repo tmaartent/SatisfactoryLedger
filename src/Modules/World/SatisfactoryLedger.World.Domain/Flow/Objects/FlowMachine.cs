@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <param name="Demand">Per input item, what it asks per minute at 100% utilisation: recipe rate × clock speed.</param>
 /// <param name="Production">Per output item, what it makes per minute at 100%: recipe rate × clock speed × production boost.</param>

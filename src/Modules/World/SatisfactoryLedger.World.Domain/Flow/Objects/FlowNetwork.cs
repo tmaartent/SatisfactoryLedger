@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Domain.Flow;
+namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 
 /// <summary>The nodes and their connections, ready to simulate.</summary>
 public sealed class FlowNetwork
@@ -18,6 +18,7 @@ public sealed class FlowNetwork
         }
 
         List<Connection> all = [.. connections];
+        
         Edges = [.. all.Select(connection => (
             From: index.TryGetValue(connection.From, out int from) ? from : throw new ArgumentException($"{connection} starts outside the network", nameof(connections)),
             To: index.TryGetValue(connection.To, out int to) ? to : throw new ArgumentException($"{connection} ends outside the network", nameof(connections))))];

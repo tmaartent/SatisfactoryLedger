@@ -1,5 +1,6 @@
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.Snapshots;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
@@ -47,7 +48,7 @@ public class GeneratorSnapshotTests
     public void A_nuclear_plant_holding_50_rods_counts_its_fuel_as_stocked_but_not_its_few_minutes_of_water()
     {
         // 50 rods at 0.2 a minute last 250 minutes; 50 m³ of water at 240 a minute, 12.5 seconds (BR-A17).
-        var plant = Assert.IsType<SatisfactoryLedger.World.Domain.Flow.FlowMachine>(
+        var plant = Assert.IsType<FlowMachine>(
             WithGenerators.ToFlowNetwork().Nodes.Single(node => node.Id == BuildableId.Of(NuclearPlant)));
 
         Assert.Equal([ItemId.Of("Desc_NuclearFuelRod_C")], plant.Stocked!);
