@@ -2,12 +2,13 @@ using System.Text.Json;
 
 using Microsoft.EntityFrameworkCore;
 
-using SatisfactoryLedger.Catalog.Domain;
-using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.Domain.Import;
 using SatisfactoryLedger.Catalog.GameData.DocsFile;
+using SatisfactoryLedger.Catalog.GameData.DocsFile.Dto;
 using SatisfactoryLedger.Catalog.Persistence;
 using SatisfactoryLedger.Catalog.GameData.Translator;
+using SatisfactoryLedger.Catalog.Imports.Dto.Commands;
+using SatisfactoryLedger.Catalog.Imports.Exceptions;
 
 namespace SatisfactoryLedger.Catalog.Imports;
 
@@ -19,7 +20,7 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
 {
     public async Task<CatalogImport> HandleAsync(ImportCatalogCommand command, CancellationToken cancellationToken)
     {
-        GameData fromGame = await ReadDocsFileAsync(command.DocsFile, cancellationToken);
+        Domain.GameObjects.GameData fromGame = await ReadDocsFileAsync(command.DocsFile, cancellationToken);
 
         // Loaded entities are tracked: the changes Reconcile makes to them are saved by SaveChangesAsync.
         var items = CatalogEntries.Reconcile(await db.Items.ToListAsync(cancellationToken), fromGame.Items);
@@ -48,17 +49,13 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         return import;
     }
 
-    private sealed record GameData(
-        List<Item> Items, List<Building> Buildings, List<TransportTier> TransportTiers, List<Recipe> Recipes, List<Extractor> Extractors,
-        List<Footprint> Footprints, List<Generator> Generators, List<DronePort> DronePorts);
-
-    private static async Task<GameData> ReadDocsFileAsync(Stream docsFile, CancellationToken cancellationToken)
+    private static async Task<Domain.GameObjects.GameData> ReadDocsFileAsync(Stream docsFile, CancellationToken cancellationToken)
     {
         try
         {
             List<GameDataGroupDto> groups = await SatisfactoryImporter.Import(docsFile, cancellationToken);
 
-            return new GameData(
+            return new Domain.GameObjects.GameData(
                 SatisfactoryTranslator.TranslateToItems(groups),
                 SatisfactoryTranslator.TranslateToBuildings(groups),
                 SatisfactoryTranslator.TranslateToTransportTiers(groups),

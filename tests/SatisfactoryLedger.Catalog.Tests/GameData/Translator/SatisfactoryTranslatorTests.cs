@@ -3,6 +3,7 @@ using System.Globalization;
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.GameData.DocsFile;
+using SatisfactoryLedger.Catalog.GameData.DocsFile.Dto;
 using SatisfactoryLedger.Catalog.GameData.Translator;
 using SatisfactoryLedger.SharedKernel;
 

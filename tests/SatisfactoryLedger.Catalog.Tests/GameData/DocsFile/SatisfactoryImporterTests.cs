@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 
 using SatisfactoryLedger.Catalog.GameData.DocsFile;
+using SatisfactoryLedger.Catalog.GameData.DocsFile.Dto;
 
 namespace SatisfactoryLedger.Catalog.Tests.GameData.DocsFile;
 

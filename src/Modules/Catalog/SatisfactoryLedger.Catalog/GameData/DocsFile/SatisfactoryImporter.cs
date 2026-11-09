@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using SatisfactoryLedger.Catalog.GameData.DocsFile.Dto;
+
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace SatisfactoryLedger.Catalog.GameData.DocsFile;

@@ -65,7 +65,7 @@ internal static partial class ClearanceDataParser
         string inner = text.Trim();
         if (inner.StartsWith('(') && inner.EndsWith(')'))
         {
-            inner = inner[1..^1];
+            inner = inner[1..^1]; 
         }
 
         int depth = 0, start = 0;

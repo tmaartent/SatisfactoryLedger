@@ -1,9 +1,0 @@
-﻿using System.Text.Json.Serialization;
-
-namespace SatisfactoryLedger.Catalog.GameData.DocsFile;
-
-internal class PipeDto: TransportTierDto
-{
-    [JsonPropertyName("mFlowLimit")]
-    public string FlowLimit { get; set; } = string.Empty;
-}

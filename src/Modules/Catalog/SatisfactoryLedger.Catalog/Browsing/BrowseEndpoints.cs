@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
+using SatisfactoryLedger.Catalog.Browsing.Dto.Responses;
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.Persistence;
+using SatisfactoryLedger.Catalog.Persistence.Configurations;
 
 namespace SatisfactoryLedger.Catalog.Browsing;
 
