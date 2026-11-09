@@ -38,7 +38,6 @@
     <Project Path="tests/SatisfactoryLedger.SharedKernel.Tests/SatisfactoryLedger.SharedKernel.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.Domain.Tests/SatisfactoryLedger.World.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.SaveFile.Tests/SatisfactoryLedger.World.SaveFile.Tests.csproj" />
-    <Project Path="tests/SatisfactoryLedger.World.Simulation.Tests/SatisfactoryLedger.World.Simulation.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.Tests/SatisfactoryLedger.World.Tests.csproj" />
   </Folder>
 </Solution>

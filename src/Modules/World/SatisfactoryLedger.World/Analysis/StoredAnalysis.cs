@@ -1,4 +1,4 @@
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 namespace SatisfactoryLedger.World.Analysis;
 
 /// <summary>A snapshot's analysis, as stored (ADR-0017): one row per snapshot, with the result as one jsonb document.</summary>

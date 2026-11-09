@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 
 namespace SatisfactoryLedger.AnalysisService;
 

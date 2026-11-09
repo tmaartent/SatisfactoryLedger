@@ -4,8 +4,10 @@ using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.SaveFile;
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Snapshots;
+using SatisfactoryLedger.World.Simulation;
+using MachineLimit = SatisfactoryLedger.World.Contracts.Analysis.MachineLimit;
 
 namespace SatisfactoryLedger.World.Tests;
 

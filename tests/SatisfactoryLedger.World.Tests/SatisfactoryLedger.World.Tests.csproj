@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World\SatisfactoryLedger.World.csproj" />
+    <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World.Simulation\SatisfactoryLedger.World.Simulation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

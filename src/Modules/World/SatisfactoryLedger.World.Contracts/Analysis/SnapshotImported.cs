@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Simulation;
+namespace SatisfactoryLedger.World.Contracts.Analysis;
 
 /// <summary>
 /// Published by World when a snapshot needs its analysis (ADR-0018): after an import, or at startup for a snapshot

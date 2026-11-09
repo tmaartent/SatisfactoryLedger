@@ -23,7 +23,7 @@ We will run the analysis in its own service, `SatisfactoryLedger.AnalysisService
 - **Messages stay small.** The documents (megabytes on a big world) go over HTTP, not through the broker (the *claim check* pattern).
 - **Wolverine** (MIT) with its RabbitMQ transport. The import publishes through Wolverine's **transactional outbox** on PostgreSQL: the snapshot, its pending analysis and the message are stored in one transaction. A crash can't store a snapshot and lose its message.
 - **The service-facing endpoints** live under `/internal/world/…`, outside the public OpenAPI contract. They have no authentication yet, because everything runs locally under Aspire. A real deployment would secure them, for example with a client certificate or a service token.
-- **The shared code** is a library both use, `SatisfactoryLedger.World.Simulation`: the message, the flow network document, the analysis document, and the computation. It depends only on `World.Domain`.
+- **The shared code** is a library both use, `SatisfactoryLedger.World.Simulation`: the message, the flow network document, the analysis document, and the computation. It depends only on `World.Domain`. *Amended by [ADR-0026](0026-steady-state-as-a-sequence-of-linear-programmes.md): the message and documents moved to `World.Contracts`; `World.Simulation` is the solver, used by the analysis service only.*
 - **At startup**, World still finds every snapshot without a current analysis (ADR-0017), and publishes `SnapshotImported` for each.
 - **Aspire** starts RabbitMQ, the API and the service, and connects them. The service finds the API by service discovery.
 

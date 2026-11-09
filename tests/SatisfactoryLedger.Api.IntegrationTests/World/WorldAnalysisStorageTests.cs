@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SatisfactoryLedger.Api.IntegrationTests.Catalog;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Persistence;
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 
 namespace SatisfactoryLedger.Api.IntegrationTests.World;
 

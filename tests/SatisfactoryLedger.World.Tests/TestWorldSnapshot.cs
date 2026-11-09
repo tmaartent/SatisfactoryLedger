@@ -1,3 +1,5 @@
+using SatisfactoryLedger.World.Contracts.Analysis;
+using SatisfactoryLedger.World.Simulation;
 using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.SaveFile;
@@ -62,8 +64,8 @@ internal static class TestWorldSnapshot
     public static SnapshotDocument Document { get; } = Stored(Catalog);
 
     /// <summary>The test world's analysis, stored and read back as the database does (ADR-0017).</summary>
-    public static Simulation.AnalysisDocument TestWorldAnalysis { get; } =
-        Simulation.AnalysisDocument.FromJson(Simulation.AnalysisDocument.Compute(Document.ToFlowNetwork()).ToJson());
+    public static AnalysisDocument TestWorldAnalysis { get; } =
+        AnalysisDocument.FromJson(AnalysisDocument.Compute(Document.ToFlowNetwork()).ToJson());
 
     public static SnapshotDocument Stored(CatalogCopy catalog) => SnapshotDocument.FromJson(SnapshotDocument.Create(Saved, catalog).ToJson());
 

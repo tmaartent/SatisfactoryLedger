@@ -3,8 +3,9 @@ using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.SaveFile;
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Snapshots;
+using SatisfactoryLedger.World.Simulation;
 
 namespace SatisfactoryLedger.World.Tests;
 
