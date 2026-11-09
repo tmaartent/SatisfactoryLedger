@@ -35,6 +35,7 @@ public static class WorldModule
         // ADR-0018: the analysis service computes each snapshot's analysis; World stores it (ADR-0017).
         builder.Services.AddScoped<StoreAnalysisHandler>();
         builder.Services.AddHostedService<AnalysisRequeue>();
+        builder.Services.AddHostedService<FactoryConversion>();
 
         return builder;
     }

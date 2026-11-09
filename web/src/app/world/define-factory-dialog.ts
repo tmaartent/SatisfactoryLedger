@@ -69,7 +69,7 @@ export class DefineFactoryDialog {
     this.error.set(null);
     try {
       await this.api.invoke(defineFactory, {
-        body: { world: this.data.world, name: this.name().trim(), outputBelt: this.outputBelt(), inputItems: this.inputItems() },
+        body: { world: this.data.world, name: this.name().trim(), machines: null, outputBelt: this.outputBelt(), inputItems: this.inputItems() },
       });
       this.dialogRef.close(true);
     } catch (error) {

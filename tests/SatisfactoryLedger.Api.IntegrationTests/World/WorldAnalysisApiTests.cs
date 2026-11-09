@@ -86,7 +86,7 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
         await _client.ImportResourceNodesAsync();
         Snapshot snapshot = await _client.ImportSaveAsync(WorldClient.TestWorld);
         await _client.WaitForAnalysisAsync(snapshot.Id);
-        HttpResponseMessage defined = await _client.DefineFactoryAsync("Development", "Iron plates", WorldClient.BeltIntoContainer, "Desc_OreIron_C");
+        HttpResponseMessage defined = await _client.DefineFactoryAsync("Development", "Iron plates", WorldClient.IronPlateMachines);
         return (snapshot, (await defined.Content.ReadFromJsonAsync<Factory>(TestContext.Current.CancellationToken))!);
     }
 

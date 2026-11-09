@@ -508,8 +508,8 @@
         "tags": [
           "World"
         ],
-        "summary": "Define a factory in a world by its output belt and input items (BR-W2)",
-        "description": "A factory belongs to a world (a session name) and is traced in every snapshot of it. The output belt must be a belt in the world's latest snapshot.",
+        "summary": "Define a factory in a world by its machines (BR-W2)",
+        "description": "A factory belongs to a world (a session name) and is traced in every snapshot of it. Its machines must be machines in the world's latest snapshot. Instead of machines, an output belt and input items can still be given: the machines are then traced from that belt.",
         "operationId": "DefineFactory",
         "requestBody": {
           "content": {
@@ -1030,6 +1030,35 @@
           "resourceNodeTable"
         ]
       },
+      "ConnectionSummary": {
+        "required": [
+          "inside",
+          "outside",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "inside": {
+            "$ref": "#/components/schemas/BuildableReference"
+          },
+          "outside": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BuildableReference"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "CurvePointDocument": {
         "required": [
           "location",
@@ -1053,6 +1082,7 @@
         "required": [
           "world",
           "name",
+          "machines",
           "outputBelt",
           "inputItems"
         ],
@@ -1069,6 +1099,15 @@
               "null",
               "string"
             ]
+          },
+          "machines": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           },
           "outputBelt": {
             "type": [
@@ -1253,6 +1292,7 @@
           "id",
           "world",
           "name",
+          "machines",
           "outputBelt",
           "inputItems"
         ],
@@ -1268,11 +1308,23 @@
           "name": {
             "type": "string"
           },
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuildableReference"
+            }
+          },
           "outputBelt": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "inputItems": {
-            "type": "array",
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }
@@ -1285,7 +1337,10 @@
           "name",
           "traceable",
           "machines",
-          "logistics"
+          "logistics",
+          "outputs",
+          "inputs",
+          "missing"
         ],
         "type": "object",
         "properties": {
@@ -1308,6 +1363,24 @@
           "logistics": {
             "type": "integer",
             "format": "int32"
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionSummary"
+            }
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionSummary"
+            }
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuildableReference"
+            }
           }
         }
       },

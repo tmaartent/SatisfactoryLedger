@@ -20,7 +20,7 @@ It's the *core* subdomain ([context map](../../../docs/domain/context-map.md), [
 |---|---|
 | `Snapshots/` | `POST /api/v1/world/snapshots`: read the save, copy what the Catalog says about the recipes, extractors, belts, nodes and generators it uses, and store it all as one document (`SnapshotDocument`, [ADR-0016](../../../docs/adr/0016-world-snapshots-as-one-document.md)). Also listing, reading and deleting snapshots. |
 | `Analysis/` | The findings of a snapshot or a factory (`SnapshotAnalysis`): machines and why they run below 100%, bottlenecks, unused and unknown supply, generators, drone ports. The background work that asks for an analysis ([ADR-0017](../../../docs/adr/0017-snapshot-analysis-stored-and-computed-in-the-background.md)), and the internal endpoints the analysis service calls (`/internal/world`). |
-| `Factories/` | Your factory definitions: an output belt and input items, traced in each snapshot to the machines, logistics and suppliers that belong to it. |
+| `Factories/` | Your factory definitions: the machines you selected, matched in each snapshot (a rebuilt machine by class and position) and traced to the logistics, outputs, inputs and suppliers that belong to it. Factories defined earlier by an output belt are converted at startup. |
 | `Map/` | `GET /api/v1/world/snapshots/{id}/map`: what the world map draws ([ADR-0020](../../../docs/adr/0020-world-map-leaflet-on-a-plain-grid.md)). |
 | `Persistence/` | EF Core: `WorldDbContext` in schema `world`, with snapshots, factories and stored analyses, and the migrations. |
 

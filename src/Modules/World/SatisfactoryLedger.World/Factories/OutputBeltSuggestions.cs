@@ -16,7 +16,7 @@ internal static class OutputBeltSuggestions
             .. CandidateOutputBelts.In(world).Select(candidate =>
             {
                 BuildableDocument belt = buildables[candidate.Belt.Id];
-                FactoryMembers wouldContain = new FactoryDefinition("Suggestion", candidate.Belt, []).TraceMembers(world);
+                IReadOnlySet<BuildableId> wouldContain = new OutputBeltTrace(candidate.Belt, []).Machines(world);
 
                 return new OutputBeltSuggestion(
                     belt.Id,
@@ -24,7 +24,7 @@ internal static class OutputBeltSuggestions
                     [.. candidate.Items.Select(item => item.Id).Order(StringComparer.Ordinal)],
                     [.. candidate.Into.Select(id => new BuildableReference(id.Id, buildables[id.Id].ClassName))],
                     belt.Position,
-                    wouldContain.Machines
+                    wouldContain
                         .GroupBy(id => buildables[id.Id].ClassName, StringComparer.Ordinal)
                         .OrderBy(group => group.Key, StringComparer.Ordinal)
                         .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal));

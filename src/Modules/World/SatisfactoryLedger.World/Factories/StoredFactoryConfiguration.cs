@@ -11,6 +11,7 @@ internal sealed class StoredFactoryConfiguration : IEntityTypeConfiguration<Stor
         factory.HasKey(f => f.Id);
         factory.Property(f => f.World);
         factory.Property(f => f.Name);
+        factory.ComplexCollection(f => f.Machines, machine => machine.ToJson("machines"));
         factory.Property(f => f.OutputBelt);
         factory.PrimitiveCollection(f => f.InputItems);
 

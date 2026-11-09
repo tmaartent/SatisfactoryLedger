@@ -150,7 +150,7 @@ public sealed class WorldSnapshotApiTests(LedgerApiFactory api) : IAsyncLifetime
     {
         await _client.ImportAsync(CatalogClient.GameFile);
         Snapshot snapshot = await _client.ImportSaveAsync(WorldClient.TestWorld);
-        (await _client.DefineFactoryAsync("Development", "Iron plates", WorldClient.BeltIntoContainer, "Desc_OreIron_C")).EnsureSuccessStatusCode();
+        (await _client.DefineFactoryAsync("Development", "Iron plates", WorldClient.IronPlateMachines)).EnsureSuccessStatusCode();
 
         await _client.DeleteAsync($"/api/v1/world/snapshots/{snapshot.Id}", TestContext.Current.CancellationToken);
 

@@ -88,7 +88,7 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 
 **Open questions (the owner's):**
 1. **Tool or definition?** The rectangle only proposes today's definition, or a factory *is* an area on the map (membership by place, not by flow; it would survive rebuilds inside it). Leaning: a tool first, and decide the rest after using it.
-2. **One output or several** per factory. Today's definition has one output belt; many factories have two (plastic and rubber, or a byproduct).
+2. ~~**One output or several** per factory.~~ Several, since step 27 (ADR-0025).
 3. **Floors.** A rectangle is flat and factories are stacked: a height range, or one floor at a time?
 
 **What it would take:** drawing on the map (its first editing interaction: a Leaflet drawing plugin, so an ADR); an endpoint that takes a rectangle and returns a proposed definition with its edge crossings and mismatches; sink points in the Catalog if they're used for ranking. It gets better with [buildings drawn as their outline](#buildings-drawn-as-their-outline-box-by-box), since rectangles around large buildings then catch less.
@@ -96,7 +96,7 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 ### A factory in 3D
 *Raised 2026-11-08.*
 
-**Step 26 built the first half:** draw a rectangle on the map and see that area in 3D, with each machine's recipe, stock and findings (ADR-0024). Still to do: selecting a factory's machines in that view and defining the factory from them.
+**Step 26 built the first half:** draw a rectangle on the map and see that area in 3D, with each machine's recipe, stock and findings (ADR-0024). **Step 27** made a factory its machines, with several outputs and inputs (ADR-0025). Still to do (part 2b): selecting a factory's machines in that view, and the factory page with its outputs and inputs.
 
 **What:** on a factory's page, its members in 3D: machines as their real clearance boxes, belts and pipes along their curves, each machine coloured by the analysis, with a height cut-off and a tooltip per machine. Turn, zoom and move with the mouse.
 

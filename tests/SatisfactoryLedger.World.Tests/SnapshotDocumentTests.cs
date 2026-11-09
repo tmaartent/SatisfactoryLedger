@@ -53,12 +53,12 @@ public class SnapshotDocumentTests
     {
         WorldGraph world = Stored(IngotIron, IronPlate, IronRod, PackagedWater).ToWorldGraph();
 
-        FactoryMembers members = new FactoryDefinition("Iron plates", Id("Build_ConveyorBeltMk1_C_2147276358"), [ItemId.Of("Desc_OreIron_C")])
-            .TraceMembers(world);
+        IReadOnlySet<BuildableId> machines = new OutputBeltTrace(Id("Build_ConveyorBeltMk1_C_2147276358"), [ItemId.Of("Desc_OreIron_C")])
+            .Machines(world);
 
         Assert.Equal(
             new HashSet<BuildableId> { Id("Build_SmelterMk1_C_2147301226"), Id("Build_SmelterMk1_C_2147301500"), Id("Build_ConstructorMk1_C_2147291547") },
-            members.Machines.ToHashSet());
+            machines.ToHashSet());
     }
 
     [Fact]

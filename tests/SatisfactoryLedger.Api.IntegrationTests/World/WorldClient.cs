@@ -8,7 +8,15 @@ internal static class WorldClient
 
     public static readonly string BeltIntoContainer = Id("Build_ConveyorBeltMk1_C_2147276358");
 
-    public static Task<HttpResponseMessage> DefineFactoryAsync(
+    /// <summary>The test world's iron plate factory: two smelters and a constructor.</summary>
+    public static readonly string[] IronPlateMachines =
+        [Id("Build_ConstructorMk1_C_2147291547"), Id("Build_SmelterMk1_C_2147301226"), Id("Build_SmelterMk1_C_2147301500")];
+
+    public static Task<HttpResponseMessage> DefineFactoryAsync(this HttpClient client, string world, string name, params string[] machines) =>
+        client.PostAsJsonAsync("/api/v1/world/factories", new { world, name, machines }, TestContext.Current.CancellationToken);
+
+    /// <summary>The old way, until the 3D selection replaces the dialog: by output belt and input items.</summary>
+    public static Task<HttpResponseMessage> DefineFactoryByOutputBeltAsync(
         this HttpClient client, string world, string name, string outputBelt, params string[] inputItems) =>
         client.PostAsJsonAsync("/api/v1/world/factories", new { world, name, outputBelt, inputItems }, TestContext.Current.CancellationToken);
 

@@ -13,16 +13,16 @@ public class FactoryAnalysisTests
         Id = Guid.CreateVersion7(),
         World = "Development",
         Name = "Iron plates",
-        OutputBelt = BeltIntoContainer,
-        InputItems = ["Desc_OreIron_C"],
+        Machines = [.. new[] { SmelterA, SmelterB, ConstructorC }.Select(id => StoredMachine.From(Document.Buildables.Single(buildable => buildable.Id == id)))],
     };
 
     private static readonly FactoryAnalysisResponse Analysis = SnapshotAnalysis.ForFactory(Document, IronPlates, TestWorldAnalysis)!;
 
     [Fact]
-    public void A_factory_says_what_it_makes_now_and_at_100_percent()
+    public void A_factory_says_what_it_makes_now_over_all_its_outputs_and_at_100_percent()
     {
-        // Constructor C is clocked at 75%: 15 plates a minute at full speed, and it runs fully.
+        // Constructor C is clocked at 75%: 15 plates a minute at full speed, and it runs fully. They leave to the
+        // container, and to the sink when it is full.
         Assert.Equal([new FactoryOutput("Desc_IronPlate_C", 15, 15)], Analysis.Output);
     }
 
@@ -57,9 +57,15 @@ public class FactoryAnalysisTests
     }
 
     [Fact]
-    public void A_factory_whose_output_belt_is_not_in_the_snapshot_has_no_analysis()
+    public void A_factory_none_of_whose_machines_is_in_the_snapshot_has_no_analysis()
     {
-        StoredFactory gone = new() { Id = Guid.CreateVersion7(), World = "Development", Name = "Gone", OutputBelt = Id("Build_ConveyorBeltMk1_C_1"), InputItems = [] };
+        StoredFactory gone = new()
+        {
+            Id = Guid.CreateVersion7(),
+            World = "Development",
+            Name = "Gone",
+            Machines = [new StoredMachine(Id("Build_SmelterMk1_C_1"), "Build_SmelterMk1_C", 0, 0, 0)],
+        };
 
         Assert.Null(SnapshotAnalysis.ForFactory(Document, gone, TestWorldAnalysis));
     }

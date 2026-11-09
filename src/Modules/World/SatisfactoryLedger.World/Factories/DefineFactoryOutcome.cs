@@ -12,7 +12,10 @@ internal abstract record DefineFactoryOutcome
     /// <summary>No snapshot has this session name, so there's no world to define it in.</summary>
     internal sealed record UnknownWorld : DefineFactoryOutcome;
 
-    /// <summary>The output belt isn't a belt in the world's latest snapshot.</summary>
+    /// <summary>Ids that aren't machines in the world's latest snapshot.</summary>
+    internal sealed record NotMachines(IReadOnlyList<string> Ids) : DefineFactoryOutcome;
+
+    /// <summary>The output belt isn't a belt fed by machines in the world's latest snapshot.</summary>
     internal sealed record NotAnOutputBelt : DefineFactoryOutcome;
 
     /// <summary>Input items the Catalog doesn't know: a typo, most likely (BR-W2).</summary>

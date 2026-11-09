@@ -72,7 +72,6 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .HasColumnName("id");
 
                     b.PrimitiveCollection<List<string>>("InputItems")
-                        .IsRequired()
                         .HasColumnType("text[]")
                         .HasColumnName("input_items");
 
@@ -82,7 +81,6 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .HasColumnName("name");
 
                     b.Property<string>("OutputBelt")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("output_belt");
 
@@ -90,6 +88,27 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("world");
+
+                    b.ComplexCollection(typeof(List<Dictionary<string, object>>), "Machines", "SatisfactoryLedger.World.Factories.StoredFactory.Machines#StoredMachine", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<string>("ClassName")
+                                .IsRequired();
+
+                            b1.Property<string>("Id")
+                                .IsRequired();
+
+                            b1.Property<double?>("X");
+
+                            b1.Property<double?>("Y");
+
+                            b1.Property<double?>("Z");
+
+                            b1
+                                .ToJson("machines")
+                                .HasColumnType("jsonb");
+                        });
 
                     b.HasKey("Id")
                         .HasName("pk_factories");

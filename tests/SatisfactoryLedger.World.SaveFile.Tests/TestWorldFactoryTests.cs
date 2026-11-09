@@ -1,4 +1,4 @@
-using SatisfactoryLedger.SharedKernel;
+﻿using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain;
 
 using static SatisfactoryLedger.World.SaveFile.Tests.TestWorldSave;
@@ -38,31 +38,45 @@ public class TestWorldFactoryTests
         recipe.Consumes.ToDictionary(item => item, _ => Rate.PerMinute(1)),
         recipe.Produces.ToDictionary(item => item, _ => Rate.PerMinute(1)));
 
-    [Fact]
-    public void The_iron_plate_factory_traced_from_the_belt_into_the_container_has_both_smelters_and_constructor_C()
-    {
-        var members = new FactoryDefinition("Iron plates", BeltIntoContainer, [IronOre]).TraceMembers(Graph());
+    private static readonly BuildableId[] IronPlateMachines = [SmelterA, SmelterB, ConstructorC];
 
-        Assert.Equal(new HashSet<BuildableId> { SmelterA, SmelterB, ConstructorC }, members.Machines.ToHashSet());
+    private static FactoryMembers IronPlates(WorldGraph world) => new FactoryDefinition(IronPlateMachines).TraceMembers(world);
+
+    [Fact]
+    public void The_iron_plate_factory_owns_its_supply_line_from_the_miner_since_it_feeds_nothing_else()
+    {
+        FactoryMembers members = IronPlates(Graph());
+
+        Assert.Superset(new HashSet<BuildableId> { FirstBelt, Lift, Splitter }, members.Logistics.ToHashSet());
+        FactoryConnection input = Assert.Single(members.Inputs);
+        Assert.Equal((FirstBelt, (BuildableId?)Miner), (input.Inside, input.Outside));
+        Assert.Equal([IronOre], input.Items);
     }
 
     [Fact]
-    public void The_iron_plate_factory_starts_at_the_splitter_and_ends_at_the_belt_into_the_container()
+    public void The_iron_plate_factory_hands_its_plates_to_the_sink_and_to_the_container_at_the_end_of_its_line()
     {
-        var members = new FactoryDefinition("Iron plates", BeltIntoContainer, [IronOre]).TraceMembers(Graph());
+        WorldGraph world = Graph();
+        BuildableId container = world.Downstream(BeltIntoContainer).Single().Id;
+        BuildableId beltIntoSink = world.Upstream(Sink).Single().Id;
 
-        Assert.Contains(Splitter, members.Logistics);
-        Assert.Contains(SmartSplitter, members.Logistics);
-        Assert.Contains(BeltIntoContainer, members.Logistics);
-        Assert.DoesNotContain(Lift, members.Logistics);
-        Assert.DoesNotContain(FirstBelt, members.Logistics);
+        FactoryMembers members = IronPlates(world);
+
+        Assert.Equal(
+            new HashSet<(BuildableId, BuildableId?)> { (beltIntoSink, Sink), (container, null) },
+            members.Outputs.Select(output => (output.Inside, output.Outside)).ToHashSet());
+        Assert.All(members.Outputs, output => Assert.Equal([ItemId.Of("Desc_IronPlate_C")], output.Items));
     }
 
     [Fact]
     public void The_overflow_sink_is_not_part_of_the_iron_plate_factory()
     {
-        var members = new FactoryDefinition("Iron plates", BeltIntoContainer, [IronOre]).TraceMembers(Graph());
+        Assert.False(IronPlates(Graph()).Contains(Sink));
+    }
 
-        Assert.False(members.Contains(Sink));
+    [Fact]
+    public void The_iron_plate_factory_as_defined_before_by_its_output_belt_converts_to_its_three_machines()
+    {
+        Assert.Equal(IronPlateMachines.ToHashSet(), new OutputBeltTrace(BeltIntoContainer, [IronOre]).Machines(Graph()).ToHashSet());
     }
 }

@@ -85,6 +85,9 @@ internal sealed class TestWorld
 
     public TestWorld FluidBuffer(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.FluidBuffer));
 
+    /// <summary>A pipe network as one hub (BR-A6).</summary>
+    public TestWorld PipeNetwork(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.PipeNetwork));
+
     /// <summary>Connects each buildable to the next: <c>Connect("miner", "belt", "smelter")</c>.</summary>
     public TestWorld Connect(params string[] chain)
     {

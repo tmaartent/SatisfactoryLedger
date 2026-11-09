@@ -29,14 +29,14 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | Term | Definition | Code |
 |---|---|---|
 | **World** | Every snapshot with the same session name. Factory definitions belong to a world (BR-W11). | `StoredSnapshot.SessionName`, `StoredFactory.World` |
-| **Candidate Output Belt** | A belt where items leave a group of machines: fed by machines through logistics, ending in a container, a consumer or nothing. Suggested to the player for BR-W2 (BR-W12). | `CandidateOutputBelts`, `OutputBeltCandidate` |
+| **Candidate Output Belt** | A belt where items leave a group of machines: fed by machines through logistics, ending in a container, a consumer or nothing. Suggested by the old define dialog until the 3D selection replaces it (BR-W12). | `CandidateOutputBelts`, `OutputBeltCandidate` |
 | **Steady State** | What flows where once everything has run long enough to settle (BR-A1 to A10). An approximation to 0.0001/min. | `SteadyState`, `FlowResult` |
 | **Utilisation** | The share of 100% a machine runs at: the lowest of what its inputs supply and its outputs take (BR-A1). | `MachineState.Utilisation` |
 | **Starved / Output Blocked** | Why a machine runs below 100% (below 99.9%: a smaller shortfall counts as running): too little of an input is offered, or an output can't leave (BR-A11). | `MachineLimit` |
 | **Bottleneck** | A belt, lift or pipe at its capacity while more is offered upstream (BR-A12). The first saturated segment of a line. | `Bottleneck` |
 | **Unused Supply** | What a provider could deliver on top of what it does (BR-A13). | `UnusedSupply` |
-| **Supplier** | A provider, station or container nothing feeds that a factory's input lines reach. Never part of the factory (BR-W1); can supply several (BR-A14). | `FactoryMembers.Suppliers` |
-| **Producer** | A machine of a factory whose output reaches the output belt through logistics only: it makes what the factory makes (BR-A14). | `FactoryMembers.Producers` |
+| **Supplier** | A provider, station or container nothing feeds upstream of a factory's inputs, through logistics. Never part of the factory (BR-W1); can supply several (BR-A14). | `FactoryMembers.Suppliers` |
+| **Producer** | A machine of a factory that reaches one of its outputs through the factory's own logistics: it makes what the factory makes (BR-A14). | `FactoryMembers.Producers` |
 | **Analysis Status** | Whether a snapshot's analysis is ready: *pending* until the background worker has computed it, *ready*, or *failed* with its reason (ADR-0017). | `AnalysisStatus`, `StoredAnalysis` |
 | **Finding** | Something the analysis reports about a snapshot: every machine, and why one runs below 100%, a bottleneck, unused supply, or a source of unknown rate and how long its stock lasts (BR-A9, BR-A11 to A13). With where it stands in the game. | `SnapshotAnalysis`, `AnalysisResponse`, `GET /snapshots/{id}/analysis` |
 | **Curve** | How a belt or pipe runs as built: the points the save keeps for it, with the direction it leaves and arrives at each. The map draws belts by it. | `SavedCurvePoint`, `CurvePointDocument` |
@@ -65,14 +65,16 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Upstream / Downstream** | Upstream of a buildable is what feeds it; downstream is what it feeds. | `WorldGraph.Upstream`, `Downstream` |
 | **Machine** | A building that runs a recipe: smelter, constructor, assembler, refinery, … Has a recipe, a clock speed and somersloops. | `Machine` |
 | **Provider** | A building that brings items into the network from outside: miner, oil, water or resource well extractor, train, truck or drone station. Never part of a factory. Can supply several factories (BR-W1). | `Provider` |
-| **Factory** | A group of machines **the player defines** by its input items and its output belt. Its machines are found by tracing upstream from the output belt (BR-W2, BR-W3). A machine can be shared by several factories. Replaces the earlier "blueprint placed in the world" meaning. | `FactoryDefinition` |
-| **Output Belt** | The belt (or pipe) where a factory's merged output leaves it. Marked by the player. | `FactoryDefinition.OutputBelt` |
-| **Factory Members** | The machines and logistics that belong to a factory, traced from its output belt. | `FactoryMembers` |
-| **Factory Input** | An item the player declares as entering a factory. The input line starts at a splitter (BR-W4). | `FactoryDefinition.InputItems` |
+| **Factory** | A group of machines **the player selects** (BR-W2). Its logistics, outputs and inputs are derived per snapshot (BR-W3, BR-W4). A machine can be in several factories (BR-W5). Factories defined earlier by an output belt and input items were converted to their machines. | `FactoryDefinition`, `StoredFactory` |
+| **Output Belt** | *Before 2026-11-09:* the belt where a factory's merged output left it, marked by the player. Now only used to trace the machines of a factory defined that way, once (BR-W2). | `OutputBeltTrace` |
+| **Factory Members** | What belongs to a factory in one snapshot: its machines there, the logistics it owns, its outputs and inputs, its suppliers and producers. | `FactoryMembers` |
+| **Factory Output / Input** | Where a factory hands over to the world, or the world to it: its machine or logistics on the inside, what lies across (or nothing, at a storage container of its own), and the items (BR-W4). | `FactoryConnection` |
+| **Line** | Logistics connected to each other, with the machines, providers and consumers at its ends. A line belongs to a factory when every machine on it is the factory's; one that touches machines of several factories connects them (BR-W3). | `FactoryDefinition.OwnedLogistics` |
+| **Missing Machine** | A factory's machine that isn't in a snapshot, not even rebuilt (a machine of the same class within a metre of where it stood) (BR-W11). | `MachineMatch.Missing`, `FactoryTrace.Missing` |
 | **Consumer** | A building that takes items out of the network: AWESOME Sink, dimensional depot uploader, power generator, a station that loads. Never part of a factory (BR-W8). | `Consumer` |
 | **Generator** | A consumer that makes power by burning a fuel: coal, fuel, biomass, nuclear. Burning a known fuel, it takes only its **burn rate** (power ÷ the fuel's energy), needs water if it uses any, and leaves its **byproduct** (uranium or plutonium waste) (BR-A8, ADR-0021). | `Generator` (Catalog), `Generation` (World) |
 | **Burn rate** | How much fuel a generator burns a minute at full power: its power production ÷ the fuel's energy, × 60. For a drone port: what the drones refuelling there burn a minute, from their latest trips (BR-A16). | `Generator.BurnRate`, `Consumer.BurnRate`, `Provider.BurnRate` |
-| **Undeclared Output** | An item other than the output item that leaves a factory, to a sink or elsewhere. A finding (BR-W7). | (planned) |
+| **Undeclared Output** | *Superseded 2026-11-09 (BR-W7):* with several outputs per factory there's no single output item. | — |
 | **Logistics** | Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers, fluid buffers. A belt, lift or pipe has a **capacity** from its tier. | `Logistics`, `LogisticsKind`, `Logistics.Capacity` |
 
 ## Blueprint Design
