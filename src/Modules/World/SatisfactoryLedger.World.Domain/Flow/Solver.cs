@@ -562,11 +562,7 @@ internal sealed class Solver
         (double Room, ItemId? Item) tightest = (1, null);
         foreach (bool fluid in SteadyState.Forms)
         {
-            List<ItemId> products =
-            [
-                .. machine.Production.Where(product => product.Value > 0 && IsFluid(product.Key) == fluid)
-                    .Select(product => product.Key)
-            ];
+            List<ItemId> products = HoldingBack(machine, fluid);
             double making = products.Sum(product => machine.Production[product]);
             if (making <= 0)
             {
@@ -583,17 +579,23 @@ internal sealed class Solver
         return tightest;
     }
 
+    /// <summary>
+    /// The products of one form that can hold a machine back: all it makes, except what the save shows leaving it with
+    /// room for its next batch (BR-A7).
+    /// </summary>
+    private List<ItemId> HoldingBack(FlowMachine machine, bool fluid) =>
+    [
+        .. machine.Production.Where(product => product.Value > 0 && IsFluid(product.Key) == fluid && machine.Leaving?.Contains(product.Key) != true)
+            .Select(product => product.Key)
+    ];
+
     /// <summary>BR-A11: every product its outputs can't take all of at 100%, with the share they can take.</summary>
     private Dictionary<ItemId, double> BlockedProducts(int node, FlowMachine machine)
     {
         Dictionary<ItemId, double> blocked = [];
         foreach (bool fluid in SteadyState.Forms)
         {
-            List<ItemId> products =
-            [
-                .. machine.Production.Where(product => product.Value > 0 && IsFluid(product.Key) == fluid)
-                    .Select(product => product.Key)
-            ];
+            List<ItemId> products = HoldingBack(machine, fluid);
             double making = products.Sum(product => machine.Production[product]);
             if (making <= 0)
             {

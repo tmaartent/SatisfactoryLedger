@@ -122,9 +122,17 @@ public class WorldFlowTests
     }
 
     [Fact]
-    public void A_machine_with_room_for_its_next_batch_shows_its_products_leaving_even_with_a_backlog()
+    public void A_machine_with_room_for_more_than_its_next_batch_shows_its_products_leaving_even_with_a_backlog()
     {
-        Assert.True(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 85, batch: 15)));
+        Assert.True(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 84, batch: 15)));
+    }
+
+    [Fact]
+    public void A_machine_with_room_for_just_its_next_batch_is_backing_up()
+    {
+        // A backed-up machine fills its slot, waits until one batch fits again, and fills it: its slot always sits
+        // between the stack less a batch and the stack. Your power shard encoder: 99 of 100, a batch of 1.
+        Assert.False(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 85, batch: 15)));
     }
 
     [Fact]
@@ -172,6 +180,22 @@ public class WorldFlowTests
             .Connect("smelter", "in", "split", "a", "box a").Connect("split", "b", "box b");
 
         Assert.Equal(15, Assert.IsType<FlowSink>(Node(world, "box a")).Inventory!.Arriving[Items.IronIngot]);
+    }
+
+    [Fact]
+    public void A_machine_the_save_shows_with_room_for_its_next_batch_has_its_products_leaving()
+    {
+        TestWorld world = new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 0, batch: 1, stackSize: 100);
+
+        Assert.Equal([Items.IronIngot], Assert.IsType<FlowMachine>(Node(world, "smelter")).Leaving);
+    }
+
+    [Fact]
+    public void A_machine_whose_next_batch_does_not_fit_has_nothing_leaving()
+    {
+        TestWorld world = new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 100, batch: 1, stackSize: 100);
+
+        Assert.Empty(Assert.IsType<FlowMachine>(Node(world, "smelter")).Leaving ?? new HashSet<ItemId>());
     }
 
     [Fact]

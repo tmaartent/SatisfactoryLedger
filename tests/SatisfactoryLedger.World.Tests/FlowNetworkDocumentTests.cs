@@ -31,7 +31,8 @@ public class FlowNetworkDocumentTests
             new FlowConduit(Id("water"), 300, Carries.Fluids),
             new FlowMerger(Id("merge"), Carries.Solids, [2, 0]),
             new FlowSplitter(Id("split"), Carries.Solids, [new SortRule(0, SortRuleKind.Any), new SortRule(1, SortRuleKind.Overflow)]),
-            new FlowMachine(Id("smelter"), new Dictionary<ItemId, double> { [Ore] = 30 }, new Dictionary<ItemId, double> { [Ingot] = 30 }),
+            new FlowMachine(Id("smelter"), new Dictionary<ItemId, double> { [Ore] = 30 }, new Dictionary<ItemId, double> { [Ingot] = 30 },
+                Leaving: new HashSet<ItemId> { Ingot }),
             new FlowSink(Id("sink"), new HashSet<ItemId> { Fuel }, BurnRate: 2.25),
             new FlowSink(Id("overflow"), Inventory: Domain.Inventory.OfSlots(48, new Dictionary<ItemId, decimal> { [Ingot] = 150 }, new Dictionary<ItemId, int> { [Ingot] = 100 }) with
             {
@@ -91,6 +92,14 @@ public class FlowNetworkDocumentTests
         var station = Assert.IsType<FlowUnknownSource>(Node("station"));
         Assert.Equal((1800.0, true), (station.Stock[Ore], station.Burns!.Contains(Fuel)));
         Assert.Equal([Water], network.Fluids);
+    }
+
+    [Fact]
+    public void What_a_machine_shows_leaving_survives_the_document()
+    {
+        FlowMachine smelter = Assert.IsType<FlowMachine>(RoundTrip(Network()).Nodes.Single(node => node.Id == Id("smelter")));
+
+        Assert.Equal([Ingot], smelter.Leaving);
     }
 
     [Fact]

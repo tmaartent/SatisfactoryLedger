@@ -34,7 +34,7 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
 
         Assert.True(analysis["settled"]!.GetValue<bool>());
         Assert.Equal(
-            """{"machines":5,"running":3,"starved":1,"outputBlocked":1,"noRecipe":0}""",
+            """{"machines":5,"running":4,"starved":1,"outputBlocked":0,"noRecipe":0}""",
             analysis["summary"]!.ToJsonString());
     }
 
@@ -43,12 +43,14 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
     {
         JsonNode analysis = await AnalyseTestWorldAsync();
 
-        JsonNode smelterA = analysis["machines"]!.AsArray()
-            .Single(machine => machine!["id"]!.GetValue<string>().EndsWith("Build_SmelterMk1_C_2147301226", StringComparison.Ordinal))!;
-        Assert.Equal("outputBlocked", smelterA["limit"]!.GetValue<string>());
-        Assert.Equal(0.4167, smelterA["utilisation"]!.GetValue<double>());
-        Assert.Equal("Recipe_IngotIron_C", smelterA["recipe"]!.GetValue<string>());
-        Assert.NotNull(smelterA["position"]!["x"]);
+        // The rod constructor gets no ingots. Smelter A, output blocked here before 2026-11-10, has room for its next
+        // batch in the save (98 of 100 waiting), so it runs (BR-A7).
+        JsonNode rods = analysis["machines"]!.AsArray()
+            .Single(machine => machine!["id"]!.GetValue<string>().EndsWith("Build_ConstructorMk1_C_2147275293", StringComparison.Ordinal))!;
+        Assert.Equal("starved", rods["limit"]!.GetValue<string>());
+        Assert.Equal(0, rods["utilisation"]!.GetValue<double>());
+        Assert.Equal("Recipe_IronRod_C", rods["recipe"]!.GetValue<string>());
+        Assert.NotNull(rods["position"]!["x"]);
     }
 
     [Fact]
@@ -69,7 +71,7 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
 
         JsonNode miner = analysis["unusedSupply"]!.AsArray()
             .Single(supply => supply!["id"]!.GetValue<string>().EndsWith("Build_MinerMk1_C_2147339296", StringComparison.Ordinal))!;
-        Assert.Equal((60, 22.5), (miner["offered"]!.GetValue<double>(), miner["delivered"]!.GetValue<double>()));
+        Assert.Equal((60, 40), (miner["offered"]!.GetValue<double>(), miner["delivered"]!.GetValue<double>()));
     }
 
     [Fact]

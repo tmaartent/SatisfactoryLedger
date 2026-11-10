@@ -483,6 +483,21 @@ public class SteadyStateTests
         Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
     }
 
+    [Fact]
+    public void A_machine_the_save_shows_with_room_for_its_next_batch_is_not_output_blocked()
+    {
+        // Your cooling system blenders make a little more than the machines after them take; the surplus is still
+        // filling the belts, and their output slots are empty. Trust the save: they run (decided 2026-11-10).
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").MachineLeaving("smelter", Ore, 30, Ingot, 30)
+            .Belt("ingots").Machine("constructor", Ingot, 20, Plate, 20).Belt("plates").Sink("sink")
+            .Connect("miner", "ore", "smelter", "ingots", "constructor", "plates", "sink")
+            .Run();
+
+        MachineState smelter = result.Machine(Id("smelter"));
+        Assert.Equal((1.0, MachineLimit.None), (smelter.Utilisation, smelter.Limit));
+    }
+
     // ---- BR-A5: mergers ---------------------------------------------------------------------------------------
 
     [Fact]

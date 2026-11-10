@@ -37,9 +37,10 @@ public sealed record AnalysisDocument(
     /// Version 10: a belt into a machine that brings less than its share, or nothing, leaves the rest to the others
     /// (BR-A1).
     /// Version 11: an empty station carries what the stations its lines meet hold (BR-A9).
+    /// Version 12: a machine the save shows with room for its next batch is never output blocked (BR-A7).
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 

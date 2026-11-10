@@ -41,7 +41,8 @@ internal sealed class TestWorld
     /// <paramref name="waitingToLeave"/> of its output; null when the save says nothing about its output.
     /// </summary>
     /// <param name="batch">What one cycle makes of its output; null when that isn't known.</param>
-    public TestWorld MachineWaiting(string id, ItemId input, ItemId output, decimal holds, decimal? waitingToLeave, decimal? batch = null) =>
+    /// <param name="stackSize">How many of its output fit in a slot; null when that isn't known.</param>
+    public TestWorld MachineWaiting(string id, ItemId input, ItemId output, decimal holds, decimal? waitingToLeave, decimal? batch = null, int? stackSize = null) =>
         Add(new Machine(
             BuildableId.Of(id),
             new Recipe(PerMinute([input], 30), PerMinute([output], 30))
@@ -52,6 +53,7 @@ internal sealed class TestWorld
         {
             InputStock = new Dictionary<ItemId, decimal> { [input] = holds },
             OutputStock = waitingToLeave is { } waiting ? new Dictionary<ItemId, decimal> { [output] = waiting } : null,
+            StackSizes = stackSize is { } size ? new Dictionary<ItemId, int> { [output] = size } : new Dictionary<ItemId, int>(),
         });
 
     /// <summary>A generator burning <paramref name="burns"/> of <paramref name="fuel"/> a minute, holding <paramref name="holds"/> of it (BR-A17).</summary>
