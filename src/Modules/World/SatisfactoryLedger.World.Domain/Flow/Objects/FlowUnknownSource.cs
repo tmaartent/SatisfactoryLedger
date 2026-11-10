@@ -6,6 +6,7 @@ namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 /// The fuel it burns, for a drone port or truck station: fuel coming in takes only what the line's other consumers
 /// leave. Everything else coming in, it takes like a consumer.
 /// </param>
+/// <param name="Inventory">A station's inventory: what's loaded onto it while it unloads, only while it fits (BR-A7).</param>
 /// <param name="BurnRate">
 /// For a drone port, how much of its fuel it burns per minute when that's known (BR-A16): it then takes its fuel like
 /// any consumer, up to that rate.
@@ -15,4 +16,5 @@ public sealed record FlowUnknownSource(
     IReadOnlyDictionary<ItemId, double> Stock,
     Carries Carries = Carries.Anything,
     IReadOnlySet<ItemId>? Burns = null,
-    double? BurnRate = null) : FlowNode(Id);
+    double? BurnRate = null,
+    Inventory? Inventory = null) : FlowNode(Id);

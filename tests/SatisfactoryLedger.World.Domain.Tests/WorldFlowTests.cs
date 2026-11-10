@@ -76,6 +76,104 @@ public class WorldFlowTests
         Assert.IsType<FlowSink>(Node(world, "box"));
     }
 
+    private static readonly Inventory Full = Inventory.OfSlots(1, new Dictionary<ItemId, decimal> { [Items.IronOre] = 100 }, new Dictionary<ItemId, int> { [Items.IronOre] = 100 });
+
+    [Fact]
+    public void A_container_at_the_end_of_a_line_takes_only_what_fits_in_its_inventory()
+    {
+        TestWorld world = new TestWorld().Belt("belt").Container("box", Full).Connect("belt", "box");
+
+        Assert.Same(Full, Assert.IsType<FlowSink>(Node(world, "box")).Inventory);
+    }
+
+    [Fact]
+    public void A_station_that_loads_takes_only_what_fits_in_its_inventory()
+    {
+        TestWorld world = new TestWorld().Belt("belt").LoadingStation("station", Full).Connect("belt", "station");
+
+        Assert.Same(Full, Assert.IsType<FlowSink>(Node(world, "station")).Inventory);
+    }
+
+    // A container with one slot, full of 100 ingots: on its own it takes no more.
+    private static readonly Inventory FullOfIngots =
+        Inventory.OfSlots(1, new Dictionary<ItemId, decimal> { [Items.IronIngot] = 100 }, new Dictionary<ItemId, int> { [Items.IronIngot] = 100 });
+
+    private static bool TakesIngots(TestWorld world) =>
+        Assert.IsType<FlowSink>(Node(world.Belt("belt").Container("box", FullOfIngots).Connect("smelter", "belt", "box"), "box")).Inventory!.Takes(Items.IronIngot);
+
+    [Fact]
+    public void A_full_container_still_takes_what_a_running_machine_feeding_it_has_room_to_send()
+    {
+        // The smelter holds ore and has no ingots waiting to leave: at save time its ingots were leaving.
+        Assert.True(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 0)));
+    }
+
+    [Fact]
+    public void A_full_container_takes_nothing_from_a_machine_with_a_full_stack_waiting_to_leave()
+    {
+        Assert.False(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 100)));
+    }
+
+    [Fact]
+    public void A_machine_whose_next_batch_would_not_fit_shows_nothing_leaving()
+    {
+        // A batch is 15 ingots: with 90 of 100 waiting, the next one doesn't fit, so the smelter waits.
+        Assert.False(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 90, batch: 15)));
+    }
+
+    [Fact]
+    public void A_machine_with_room_for_its_next_batch_shows_its_products_leaving_even_with_a_backlog()
+    {
+        Assert.True(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 85, batch: 15)));
+    }
+
+    [Fact]
+    public void A_machine_holding_none_of_an_input_shows_nothing_leaving()
+    {
+        // An empty output slot of a machine that can't run proves nothing about the container.
+        Assert.False(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 0, waitingToLeave: 0)));
+    }
+
+    [Fact]
+    public void A_full_container_takes_nothing_when_the_save_says_nothing_about_what_waits_to_leave()
+    {
+        Assert.False(TakesIngots(new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: null)));
+    }
+
+    [Fact]
+    public void A_full_station_still_takes_what_a_running_machine_feeding_it_through_a_splitter_has_room_to_send()
+    {
+        TestWorld world = new TestWorld().MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 3)
+            .Belt("in").Splitter("split").Belt("out").LoadingStation("station", FullOfIngots).Connect("smelter", "in", "split", "out", "station");
+
+        Assert.True(Assert.IsType<FlowSink>(Node(world, "station")).Inventory!.Takes(Items.IronIngot));
+    }
+
+    [Fact]
+    public void What_arrives_at_a_full_container_is_what_the_machines_showing_it_leaving_make()
+    {
+        // Two smelters of 30 a minute: one with room in its output, one with a full stack waiting (blocked).
+        TestWorld world = new TestWorld()
+            .MachineWaiting("running", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 0)
+            .MachineWaiting("blocked", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 100)
+            .Belt("a").Belt("b").Merger("merge").Belt("belt").Container("box", FullOfIngots)
+            .Connect("running", "a", "merge", "belt", "box").Connect("blocked", "b", "merge");
+
+        Assert.Equal(30, Assert.IsType<FlowSink>(Node(world, "box")).Inventory!.Arriving[Items.IronIngot]);
+    }
+
+    [Fact]
+    public void A_machine_whose_line_reaches_several_full_containers_shares_what_it_sends_over_them()
+    {
+        // One running smelter of 30 a minute, split over two full containers: 15 arrives at each, not 30 at both.
+        TestWorld world = new TestWorld()
+            .MachineWaiting("smelter", Items.IronOre, Items.IronIngot, holds: 50, waitingToLeave: 0)
+            .Belt("in").Splitter("split").Belt("a").Belt("b").Container("box a", FullOfIngots).Container("box b", FullOfIngots)
+            .Connect("smelter", "in", "split", "a", "box a").Connect("split", "b", "box b");
+
+        Assert.Equal(15, Assert.IsType<FlowSink>(Node(world, "box a")).Inventory!.Arriving[Items.IronIngot]);
+    }
+
     [Fact]
     public void A_container_inside_a_line_passes_items_through()
     {

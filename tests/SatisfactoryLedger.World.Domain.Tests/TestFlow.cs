@@ -54,6 +54,10 @@ internal sealed class TestFlow
 
     public TestFlow Sink(string id) => Add(new FlowSink(Id(id)));
 
+    /// <summary>Something with an inventory at the end of a line (BR-A7): a container, a station that loads, an uploader.</summary>
+    public TestFlow Inventory(string id, Inventory inventory, bool leftoversOnly = false) =>
+        Add(new FlowSink(Id(id), LeftoversOnly: leftoversOnly, Inventory: inventory));
+
     /// <summary>A dimensional depot uploader: takes only what the line's other consumers leave (BR-A8).</summary>
     public TestFlow Uploader(string id) => Add(new FlowSink(Id(id), LeftoversOnly: true));
 

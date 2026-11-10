@@ -6,7 +6,7 @@ namespace SatisfactoryLedger.World.Simulation;
 /// <summary>
 /// Per connection, the items that can reach it: from where they enter (a provider's item, a machine's products, what a
 /// source of unknown rate is asked for), along logistics, as far as each connection carries their form (BR-A3) and the
-/// buildable at its end takes them. The linear programme has a flow variable for these only.
+/// buildable at its end takes them: a machine what it asks for, an inventory what still fits (BR-A7). The linear programme has a flow variable for these only.
 /// </summary>
 internal sealed class ItemsOnConnections
 {
@@ -86,7 +86,14 @@ internal sealed class ItemsOnConnections
 
     private void Offer(int edge, ItemId item)
     {
-        bool takes = _network.Nodes[_network.Edges[edge].To] is not FlowMachine machine || machine.Demand.ContainsKey(item);
+        bool takes = _network.Nodes[_network.Edges[edge].To] switch
+        {
+            FlowMachine machine => machine.Demand.ContainsKey(item),
+            // BR-A7: an inventory at the end of a line takes an item only while it fits.
+            FlowSink { Inventory: { } inventory } => inventory.Takes(item),
+            FlowUnknownSource { Inventory: { } inventory } => inventory.Takes(item),
+            _ => true,
+        };
         if (CanCarry(edge, item) && takes && _items[edge].Add(item))
         {
             _toPass.Enqueue((edge, item));

@@ -95,6 +95,13 @@ internal static class GameClasses
         : null;
 
     /// <summary>
+    /// BR-A7: the inventory that holds what a station loads, before a vehicle takes it. A train or truck station has one
+    /// for both ways; a drone port keeps what it sends (<c>InputInventory</c>) apart from what its drones bring.
+    /// </summary>
+    public static string? LoadingInventoryOf(string className) =>
+        className == "Build_DroneStation_C" ? "InputInventory" : StockInventoryOf(className);
+
+    /// <summary>
     /// Which output of a splitter (<c>Output1</c> is 0) or input of a merger (<c>Input1</c> is 0) a port is: a smart
     /// splitter's rules and a priority merger's priorities count them like that. Null for every other port.
     /// </summary>

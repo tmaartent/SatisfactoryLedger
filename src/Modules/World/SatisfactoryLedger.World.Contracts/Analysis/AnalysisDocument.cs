@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace SatisfactoryLedger.World.Contracts.Analysis;
 
@@ -30,9 +30,11 @@ public sealed record AnalysisDocument(
     /// Version 6: every input a machine is short of, and every product that can't leave, with their shares (BR-A11).
     /// Version 7: the sweeps start from the most that can flow (ADR-0026), so loops and regions that wait on each other
     /// are no longer found standing still.
+    /// Version 8: a full inventory at the end of a line takes nothing, unless the save shows items still arriving
+    /// (BR-A7); in a loop, what the loop makes comes back first, before what comes from outside it (BR-A10).
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 

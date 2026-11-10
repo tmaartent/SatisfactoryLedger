@@ -31,6 +31,7 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         var footprints = CatalogEntries.Reconcile(await db.Footprints.ToListAsync(cancellationToken), fromGame.Footprints);
         var generators = CatalogEntries.Reconcile(await db.Generators.ToListAsync(cancellationToken), fromGame.Generators);
         var dronePorts = CatalogEntries.Reconcile(await db.DronePorts.ToListAsync(cancellationToken), fromGame.DronePorts);
+        var storages = CatalogEntries.Reconcile(await db.Storages.ToListAsync(cancellationToken), fromGame.Storages);
 
         db.Items.AddRange(items.Added);
         db.Buildings.AddRange(buildings.Added);
@@ -40,9 +41,10 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         db.Footprints.AddRange(footprints.Added);
         db.Generators.AddRange(generators.Added);
         db.DronePorts.AddRange(dronePorts.Added);
+        db.Storages.AddRange(storages.Added);
 
         var import = CatalogImport.RecordDocs(CatalogImportId.New(), command.GameVersion, clock.GetUtcNow(),
-            items, buildings, transportTiers, recipes, extractors, footprints, generators, dronePorts);
+            items, buildings, transportTiers, recipes, extractors, footprints, generators, dronePorts, storages);
         db.Imports.Add(import);
 
         await db.SaveChangesAsync(cancellationToken);
@@ -63,7 +65,8 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
                 SatisfactoryTranslator.TranslateToExtractors(groups),
                 SatisfactoryTranslator.TranslateToFootprints(groups),
                 SatisfactoryTranslator.TranslateToGenerators(groups),
-                SatisfactoryTranslator.TranslateToDronePorts(groups));
+                SatisfactoryTranslator.TranslateToDronePorts(groups),
+                SatisfactoryTranslator.TranslateToStorages(groups));
         }
         catch (Exception e) when (e is JsonException or ArgumentException or KeyNotFoundException or FormatException)
         {

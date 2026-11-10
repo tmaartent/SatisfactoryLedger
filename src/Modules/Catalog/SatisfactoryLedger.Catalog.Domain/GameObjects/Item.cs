@@ -4,18 +4,21 @@ namespace SatisfactoryLedger.Catalog.Domain.GameObjects;
 
 public class Item : ICatalogEntry<Item>
 {
-    private Item(ItemId id, string name, ItemForm itemForm, bool isRawResource)
+    private Item(ItemId id, string name, ItemForm itemForm, bool isRawResource, int stackSize)
     {
         Id = id;
         Name = name;
         ItemForm = itemForm;
         IsRawResource = isRawResource;
+        StackSize = stackSize;
     }
 
-    public static Item Create(ItemId id, string name, ItemForm itemForm, bool isRawResource)
+    /// <param name="stackSize">How many fit in one inventory slot (BR-A7); 0 for a fluid, which doesn't go in slots.</param>
+    public static Item Create(ItemId id, string name, ItemForm itemForm, bool isRawResource, int stackSize = 0)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
-        return new Item(id, name, itemForm, isRawResource);
+        ArgumentOutOfRangeException.ThrowIfNegative(stackSize);
+        return new Item(id, name, itemForm, isRawResource, stackSize);
     }
     
     private bool Equals(Item other)
@@ -41,6 +44,9 @@ public class Item : ICatalogEntry<Item>
     
     public bool IsRawResource { get; private set; }
 
+    /// <summary>How many fit in one inventory slot (BR-A7); 0 for a fluid.</summary>
+    public int StackSize { get; private set; }
+
     public bool IsInGame { get; private set; } = true;
 
     public void UpdateFromGame(Item fromGame)
@@ -53,6 +59,7 @@ public class Item : ICatalogEntry<Item>
         Name = fromGame.Name;
         ItemForm = fromGame.ItemForm;
         IsRawResource = fromGame.IsRawResource;
+        StackSize = fromGame.StackSize;
         IsInGame = true;
     }
 

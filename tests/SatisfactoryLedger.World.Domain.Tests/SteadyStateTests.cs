@@ -3,6 +3,8 @@ using SatisfactoryLedger.World.Domain.Flow.Objects;
 
 using static SatisfactoryLedger.World.Domain.Tests.TestFlow;
 
+using BuildableInventory = SatisfactoryLedger.World.Domain.Inventory;
+
 namespace SatisfactoryLedger.World.Domain.Tests;
 
 /// <summary>The steady-state flow simulation (BR-A1 to BR-A10), on small hand-built networks.</summary>
@@ -339,6 +341,61 @@ public class SteadyStateTests
         Assert.Equal(1.0, result.Machine(Id("collider")).Utilisation, Precision);
     }
 
+    private static readonly ItemId Bauxite = ItemId.Of("Desc_OreBauxite_C");
+    private static readonly ItemId AluminaSolution = ItemId.Of("Desc_AluminaSolution_C");
+    private static readonly ItemId AluminumScrap = ItemId.Of("Desc_AluminumScrap_C");
+
+    /// <summary>
+    /// The owner's aluminium loop: the alumina refinery needs 10 water, 6 of which the scrap refinery gives back; a
+    /// pump brings the rest. Both meet in one pipe junction, or come straight into the refinery.
+    /// </summary>
+    private static FlowResult AluminiumLoop(double pump, bool junction = true)
+    {
+        TestFlow flow = new TestFlow()
+            .Fluid(Water).Fluid(AluminaSolution)
+            .Provider("bauxite", Bauxite, 10).Belt("bauxite belt")
+            .Provider("pump", Water, pump).Pipe("pump pipe")
+            .Machine("alumina refinery", [(Bauxite, 10), (Water, 10)], [(AluminaSolution, 12)]).Pipe("solution")
+            .Machine("scrap refinery", [(AluminaSolution, 12)], [(AluminumScrap, 18), (Water, 6)]).Pipe("water back")
+            .Belt("scrap").Sink("smelters")
+            .Connect("bauxite", "bauxite belt", "alumina refinery", "solution", "scrap refinery", "scrap", "smelters")
+            .Connect("scrap refinery", "water back");
+        return junction
+            ? flow.PipeNetwork("junction").Pipe("water in")
+                .Connect("pump", "pump pipe", "junction").Connect("water back", "junction", "water in", "alumina refinery").Run()
+            : flow.Connect("pump", "pump pipe", "alumina refinery").Connect("water back", "alumina refinery").Run();
+    }
+
+    [Fact]
+    public void A_loop_takes_back_its_own_byproduct_before_what_a_pump_brings()
+    {
+        // The pump brings 3.99 of the 4 the loop lacks. In the game the byproduct goes first, so only the pump's
+        // shortfall slows the loop: 10u = 3.99 + 6u, u = 99.75%. Served evenly, the cut would land on the water
+        // coming back, grow every round, and wind the loop down to nothing.
+        FlowResult result = AluminiumLoop(pump: 3.99);
+
+        Assert.Equal(0.9975, result.Machine(Id("alumina refinery")).Utilisation, Precision);
+        Assert.Equal(0.9975, result.Machine(Id("scrap refinery")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_machine_in_a_loop_takes_its_own_byproduct_first_over_its_inputs_too()
+    {
+        FlowResult result = AluminiumLoop(pump: 3.99, junction: false);
+
+        Assert.Equal(0.9975, result.Machine(Id("alumina refinery")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void In_a_loop_the_pump_is_what_waits_when_there_is_more_water_than_needed()
+    {
+        FlowResult result = AluminiumLoop(pump: 5);
+
+        Assert.Equal(1, result.Machine(Id("scrap refinery")).Utilisation, Precision);
+        Assert.Equal(6, result.Flow(Id("water back"), Id("junction"), Water), Precision);
+        Assert.Equal(4, result.Flow(Id("pump pipe"), Id("junction"), Water), Precision);
+    }
+
     [Fact]
     public void A_loop_that_gives_back_too_little_winds_down()
     {
@@ -452,6 +509,63 @@ public class SteadyStateTests
 
         Assert.Equal(480, result.Flow(Id("belt"), Id("sink"), Ore), Precision);
         Assert.Empty(result.UnusedSupply);
+    }
+
+    // ---- BR-A7: an inventory at the end of a line takes everything until it's full ------------------------------
+
+    private static FlowResult IntoInventory(Inventory inventory, bool leftoversOnly = false) => new TestFlow()
+        .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots")
+        .Inventory("container", inventory, leftoversOnly)
+        .Connect("miner", "ore", "smelter", "ingots", "container")
+        .Run();
+
+    private static readonly Dictionary<ItemId, int> IngotStacks = new() { [Ingot] = 100 };
+
+    [Fact]
+    public void A_container_at_the_end_of_a_line_with_room_takes_everything()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfSlots(24, new Dictionary<ItemId, decimal> { [Ingot] = 100 }, IngotStacks));
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_full_container_at_the_end_of_a_line_takes_nothing_and_its_machine_is_output_blocked()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfSlots(24, new Dictionary<ItemId, decimal> { [Ingot] = 2400 }, IngotStacks));
+
+        MachineState smelter = result.Machine(Id("smelter"));
+        Assert.Equal((0.0, MachineLimit.OutputBlocked), (smelter.Utilisation, smelter.Limit));
+    }
+
+    [Fact]
+    public void A_full_container_takes_only_as_much_as_the_save_shows_arriving()
+    {
+        // The smelter makes 30 a minute; the machines that showed ingots leaving make 20 of them.
+        FlowResult result = IntoInventory(BuildableInventory.OfSlots(24, new Dictionary<ItemId, decimal> { [Ingot] = 2400 }, IngotStacks) with
+        {
+            Arriving = new Dictionary<ItemId, double> { [Ingot] = 20 },
+        });
+
+        MachineState smelter = result.Machine(Id("smelter"));
+        Assert.Equal(2.0 / 3, smelter.Utilisation, Precision);
+        Assert.Equal(MachineLimit.OutputBlocked, smelter.Limit);
+    }
+
+    [Fact]
+    public void A_full_depot_takes_nothing_more_of_that_item()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfDepot(new Dictionary<ItemId, decimal> { [Ingot] = 500 }, IngotStacks, stacks: 5), leftoversOnly: true);
+
+        Assert.Equal(0.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_depot_full_of_another_item_still_takes_this_one()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfDepot(new Dictionary<ItemId, decimal> { [Ore] = 500, [Ingot] = 300 }, new Dictionary<ItemId, int> { [Ore] = 100, [Ingot] = 100 }, stacks: 5), leftoversOnly: true);
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
     }
 
     // ---- BR-A9: sources with an unknown rate ------------------------------------------------------------------
@@ -836,6 +950,22 @@ public class SteadyStateTests
         FlowResult result = FuelLine(flow => flow.LoadingStationBurning("station", RocketFuel, 10)).Run();
 
         Assert.Equal(10, result.Flow(Id("to station"), Id("station"), RocketFuel), Precision);
+    }
+
+    [Fact]
+    public void A_station_takes_back_none_of_what_it_supplies_itself_as_fuel()
+    {
+        // Your drone port that brings rocket fuel refuels itself from its own cargo, through a splitter that also feeds
+        // the port beside it. Fuel going round from a station into itself gains nothing: no flow, not a full belt.
+        FlowResult result = new TestFlow()
+            .StationBurning("fuel port", RocketFuel).Belt("out").Splitter("split").Belt("back").Belt("on")
+            .LoadingStationBurning("ingot port", RocketFuel, 2)
+            .Connect("fuel port", "out", "split", "back", "fuel port")
+            .Connect("split", "on", "ingot port")
+            .Run();
+
+        Assert.Equal(0, result.Flow(Id("back"), Id("fuel port"), RocketFuel), Precision);
+        Assert.Equal(2, result.Flow(Id("on"), Id("ingot port"), RocketFuel), Precision);
     }
 
     [Fact]

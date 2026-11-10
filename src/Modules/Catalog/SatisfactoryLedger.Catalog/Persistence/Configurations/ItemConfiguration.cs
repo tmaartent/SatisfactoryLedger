@@ -17,6 +17,7 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         item.Property(i => i.Name);
         item.Property(i => i.ItemForm).HasConversion<string>();
         item.Property(i => i.IsRawResource);
+        item.Property(i => i.StackSize);
         item.Property(i => i.IsInGame);
     }
 }

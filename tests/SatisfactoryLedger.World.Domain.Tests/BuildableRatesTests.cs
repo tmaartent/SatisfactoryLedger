@@ -12,6 +12,14 @@ public class BuildableRatesTests
         new Dictionary<ItemId, Rate> { [Items.IronPlate] = Rate.PerMinute(20) });
 
     [Fact]
+    public void A_machine_with_somersloops_makes_a_bigger_batch_each_cycle()
+    {
+        var machine = new Machine(Id, IronPlate with { Batches = new Dictionary<ItemId, decimal> { [Items.IronPlate] = 2 } }, ClockSpeed.Percent(100), productionBoost: 2);
+
+        Assert.Equal(4, machine.Batches[Items.IronPlate]);
+    }
+
+    [Fact]
     public void A_machine_asks_its_recipe_rate_times_its_clock_speed()
     {
         var machine = new Machine(Id, IronPlate, ClockSpeed.Percent(150));

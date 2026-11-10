@@ -33,4 +33,11 @@ public sealed class Provider(
 
     /// <summary>What it holds now, per item. Empty when it holds nothing or that isn't known. Decides confirmed supplied (BR-A9).</summary>
     public IReadOnlyDictionary<ItemId, decimal> Stock { get; } = stock ?? new Dictionary<ItemId, decimal>();
+
+    /// <summary>
+    /// Its inventory, when the Catalog knows its size: at the end of a line it takes an item only while that fits
+    /// (BR-A7). Null when its size isn't known; it then takes everything, as before.
+    /// </summary>
+    public Inventory? Inventory { get; init; }
+
 }

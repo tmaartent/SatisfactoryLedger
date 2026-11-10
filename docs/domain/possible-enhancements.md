@@ -6,6 +6,15 @@ Ideas for practising AI engineering on this project (an MCP server, evals, RAG, 
 
 ## Flow analysis
 
+### Whether vehicles load at a station, and how fast
+*Raised 2026-11-10, step 30.*
+
+**What:** read the train timetables, truck routes and drone pairings from the save, to know whether a vehicle loads at a station and roughly how much it takes away per minute.
+
+**Why:** BR-A7 now judges a full station by what the save shows arriving: a running machine feeding it with room in its output. That says *that* something empties it, not *how fast*. Once casings arrive, the station takes all of them, so the casing assemblers use every ingot, and the sheet assemblers sharing those smelters are found short of ingots. In the game the casing line partly backs up and the sheets get their ingots.
+
+**What it would take:** the save's railroad subsystem (timetables, stops, rules per stop), the truck and drone route data, the cargo per trip and the round trip time. A lot of tables for a rate that's still an estimate.
+
 ### An exact steady state, as a linear programme
 *Raised 2026-11-05, step 13.*
 

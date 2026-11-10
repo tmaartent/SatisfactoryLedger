@@ -27,7 +27,10 @@ internal sealed record SnapshotDocument(
     IReadOnlyList<string> Fluids,
     IReadOnlyList<FootprintDocument>? Footprints = null,
     IReadOnlyList<GeneratorDocument>? Generators = null,
-    IReadOnlyList<DronePortDocument>? DronePorts = null)
+    IReadOnlyList<DronePortDocument>? DronePorts = null,
+    IReadOnlyList<StorageDocument>? Storages = null,
+    IReadOnlyDictionary<string, int>? StackSizes = null,
+    IReadOnlyDictionary<string, decimal>? DepotStock = null)
 {
     /// <summary>
     /// Version 2 added extractors, transport tiers, resource nodes and fluids; a version 1 snapshot has none of them.
@@ -44,8 +47,11 @@ internal sealed record SnapshotDocument(
     /// Version 10 added the volumes of footprints, to draw buildings in 3D; a version 9 snapshot has none.
     /// Version 11 gave lifts a curve, straight from where they stand to their top, to draw them at full height; in a
     /// version 10 snapshot lifts have none, and stay a point on the map and a cube in 3D.
+    /// Version 12 added what inventories hold and how much fits (BR-A7): the storage sizes, the stack sizes of what's
+    /// held, what loading stations and the dimensional depot hold. In a version 11 snapshot everything takes everything,
+    /// as before.
     /// </summary>
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -71,6 +77,7 @@ internal sealed record SnapshotDocument(
         HashSet<string> fuelsHeld = [.. saved.Buildables.SelectMany(buildable => buildable.Burns ?? new HashSet<string>())];
         List<DronePortDocument> dronePorts = [.. (catalog.DronePorts ?? []).Where(port => classes.Contains(port.Id))
             .OrderBy(port => port.Id, StringComparer.Ordinal).Select(port => DronePortDocument.From(port, fuelsHeld))];
+        HashSet<string> held = ItemsHeld(saved);
 
         return new SnapshotDocument(
             CurrentVersion,
@@ -90,8 +97,20 @@ internal sealed record SnapshotDocument(
                     [.. footprint.Volumes.Select(v => new VolumeDocument(
                         v.MinX, v.MinY, v.MinZ, v.MaxX, v.MaxY, v.MaxZ, v.RotationX, v.RotationY, v.RotationZ, v.RotationW, v.OffsetX, v.OffsetY, v.OffsetZ))]))],
             generators,
-            dronePorts);
+            dronePorts,
+            [.. (catalog.Storages ?? []).Where(storage => classes.Contains(storage.Id)).OrderBy(storage => storage.Id, StringComparer.Ordinal)
+                .Select(storage => new StorageDocument(storage.Id, storage.Slots, storage.FluidCubicMetres))],
+            catalog.Items.Where(item => held.Contains(item.Id) && item.StackSize > 0)
+                .ToDictionary(item => item.Id, item => item.StackSize, StringComparer.Ordinal),
+            saved.DepotStock.Count > 0 ? saved.DepotStock : null);
     }
+
+    /// <summary>What any inventory of the save holds, and what the dimensional depot holds: their stack sizes decide "full" (BR-A7).</summary>
+    public static HashSet<string> ItemsHeld(SavedWorld saved) =>
+    [
+        .. saved.Buildables.SelectMany(buildable => buildable.Stock?.Keys ?? Enumerable.Empty<string>()),
+        .. saved.DepotStock.Keys,
+    ];
 
     /// <summary>The items a save's recipes take and make, and its providers extract.</summary>
     public static HashSet<string> ItemsUsed(
@@ -116,7 +135,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),
@@ -142,12 +161,28 @@ internal sealed record SnapshotDocument(
             Extractors.ToDictionary(extractor => extractor.Id, StringComparer.Ordinal),
             TransportTiers.ToDictionary(tier => tier.Id, StringComparer.Ordinal),
             ResourceNodes.ToDictionary(node => node.Name, StringComparer.Ordinal),
-            (Generators ?? []).ToDictionary(generator => generator.Id, StringComparer.Ordinal));
+            (Generators ?? []).ToDictionary(generator => generator.Id, StringComparer.Ordinal))
+        {
+            Storages = (Storages ?? []).ToDictionary(storage => storage.Id, StringComparer.Ordinal),
+            StackSizes = StackSizesOf(),
+            Depot = DepotStock is { Count: > 0 } depot ? DepotOf(depot) : null,
+        };
 
         IReadOnlyDictionary<BuildableId, Rate> burnRates = DroneBurnRates();
         return new WorldGraph(
             Buildables.Select(buildable => buildable.ToBuildable(copied, burnRates.TryGetValue(BuildableId.Of(buildable.Id), out Rate? rate) ? rate : null)),
             Connections.Select(connection => new Connection(BuildableId.Of(connection.From), BuildableId.Of(connection.To), connection.FromPort, connection.ToPort)));
+    }
+
+    private Dictionary<ItemId, int> StackSizesOf() =>
+        (StackSizes ?? new Dictionary<string, int>()).ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value);
+
+    /// <summary>BR-A7: the depot, with its limit per item read from what it holds (the save doesn't store its upgrades).</summary>
+    private Inventory DepotOf(IReadOnlyDictionary<string, decimal> depot)
+    {
+        Dictionary<ItemId, decimal> holds = depot.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value);
+        Dictionary<ItemId, int> stackSizes = StackSizesOf();
+        return Inventory.OfDepot(holds, stackSizes, Inventory.DepotStacks(holds, stackSizes));
     }
 
     /// <summary>BR-A16: per drone port where drones refuel, what they burn there per minute, when that's known.</summary>

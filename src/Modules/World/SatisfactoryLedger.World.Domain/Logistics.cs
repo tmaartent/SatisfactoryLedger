@@ -33,4 +33,11 @@ public sealed class Logistics(
 
     /// <summary>A belt or a lift: what a factory's output can leave on (BR-W2).</summary>
     public bool IsBelt => Kind is LogisticsKind.Belt or LogisticsKind.Lift;
+
+    /// <summary>
+    /// Its inventory, when the Catalog knows its size: at the end of a line it takes an item only while that fits
+    /// (BR-A7). Null when its size isn't known; it then takes everything, as before.
+    /// </summary>
+    public Inventory? Inventory { get; init; }
+
 }

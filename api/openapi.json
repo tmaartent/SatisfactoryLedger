@@ -1588,6 +1588,7 @@
           "footprints",
           "generators",
           "dronePorts",
+          "storages",
           "resourceNodes",
           "noLongerInGame"
         ],
@@ -1629,6 +1630,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "dronePorts": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "storages": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "resourceNodes": {

@@ -17,4 +17,11 @@ internal class DronePortDto
     /// <summary>Megajoules per metre flown, e.g. "6.000000".</summary>
     [JsonPropertyName("mTripPowerPerMeterCost")]
     public string TripPowerPerMeterCost { get; set; } = "0";
+
+    /// <summary>Its inventory: <c>mStorageSizeX</c> × <c>mStorageSizeY</c> slots (BR-A7).</summary>
+    [JsonPropertyName("mStorageSizeX")]
+    public string StorageSizeX { get; set; } = "0";
+
+    [JsonPropertyName("mStorageSizeY")]
+    public string StorageSizeY { get; set; } = "0";
 }

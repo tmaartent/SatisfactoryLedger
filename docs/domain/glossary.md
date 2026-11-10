@@ -16,6 +16,8 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Extractor** | A building that takes a raw resource out of the world: Miner Mk.1–Mk.3, oil extractor, water extractor, resource well extractor. Its **extraction rate** is what it extracts per minute on a normal-purity node at 100% clock speed. In the World, a placed extractor is a provider. | `Extractor`, `Extractor.ExtractionRate` |
 | **Catalog Entry** | An item, building, transport tier, recipe or extractor taken from the game's Docs file. Identified by the game's class name (`Desc_IronPlate_C`). | `ICatalogEntry<T>` |
 | **Catalog Import** | One import of the Docs file: the game version, when it happened, and per kind of entry how many were added, updated or marked no longer in the game (ADR-0009). | `CatalogImport` |
+| **Stack Size** | How many of an item fit in one inventory slot: 1, 50, 100, 200 or 500, from the Docs file. Fluids have none. | `Item.StackSize` |
+| **Storage** | A building that holds items: its slots, or for a fluid buffer its volume in m³. Storage containers, fluid buffers, freight platforms, truck stations, drone ports, the depot uploader. | `Storage`, `CatalogStorage` |
 | **No Longer In Game** | A catalog entry that a later import didn't contain. It stays in the catalog, so references to it stay valid, and it's shown as such. | `IsInGame = false`, `inGame` in the API |
 
 ## Shared kernel
@@ -45,6 +47,8 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Sort Rule** | What one output of a smart or programmable splitter sends: an item, *any*, *any undefined*, *overflow* or *none* (BR-A4). Outputs are counted from 0, as the splitter's settings number them. | `SortRule`, `SortRuleKind` |
 | **Port** | Which output of a splitter a belt leaves from, or which input of a merger it enters by, counted from 0. | `Connection.FromPort`, `Connection.ToPort` |
 | **Spare** | What a connection takes only when the line's other consumers have what they want: the fuel of a truck station, or of a drone port whose rate isn't known (BR-A8). A sender serves spare last. | `SteadyState`: `_spare`, `TakeEverything` |
+| **Inventory** | What something at the end of a line holds, and how much fits: slots, a fluid volume or the dimensional depot. It takes an item until that's full (BR-A7), and once full, as fast as the save shows that item still **arriving**: what the running machines feeding it with room for their next batch make. | `Inventory`, `Inventory.Arriving`, `Inventory.TakesPerMinute`, `InventoryDocument` |
+| **Batch** | What one cycle of a recipe makes of a product, somersloops included. A machine whose next batch doesn't fit in its output slot waits (BR-A7). | `Recipe.Batches`, `Machine.Batches` |
 | **Pipe network** | Every pipe, junction, pump, valve and fluid buffer connected by pipe. The analysis treats it as one hub that takes from what feeds it and shares over what it feeds (BR-A6, ADR-0023). | `PipeNetwork`, `LogisticsKind.PipeNetwork`, `ConnectionBuilder` |
 | **Running on stock** | A machine or generator running on what it holds, because its belts bring less than it uses; counts while the stock lasts 30 minutes (BR-A17). | `FlowMachine.Stocked`, `MachineFinding.OnStock` |
 | **Loop** | Machines that feed each other, directly or through others. It starts as if running; one that can't keep itself going winds down (BR-A10). | `SteadyState.PrimeLoops` |

@@ -25,7 +25,8 @@ public sealed class CatalogImport
         CatalogEntryChanges<Extractor> extractors,
         CatalogEntryChanges<Footprint> footprints,
         CatalogEntryChanges<Generator> generators,
-        CatalogEntryChanges<DronePort> dronePorts)
+        CatalogEntryChanges<DronePort> dronePorts,
+        CatalogEntryChanges<Storage> storages)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameVersion);
 
@@ -38,7 +39,8 @@ public sealed class CatalogImport
             .. extractors.NoLongerInGame.Select(extractor => extractor.Id.Id),
             .. footprints.NoLongerInGame.Select(footprint => footprint.Id.Id),
             .. generators.NoLongerInGame.Select(generator => generator.Id.Id),
-            .. dronePorts.NoLongerInGame.Select(port => port.Id.Id)
+            .. dronePorts.NoLongerInGame.Select(port => port.Id.Id),
+            .. storages.NoLongerInGame.Select(storage => storage.Id.Id)
         ];
 
         return new CatalogImport(id, CatalogImportSource.DocsFile, gameVersion.Trim(), importedAt)
@@ -51,6 +53,7 @@ public sealed class CatalogImport
             Footprints = footprints.Counts,
             Generators = generators.Counts,
             DronePorts = dronePorts.Counts,
+            Storages = storages.Counts,
             // A building that left the game takes its footprint with it: one class name, listed once.
             NoLongerInGame = [.. noLongerInGame.Distinct(StringComparer.Ordinal)]
         };
@@ -92,6 +95,9 @@ public sealed class CatalogImport
     public ImportCounts Generators { get; private init; } = new(0, 0, 0);
 
     public ImportCounts DronePorts { get; private init; } = new(0, 0, 0);
+
+    /// <summary>Buildings with an inventory, and what each holds (BR-A7).</summary>
+    public ImportCounts Storages { get; private init; } = new(0, 0, 0);
 
     public ImportCounts ResourceNodes { get; private init; } = new(0, 0, 0);
 

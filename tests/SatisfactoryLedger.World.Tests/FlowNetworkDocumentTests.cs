@@ -33,7 +33,10 @@ public class FlowNetworkDocumentTests
             new FlowSplitter(Id("split"), Carries.Solids, [new SortRule(0, SortRuleKind.Any), new SortRule(1, SortRuleKind.Overflow)]),
             new FlowMachine(Id("smelter"), new Dictionary<ItemId, double> { [Ore] = 30 }, new Dictionary<ItemId, double> { [Ingot] = 30 }),
             new FlowSink(Id("sink"), new HashSet<ItemId> { Fuel }, BurnRate: 2.25),
-            new FlowSink(Id("overflow")),
+            new FlowSink(Id("overflow"), Inventory: Domain.Inventory.OfSlots(48, new Dictionary<ItemId, decimal> { [Ingot] = 150 }, new Dictionary<ItemId, int> { [Ingot] = 100 }) with
+            {
+                Arriving = new Dictionary<ItemId, double> { [Ingot] = 12.5 },
+            }),
             new FlowSink(Id("tank")),
         ],
         [
@@ -88,6 +91,22 @@ public class FlowNetworkDocumentTests
         var station = Assert.IsType<FlowUnknownSource>(Node("station"));
         Assert.Equal((1800.0, true), (station.Stock[Ore], station.Burns!.Contains(Fuel)));
         Assert.Equal([Water], network.Fluids);
+    }
+
+    [Fact]
+    public void An_inventory_at_the_end_of_a_line_survives_the_document()
+    {
+        FlowSink overflow = Assert.IsType<FlowSink>(RoundTrip(Network()).Nodes.Single(node => node.Id == Id("overflow")));
+
+        Assert.Equal((Domain.InventoryKind.Slots, 48m, 150m, 100), (overflow.Inventory!.Kind, overflow.Inventory.Size, overflow.Inventory.Holds[Ingot], overflow.Inventory.StackSizes[Ingot]));
+    }
+
+    [Fact]
+    public void What_the_save_shows_still_arriving_at_an_inventory_survives_the_document()
+    {
+        FlowSink overflow = Assert.IsType<FlowSink>(RoundTrip(Network()).Nodes.Single(node => node.Id == Id("overflow")));
+
+        Assert.Equal(12.5, overflow.Inventory!.Arriving[Ingot]);
     }
 
     [Fact]

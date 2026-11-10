@@ -439,4 +439,55 @@ public class SatisfactoryTranslatorTests
         Assert.Contains(new DroneFuel(ItemId.Of("Desc_NuclearFuelRod_C"), 750_000), port.Fuels);
         Assert.DoesNotContain(port.Fuels, fuel => fuel.Fuel == ItemId.Of("Desc_LiquidFuel_C"));
     }
+
+    // ---- What inventories hold (BR-A7): stack sizes, and the size of every building with an inventory ----------------
+
+    [Fact]
+    public async Task An_aluminium_casing_from_the_game_file_stacks_to_200()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.Equal(200, SatisfactoryTranslator.TranslateToItems(resources).Single(item => item.Id == ItemId.Of("Desc_AluminumCasing_C")).StackSize);
+    }
+
+    [Fact]
+    public async Task A_fluid_from_the_game_file_has_no_stack_size()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.Equal(0, SatisfactoryTranslator.TranslateToItems(resources).Single(item => item.Id == ItemId.Of("Desc_Water_C")).StackSize);
+    }
+
+    [Theory]
+    [InlineData("Build_StorageContainerMk1_C", 24)]
+    [InlineData("Build_StorageContainerMk2_C", 48)]
+    [InlineData("Build_TrainDockingStation_C", 48)]
+    [InlineData("Build_DroneStation_C", 18)]
+    [InlineData("Build_TruckStation_C", 48)]
+    [InlineData("Build_CentralStorage_C", 1)]
+    public async Task A_building_with_an_inventory_from_the_game_file_holds_its_slots(string building, int slots)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.Equal(slots, SatisfactoryTranslator.TranslateToStorages(resources).Single(storage => storage.Id == StorageId.Of(building)).Slots);
+    }
+
+    [Theory]
+    [InlineData("Build_PipeStorageTank_C", 400)]
+    [InlineData("Build_IndustrialTank_C", 2400)]
+    public async Task A_fluid_buffer_from_the_game_file_holds_its_volume(string building, int cubicMetres)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.Equal(cubicMetres, SatisfactoryTranslator.TranslateToStorages(resources).Single(storage => storage.Id == StorageId.Of(building)).FluidCubicMetres);
+    }
+
+    [Fact]
+    public async Task A_fluid_freight_platform_has_no_size_the_game_file_states_plainly()
+    {
+        // 1 slot of fluid × 64: what a "slot" of fluid holds isn't in the Docs file, so its size is left out.
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.DoesNotContain(SatisfactoryTranslator.TranslateToStorages(resources), storage => storage.Id == StorageId.Of("Build_TrainDockingStationLiquid_C"));
+    }
 }

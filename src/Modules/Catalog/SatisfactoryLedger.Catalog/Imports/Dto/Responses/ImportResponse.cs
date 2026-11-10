@@ -15,6 +15,7 @@ internal sealed record ImportResponse(
     ImportCountsResponse Footprints,
     ImportCountsResponse Generators,
     ImportCountsResponse DronePorts,
+    ImportCountsResponse Storages,
     ImportCountsResponse ResourceNodes,
     IReadOnlyList<string> NoLongerInGame)
 {
@@ -31,6 +32,7 @@ internal sealed record ImportResponse(
         ToResponse(import.Footprints),
         ToResponse(import.Generators),
         ToResponse(import.DronePorts),
+        ToResponse(import.Storages),
         ToResponse(import.ResourceNodes),
         import.NoLongerInGame);
 

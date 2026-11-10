@@ -29,4 +29,14 @@ public class ItemTests
     {
         Assert.Throws<ArgumentException>(() => Item.Create(ItemId.Of("Foo"), "", ItemForm.Solid, false));
     }
+
+    [Fact]
+    public void An_item_from_a_newer_game_file_takes_its_stack_size()
+    {
+        Item stored = Item.Create(ItemId.Of("Desc_AluminumCasing_C"), "Aluminum Casing", ItemForm.Solid, false, stackSize: 100);
+
+        stored.UpdateFromGame(Item.Create(ItemId.Of("Desc_AluminumCasing_C"), "Aluminum Casing", ItemForm.Solid, false, stackSize: 200));
+
+        Assert.Equal(200, stored.StackSize);
+    }
 }
