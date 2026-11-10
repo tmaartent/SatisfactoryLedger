@@ -4,7 +4,7 @@
 
 ## What the model saw
 
-16 blenders make 36 cooling systems a minute. Everything they reach (supercomputer assemblers, turbo motor and elevator part manufacturers, all at 100%) takes 35.04. In a steady state the 0.96 surplus has to back up, and the model put it on two blenders. In your save the surplus is still filling the belts: 1117 cooling systems sit on that line, and every blender's output slot is empty.
+16 blenders make 36 cooling systems a minute. Everything they reach (supercomputer assemblers, turbo motor and Thermal Propulsion Rocket manufacturers, all at 100%) takes 35.04. In a steady state the 0.96 surplus has to back up, and the model put it on two blenders. In your save the surplus is still filling the belts: 1117 cooling systems sit on that line, and every blender's output slot is empty.
 
 ## Your rule (decided 2026-11-10)
 

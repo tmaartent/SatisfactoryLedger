@@ -5,7 +5,7 @@
 ## How it was found
 
 1. The encoder's time crystals come from four freight platforms on a load balancer. In the save only one holds cargo (`…679006106`, 9437 time crystals); the other three were empty.
-2. Under BR-A9, an empty station "supplies whatever is asked". So the model had those three offer everything the machines further on use: supercomputers, ficsite mesh, dark matter, quartz.
+2. Under BR-A9, an empty station "supplies whatever is asked". So the model had those three offer everything the machines further on use: supercomputers, Ficsite Trigons, dark matter, quartz.
 3. All of that arrived as an offer on the encoder's time-crystal belt. Under BR-A1, a belt bringing an item the machine doesn't ask for clogs it, so the encoder took nothing from that belt, and the platform with time crystals was asked for 50 a minute it couldn't deliver.
 
 ## The rule (decided 2026-11-10)
