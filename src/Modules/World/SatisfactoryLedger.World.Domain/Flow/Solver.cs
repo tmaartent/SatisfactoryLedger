@@ -536,11 +536,14 @@ internal sealed class Solver
                             : double.PositiveInfinity)
                 ],
                 [.. bringing.Select(k => FromOwnLoop(node, inputs[k], item) ? 1 : 0)]);
-            double total = taken.Sum();
+            // Like a merger's inputs (BR-A5): a belt is charged only what it brought last sweep, up to its share, so
+            // one that brings less, or nothing at all, leaves the rest to the belts that do.
+            double[] used = [.. taken.Select((share, j) => Math.Min(share, _flow[inputs[bringing[j]]].GetValueOrDefault(item)))];
+            double total = used.Sum();
             for (int j = 0; j < bringing.Count; j++)
             {
                 // Each belt may take what the others leave, so one that offers more later can grow into it.
-                accept[bringing[j]] += needed - (total - taken[j]);
+                accept[bringing[j]] += needed - (total - used[j]);
             }
         }
 

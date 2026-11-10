@@ -469,6 +469,20 @@ public class SteadyStateTests
         Assert.Equal(0.5, result.Machine(Id("m3")).Utilisation, Precision);
     }
 
+    [Fact]
+    public void A_belt_into_a_machine_that_brings_nothing_leaves_its_share_to_the_belts_that_do()
+    {
+        // Your crystal oscillator manufacturers have a fourth belt connected that brings nothing. A belt that hasn't
+        // offered anything may bring any input, so it was given half of each, and the manufacturers ran at 50%.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").Belt("empty").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+            .Connect("miner", "ore", "smelter", "ingots", "sink")
+            .Connect("empty", "smelter")
+            .Run();
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
     // ---- BR-A5: mergers ---------------------------------------------------------------------------------------
 
     [Fact]
