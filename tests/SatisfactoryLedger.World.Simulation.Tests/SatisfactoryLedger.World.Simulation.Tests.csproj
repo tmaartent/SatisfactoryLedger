@@ -2,11 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <DefineConstants>$(DefineConstants);LINEAR_STEADY_STATE</DefineConstants>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
 
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\SatisfactoryLedger.World.Domain.Tests\Fixtures/big-world-part.flow.gz" Link="Fixtures/big-world-part.flow.gz" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +27,9 @@
     <!-- The network builder and items the sweep's tests use (written once, in World.Domain.Tests): the LP is held to the same cases. -->
     <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\TestFlow.cs" Link="TestFlow.cs" />
     <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\Items.cs" Link="Items.cs" />
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\FlowResultQueries.cs" Link="FlowResultQueries.cs" />
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\SteadyStateTests.cs" Link="SteadyStateTests.cs" />
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\FlowText.cs" Link="FlowText.cs" />
   </ItemGroup>
 
 </Project>

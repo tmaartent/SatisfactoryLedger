@@ -37,4 +37,56 @@ public sealed class FlowNetwork
 
     /// <summary>Per connection, as in <see cref="Edges"/>: the splitter output it leaves from and the merger input it enters, if known.</summary>
     public IReadOnlyList<(int? From, int? To)> Ports { get; }
+
+    /// <summary>
+    /// The connected parts of the network, ignoring direction, each as a network of its own: they settle on their own
+    /// (BR-A10). Found with a union-find: every connection joins the parts of its two ends.
+    /// </summary>
+    public IReadOnlyList<NetworkPart> Parts()
+    {
+        int[] root = [.. Enumerable.Range(0, Nodes.Count)];
+        foreach ((int from, int to) in Edges)
+        {
+            root[Find(from)] = Find(to);
+        }
+
+        Dictionary<int, (List<int> Nodes, List<int> Edges)> parts = [];
+        for (int node = 0; node < Nodes.Count; node++)
+        {
+            int part = Find(node);
+            if (!parts.TryGetValue(part, out (List<int> Nodes, List<int> Edges) found))
+            {
+                found = ([], []);
+                parts[part] = found;
+            }
+
+            found.Nodes.Add(node);
+        }
+
+        for (int edge = 0; edge < Edges.Count; edge++)
+        {
+            parts[Find(Edges[edge].From)].Edges.Add(edge);
+        }
+
+        return
+        [
+            .. parts.Values.Select(part => new NetworkPart(
+                new FlowNetwork(
+                    part.Nodes.Select(node => Nodes[node]),
+                    part.Edges.Select(edge => new Connection(Nodes[Edges[edge].From].Id, Nodes[Edges[edge].To].Id, Ports[edge].From, Ports[edge].To)),
+                    Fluids),
+                part.Edges))
+        ];
+
+        int Find(int node)
+        {
+            while (root[node] != node)
+            {
+                root[node] = root[root[node]];
+                node = root[node];
+            }
+
+            return node;
+        }
+    }
 }

@@ -1,4 +1,5 @@
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Domain.Flow.Objects;
 
 namespace SatisfactoryLedger.World.Simulation;
@@ -16,34 +17,89 @@ namespace SatisfactoryLedger.World.Simulation;
 /// </summary>
 internal static class LinearSteadyState
 {
-    public static LinearFlow Solve(FlowNetwork network)
+    /// <summary>The steady state of a network, part by part (BR-A10), with its findings.</summary>
+    public static FlowResult Of(FlowNetwork network)
     {
         ArgumentNullException.ThrowIfNull(network);
 
-        ItemsOnConnections items = ItemsOnConnections.Of(network);
-        List<SharingGroup> groups = SharingGroups(network, items);
-        HashSet<(int Group, int Edge)> capped = [];
-        int shares = groups.Sum(group => group.Edges.Count);
+        var flows = new IReadOnlyDictionary<ItemId, double>[network.Edges.Count];
+        Dictionary<BuildableId, MachineState> machines = [];
+        List<Bottleneck> bottlenecks = [];
+        List<UnusedSupply> unused = [];
+        List<UnknownSupply> unknown = [];
+        List<FlowPart> parts = [];
 
-        for (int round = 0; ; round++)
+        foreach ((FlowNetwork part, IReadOnlyList<int> edges) in network.Parts())
         {
-            using var programme = new LinearProgramme(network, items, groups, capped);
-            double pushed = programme.Maximise(programme.Push);
-            List<(int Group, int Edge)> holdingBack = [.. programme.SharesHoldingBack()];
-            if (holdingBack.Count == 0 || round >= shares)
+            ItemsOnConnections items = ItemsOnConnections.Of(part);
+            List<SharingGroup> groups = SharingGroups(part, items);
+            int shares = groups.Sum(group => group.Edges.Count);
+            using var programme = new LinearProgramme(part, items, groups, new HashSet<(int Group, int Edge)>());
+
+            for (int round = 1; ; round++)
             {
-                programme.Keep(programme.Push, pushed);
-                foreach (var tier in programme.CappedShares)
+                programme.Maximise(programme.Push);
+                List<(int Group, int Edge)> holdingBack = [.. programme.SharesHoldingBack()];
+                if (holdingBack.Count > 0 && round <= shares)
                 {
-                    programme.Keep(tier, programme.Maximise(tier));
+                    programme.Cap(holdingBack);
+                    continue;
                 }
 
-                programme.Maximise(programme.Utilisation);
-                return programme.Result();
-            }
+                programme.Settle();
+                LinearFlow solved = programme.Result();
+                var findings = new LinearFindings(part, programme, solved);
 
-            capped.UnionWith(holdingBack);
+                for (int k = 0; k < edges.Count; k++)
+                {
+                    flows[edges[k]] = solved.Flows[k];
+                }
+
+                HashSet<int> held = [.. LinearFindings.Held(part, solved)];
+                foreach (MachineState state in findings.Machines(Enumerable.Range(0, part.Nodes.Count).Where(node => part.Nodes[node] is FlowMachine && !held.Contains(node))))
+                {
+                    machines[state.Machine] = state;
+                }
+
+                foreach (MachineState state in HeldMachines(part, items, groups, programme.Capped, solved, [.. held]))
+                {
+                    machines[state.Machine] = state;
+                }
+
+                bottlenecks.AddRange(findings.Bottlenecks());
+                unused.AddRange(findings.UnusedSupply());
+                unknown.AddRange(findings.UnknownSupply());
+                // A sequence that ends always settles: what a sweep calls settling is here the last round.
+                parts.Add(new FlowPart([.. part.Nodes.Select(node => node.Id)], Settled: true, Sweeps: round));
+                break;
+            }
         }
+
+        return new FlowResult(network, flows, machines, bottlenecks, unused, unknown, parts);
+    }
+
+    /// <summary>Above this many machines held back, their what-ifs are spread over copies of the programme.</summary>
+    private const int HeldPerCopy = 25;
+
+    /// <summary>
+    /// Why the machines held below 99.9% are held (BR-A11): a few what-ifs each. Each answer is an optimal value, the same
+    /// on any copy of the programme, so a big part's machines are spread over copies built with the same capped shares,
+    /// one per thread: an OR-Tools solver is not for sharing between threads.
+    /// </summary>
+    private static List<MachineState> HeldMachines(
+        FlowNetwork part, ItemsOnConnections items, List<SharingGroup> groups, IReadOnlySet<(int Group, int Edge)> capped, LinearFlow solved, List<int> held)
+    {
+        int copies = Math.Clamp(held.Count / HeldPerCopy, 1, Environment.ProcessorCount);
+        List<int>[] slices = [.. Enumerable.Range(0, copies).Select(copy => held.Where((_, index) => index % copies == copy).ToList())];
+        var states = new List<MachineState>[copies];
+        Parallel.For(0, copies, copy =>
+        {
+            using var programme = new LinearProgramme(part, items, groups, capped);
+            programme.Settle();
+            states[copy] = [.. new LinearFindings(part, programme, solved).Machines(slices[copy])];
+        });
+
+        return [.. states.SelectMany(slice => slice)];
     }
 
     /// <summary>

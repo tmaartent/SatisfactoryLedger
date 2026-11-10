@@ -96,7 +96,13 @@ internal sealed class TestFlow
         return this;
     }
 
-    public FlowResult Run(int maxSweeps = SteadyState.MaxSweeps) => SteadyState.Of(Network(), maxSweeps);
+    /// <summary>Solves the network: by sweeps here, and by the linear programmes where this file is linked into World.Simulation.Tests.</summary>
+    public FlowResult Run(int maxSweeps = SteadyState.MaxSweeps) =>
+#if LINEAR_STEADY_STATE
+        Simulation.LinearSteadyState.Of(Network());
+#else
+        SteadyState.Of(Network(), maxSweeps);
+#endif
 
     /// <summary>The network as built, for a solver other than the sweeps.</summary>
     public FlowNetwork Network() => new(_nodes, _connections, _fluids);

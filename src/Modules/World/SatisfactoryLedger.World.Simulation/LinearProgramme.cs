@@ -7,7 +7,8 @@ using SatisfactoryLedger.World.Domain.Flow.Objects;
 namespace SatisfactoryLedger.World.Simulation;
 
 /// <summary>
-/// One round of the sequence (ADR-0026): the linear programme of a network for one guess of which shares are capped.
+/// The sequence of rounds (ADR-0026) on one linear programme: each round a guess of which shares are capped, changed
+/// in place by <see cref="Cap"/>.
 /// <list type="bullet">
 /// <item>Variables: the flow of each item over each connection it can reach (<see cref="ItemsOnConnections"/>), a
 /// utilisation between 0 and 1 per machine, and a level per <see cref="SharingGroup"/>.</item>
@@ -34,19 +35,29 @@ internal sealed class LinearProgramme : IDisposable
     private readonly Solver _solver;
     private readonly Dictionary<(int Edge, ItemId Item), Variable> _flow = [];
     private readonly Dictionary<int, Variable> _utilisation = [];
-    private readonly Dictionary<(int Group, int Edge), Variable> _uncappedShares = [];
+    private readonly Dictionary<(int Group, int Edge), (Variable Below, List<Variable> Carried, int Tier)> _uncappedShares = [];
     private readonly Dictionary<int, (Variable Blocked, List<(int Group, int Edge)> Waiting)> _blockedTiers = [];
     private readonly List<(Variable Variable, double Coefficient)> _push = [];
     private readonly SortedDictionary<int, List<(Variable Variable, double Coefficient)>> _cappedShares = [];
+    private readonly List<int>[] _into;
+    private readonly List<int>[] _outOf;
+    private readonly Dictionary<int, Dictionary<ItemId, Constraint>> _takes = [];
+    private readonly Dictionary<int, Dictionary<ItemId, Constraint>> _makes = [];
+    private readonly Dictionary<int, Constraint> _capacity = [];
+    private readonly Dictionary<int, List<Constraint>> _conserved = [];
+    private readonly Dictionary<int, List<Variable>> _belowOf = [];
+    private readonly HashSet<(int Group, int Edge)> _capped;
+    private List<Action>? _restore;
 
     public LinearProgramme(
         FlowNetwork network, ItemsOnConnections items, IReadOnlyList<SharingGroup> groups, IReadOnlySet<(int Group, int Edge)> capped)
     {
         _network = network;
         _items = items;
+        _capped = [.. capped];
         _solver = Solver.CreateSolver("GLOP") ?? throw new InvalidOperationException("OR-Tools has no GLOP solver");
-        List<int>[] into = Lists(edge => edge.To);
-        List<int>[] outOf = Lists(edge => edge.From);
+        _into = Lists(edge => edge.To);
+        _outOf = Lists(edge => edge.From);
 
         for (int edge = 0; edge < network.Edges.Count; edge++)
         {
@@ -58,7 +69,7 @@ internal sealed class LinearProgramme : IDisposable
 
         for (int node = 0; node < network.Nodes.Count; node++)
         {
-            Build(node, into[node], outOf[node]);
+            Build(node, _into[node], _outOf[node]);
         }
 
         for (int group = 0; group < groups.Count; group++)
@@ -79,6 +90,51 @@ internal sealed class LinearProgramme : IDisposable
 
     /// <summary>Every machine's utilisation: what runs a loop no source pushes, such as one fed only by itself.</summary>
     public IReadOnlyList<(Variable Variable, double Coefficient)> Utilisation => [.. _utilisation.Values.Select(u => (u, 1.0))];
+
+    /// <summary>
+    /// Caps these shares for the next round: each may now fall below its level. A tier whose shares above are all
+    /// capped is no longer blocked. Only bounds change, so the solver starts the next round from this one's solution.
+    /// </summary>
+    public void Cap(IEnumerable<(int Group, int Edge)> shares)
+    {
+        foreach ((int Group, int Edge) share in shares)
+        {
+            _capped.Add(share);
+            if (_uncappedShares.Remove(share, out (Variable Below, List<Variable> Carried, int Tier) uncapped))
+            {
+                uncapped.Below.SetBounds(0, double.PositiveInfinity);
+                AddCapped(uncapped.Tier, uncapped.Carried);
+            }
+
+            foreach ((int group, (Variable blocked, List<(int Group, int Edge)> waiting)) in _blockedTiers.ToList())
+            {
+                waiting.Remove(share);
+                if (waiting.Count == 0)
+                {
+                    blocked.SetBounds(0, double.PositiveInfinity);
+                    _blockedTiers.Remove(group);
+                }
+            }
+        }
+    }
+
+    /// <summary>The shares capped so far: a copy of this programme built with them settles the same way.</summary>
+    public IReadOnlySet<(int Group, int Edge)> Capped => _capped;
+
+    /// <summary>
+    /// Once no share holds the sources back: the three objectives in order, each held for the next. What the sources
+    /// push in, the capped shares tier by tier (the first tier first), then every machine's utilisation.
+    /// </summary>
+    public void Settle()
+    {
+        Keep(Push, Maximise(Push));
+        foreach (IReadOnlyList<(Variable Variable, double Coefficient)> tier in CappedShares.ToList())
+        {
+            Keep(tier, Maximise(tier));
+        }
+
+        Maximise(Utilisation);
+    }
 
     /// <summary>Solves for the most of <paramref name="terms"/>, and returns how much that is.</summary>
     public double Maximise(IReadOnlyList<(Variable Variable, double Coefficient)> terms)
@@ -102,6 +158,100 @@ internal sealed class LinearProgramme : IDisposable
             : throw new InvalidOperationException($"The linear programme has no optimal solution: {status}");
     }
 
+    // ---- What-ifs for the findings (BR-A11, A12): asked after the last objective, and undone again ------------------
+
+    /// <summary>
+    /// BR-A11: the share of its demand of <paramref name="item"/> a machine is offered: what would reach it if it took
+    /// everything. Its products may vanish, its other inputs are unlimited, and what brings it its inputs is freed from
+    /// sharing evenly, so it may take what its neighbours leave. Null when the solver can't tell.
+    /// </summary>
+    public double? OfferedShare(int machine, ItemId item) => WhatIf(
+        () =>
+        {
+            Relax((_makes.GetValueOrDefault(machine) ?? []).Values);
+            Relax((_takes.GetValueOrDefault(machine) ?? []).Where(input => input.Key != item).Select(input => input.Value));
+            Free(_into[machine]);
+        },
+        [(_utilisation[machine], 1)]);
+
+    /// <summary>
+    /// BR-A11: the share of its production in one form (solids or fluids) its outputs can take: what could leave if its
+    /// inputs were unlimited. Its other products may vanish, and what takes its products is freed from sharing evenly.
+    /// </summary>
+    public double? OutputRoom(int machine, IReadOnlySet<ItemId> products) => WhatIf(
+        () =>
+        {
+            Relax((_takes.GetValueOrDefault(machine) ?? []).Values);
+            Relax((_makes.GetValueOrDefault(machine) ?? []).Where(output => !products.Contains(output.Key)).Select(output => output.Value));
+            Free(_outOf[machine]);
+        },
+        [(_utilisation[machine], 1)]);
+
+    /// <summary>
+    /// BR-A12: what is offered to a belt, lift or pipe: what would flow into it if it had no capacity and took
+    /// everything, whatever lies beyond it. Up to <paramref name="atMost"/>.
+    /// </summary>
+    public double? OfferedInto(int conduit, double atMost) => WhatIf(
+        () =>
+        {
+            Constraint capacity = _capacity[conduit];
+            double upper = capacity.Ub();
+            _restore!.Add(() => capacity.SetBounds(0, upper));
+            capacity.SetBounds(0, atMost);
+            foreach (Constraint conserved in _conserved.GetValueOrDefault(conduit) ?? [])
+            {
+                // What comes in may stay: in − out ≥ 0.
+                _restore.Add(() => conserved.SetBounds(0, 0));
+                conserved.SetBounds(0, double.PositiveInfinity);
+            }
+
+            Free(_into[conduit]);
+        },
+        [.. All(_into[conduit]).Select(variable => (variable, 1.0))]);
+
+    /// <summary>Solves with some bounds relaxed, then puts every bound back as it was.</summary>
+    private double? WhatIf(Action relax, IReadOnlyList<(Variable Variable, double Coefficient)> objective)
+    {
+        _restore = [];
+        try
+        {
+            relax();
+            return Maximise(objective);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        finally
+        {
+            _restore.Reverse();
+            _restore.ForEach(undo => undo());
+            _restore = null;
+        }
+    }
+
+    /// <summary>Lets the left-hand side of each constraint fall below its bound: what it takes or makes may be less.</summary>
+    private void Relax(IEnumerable<Constraint> constraints)
+    {
+        foreach (Constraint constraint in constraints)
+        {
+            (double lower, double upper) = (constraint.Lb(), constraint.Ub());
+            _restore!.Add(() => constraint.SetBounds(lower, upper));
+            constraint.SetBounds(double.NegativeInfinity, upper);
+        }
+    }
+
+    /// <summary>The shares of these connections may leave their group's level, either way.</summary>
+    private void Free(IEnumerable<int> edges)
+    {
+        foreach (Variable below in edges.SelectMany(edge => _belowOf.GetValueOrDefault(edge) ?? []))
+        {
+            (double lower, double upper) = (below.Lb(), below.Ub());
+            _restore!.Add(() => below.SetBounds(lower, upper));
+            below.SetBounds(double.NegativeInfinity, double.PositiveInfinity);
+        }
+    }
+
     /// <summary>Holds <paramref name="terms"/> at the most just found, for the objectives after it.</summary>
     public void Keep(IReadOnlyList<(Variable Variable, double Coefficient)> terms, double value)
     {
@@ -122,7 +272,7 @@ internal sealed class LinearProgramme : IDisposable
     /// shares above it can take no more, and all of them that aren't capped yet are.
     /// </para>
     public IEnumerable<(int Group, int Edge)> SharesHoldingBack() =>
-        _uncappedShares.Where(share => share.Value.ReducedCost() > CostsDelivery).Select(share => share.Key)
+        _uncappedShares.Where(share => share.Value.Below.ReducedCost() > CostsDelivery).Select(share => share.Key)
             .Concat(_blockedTiers.Values.Where(tier => tier.Blocked.ReducedCost() > CostsDelivery).SelectMany(tier => tier.Waiting))
             .Distinct();
 
@@ -159,6 +309,7 @@ internal sealed class LinearProgramme : IDisposable
                     Constraint takes = _solver.MakeConstraint(stocked ? double.NegativeInfinity : 0, 0);
                     Sum(takes, Over(into, item));
                     takes.SetCoefficient(u, -demand);
+                    Register(_takes, node, item, takes);
                 }
 
                 foreach ((ItemId item, double production) in machine.Production.Where(product => product.Value > 0))
@@ -167,6 +318,7 @@ internal sealed class LinearProgramme : IDisposable
                     Constraint makes = _solver.MakeConstraint(0, 0);
                     Sum(makes, Over(outOf, item));
                     makes.SetCoefficient(u, -production);
+                    Register(_makes, node, item, makes);
                 }
 
                 break;
@@ -177,12 +329,20 @@ internal sealed class LinearProgramme : IDisposable
                     Constraint conserved = _solver.MakeConstraint(0, 0);
                     Sum(conserved, Over(into, item));
                     Sum(conserved, Over(outOf, item), -1);
+                    if (!_conserved.TryGetValue(node, out List<Constraint>? ofNode))
+                    {
+                        ofNode = [];
+                        _conserved[node] = ofNode;
+                    }
+
+                    ofNode.Add(conserved);
                 }
 
                 if (_network.Nodes[node] is FlowConduit { Capacity: < double.PositiveInfinity } conduit)
                 {
                     Constraint capacity = _solver.MakeConstraint(0, conduit.Capacity);
                     Sum(capacity, All(into));
+                    _capacity[node] = capacity;
                 }
 
                 break;
@@ -230,19 +390,20 @@ internal sealed class LinearProgramme : IDisposable
             Sum(share, carried);
             share.SetCoefficient(level, -1);
             share.SetCoefficient(below, 1);
+            if (!_belowOf.TryGetValue(edge, out List<Variable>? belows))
+            {
+                belows = [];
+                _belowOf[edge] = belows;
+            }
+
+            belows.Add(below);
             if (isCapped)
             {
-                if (!_cappedShares.TryGetValue(sharing.Tier, out List<(Variable Variable, double Coefficient)>? tier))
-                {
-                    tier = [];
-                    _cappedShares[sharing.Tier] = tier;
-                }
-
-                tier.AddRange(carried.Select(variable => (variable, 1.0)));
+                AddCapped(sharing.Tier, carried);
             }
             else
             {
-                _uncappedShares[(group, edge)] = below;
+                _uncappedShares[(group, edge)] = (below, carried, sharing.Tier);
             }
         }
     }
@@ -267,6 +428,28 @@ internal sealed class LinearProgramme : IDisposable
         Sum(tier, sharing.Edges.SelectMany(edge => sharing.Items is { } shared ? shared.SelectMany(item => Over([edge], item)) : All([edge])));
         tier.SetCoefficient(blocked, -1);
         _blockedTiers[group] = (blocked, waiting);
+    }
+
+    private void AddCapped(int tier, List<Variable> carried)
+    {
+        if (!_cappedShares.TryGetValue(tier, out List<(Variable Variable, double Coefficient)>? shares))
+        {
+            shares = [];
+            _cappedShares[tier] = shares;
+        }
+
+        shares.AddRange(carried.Select(variable => (variable, 1.0)));
+    }
+
+    private static void Register(Dictionary<int, Dictionary<ItemId, Constraint>> per, int node, ItemId item, Constraint constraint)
+    {
+        if (!per.TryGetValue(node, out Dictionary<ItemId, Constraint>? ofNode))
+        {
+            ofNode = [];
+            per[node] = ofNode;
+        }
+
+        ofNode[item] = constraint;
     }
 
     private void Burning(List<int> into, IReadOnlySet<ItemId> fuels, double perMinute)

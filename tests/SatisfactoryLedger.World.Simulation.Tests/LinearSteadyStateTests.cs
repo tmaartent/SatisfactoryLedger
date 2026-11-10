@@ -1,4 +1,5 @@
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.Domain.Tests;
 
 using static SatisfactoryLedger.World.Domain.Tests.TestFlow;
@@ -18,62 +19,62 @@ public class LinearSteadyStateTests
     private static readonly ItemId Plate = Items.IronPlate;
     private static readonly ItemId Coal = Items.Coal;
 
-    private static LinearFlow Solve(TestFlow flow) => LinearSteadyState.Solve(flow.Network());
+    private static FlowResult Solve(TestFlow flow) => LinearSteadyState.Of(flow.Network());
 
     // ---- BR-A1: machines ------------------------------------------------------------------------------------
 
     [Fact]
     public void A_machine_that_gets_all_it_asks_for_runs_at_100_percent()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
             .Connect("miner", "ore", "smelter", "ingots", "sink"));
 
-        Assert.Equal(1.0, result.Utilisation[Id("smelter")], Precision);
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
     }
 
     [Fact]
     public void What_flows_into_a_belt_is_what_its_inputs_bring_together()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner 1", Ore, 20).Provider("miner 2", Ore, 25).Merger("merge").Belt("out").Sink("sink")
             .Connect("miner 1", "merge", "out", "sink").Connect("miner 2", "merge"));
 
-        Assert.Equal(45, result.Into(Id("out"), Ore), Precision);
+        Assert.Equal(45, result.Into(Id("out"))[Ore], Precision);
     }
 
     [Fact]
     public void A_machine_that_gets_half_of_its_input_runs_at_half_speed()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 15).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
             .Connect("miner", "ore", "smelter", "ingots", "sink"));
 
-        Assert.Equal(0.5, result.Utilisation[Id("smelter")], Precision);
+        Assert.Equal(0.5, result.Machine(Id("smelter")).Utilisation, Precision);
         Assert.Equal(15, result.Flow(Id("smelter"), Id("ingots"), Ingot), Precision);
     }
 
     [Fact]
     public void A_machine_whose_output_has_nowhere_to_go_stops()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots")
             .Connect("miner", "ore", "smelter", "ingots"));
 
-        Assert.Equal(0, result.Utilisation[Id("smelter")], Precision);
+        Assert.Equal(0, result.Machine(Id("smelter")).Utilisation, Precision);
     }
 
     [Fact]
     public void A_machine_with_two_inputs_runs_at_the_share_of_its_scarcest_input()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("plates", Plate, 30).Belt("plate belt")
             .Provider("screws", Items.Screw, 30).Belt("screw belt")
             .Machine("assembler", [(Plate, 30), (Items.Screw, 60)], [(Items.ReinforcedIronPlate, 5)]).Belt("out").Sink("sink")
             .Connect("plates", "plate belt", "assembler", "out", "sink")
             .Connect("screws", "screw belt", "assembler"));
 
-        Assert.Equal(0.5, result.Utilisation[Id("assembler")], Precision);
+        Assert.Equal(0.5, result.Machine(Id("assembler")).Utilisation, Precision);
         Assert.Equal(15, result.Flow(Id("plate belt"), Id("assembler"), Plate), Precision);
     }
 
@@ -82,7 +83,7 @@ public class LinearSteadyStateTests
     [Fact]
     public void A_provider_delivers_only_what_is_taken()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
             .Connect("miner", "ore", "smelter", "ingots", "sink"));
 
@@ -92,7 +93,7 @@ public class LinearSteadyStateTests
     [Fact]
     public void A_belt_carries_at_most_its_capacity()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 120).Belt("mk1", capacity: 60).Sink("sink")
             .Connect("miner", "mk1", "sink"));
 
@@ -102,11 +103,11 @@ public class LinearSteadyStateTests
     [Fact]
     public void An_output_belt_too_slow_for_its_machine_holds_the_machine_back()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 60, Ingot, 60).Belt("mk1", capacity: 30).Sink("sink")
             .Connect("miner", "ore", "smelter", "mk1", "sink"));
 
-        Assert.Equal(0.5, result.Utilisation[Id("smelter")], Precision);
+        Assert.Equal(0.5, result.Machine(Id("smelter")).Utilisation, Precision);
     }
 
     // ---- BR-A17: stock ----------------------------------------------------------------------------------------
@@ -114,18 +115,18 @@ public class LinearSteadyStateTests
     [Fact]
     public void A_machine_whose_stock_of_an_input_lasts_runs_while_nothing_brings_that_input()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 60).Belt("ore")
             .MachineOnStock("foundry", [(Ore, 30), (Coal, 15)], [(Ingot, 30)], Coal).Belt("out").Sink("sink")
             .Connect("miner", "ore", "foundry", "out", "sink"));
 
-        Assert.Equal(1.0, result.Utilisation[Id("foundry")], Precision);
+        Assert.Equal(1.0, result.Machine(Id("foundry")).Utilisation, Precision);
     }
 
     [Fact]
     public void A_machine_running_on_stock_still_takes_what_its_belt_brings()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 60).Belt("ore")
             .Provider("coal mine", Coal, 5).Belt("coal")
             .MachineOnStock("foundry", [(Ore, 30), (Coal, 15)], [(Ingot, 30)], Coal).Belt("out").Sink("sink")
@@ -152,17 +153,17 @@ public class LinearSteadyStateTests
     [Fact]
     public void A_machine_sends_each_product_over_the_line_that_carries_its_form()
     {
-        LinearFlow result = Solve(Refinery().Pipe("residue").Sink("residue sink").Connect("refinery", "residue", "residue sink"));
+        FlowResult result = Solve(Refinery().Pipe("residue").Sink("residue sink").Connect("refinery", "residue", "residue sink"));
 
         Assert.Equal((20, 0), (result.Flow(Id("refinery"), Id("plastic"), Plastic), result.Flow(Id("refinery"), Id("plastic"), Residue)));
         Assert.Equal((10, 0), (result.Flow(Id("refinery"), Id("residue"), Residue), result.Flow(Id("refinery"), Id("residue"), Plastic)));
-        Assert.Equal(1.0, result.Utilisation[Id("refinery")], Precision);
+        Assert.Equal(1.0, result.Machine(Id("refinery")).Utilisation, Precision);
     }
 
     [Fact]
     public void A_fluid_product_with_no_pipe_to_leave_by_blocks_the_machine()
     {
-        Assert.Equal(0, Solve(Refinery()).Utilisation[Id("refinery")], Precision);
+        Assert.Equal(0, Solve(Refinery()).Machine(Id("refinery")).Utilisation, Precision);
     }
 
     // ---- BR-A10: loops ---------------------------------------------------------------------------------------
@@ -187,16 +188,16 @@ public class LinearSteadyStateTests
     [Fact]
     public void A_loop_that_gives_back_all_it_needs_runs_at_100_percent()
     {
-        LinearFlow result = Solve(NitricAcidLoop(waterBack: 10));
+        FlowResult result = Solve(NitricAcidLoop(waterBack: 10));
 
-        Assert.Equal(1.0, result.Utilisation[Id("acid blender")], Precision);
-        Assert.Equal(1.0, result.Utilisation[Id("non-fissile blender")], Precision);
+        Assert.Equal(1.0, result.Machine(Id("acid blender")).Utilisation, Precision);
+        Assert.Equal(1.0, result.Machine(Id("non-fissile blender")).Utilisation, Precision);
     }
 
     [Fact]
     public void A_loop_that_gives_back_too_little_stops()
     {
-        Assert.Equal(0, Solve(NitricAcidLoop(waterBack: 5)).Utilisation[Id("acid blender")], Precision);
+        Assert.Equal(0, Solve(NitricAcidLoop(waterBack: 5)).Machine(Id("acid blender")).Utilisation, Precision);
     }
 
     private static readonly ItemId Ficsonium = ItemId.Of("Desc_Ficsonium_C");
@@ -208,7 +209,7 @@ public class LinearSteadyStateTests
     public void An_encoder_and_a_collider_that_feed_each_other_run_at_100_percent()
     {
         // The owner's Ficsonium loop, where the sweeps settle anywhere between 4% and 55% on the big world.
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Fluid(DarkMatterResidue)
             .Provider("converter", DarkMatterResidue, 60).Pipe("converter pipe")
             .Provider("waste", PlutoniumWaste, 6).Belt("waste belt")
@@ -221,23 +222,23 @@ public class LinearSteadyStateTests
             .Connect("waste", "waste belt", "collider")
             .Connect("encoder", "rods", "plant"));
 
-        Assert.Equal(1.0, result.Utilisation[Id("encoder")], Precision);
-        Assert.Equal(1.0, result.Utilisation[Id("collider")], Precision);
+        Assert.Equal(1.0, result.Machine(Id("encoder")).Utilisation, Precision);
+        Assert.Equal(1.0, result.Machine(Id("collider")).Utilisation, Precision);
     }
 
     [Fact]
     public void Items_circling_in_a_loop_are_conserved_so_only_what_leaves_the_loop_is_made()
     {
         // The constructor takes 20 of the smelter's 30 ingots; the rest can't leave the loop.
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Provider("miner", Ore, 30).Machine("smelter", Ore, 30, Ingot, 30)
             .Merger("merge").Belt("loop", capacity: 60).Splitter("split").Belt("back", capacity: 60)
             .Machine("constructor", Ingot, 20, Plate, 20).Belt("out").Sink("sink")
             .Connect("miner", "smelter", "merge", "loop", "split", "constructor", "out", "sink")
             .Connect("split", "back", "merge"));
 
-        Assert.Equal(1.0, result.Utilisation[Id("constructor")], Precision);
-        Assert.Equal(2.0 / 3, result.Utilisation[Id("smelter")], Precision);
+        Assert.Equal(1.0, result.Machine(Id("constructor")).Utilisation, Precision);
+        Assert.Equal(2.0 / 3, result.Machine(Id("smelter")).Utilisation, Precision);
     }
 
     // ---- BR-A9: sources of unknown rate -------------------------------------------------------------------------
@@ -248,7 +249,7 @@ public class LinearSteadyStateTests
     [Fact]
     public void A_source_whose_rate_is_not_known_supplies_what_is_asked_and_no_fluid_over_a_belt()
     {
-        LinearFlow result = Solve(new TestFlow()
+        FlowResult result = Solve(new TestFlow()
             .Fluid(Water)
             .Provider("extractor", Water, 120).Pipe("water")
             .UnknownSource("container").Belt("canisters")
@@ -257,6 +258,6 @@ public class LinearSteadyStateTests
             .Connect("container", "canisters", "packager"));
 
         Assert.Equal((60, 0), (result.Flow(Id("container"), Id("canisters"), Canister), result.Flow(Id("container"), Id("canisters"), Water)));
-        Assert.Equal(1.0, result.Utilisation[Id("packager")], Precision);
+        Assert.Equal(1.0, result.Machine(Id("packager")).Utilisation, Precision);
     }
 }

@@ -59,16 +59,8 @@ public static class SteadyState
         List<UnknownSupply> unknown = [];
         List<FlowPart> parts = [];
 
-        foreach ((List<int> nodes, List<int> edges) in PartsOf(network))
+        foreach ((FlowNetwork part, IReadOnlyList<int> edges) in network.Parts())
         {
-            var part = new FlowNetwork(
-                nodes.Select(node => network.Nodes[node]),
-                edges.Select(edge => new Connection(
-                    network.Nodes[network.Edges[edge].From].Id,
-                    network.Nodes[network.Edges[edge].To].Id,
-                    network.Ports[edge].From,
-                    network.Ports[edge].To)),
-                network.Fluids);
             PartResult result = new Solver(part).Run(maxSweeps);
 
             for (int k = 0; k < edges.Count; k++)
@@ -84,51 +76,9 @@ public static class SteadyState
             bottlenecks.AddRange(result.Bottlenecks);
             unused.AddRange(result.Unused);
             unknown.AddRange(result.Unknown);
-            parts.Add(new FlowPart([.. nodes.Select(node => network.Nodes[node].Id)], result.Settled, result.Sweeps));
+            parts.Add(new FlowPart([.. part.Nodes.Select(node => node.Id)], result.Settled, result.Sweeps));
         }
 
         return new FlowResult(network, flows, machines, bottlenecks, unused, unknown, parts);
-    }
-
-    /// <summary>The connected parts of a network, ignoring direction: per part its nodes and its connections.</summary>
-    private static List<(List<int> Nodes, List<int> Edges)> PartsOf(FlowNetwork network)
-    {
-        int[] root = [.. Enumerable.Range(0, network.Nodes.Count)];
-
-        foreach ((int from, int to) in network.Edges)
-        {
-            root[Find(from)] = Find(to);
-        }
-
-        Dictionary<int, (List<int> Nodes, List<int> Edges)> parts = [];
-        for (int node = 0; node < network.Nodes.Count; node++)
-        {
-            int part = Find(node);
-            if (!parts.TryGetValue(part, out (List<int> Nodes, List<int> Edges) found))
-            {
-                found = ([], []);
-                parts[part] = found;
-            }
-
-            found.Nodes.Add(node);
-        }
-
-        for (int edge = 0; edge < network.Edges.Count; edge++)
-        {
-            parts[Find(network.Edges[edge].From)].Edges.Add(edge);
-        }
-
-        return [.. parts.Values];
-
-        int Find(int node)
-        {
-            while (root[node] != node)
-            {
-                root[node] = root[root[node]];
-                node = root[node];
-            }
-
-            return node;
-        }
     }
 }
