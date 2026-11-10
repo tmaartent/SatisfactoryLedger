@@ -103,6 +103,7 @@ internal sealed record BuildableDocument(
                 InputPriorities)
             {
                 Inventory = InventoryOf(catalog),
+                Carrying = (Contents ?? new Dictionary<string, decimal>()).ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
             },
             _ => throw new JsonException($"Buildable {Id} has an unknown role"),
         };

@@ -20,8 +20,9 @@ public static class WorldFlow
 
     /// <summary>
     /// BR-A9: an empty station carries what the stations its lines meet hold, all of it when they differ: freight
-    /// platforms on a load balancer, of which only one has cargo yet (decided 2026-11-10). A station whose lines meet
-    /// no station holding anything has none here, and supplies whatever is asked.
+    /// platforms on a load balancer, of which only one has cargo yet. When those hold nothing either, it carries what's
+    /// on the belts of its lines (decided 2026-11-10). With nothing to go by, it has none here, and supplies whatever
+    /// is asked.
     /// </summary>
     private static Dictionary<BuildableId, IReadOnlySet<ItemId>> CargoOfEmptyStations(WorldGraph world)
     {
@@ -35,6 +36,12 @@ public static class WorldFlow
                 .. stations.Where(other => other.Id != empty.Id && lines[other.Id].Overlaps(lines[empty.Id]))
                     .SelectMany(other => other.Stock.Where(entry => entry.Value > 0).Select(entry => entry.Key)),
             ];
+            if (carried.Count == 0)
+            {
+                carried = [.. lines[empty.Id].Select(world.Find).OfType<Logistics>()
+                    .SelectMany(logistics => logistics.Carrying.Where(entry => entry.Value > 0).Select(entry => entry.Key))];
+            }
+
             if (carried.Count > 0)
             {
                 cargo[empty.Id] = carried;

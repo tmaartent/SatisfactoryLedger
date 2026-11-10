@@ -731,11 +731,12 @@ internal sealed class Solver
                 Share: ShareOf(machine, demand.Key, offered.GetValueOrDefault(demand.Key), demand.Value)))
             .Where(input => input.Share < SteadyState.RunningFrom)
             .ToDictionary(input => input.Item, input => input.Share);
-        // Offered in full but not arriving (its sender is held back itself): what arrives of the item it's starved of.
-        if (limit == MachineLimit.Starved && shortOf.Count == 0 && item is { } starvedOf &&
-            machine.Demand.TryGetValue(starvedOf, out double needed))
+        // Offered in full but not arriving (its sender is held back itself, or its belt is clogged): the item it's
+        // starved of is the one that arrives least, not whichever came first among those offered in full.
+        if (limit == MachineLimit.Starved && shortOf.Count == 0 && Scarcest(machine, Supplied(node)) is (var arriving, { } starvedOf))
         {
-            shortOf[starvedOf] = Math.Min(1, Supplied(node).GetValueOrDefault(starvedOf) / needed);
+            item = starvedOf;
+            shortOf[starvedOf] = Math.Min(1, arriving);
         }
 
         _machines[machine.Id] = new MachineState(machine.Id, Math.Min(1, utilisation), limit, item, shortOf,
