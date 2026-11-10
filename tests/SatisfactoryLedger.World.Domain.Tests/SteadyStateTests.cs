@@ -469,6 +469,20 @@ public class SteadyStateTests
         Assert.Equal(0.5, result.Machine(Id("m3")).Utilisation, Precision);
     }
 
+    [Fact]
+    public void A_belt_into_a_machine_that_brings_nothing_leaves_its_share_to_the_belts_that_do()
+    {
+        // Your crystal oscillator manufacturers have a fourth belt connected that brings nothing. A belt that hasn't
+        // offered anything may bring any input, so it was given half of each, and the manufacturers ran at 50%.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore").Belt("empty").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+            .Connect("miner", "ore", "smelter", "ingots", "sink")
+            .Connect("empty", "smelter")
+            .Run();
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
     // ---- BR-A5: mergers ---------------------------------------------------------------------------------------
 
     [Fact]
@@ -495,6 +509,23 @@ public class SteadyStateTests
 
         Assert.Equal(10, result.Flow(Id("a"), Id("merge"), Ore), Precision);
         Assert.Equal(50, result.Flow(Id("b"), Id("merge"), Ore), Precision);
+    }
+
+    [Fact]
+    public void A_merger_input_that_sends_less_than_it_offers_leaves_the_rest_to_the_others()
+    {
+        // The smelter offers 30 ingots (the ore belt offers all 600 the miner has) but its Mk.1 belt brings it only
+        // 15 ore: it sends 15. The merger's 60 then go 15 to the smelter and 45 to the other line, as in the game, not
+        // 30 and 30 with 15 of the smelter's share unused.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 600).Belt("ore", capacity: 15).Machine("smelter", Ore, 30, Ingot, 30)
+            .Provider("ingots", Ingot, 600).Merger("merge").Belt("mk1", capacity: 60).Sink("sink")
+            .Connect("miner", "ore", "smelter", "merge", "mk1", "sink")
+            .Connect("ingots", "merge")
+            .Run();
+
+        Assert.Equal(15, result.Flow(Id("smelter"), Id("merge"), Ingot), Precision);
+        Assert.Equal(45, result.Flow(Id("ingots"), Id("merge"), Ingot), Precision);
     }
 
     // ---- BR-A7 and BR-A8: containers and consumers ------------------------------------------------------------

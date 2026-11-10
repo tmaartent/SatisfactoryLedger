@@ -32,9 +32,13 @@ public sealed record AnalysisDocument(
     /// are no longer found standing still.
     /// Version 8: a full inventory at the end of a line takes nothing, unless the save shows items still arriving
     /// (BR-A7); in a loop, what the loop makes comes back first, before what comes from outside it (BR-A10).
+    /// Version 9: a merger input that sends less than its share leaves the rest to the others, also when it offers more
+    /// (BR-A5).
+    /// Version 10: a belt into a machine that brings less than its share, or nothing, leaves the rest to the others
+    /// (BR-A1).
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 10;
 
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 
