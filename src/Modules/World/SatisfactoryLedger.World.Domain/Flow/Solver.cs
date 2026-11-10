@@ -15,6 +15,11 @@ internal sealed class Solver
     private readonly int[] _order;
     private readonly Dictionary<ItemId, double>[] _asked;
 
+    /// <summary>Per node, the loop it's in (see <see cref="Loops"/>); -1 when it's in none.</summary>
+    private readonly int[] _loopOf;
+
+    /// <summary>Per loop, what its machines make: a byproduct coming back is one of these.</summary>
+    private readonly HashSet<ItemId>[] _loopMakes;
 
     private readonly Dictionary<BuildableId, MachineState> _machines = [];
 
@@ -43,6 +48,11 @@ internal sealed class Solver
         _carries = [.. network.Edges.Select(edge => Both(CarriesOf(edge.From), CarriesOf(edge.To)))];
         _order = ForwardOrder();
         _asked = [.. Enumerable.Range(0, nodes).Select(AskedItems)];
+        _loopOf = Loops();
+        _loopMakes = [.. Enumerable.Range(0, _loopOf.Length == 0 ? 0 : _loopOf.Max() + 1).Select(loop => Enumerable.Range(0, nodes)
+            .Where(node => _loopOf[node] == loop && network.Nodes[node] is FlowMachine)
+            .SelectMany(node => ((FlowMachine)network.Nodes[node]).Production.Keys)
+            .ToHashSet())];
         PrimeLoops();
         if (start is not null)
         {
@@ -72,7 +82,7 @@ internal sealed class Solver
     /// </summary>
     private void PrimeLoops()
     {
-        int[] loopOf = Loops();
+        int[] loopOf = _loopOf;
         for (int node = 0; node < _network.Nodes.Count; node++)
         {
             if (loopOf[node] < 0 || _network.Nodes[node] is not FlowMachine machine)
@@ -81,11 +91,13 @@ internal sealed class Solver
             }
 
             // As if fully supplied: every input is offered what it asks. A machine that is offered nothing of one input
-            // in the first sweep would take nothing from the loop, and the loop's links would stay shut.
+            // in the first sweep would take nothing from the loop, and the loop's links would stay shut. A link from
+            // inside the loop brings only what the loop makes.
             foreach (int edge in _in[node])
             {
+                bool inside = loopOf[_network.Edges[edge].From] == loopOf[node];
                 foreach ((ItemId item, double demand) in machine.Demand.Where(demand =>
-                             demand.Value > 0 && CanCarry(edge, demand.Key)))
+                             demand.Value > 0 && CanCarry(edge, demand.Key) && (!inside || _loopMakes[loopOf[node]].Contains(demand.Key))))
                 {
                     _offered[edge][item] = Math.Max(_offered[edge].GetValueOrDefault(item), demand);
                 }
@@ -359,10 +371,23 @@ internal sealed class Solver
     /// </summary>
     private void ShareInputs(int node, double available, double spare)
     {
-        int[] priorities = [.. _in[node].Select(edge => PriorityOf(node, edge))];
+        int[] priorities =
+        [
+            .. _in[node].Select(edge => 2 * PriorityOf(node, edge)
+                + (_offered[edge].Any(entry => entry.Value > 0 && FromOwnLoop(node, edge, entry.Key)) ? 1 : 0))
+        ];
         Share(_in[node], available, _accept, priorities);
         Share(_in[node], spare, _spare, priorities);
     }
+
+    /// <summary>
+    /// BR-A10: whether <paramref name="item"/> coming in over <paramref name="edge"/> is a byproduct coming back: it
+    /// comes from the loop <paramref name="node"/> is in, and the loop makes it. As in the game, that's taken before
+    /// what comes from outside the loop (a pump, a miner), so nothing in the loop stalls on it; what waits is the
+    /// outside source (decided 2026-11-10). Within a priority merger's priorities.
+    /// </summary>
+    private bool FromOwnLoop(int node, int edge, ItemId item) =>
+        _loopOf[node] >= 0 && _loopOf[_network.Edges[edge].From] == _loopOf[node] && _loopMakes[_loopOf[node]].Contains(item);
 
     /// <summary>BR-A5: the priority of a merger's input; a plain merger's inputs, and everything else's, are all 0.</summary>
     private int PriorityOf(int node, int edge) =>
@@ -452,12 +477,15 @@ internal sealed class Solver
 
             double needed = demand * Math.Min(outputs, ScarcestOtherThan(machine, offered, item));
             // A belt that hasn't offered this item yet may bring any of it.
-            double[] taken = Waterfill(needed, [
-                .. bringing.Select(k =>
-                    _offered[inputs[k]].TryGetValue(item, out double offer) && offer > 0
-                        ? offer
-                        : double.PositiveInfinity)
-            ]);
+            double[] taken = Prioritised(
+                needed,
+                [
+                    .. bringing.Select(k =>
+                        _offered[inputs[k]].TryGetValue(item, out double offer) && offer > 0
+                            ? offer
+                            : double.PositiveInfinity)
+                ],
+                [.. bringing.Select(k => FromOwnLoop(node, inputs[k], item) ? 1 : 0)]);
             double total = taken.Sum();
             for (int j = 0; j < bringing.Count; j++)
             {

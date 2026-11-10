@@ -341,6 +341,61 @@ public class SteadyStateTests
         Assert.Equal(1.0, result.Machine(Id("collider")).Utilisation, Precision);
     }
 
+    private static readonly ItemId Bauxite = ItemId.Of("Desc_OreBauxite_C");
+    private static readonly ItemId AluminaSolution = ItemId.Of("Desc_AluminaSolution_C");
+    private static readonly ItemId AluminumScrap = ItemId.Of("Desc_AluminumScrap_C");
+
+    /// <summary>
+    /// The owner's aluminium loop: the alumina refinery needs 10 water, 6 of which the scrap refinery gives back; a
+    /// pump brings the rest. Both meet in one pipe junction, or come straight into the refinery.
+    /// </summary>
+    private static FlowResult AluminiumLoop(double pump, bool junction = true)
+    {
+        TestFlow flow = new TestFlow()
+            .Fluid(Water).Fluid(AluminaSolution)
+            .Provider("bauxite", Bauxite, 10).Belt("bauxite belt")
+            .Provider("pump", Water, pump).Pipe("pump pipe")
+            .Machine("alumina refinery", [(Bauxite, 10), (Water, 10)], [(AluminaSolution, 12)]).Pipe("solution")
+            .Machine("scrap refinery", [(AluminaSolution, 12)], [(AluminumScrap, 18), (Water, 6)]).Pipe("water back")
+            .Belt("scrap").Sink("smelters")
+            .Connect("bauxite", "bauxite belt", "alumina refinery", "solution", "scrap refinery", "scrap", "smelters")
+            .Connect("scrap refinery", "water back");
+        return junction
+            ? flow.PipeNetwork("junction").Pipe("water in")
+                .Connect("pump", "pump pipe", "junction").Connect("water back", "junction", "water in", "alumina refinery").Run()
+            : flow.Connect("pump", "pump pipe", "alumina refinery").Connect("water back", "alumina refinery").Run();
+    }
+
+    [Fact]
+    public void A_loop_takes_back_its_own_byproduct_before_what_a_pump_brings()
+    {
+        // The pump brings 3.99 of the 4 the loop lacks. In the game the byproduct goes first, so only the pump's
+        // shortfall slows the loop: 10u = 3.99 + 6u, u = 99.75%. Served evenly, the cut would land on the water
+        // coming back, grow every round, and wind the loop down to nothing.
+        FlowResult result = AluminiumLoop(pump: 3.99);
+
+        Assert.Equal(0.9975, result.Machine(Id("alumina refinery")).Utilisation, Precision);
+        Assert.Equal(0.9975, result.Machine(Id("scrap refinery")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_machine_in_a_loop_takes_its_own_byproduct_first_over_its_inputs_too()
+    {
+        FlowResult result = AluminiumLoop(pump: 3.99, junction: false);
+
+        Assert.Equal(0.9975, result.Machine(Id("alumina refinery")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void In_a_loop_the_pump_is_what_waits_when_there_is_more_water_than_needed()
+    {
+        FlowResult result = AluminiumLoop(pump: 5);
+
+        Assert.Equal(1, result.Machine(Id("scrap refinery")).Utilisation, Precision);
+        Assert.Equal(6, result.Flow(Id("water back"), Id("junction"), Water), Precision);
+        Assert.Equal(4, result.Flow(Id("pump pipe"), Id("junction"), Water), Precision);
+    }
+
     [Fact]
     public void A_loop_that_gives_back_too_little_winds_down()
     {
