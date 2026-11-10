@@ -502,8 +502,6 @@ public class SteadyStateTests
         Assert.Equal(15, result.Flow(Id("ore 2"), Id("smelter"), Ore), Precision);
     }
 
-#if !LINEAR_STEADY_STATE
-    // How the sweeps settle: not a question for the linear programmes, which end in a fixed number of rounds.
     [Fact]
     public void The_largest_part_of_your_big_world_settles()
     {
@@ -517,7 +515,6 @@ public class SteadyStateTests
         Assert.True(result.Settled);
         Assert.Equal(15328, part.Nodes.Count);
     }
-#endif
 
     [Fact]
     public void A_source_whose_rate_is_not_known_offers_what_its_belt_can_carry()
@@ -973,8 +970,6 @@ public class SteadyStateTests
 
     // ---- Settling ----------------------------------------------------------------------------------------------
 
-#if !LINEAR_STEADY_STATE
-    // How the sweeps settle: not a question for the linear programmes, which end in a fixed number of rounds.
     [Fact]
     public void A_branch_that_rejoins_the_line_settles_in_one_sweep_and_two_that_confirm_it()
     {
@@ -988,7 +983,6 @@ public class SteadyStateTests
 
         Assert.Equal(3, result.Sweeps);
     }
-#endif
 
     /// <summary>Two lines that don't touch: a smelter line, and the loop of the conservation test below.</summary>
     private static TestFlow TwoParts() => new TestFlow()
@@ -1000,8 +994,6 @@ public class SteadyStateTests
         .Connect("loop miner", "loop smelter", "merge", "loop", "split", "constructor", "out", "loop sink")
         .Connect("split", "back", "merge");
 
-#if !LINEAR_STEADY_STATE
-    // How the sweeps settle: not a question for the linear programmes, which end in a fixed number of rounds.
     [Fact]
     public void Parts_of_the_world_that_do_not_touch_are_settled_on_their_own()
     {
@@ -1011,10 +1003,7 @@ public class SteadyStateTests
         Assert.All(result.Parts, part => Assert.True(part.Settled));
         Assert.Equal(3, result.PartOf(Id("smelter")).Sweeps);
     }
-#endif
 
-#if !LINEAR_STEADY_STATE
-    // How the sweeps settle: not a question for the linear programmes, which end in a fixed number of rounds.
     [Fact]
     public void A_part_that_does_not_settle_within_the_limit_is_approximate_while_the_others_still_settle()
     {
@@ -1024,10 +1013,7 @@ public class SteadyStateTests
         Assert.False(result.PartOf(Id("loop smelter")).Settled);
         Assert.False(result.Settled);
     }
-#endif
 
-#if !LINEAR_STEADY_STATE
-    // How the sweeps settle: not a question for the linear programmes, which end in a fixed number of rounds.
     [Fact]
     public void A_part_has_settled_when_no_flow_changes_by_more_than_the_tolerance_for_two_sweeps()
     {
@@ -1037,7 +1023,6 @@ public class SteadyStateTests
 
         Assert.InRange(result.PartOf(Id("loop smelter")).Sweeps, 3, 25);
     }
-#endif
 
     // ---- Loops and BR-A10 -------------------------------------------------------------------------------------
 

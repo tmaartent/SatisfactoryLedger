@@ -58,5 +58,5 @@ The sweep handles the rule natively. Its one real flaw is starting from zero: in
 
 On the owner's current world (42,517 nodes): about a second for the start, 5 s for the sweep. Every part settles; before, one part of 313 buildables didn't. 211 machines run higher and 64 lower; mean utilisation goes from 0.865 to 0.900. The aluminium chain runs, as the owner confirmed in the game.
 
-**What it leaves behind:** the full LP (`LinearSteadyState.Of`, its findings and the sequence of rounds) has no production caller now. It goes before `feat/lp-solver` is merged, so that only the running start remains.
+**What it leaves behind:** the full LP (its findings, the sequence of rounds, the tiers and the what-ifs) had no production caller any more and was deleted before `feat/lp-solver` was merged. What remains in `World.Simulation` is the running start: `RunningStart`, one `LinearProgramme` per part, and `ItemsOnConnections` with the sort rules. Step logs 29a to 29e record how the full LP was built and why it went.
 

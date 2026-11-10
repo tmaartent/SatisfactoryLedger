@@ -20,7 +20,7 @@ public static class NetworkAnalysis
             ArgumentNullException.ThrowIfNull(network);
             // ADR-0026: the sweeps start from the most that can flow, so loops and whole regions that wait on each
             // other start running; the sweeps then settle the game's rules and wind down what can't keep going.
-            FlowResult result = SteadyState.Of(network, start: LinearSteadyState.RunningStart(network));
+            FlowResult result = SteadyState.Of(network, start: RunningStart.Of(network));
 
             Dictionary<string, IReadOnlyDictionary<string, double>> into = new(StringComparer.Ordinal);
             foreach (FlowConduit conduit in network.Nodes.OfType<FlowConduit>())
