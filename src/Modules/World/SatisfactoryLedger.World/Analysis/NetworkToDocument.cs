@@ -36,7 +36,7 @@ internal static class NetworkToDocument
     {
         FlowProvider provider => new ProviderDocument(provider.Id.Id, provider.Item.Id, provider.Offer),
         FlowUnknownSource source => new UnknownSourceDocument(
-            source.Id.Id, Items(source.Stock), ToWire(source.Carries), Names(source.Burns), source.BurnRate, ToWire(source.Inventory)),
+            source.Id.Id, Items(source.Stock), ToWire(source.Carries), Names(source.Burns), source.BurnRate, ToWire(source.Inventory), Names(source.Cargo)),
         FlowMachine machine => new MachineDocument(machine.Id.Id, Items(machine.Demand), Items(machine.Production), Names(machine.Stocked)),
         // JSON has no infinity: a conduit without a limit has no capacity.
         FlowConduit conduit => new ConduitDocument(conduit.Id.Id, double.IsPositiveInfinity(conduit.Capacity) ? null : conduit.Capacity, ToWire(conduit.Carries)),

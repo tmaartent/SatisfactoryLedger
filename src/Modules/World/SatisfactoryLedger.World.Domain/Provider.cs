@@ -40,4 +40,10 @@ public sealed class Provider(
     /// </summary>
     public Inventory? Inventory { get; init; }
 
+    /// <summary>
+    /// A station that unloads, not an extractor: when it holds nothing, it's taken to carry what the stations its
+    /// lines meet hold (BR-A9).
+    /// </summary>
+    public bool IsStation { get; init; }
+
 }

@@ -83,7 +83,7 @@ internal sealed class TestWorld
 
     /// <summary>A train platform or drone port: a provider without a known rate, with what it holds now.</summary>
     public TestWorld Station(string id, params (ItemId Item, decimal Count)[] stock) =>
-        Add(new Provider(BuildableId.Of(id), offer: null, Stock(stock)));
+        Add(new Provider(BuildableId.Of(id), offer: null, Stock(stock)) { IsStation = true });
 
     /// <summary>A drone port or truck station that unloads, and burns <paramref name="fuel"/>.</summary>
     public TestWorld StationBurning(string id, ItemId fuel) => Add(new Provider(BuildableId.Of(id), burns: new HashSet<ItemId> { fuel }));

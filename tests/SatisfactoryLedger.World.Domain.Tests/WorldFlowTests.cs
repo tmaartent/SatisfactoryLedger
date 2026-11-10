@@ -190,6 +190,41 @@ public class WorldFlowTests
         Assert.IsType<FlowUnknownSource>(Node(world, "box"));
     }
 
+    // ---- BR-A9: an empty station carries what its neighbours carry ----------------------------------------------
+
+    private static IReadOnlySet<ItemId>? CargoOf(TestWorld world, string station) =>
+        Assert.IsType<FlowUnknownSource>(Node(world, station)).Cargo;
+
+    [Fact]
+    public void An_empty_station_supplies_what_the_stations_its_lines_meet_hold()
+    {
+        // Your freight platforms on a load balancer: only one has cargo yet, the empty ones carry the same.
+        TestWorld world = new TestWorld().Station("full", (Items.IronOre, 4800)).Station("empty")
+            .Belt("a").Belt("b").Merger("merge").Belt("out").Machine("smelter", Items.IronOre, Items.IronIngot)
+            .Connect("full", "a", "merge", "out", "smelter").Connect("empty", "b", "merge");
+
+        Assert.Equal([Items.IronOre], CargoOf(world, "empty"));
+    }
+
+    [Fact]
+    public void An_empty_station_whose_lines_meet_stations_with_different_cargo_supplies_all_of_it()
+    {
+        TestWorld world = new TestWorld().Station("ore", (Items.IronOre, 4800)).Station("coal", (Items.Coal, 4800)).Station("empty")
+            .Belt("a").Belt("b").Belt("c").Merger("merge").Belt("out").Machine("smelter", Items.IronOre, Items.IronIngot)
+            .Connect("ore", "a", "merge", "out", "smelter").Connect("coal", "b", "merge").Connect("empty", "c", "merge");
+
+        Assert.Equal(new HashSet<ItemId> { Items.IronOre, Items.Coal }, CargoOf(world, "empty"));
+    }
+
+    [Fact]
+    public void An_empty_station_whose_lines_meet_no_other_station_supplies_whatever_is_asked()
+    {
+        TestWorld world = new TestWorld().Station("empty").Belt("out").Machine("smelter", Items.IronOre, Items.IronIngot)
+            .Connect("empty", "out", "smelter");
+
+        Assert.Null(CargoOf(world, "empty"));
+    }
+
     [Fact]
     public void A_station_that_unloads_supplies_what_is_asked_and_knows_its_stock()
     {

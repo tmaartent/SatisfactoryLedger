@@ -11,10 +11,15 @@ namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 /// For a drone port, how much of its fuel it burns per minute when that's known (BR-A16): it then takes its fuel like
 /// any consumer, up to that rate.
 /// </param>
+/// <param name="Cargo">
+/// What it supplies, when its stock doesn't say: an empty station carries what the stations its lines meet hold
+/// (BR-A9). Null when that isn't known: it then supplies what it holds, or whatever is asked.
+/// </param>
 public sealed record FlowUnknownSource(
     BuildableId Id,
     IReadOnlyDictionary<ItemId, double> Stock,
     Carries Carries = Carries.Anything,
     IReadOnlySet<ItemId>? Burns = null,
     double? BurnRate = null,
-    Inventory? Inventory = null) : FlowNode(Id);
+    Inventory? Inventory = null,
+    IReadOnlySet<ItemId>? Cargo = null) : FlowNode(Id);

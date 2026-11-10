@@ -25,7 +25,7 @@ public class FlowNetworkDocumentTests
         [
             new FlowProvider(Id("miner"), Ore, 60),
             new FlowProvider(Id("pump"), Water, 120),
-            new FlowUnknownSource(Id("station"), new Dictionary<ItemId, double> { [Ore] = 1800 }, Carries.Solids, new HashSet<ItemId> { Fuel }, 1.5),
+            new FlowUnknownSource(Id("station"), new Dictionary<ItemId, double> { [Ore] = 1800 }, Carries.Solids, new HashSet<ItemId> { Fuel }, 1.5, Cargo: new HashSet<ItemId> { Ore }),
             new FlowConduit(Id("ore"), 60, Carries.Solids),
             new FlowConduit(Id("container"), double.PositiveInfinity, Carries.Solids),
             new FlowConduit(Id("water"), 300, Carries.Fluids),
@@ -91,6 +91,14 @@ public class FlowNetworkDocumentTests
         var station = Assert.IsType<FlowUnknownSource>(Node("station"));
         Assert.Equal((1800.0, true), (station.Stock[Ore], station.Burns!.Contains(Fuel)));
         Assert.Equal([Water], network.Fluids);
+    }
+
+    [Fact]
+    public void What_an_empty_station_carries_survives_the_document()
+    {
+        FlowUnknownSource station = Assert.IsType<FlowUnknownSource>(RoundTrip(Network()).Nodes.Single(node => node.Id == Id("station")));
+
+        Assert.Equal([Ore], station.Cargo);
     }
 
     [Fact]

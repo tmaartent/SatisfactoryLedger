@@ -14,16 +14,60 @@ public static class WorldFlow
     {
         ArgumentNullException.ThrowIfNull(world);
 
-        return new FlowNetwork(world.Buildables.Select(buildable => NodeOf(buildable, world)), world.Connections, fluids);
+        Dictionary<BuildableId, IReadOnlySet<ItemId>> cargo = CargoOfEmptyStations(world);
+        return new FlowNetwork(world.Buildables.Select(buildable => NodeOf(buildable, world, cargo)), world.Connections, fluids);
     }
 
-    private static FlowNode NodeOf(Buildable buildable, WorldGraph world) => buildable switch
+    /// <summary>
+    /// BR-A9: an empty station carries what the stations its lines meet hold, all of it when they differ: freight
+    /// platforms on a load balancer, of which only one has cargo yet (decided 2026-11-10). A station whose lines meet
+    /// no station holding anything has none here, and supplies whatever is asked.
+    /// </summary>
+    private static Dictionary<BuildableId, IReadOnlySet<ItemId>> CargoOfEmptyStations(WorldGraph world)
+    {
+        List<Provider> stations = [.. world.Buildables.OfType<Provider>().Where(provider => provider is { IsStation: true, Offer: null })];
+        Dictionary<BuildableId, HashSet<BuildableId>> lines = stations.ToDictionary(station => station.Id, station => LineOf(station.Id, world));
+        Dictionary<BuildableId, IReadOnlySet<ItemId>> cargo = [];
+        foreach (Provider empty in stations.Where(station => !station.Stock.Values.Any(count => count > 0)))
+        {
+            HashSet<ItemId> carried =
+            [
+                .. stations.Where(other => other.Id != empty.Id && lines[other.Id].Overlaps(lines[empty.Id]))
+                    .SelectMany(other => other.Stock.Where(entry => entry.Value > 0).Select(entry => entry.Key)),
+            ];
+            if (carried.Count > 0)
+            {
+                cargo[empty.Id] = carried;
+            }
+        }
+
+        return cargo;
+    }
+
+    /// <summary>The logistics a buildable's products pass through, up to the next machine, consumer or station.</summary>
+    private static HashSet<BuildableId> LineOf(BuildableId id, WorldGraph world)
+    {
+        HashSet<BuildableId> line = [];
+        Queue<BuildableId> queue = new([id]);
+        while (queue.TryDequeue(out BuildableId? current))
+        {
+            foreach (Logistics logistics in world.Downstream(current).OfType<Logistics>().Where(logistics => line.Add(logistics.Id)))
+            {
+                queue.Enqueue(logistics.Id);
+            }
+        }
+
+        return line;
+    }
+
+    private static FlowNode NodeOf(Buildable buildable, WorldGraph world, Dictionary<BuildableId, IReadOnlySet<ItemId>> cargo) => buildable switch
     {
         Machine machine => new FlowMachine(machine.Id, PerMinute(machine.Demand), PerMinute(machine.Production), Stocked(machine.Demand, machine.InputStock)),
         Provider { Offer: { } offer } provider => new FlowProvider(provider.Id, offer.Item, offer.PerMinute.ToDouble()),
         // BR-A9: its rate isn't known (a station, an unknown node), so it supplies what is asked. A station also
         // takes everything loaded onto it.
-        Provider provider => new FlowUnknownSource(provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, provider.BurnRate?.ToDouble(), provider.Inventory),
+        Provider provider => new FlowUnknownSource(
+            provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, provider.BurnRate?.ToDouble(), provider.Inventory, cargo.GetValueOrDefault(provider.Id)),
         // BR-A8: a generator burning a known fuel takes what it burns and makes its waste, like a machine.
         Consumer { Generation: { } generation } generator => new FlowMachine(
             generator.Id, Demand(generation), Leaves(generation),

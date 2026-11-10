@@ -984,6 +984,22 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void An_empty_station_supplies_only_its_cargo_so_it_clogs_no_machine_with_what_others_further_on_ask()
+    {
+        // Asked for everything the machines it reaches use, an empty station offered coal on the smelter's belt too,
+        // and a belt bringing an item a machine doesn't ask for clogs it (BR-A1). It carries only ore.
+        FlowResult result = new TestFlow()
+            .EmptyStation("platform", Ore).Belt("out").Splitter("split").Belt("to smelter").Belt("to foundry")
+            .Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+            .Machine("foundry", [(Ore, 30), (Items.Coal, 30)], [(Plate, 30)]).Belt("plates").Sink("plate sink")
+            .Connect("platform", "out", "split", "to smelter", "smelter", "ingots", "sink")
+            .Connect("split", "to foundry", "foundry", "plates", "plate sink")
+            .Run();
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
+    [Fact]
     public void A_station_takes_back_none_of_what_it_supplies_itself_as_fuel()
     {
         // Your drone port that brings rocket fuel refuels itself from its own cargo, through a splitter that also feeds

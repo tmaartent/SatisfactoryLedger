@@ -147,7 +147,10 @@ internal sealed class ItemsOnConnections
         }
 
         HashSet<ItemId> held = [.. source.Stock.Where(stock => stock.Value > 0).Select(stock => stock.Key)];
-        HashSet<ItemId> sends = held.Overlaps(asked.Keys) ? [.. asked.Keys.Intersect(held)] : [.. asked.Keys];
+        // An empty station's cargo is what its neighbours hold (BR-A9): only that.
+        HashSet<ItemId> sends = source.Cargo is { } cargo ? [.. asked.Keys.Intersect(cargo)]
+            : held.Overlaps(asked.Keys) ? [.. asked.Keys.Intersect(held)]
+            : [.. asked.Keys];
         _asked[node] = sends.Sum(item => asked[item]);
         return sends;
     }
