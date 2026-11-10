@@ -27,6 +27,9 @@ public class ModuleBoundaryTests
     private static readonly IObjectProvider<IType> SaveFileLibrary =
         Types(true).That().ResideInNamespaceMatching(@"^SatisfactorySaveNet(\.|$)").As("SatisfactorySaveNet library");
 
+    private static readonly IObjectProvider<IType> OrTools =
+        Types(true).That().ResideInNamespaceMatching(@"^Google\.OrTools(\.|$)").As("OR-Tools library");
+
     private static readonly IObjectProvider<IType> AspNetCore =
         Types(true).That().ResideInNamespaceMatching(@"^Microsoft\.AspNetCore(\.|$)").As("ASP.NET Core layer");
 
@@ -126,6 +129,25 @@ public class ModuleBoundaryTests
     {
         Types().That().ResideInAssembly(SolutionAssemblies.WorldSaveFile).And().HaveName("SaveFileReader")
             .Should().DependOnAny(SaveFileLibrary)
+            .Check(Architecture);
+    }
+
+    [Fact]
+    public void Only_the_simulation_uses_OR_Tools()
+    {
+        Types().That().ResideInAssembly(SolutionAssemblies.All[0], SolutionAssemblies.All[1..])
+            .And().DoNotResideInAssembly(SolutionAssemblies.WorldSimulation)
+            .Should().NotDependOnAny(OrTools)
+            .Because("the solver's library stays out of the domain and the API, as the save library does (ADR-0026)")
+            .Check(Architecture);
+    }
+
+    // Without this, the rule above would also pass if the namespace pattern matched nothing at all.
+    [Fact]
+    public void The_linear_steady_state_is_where_OR_Tools_is_used()
+    {
+        Types().That().ResideInAssembly(SolutionAssemblies.WorldSimulation).And().HaveName("LinearSteadyState")
+            .Should().DependOnAny(OrTools)
             .Check(Architecture);
     }
 

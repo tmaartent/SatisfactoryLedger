@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.mtp-v2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World.Simulation\SatisfactoryLedger.World.Simulation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The network builder and items the sweep's tests use (written once, in World.Domain.Tests): the LP is held to the same cases. -->
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\TestFlow.cs" Link="TestFlow.cs" />
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\Items.cs" Link="Items.cs" />
+  </ItemGroup>
+
+</Project>
