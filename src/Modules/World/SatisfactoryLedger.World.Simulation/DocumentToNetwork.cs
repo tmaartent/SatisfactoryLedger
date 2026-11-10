@@ -27,7 +27,8 @@ public static class DocumentToNetwork
         UnknownSourceDocument source => new FlowUnknownSource(
             BuildableId.Of(source.Id), Items(source.Stock), ToDomain(source.Carries), Items(source.Burns), source.BurnRate, ToDomain(source.Inventory),
             Items(source.Cargo)),
-        MachineDocument machine => new FlowMachine(BuildableId.Of(machine.Id), Items(machine.Demand), Items(machine.Production), Items(machine.Stocked)),
+        MachineDocument machine => new FlowMachine(
+            BuildableId.Of(machine.Id), Items(machine.Demand), Items(machine.Production), Items(machine.Stocked), Items(machine.Leaving)),
         ConduitDocument conduit => new FlowConduit(BuildableId.Of(conduit.Id), conduit.Capacity ?? double.PositiveInfinity, ToDomain(conduit.Carries)),
         SplitterDocument splitter => new FlowSplitter(BuildableId.Of(splitter.Id), ToDomain(splitter.Carries),
             splitter.Rules?.Select(rule => new SortRule(rule.Output, ToDomain(rule.Kind), rule.Item is null ? null : ItemId.Of(rule.Item))).ToList()),

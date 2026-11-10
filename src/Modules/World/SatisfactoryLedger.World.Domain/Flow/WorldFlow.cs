@@ -62,7 +62,9 @@ public static class WorldFlow
 
     private static FlowNode NodeOf(Buildable buildable, WorldGraph world, Dictionary<BuildableId, IReadOnlySet<ItemId>> cargo) => buildable switch
     {
-        Machine machine => new FlowMachine(machine.Id, PerMinute(machine.Demand), PerMinute(machine.Production), Stocked(machine.Demand, machine.InputStock)),
+        Machine machine => new FlowMachine(
+            machine.Id, PerMinute(machine.Demand), PerMinute(machine.Production), Stocked(machine.Demand, machine.InputStock),
+            machine.Leaving is { Count: > 0 } leaving ? leaving : null),
         Provider { Offer: { } offer } provider => new FlowProvider(provider.Id, offer.Item, offer.PerMinute.ToDouble()),
         // BR-A9: its rate isn't known (a station, an unknown node), so it supplies what is asked. A station also
         // takes everything loaded onto it.

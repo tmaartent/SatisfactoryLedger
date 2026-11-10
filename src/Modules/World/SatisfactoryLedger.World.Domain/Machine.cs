@@ -36,6 +36,16 @@ public sealed class Machine : Buildable
     /// <summary>Per output item, what it makes per minute when it runs at 100%.</summary>
     public IReadOnlyDictionary<ItemId, Rate> Production { get; }
 
+    /// <summary>How many of each of its products fit in a slot, from the Catalog; empty when that isn't known (BR-A7).</summary>
+    public IReadOnlyDictionary<ItemId, int> StackSizes { get; init; } = new Dictionary<ItemId, int>();
+
+    /// <summary>
+    /// BR-A7: the products the save shows leaving it: it can run and has room for its next batch. Their line isn't
+    /// full, whatever takes them further on, so they never hold it back (decided 2026-11-10).
+    /// </summary>
+    public IReadOnlySet<ItemId> Leaving =>
+        Produces.Where(item => StackSizes.GetValueOrDefault(item) is > 0 and var stackSize && ShowsLeaving(item, stackSize)).ToHashSet();
+
     /// <summary>Per output item, what one cycle makes, somersloops included; empty when that isn't known (BR-A7).</summary>
     public IReadOnlyDictionary<ItemId, decimal> Batches { get; }
 
@@ -47,15 +57,17 @@ public sealed class Machine : Buildable
 
     /// <summary>
     /// BR-A7: whether the save shows <paramref name="item"/> leaving it: it holds some of every input, so it can run,
-    /// and its next batch fits in its output slot (a stack). A slot that can't take the next batch shows it blocked; an
-    /// empty one of a machine that can't run shows nothing. Without a known batch, any room counts.
+    /// and its output slot (a stack) has room for more than its next batch. A backed-up machine fills its slot, waits
+    /// until one batch fits again and fills it, so its slot always sits between the stack less a batch and the stack:
+    /// that shows it backing up (decided 2026-11-10). An empty slot of a machine that can't run shows nothing. Without a
+    /// known batch, any room counts.
     /// </summary>
     public bool ShowsLeaving(ItemId item, int stackSize) =>
         OutputStock is { } waiting
         && Produces.Contains(item)
         && Consumes.All(input => InputStock.GetValueOrDefault(input) > 0)
         && (Batches.TryGetValue(item, out decimal batch) && batch > 0
-            ? waiting.GetValueOrDefault(item) + batch <= stackSize
+            ? waiting.GetValueOrDefault(item) + batch < stackSize
             : waiting.GetValueOrDefault(item) < stackSize);
 
     public bool ProducesAnyOf(IReadOnlySet<ItemId> items) => Produces.Overlaps(items);

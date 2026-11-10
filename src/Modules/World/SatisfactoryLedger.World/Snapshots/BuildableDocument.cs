@@ -81,6 +81,7 @@ internal sealed record BuildableDocument(
             {
                 InputStock = InputStockOf(),
                 OutputStock = OutputContents?.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
+                StackSizes = catalog.StackSizes,
             },
             BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf(), burnRate)
             {

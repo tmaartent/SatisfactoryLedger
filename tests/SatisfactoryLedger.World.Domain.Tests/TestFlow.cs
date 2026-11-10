@@ -28,6 +28,11 @@ internal sealed class TestFlow
     public TestFlow MachineOnStock(string id, (ItemId Item, double Rate)[] demand, (ItemId Item, double Rate)[] production, params ItemId[] stocked) =>
         Add(new FlowMachine(Id(id), demand.ToDictionary(e => e.Item, e => e.Rate), production.ToDictionary(e => e.Item, e => e.Rate), stocked.ToHashSet()));
 
+    /// <summary>A machine with one input and one output that the save shows with room for its next batch (BR-A7).</summary>
+    public TestFlow MachineLeaving(string id, ItemId input, double asks, ItemId output, double makes) =>
+        Add(new FlowMachine(Id(id), new Dictionary<ItemId, double> { [input] = asks }, new Dictionary<ItemId, double> { [output] = makes },
+            Leaving: new HashSet<ItemId> { output }));
+
     /// <summary>A machine with one input and one output.</summary>
     public TestFlow Machine(string id, ItemId input, double asks, ItemId output, double makes) =>
         Machine(id, [(input, asks)], [(output, makes)]);

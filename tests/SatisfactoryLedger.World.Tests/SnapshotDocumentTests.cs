@@ -155,6 +155,14 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void A_machine_in_the_world_knows_how_many_of_its_products_fit_in_a_slot()
+    {
+        var constructor = Assert.IsType<Machine>(Stored(TestWorldSnapshot.IronPlate).ToWorldGraph().Find(BuildableId.Of(Id("Build_ConstructorMk1_C_2147291547").Id)));
+
+        Assert.Equal(200, constructor.StackSizes[ItemId.Of("Desc_IronPlate_C")]);
+    }
+
+    [Fact]
     public void A_snapshot_from_before_contents_were_read_can_still_be_read_without_them()
     {
         SnapshotDocument withoutContents = TestWorldSnapshot.Document with

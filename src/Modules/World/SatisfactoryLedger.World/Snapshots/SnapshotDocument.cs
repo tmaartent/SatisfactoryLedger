@@ -100,7 +100,8 @@ internal sealed record SnapshotDocument(
             dronePorts,
             [.. (catalog.Storages ?? []).Where(storage => classes.Contains(storage.Id)).OrderBy(storage => storage.Id, StringComparer.Ordinal)
                 .Select(storage => new StorageDocument(storage.Id, storage.Slots, storage.FluidCubicMetres))],
-            catalog.Items.Where(item => held.Contains(item.Id) && item.StackSize > 0)
+            // Of what's held, and of what the recipes make: a machine's room for its next batch (BR-A7).
+            catalog.Items.Where(item => (held.Contains(item.Id) || items.Contains(item.Id)) && item.StackSize > 0)
                 .ToDictionary(item => item.Id, item => item.StackSize, StringComparer.Ordinal),
             saved.DepotStock.Count > 0 ? saved.DepotStock : null);
     }
