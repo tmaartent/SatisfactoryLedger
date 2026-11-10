@@ -456,11 +456,14 @@ internal sealed class Solver
         }
 
         double[] taken = Prioritised(available, [.. inputs.Select(edge => Total(_offered[edge]))], priorities);
-        double total = taken.Sum();
+        // BR-A5: an input is charged only what it sent last sweep, up to its share: one that offers more than it can
+        // send (a smelter behind a slow belt offers its full rate) leaves the rest of its share to the others.
+        double[] used = [.. inputs.Select((edge, k) => accept == _accept ? Math.Min(taken[k], Total(_flow[edge])) : taken[k])];
+        double total = used.Sum();
         for (int k = 0; k < inputs.Count; k++)
         {
             // An input may take what the others leave, so an input that offers more later can grow into it.
-            accept[inputs[k]] = available - (total - taken[k]);
+            accept[inputs[k]] = available - (total - used[k]);
         }
     }
 
