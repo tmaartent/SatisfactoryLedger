@@ -3,9 +3,15 @@ using SatisfactoryLedger.World.Domain;
 namespace SatisfactoryLedger.World.Simulation;
 
 /// <summary>
-/// Connections that share evenly at one node (BR-A4, BR-A5): a splitter's outputs, the inputs of a merger or of any
-/// logistics fed by more than one connection, or the belts that bring a machine one of its inputs.
+/// Connections that share evenly at one node (BR-A4, BR-A5): the outputs of a splitter (per tier), the inputs of a
+/// merger (per priority) or of any logistics fed by more than one connection, or the belts that bring a machine one of
+/// its inputs.
 /// </summary>
 /// <param name="Edges">The connections, by their position in the network.</param>
-/// <param name="Item">For a machine's inputs, the item they share; null when they share everything they carry.</param>
-internal sealed record SharingGroup(IReadOnlyList<int> Edges, ItemId? Item);
+/// <param name="Items">The items they share; null when they share everything they carry.</param>
+/// <param name="Tier">
+/// 0 for a group served first. A higher tier gets something only when every share of the groups in
+/// <paramref name="Above"/> is capped: an overflow output, a lower priority, an uploader or a station's fuel (BR-A4, A5, A8).
+/// </param>
+/// <param name="Above">The groups, by their position, that are served before this one.</param>
+internal sealed record SharingGroup(IReadOnlyList<int> Edges, IReadOnlySet<ItemId>? Items, int Tier = 0, IReadOnlyList<int>? Above = null);

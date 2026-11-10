@@ -34,9 +34,10 @@ internal sealed class LinearProgramme : IDisposable
     private readonly Solver _solver;
     private readonly Dictionary<(int Edge, ItemId Item), Variable> _flow = [];
     private readonly Dictionary<int, Variable> _utilisation = [];
-    private readonly Dictionary<(int Group, int Edge), Constraint> _uncappedShares = [];
+    private readonly Dictionary<(int Group, int Edge), Variable> _uncappedShares = [];
+    private readonly Dictionary<int, (Variable Blocked, List<(int Group, int Edge)> Waiting)> _blockedTiers = [];
     private readonly List<(Variable Variable, double Coefficient)> _push = [];
-    private readonly List<(Variable Variable, double Coefficient)> _cappedShares = [];
+    private readonly SortedDictionary<int, List<(Variable Variable, double Coefficient)>> _cappedShares = [];
 
     public LinearProgramme(
         FlowNetwork network, ItemsOnConnections items, IReadOnlyList<SharingGroup> groups, IReadOnlySet<(int Group, int Edge)> capped)
@@ -63,14 +64,18 @@ internal sealed class LinearProgramme : IDisposable
         for (int group = 0; group < groups.Count; group++)
         {
             Share(group, groups[group], capped);
+            Wait(group, groups, capped);
         }
     }
 
     /// <summary>What sources push in: provider deliveries, and what sources of unknown rate are asked for.</summary>
     public IReadOnlyList<(Variable Variable, double Coefficient)> Push => _push;
 
-    /// <summary>What the capped shares carry: each takes all its far end allows, as the game's min(take, share).</summary>
-    public IReadOnlyList<(Variable Variable, double Coefficient)> CappedShares => _cappedShares;
+    /// <summary>
+    /// What the capped shares carry, per tier, the first tier first: each takes all its far end allows, as the game's
+    /// min(take, share), and a tier served first before the ones after it.
+    /// </summary>
+    public IEnumerable<IReadOnlyList<(Variable Variable, double Coefficient)>> CappedShares => _cappedShares.Values;
 
     /// <summary>Every machine's utilisation: what runs a loop no source pushes, such as one fed only by itself.</summary>
     public IReadOnlyList<(Variable Variable, double Coefficient)> Utilisation => [.. _utilisation.Values.Select(u => (u, 1.0))];
@@ -108,12 +113,18 @@ internal sealed class LinearProgramme : IDisposable
     }
 
     /// <summary>
-    /// After <see cref="Maximise"/> of <see cref="Push"/>: the shares that hold the sources back. Their dual value says
-    /// that letting them fall below their level would let more be delivered, so what lies beyond them can't take their
-    /// share. The game gives such a share what its far end takes, and the others the rest.
+    /// After <see cref="Maximise"/> of <see cref="Push"/>: the shares that hold the sources back. The reduced cost of
+    /// their fixed "below" says that letting them fall below their level would let more be delivered, so what lies
+    /// beyond them can't take their share. The game gives such a share what its far end takes, and the others the rest.
     /// </summary>
+    /// <para>
+    /// A tier that waits for the ones above it holds the sources back too when blocking it costs delivery: then the
+    /// shares above it can take no more, and all of them that aren't capped yet are.
+    /// </para>
     public IEnumerable<(int Group, int Edge)> SharesHoldingBack() =>
-        _uncappedShares.Where(share => share.Value.DualValue() < -CostsDelivery).Select(share => share.Key);
+        _uncappedShares.Where(share => share.Value.ReducedCost() > CostsDelivery).Select(share => share.Key)
+            .Concat(_blockedTiers.Values.Where(tier => tier.Blocked.ReducedCost() > CostsDelivery).SelectMany(tier => tier.Waiting))
+            .Distinct();
 
     public LinearFlow Result() => new(
         _network,
@@ -184,7 +195,16 @@ internal sealed class LinearProgramme : IDisposable
                 }
 
                 break;
-            case FlowUnknownSource:
+            case FlowSink { BurnRate: { } burnRate, Burns: { Count: > 0 } fuels }:
+                // BR-A16: a drone port whose rate is known takes no more of its fuel than its drones burn.
+                Burning(into, fuels, burnRate);
+                break;
+            case FlowUnknownSource source:
+                if (source is { BurnRate: { } burns, Burns: { Count: > 0 } fuel })
+                {
+                    Burning(into, fuel, burns);
+                }
+
                 Constraint asked = _solver.MakeConstraint(0, _items.Asked.GetValueOrDefault(node));
                 foreach (Variable delivered in All(outOf))
                 {
@@ -201,20 +221,58 @@ internal sealed class LinearProgramme : IDisposable
         Variable level = _solver.MakeNumVar(0, double.PositiveInfinity, $"t{group}");
         foreach (int edge in sharing.Edges)
         {
-            List<Variable> carried = [.. sharing.Item is { } item ? Over([edge], item) : All([edge])];
+            List<Variable> carried = [.. sharing.Items is { } shared ? shared.SelectMany(item => Over([edge], item)) : All([edge])];
+            // share − level + below = 0: a share that isn't capped may not fall below the level (below fixed at 0),
+            // a capped one may. The reduced cost of a fixed "below" is what letting it fall would deliver.
             bool isCapped = capped.Contains((group, edge));
-            Constraint share = _solver.MakeConstraint(isCapped ? double.NegativeInfinity : 0, 0);
+            Variable below = _solver.MakeNumVar(0, isCapped ? double.PositiveInfinity : 0, $"s{group}:{edge}");
+            Constraint share = _solver.MakeConstraint(0, 0);
             Sum(share, carried);
             share.SetCoefficient(level, -1);
+            share.SetCoefficient(below, 1);
             if (isCapped)
             {
-                _cappedShares.AddRange(carried.Select(variable => (variable, 1.0)));
+                if (!_cappedShares.TryGetValue(sharing.Tier, out List<(Variable Variable, double Coefficient)>? tier))
+                {
+                    tier = [];
+                    _cappedShares[sharing.Tier] = tier;
+                }
+
+                tier.AddRange(carried.Select(variable => (variable, 1.0)));
             }
             else
             {
-                _uncappedShares[(group, edge)] = share;
+                _uncappedShares[(group, edge)] = below;
             }
         }
+    }
+
+    /// <summary>A tier gets nothing while any share of the groups above it isn't capped.</summary>
+    private void Wait(int group, IReadOnlyList<SharingGroup> groups, IReadOnlySet<(int Group, int Edge)> capped)
+    {
+        SharingGroup sharing = groups[group];
+        List<(int Group, int Edge)> waiting =
+        [
+            .. (sharing.Above ?? []).SelectMany(above => groups[above].Edges.Select(edge => (above, edge))).Where(share => !capped.Contains(share))
+        ];
+        if (waiting.Count == 0)
+        {
+            return;
+        }
+
+        // Through one variable fixed at 0, rather than the flows themselves: their own bounds of 0 would take the dual
+        // value, and this variable's reduced cost says exactly what lifting the block would deliver.
+        Variable blocked = _solver.MakeNumVar(0, 0, $"b{group}");
+        Constraint tier = _solver.MakeConstraint(0, 0);
+        Sum(tier, sharing.Edges.SelectMany(edge => sharing.Items is { } shared ? shared.SelectMany(item => Over([edge], item)) : All([edge])));
+        tier.SetCoefficient(blocked, -1);
+        _blockedTiers[group] = (blocked, waiting);
+    }
+
+    private void Burning(List<int> into, IReadOnlySet<ItemId> fuels, double perMinute)
+    {
+        Constraint burns = _solver.MakeConstraint(0, perMinute);
+        Sum(burns, fuels.SelectMany(fuel => Over(into, fuel)));
     }
 
     private IEnumerable<Variable> Over(IEnumerable<int> edges, ItemId item) =>

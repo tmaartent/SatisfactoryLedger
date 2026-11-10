@@ -69,9 +69,17 @@ internal sealed class ItemsOnConnections
         while (_toPass.TryDequeue(out (int Edge, ItemId Item) arrived))
         {
             int at = _network.Edges[arrived.Edge].To;
-            if (_network.Nodes[at] is FlowConduit or FlowSplitter or FlowMerger)
+            switch (_network.Nodes[at])
             {
-                _out[at].ForEach(edge => Offer(edge, arrived.Item));
+                // A smart or programmable splitter sends an item only to the outputs its rules name (BR-A4).
+                case FlowSplitter { Rules.Count: > 0 } sorting:
+                    var rules = new SortRules(_network, sorting);
+                    _out[at].Where(edge => rules.Takes(edge, arrived.Item) || rules.Overflows(edge, arrived.Item))
+                        .ToList().ForEach(edge => Offer(edge, arrived.Item));
+                    break;
+                case FlowConduit or FlowSplitter or FlowMerger:
+                    _out[at].ForEach(edge => Offer(edge, arrived.Item));
+                    break;
             }
         }
     }
@@ -107,10 +115,27 @@ internal sealed class ItemsOnConnections
                         }
 
                         break;
+                    // BR-A16: a drone port burning a known rate asks for its fuel, like a generator. One whose rate
+                    // isn't known asks for nothing: it takes only what's left.
+                    case FlowSink { BurnRate: { } burnRate, Burns: { Count: > 0 } fuels }:
+                        Ask(fuels, burnRate, edge);
+                        break;
+                    case FlowUnknownSource { BurnRate: { } burnRate, Burns: { Count: > 0 } fuels }:
+                        Ask(fuels, burnRate, edge);
+
+                        break;
                     case FlowConduit or FlowSplitter or FlowMerger:
                         next.Enqueue(_network.Edges[edge].To);
                         break;
                 }
+            }
+        }
+
+        void Ask(IEnumerable<ItemId> items, double rate, int edge)
+        {
+            foreach (ItemId item in items.Where(item => CanCarry(edge, item)))
+            {
+                asked[item] = asked.GetValueOrDefault(item) + rate;
             }
         }
 
