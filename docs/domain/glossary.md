@@ -16,6 +16,8 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Extractor** | A building that takes a raw resource out of the world: Miner Mk.1–Mk.3, oil extractor, water extractor, resource well extractor. Its **extraction rate** is what it extracts per minute on a normal-purity node at 100% clock speed. In the World, a placed extractor is a provider. | `Extractor`, `Extractor.ExtractionRate` |
 | **Catalog Entry** | An item, building, transport tier, recipe or extractor taken from the game's Docs file. Identified by the game's class name (`Desc_IronPlate_C`). | `ICatalogEntry<T>` |
 | **Catalog Import** | One import of the Docs file: the game version, when it happened, and per kind of entry how many were added, updated or marked no longer in the game (ADR-0009). | `CatalogImport` |
+| **Stack Size** | How many of an item fit in one inventory slot: 1, 50, 100, 200 or 500, from the Docs file. Fluids have none. | `Item.StackSize` |
+| **Storage** | A building that holds items: its slots, or for a fluid buffer its volume in m³. Storage containers, fluid buffers, freight platforms, truck stations, drone ports, the depot uploader. | `Storage`, `CatalogStorage` |
 | **No Longer In Game** | A catalog entry that a later import didn't contain. It stays in the catalog, so references to it stay valid, and it's shown as such. | `IsInGame = false`, `inGame` in the API |
 
 ## Shared kernel

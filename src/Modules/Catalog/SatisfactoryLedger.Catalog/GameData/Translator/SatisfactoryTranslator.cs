@@ -22,7 +22,8 @@ internal class SatisfactoryTranslator
                     ItemId.Of(itemDto.ClassName),
                     itemDto.DisplayName,
                     itemForm,
-                    dto is ResourceItemGroupDto
+                    dto is ResourceItemGroupDto,
+                    StackSizeOf(itemDto.StackSize)
                 );
             })
         ));
@@ -201,6 +202,50 @@ internal class SatisfactoryTranslator
                 ParseGameDecimal(dto.TripPowerCost),
                 ParseGameDecimal(dto.TripPowerPerMeterCost),
                 fuels))
+        ];
+    }
+
+    /// <summary>
+    /// BR-A7: how many of an item fit in one slot. The Docs file names the size, not the number: <c>SS_ONE</c> 1,
+    /// <c>SS_SMALL</c> 50, <c>SS_MEDIUM</c> 100, <c>SS_BIG</c> 200, <c>SS_HUGE</c> 500. A fluid (<c>SS_FLUID</c>) doesn't go
+    /// in slots: 0.
+    /// </summary>
+    private static int StackSizeOf(string stackSize) => stackSize switch
+    {
+        "SS_ONE" => 1,
+        "SS_SMALL" => 50,
+        "SS_MEDIUM" => 100,
+        "SS_BIG" => 200,
+        "SS_HUGE" => 500,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// BR-A7: every building with an inventory, and what it holds. A storage container, freight platform, drone port,
+    /// truck station or depot uploader holds slots; a fluid buffer a volume. The fluid freight platform and a fluid truck
+    /// station are left out: their size is in "stacks of fluid", and how much fluid a stack is isn't in the Docs file.
+    /// </summary>
+    public static List<Storage> TranslateToStorages(List<GameDataGroupDto> dataList)
+    {
+        static int Times(string x, string y) => int.Parse(x, CultureInfo.InvariantCulture) * int.Parse(y, CultureInfo.InvariantCulture);
+        static bool HoldsFluidStacks(StorageDto dto) =>
+            ParseGameDecimal(dto.FluidStackSizeMultiplier) > 1 || dto.IsFluidStorageInventory.Equals("True", StringComparison.OrdinalIgnoreCase);
+
+        IEnumerable<Storage> Slots<TGroup>(Func<TGroup, IEnumerable<StorageDto>> classes, Func<StorageDto, int> slots) =>
+            dataList.OfType<TGroup>().SelectMany(classes).Where(dto => !HoldsFluidStacks(dto))
+                .Select(dto => Storage.Create(StorageId.Of(dto.ClassName), dto.DisplayName, slots(dto), 0));
+
+        return
+        [
+            .. Slots<StorageContainerGroupDto>(group => group.Storages, dto => Times(dto.InventorySizeX, dto.InventorySizeY))
+                .Concat(Slots<DepotUploaderGroupDto>(group => group.Storages, dto => Times(dto.InventorySizeX, dto.InventorySizeY)))
+                .Concat(Slots<FreightPlatformGroupDto>(group => group.Storages, dto => Times(dto.StorageSizeX, dto.StorageSizeY)))
+                .Concat(Slots<TruckStationGroupDto>(group => group.Storages, dto => int.Parse(dto.StorageInventorySize, CultureInfo.InvariantCulture)))
+                .Concat(dataList.OfType<DronePortGroupDto>().SelectMany(group => group.DronePorts)
+                    .Select(dto => Storage.Create(StorageId.Of(dto.ClassName), dto.DisplayName, Times(dto.StorageSizeX, dto.StorageSizeY), 0)))
+                .Concat(dataList.OfType<FluidBufferGroupDto>().SelectMany(group => group.Storages)
+                    .Select(dto => Storage.Create(StorageId.Of(dto.ClassName), dto.DisplayName, 0, ParseGameDecimal(dto.StorageCapacity))))
+                .DistinctBy(storage => storage.Id)
         ];
     }
 

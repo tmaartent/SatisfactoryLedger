@@ -200,5 +200,6 @@ public class CatalogImportTests
             extractors ?? CatalogEntries.Reconcile<Extractor>([], []),
             footprints ?? CatalogEntries.Reconcile<Footprint>([], []),
             generators ?? CatalogEntries.Reconcile<Generator>([], []),
-            dronePorts ?? CatalogEntries.Reconcile<DronePort>([], []));
+            dronePorts ?? CatalogEntries.Reconcile<DronePort>([], []),
+            CatalogEntries.Reconcile<Storage>([], []));
 }

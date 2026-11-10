@@ -29,4 +29,7 @@ public interface ICatalogQueries
 
     /// <summary>The drone ports with these class names that the Catalog knows (BR-A16). Unknown ids are left out.</summary>
     Task<IReadOnlyList<CatalogDronePort>> GetDronePortsAsync(IReadOnlyCollection<string> dronePortIds, CancellationToken cancellationToken);
+
+    /// <summary>What the given buildings with an inventory hold (BR-A7). Unknown classes are left out.</summary>
+    Task<IReadOnlyList<CatalogStorage>> GetStoragesAsync(IReadOnlyCollection<string> storageIds, CancellationToken cancellationToken);
 }

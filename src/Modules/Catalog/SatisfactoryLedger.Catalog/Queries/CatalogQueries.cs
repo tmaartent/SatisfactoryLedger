@@ -34,7 +34,7 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
         return await db.Items.AsNoTracking()
             .Where(item => ids.Contains(item.Id))
             .OrderBy(item => item.Name)
-            .Select(item => new CatalogItem(item.Id.Id, item.Name, item.ItemForm == ItemForm.Fluid))
+            .Select(item => new CatalogItem(item.Id.Id, item.Name, item.ItemForm == ItemForm.Fluid, item.StackSize))
             .ToListAsync(cancellationToken);
     }
 
@@ -119,6 +119,16 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
                             fuel.Fuel.Id, fuel.EnergyMegajoules, fuel.Supplemental?.Id, fuel.Byproduct?.Id, fuel.ByproductPerFuel))
                     ]))
         ];
+    }
+
+    public async Task<IReadOnlyList<CatalogStorage>> GetStoragesAsync(IReadOnlyCollection<string> storageIds, CancellationToken cancellationToken)
+    {
+        List<StorageId> ids = [.. storageIds.Select(StorageId.Of)];
+        return await db.Storages.AsNoTracking()
+            .Where(storage => ids.Contains(storage.Id))
+            .OrderBy(storage => storage.Id)
+            .Select(storage => new CatalogStorage(storage.Id.Id, storage.Slots, storage.FluidCubicMetres))
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<CatalogDronePort>> GetDronePortsAsync(IReadOnlyCollection<string> dronePortIds, CancellationToken cancellationToken)

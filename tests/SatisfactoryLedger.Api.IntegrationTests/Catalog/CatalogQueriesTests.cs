@@ -54,7 +54,7 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
         IReadOnlyList<Contracts.CatalogItem> items = await catalog.GetItemsAsync(
             ["Desc_OreIron_C", "Desc_IronOreTypo_C"], TestContext.Current.CancellationToken);
 
-        Assert.Equal([new Contracts.CatalogItem("Desc_OreIron_C", "Iron Ore", IsFluid: false)], items);
+        Assert.Equal([new Contracts.CatalogItem("Desc_OreIron_C", "Iron Ore", IsFluid: false, StackSize: 100)], items);
     }
 
     [Fact]
