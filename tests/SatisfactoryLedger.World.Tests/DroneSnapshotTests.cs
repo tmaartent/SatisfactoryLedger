@@ -52,6 +52,15 @@ public class DroneSnapshotTests
         };
 
     [Fact]
+    public void A_port_that_unloads_is_a_station_whose_cargo_its_neighbours_can_tell()
+    {
+        // BR-A9: the save reads what it holds; an empty one is taken to carry what the stations its lines meet hold.
+        Provider hub = Assert.IsType<Provider>(World(fuelAtHome: true, fuelAtHub: false).ToWorldGraph().Find(Hub));
+
+        Assert.True(hub.IsStation);
+    }
+
+    [Fact]
     public void A_snapshot_copies_what_a_drone_trip_costs_and_the_energy_of_the_fuels_its_ports_hold()
     {
         DronePortDocument port = Assert.Single(World(fuelAtHome: true, fuelAtHub: false).DronePorts!);

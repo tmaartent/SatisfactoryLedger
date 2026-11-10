@@ -268,6 +268,12 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void A_miner_is_no_station_so_it_never_takes_on_a_neighbours_cargo()
+    {
+        Assert.False(Find<Provider>(TestWorldSnapshot.Document.ToWorldGraph(), "Build_MinerMk1_C_2147339296").IsStation);
+    }
+
+    [Fact]
     public void A_miner_offers_the_ore_of_its_node_at_its_extraction_rate()
     {
         Provider miner = Find<Provider>(TestWorldSnapshot.Document.ToWorldGraph(), "Build_MinerMk1_C_2147339296");

@@ -1181,6 +1181,12 @@ internal sealed class Solver
             }
         }
 
+        // An empty station's cargo is what its neighbours hold (BR-A9): only that.
+        if (source.Cargo is { } cargo)
+        {
+            return asked.Where(entry => cargo.Contains(entry.Key)).ToDictionary(entry => entry.Key, entry => entry.Value);
+        }
+
         // What it holds narrows it down when it's known; a station holding nothing right now still supplies what's asked.
         HashSet<ItemId> held = [.. source.Stock.Where(stock => stock.Value > 0).Select(stock => stock.Key)];
         return held.Count > 0 && held.Overlaps(asked.Keys)

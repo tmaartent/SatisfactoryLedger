@@ -85,6 +85,8 @@ internal sealed record BuildableDocument(
             BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf(), burnRate)
             {
                 Inventory = InventoryOf(catalog),
+                // The save reads what a station holds; an extractor has none.
+                IsStation = Stock is not null,
             },
             BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf(), GenerationOf(catalog), TakesLeftoversOnly, burnRate)
             {

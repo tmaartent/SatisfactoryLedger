@@ -17,6 +17,10 @@ internal sealed class TestFlow
     public TestFlow UnknownSource(string id, params (ItemId Item, double Count)[] stock) =>
         Add(new FlowUnknownSource(Id(id), stock.ToDictionary(entry => entry.Item, entry => entry.Count)));
 
+    /// <summary>A station that holds nothing, assumed to carry <paramref name="cargo"/>: what its neighbours hold (BR-A9).</summary>
+    public TestFlow EmptyStation(string id, params ItemId[] cargo) =>
+        Add(new FlowUnknownSource(Id(id), new Dictionary<ItemId, double>(), Cargo: cargo.ToHashSet()));
+
     public TestFlow Machine(string id, (ItemId Item, double Rate)[] demand, (ItemId Item, double Rate)[] production) =>
         Add(new FlowMachine(Id(id), demand.ToDictionary(e => e.Item, e => e.Rate), production.ToDictionary(e => e.Item, e => e.Rate)));
 
