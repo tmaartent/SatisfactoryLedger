@@ -128,6 +128,14 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void A_belt_in_the_world_knows_what_it_carries()
+    {
+        var belt = Assert.IsType<Logistics>(Stored().ToWorldGraph().Find(BuildableId.Of(Id("Build_ConveyorBeltMk1_C_2147303056").Id)));
+
+        Assert.Equal(7m, belt.Carrying[ItemId.Of("Desc_OreIron_C")]);
+    }
+
+    [Fact]
     public void A_belt_keeps_what_it_carries()
     {
         BuildableDocument belt = Stored().Buildables.Single(b => b.Id == Id("Build_ConveyorBeltMk1_C_2147303056").Id);

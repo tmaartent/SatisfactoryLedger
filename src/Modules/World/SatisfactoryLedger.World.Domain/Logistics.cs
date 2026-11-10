@@ -40,4 +40,10 @@ public sealed class Logistics(
     /// </summary>
     public Inventory? Inventory { get; init; }
 
+    /// <summary>
+    /// What's on it at save time, per item: on a belt or lift, in a splitter's or merger's buffer. Tells what an empty
+    /// station feeding it carries (BR-A9).
+    /// </summary>
+    public IReadOnlyDictionary<ItemId, decimal> Carrying { get; init; } = new Dictionary<ItemId, decimal>();
+
 }

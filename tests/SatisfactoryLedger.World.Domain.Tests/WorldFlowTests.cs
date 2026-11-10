@@ -241,6 +241,17 @@ public class WorldFlowTests
     }
 
     [Fact]
+    public void An_empty_station_whose_neighbours_hold_nothing_carries_what_its_belts_hold()
+    {
+        // Your four Ficsite Trigon platforms, all empty at save time: their belts hold only Ficsite Trigons.
+        TestWorld world = new TestWorld().Station("empty").Station("also empty")
+            .BeltCarrying("a", (Items.Coal, 40)).Belt("b").Merger("merge").Belt("out").Machine("smelter", Items.IronOre, Items.IronIngot)
+            .Connect("empty", "a", "merge", "out", "smelter").Connect("also empty", "b", "merge");
+
+        Assert.Equal([Items.Coal], CargoOf(world, "empty"));
+    }
+
+    [Fact]
     public void An_empty_station_whose_lines_meet_no_other_station_supplies_whatever_is_asked()
     {
         TestWorld world = new TestWorld().Station("empty").Belt("out").Machine("smelter", Items.IronOre, Items.IronIngot)

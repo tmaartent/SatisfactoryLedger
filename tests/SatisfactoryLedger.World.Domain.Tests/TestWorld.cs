@@ -67,6 +67,10 @@ internal sealed class TestWorld
     public TestWorld Belt(string id, decimal? capacity = null) =>
         Add(new Logistics(BuildableId.Of(id), LogisticsKind.Belt, capacity is { } perMinute ? Rate.PerMinute(perMinute) : null));
 
+    /// <summary>A belt with what's on it at save time.</summary>
+    public TestWorld BeltCarrying(string id, params (ItemId Item, decimal Count)[] carrying) =>
+        Add(new Logistics(BuildableId.Of(id), LogisticsKind.Belt) { Carrying = Stock(carrying) });
+
     public TestWorld Lift(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Lift));
 
     public TestWorld Splitter(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Splitter));

@@ -1015,6 +1015,25 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void A_machine_whose_inputs_are_all_offered_is_starved_of_the_one_that_does_not_arrive()
+    {
+        // The station offers coal and plates on the foundry's belt; plates clog it, so no coal comes in. The foundry is
+        // short of coal, not of the ore that arrives in full (your encoder was named short of its photonic matter).
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore")
+            .UnknownSource("station").Belt("out").Splitter("split").Belt("to foundry").Belt("to press")
+            .Machine("foundry", [(Ore, 30), (Items.Coal, 30)], [(Ingot, 30)]).Belt("ingots").Sink("sink")
+            .Machine("press", Plate, 30, Rods, 30).Belt("rods").Sink("rod sink")
+            .Connect("miner", "ore", "foundry", "ingots", "sink")
+            .Connect("station", "out", "split", "to foundry", "foundry")
+            .Connect("split", "to press", "press", "rods", "rod sink")
+            .Run();
+
+        MachineState foundry = result.Machine(Id("foundry"));
+        Assert.Equal((MachineLimit.Starved, (ItemId?)Items.Coal), (foundry.Limit, foundry.LimitingItem));
+    }
+
+    [Fact]
     public void A_station_takes_back_none_of_what_it_supplies_itself_as_fuel()
     {
         // Your drone port that brings rocket fuel refuels itself from its own cargo, through a splitter that also feeds
