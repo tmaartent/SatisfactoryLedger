@@ -953,6 +953,22 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void A_station_takes_back_none_of_what_it_supplies_itself_as_fuel()
+    {
+        // Your drone port that brings rocket fuel refuels itself from its own cargo, through a splitter that also feeds
+        // the port beside it. Fuel going round from a station into itself gains nothing: no flow, not a full belt.
+        FlowResult result = new TestFlow()
+            .StationBurning("fuel port", RocketFuel).Belt("out").Splitter("split").Belt("back").Belt("on")
+            .LoadingStationBurning("ingot port", RocketFuel, 2)
+            .Connect("fuel port", "out", "split", "back", "fuel port")
+            .Connect("split", "on", "ingot port")
+            .Run();
+
+        Assert.Equal(0, result.Flow(Id("back"), Id("fuel port"), RocketFuel), Precision);
+        Assert.Equal(2, result.Flow(Id("on"), Id("ingot port"), RocketFuel), Precision);
+    }
+
+    [Fact]
     public void Fuel_over_two_belts_into_a_drone_port_together_makes_up_what_it_burns()
     {
         FlowResult result = new TestFlow()

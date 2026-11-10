@@ -21,6 +21,8 @@ internal sealed class Solver
     /// <summary>Per loop, what its machines make: a byproduct coming back is one of these.</summary>
     private readonly HashSet<ItemId>[] _loopMakes;
 
+    /// <summary>The inputs of a station that its own outputs feed, through logistics (BR-A9).</summary>
+    private readonly HashSet<int> _selfFed;
     private readonly Dictionary<BuildableId, MachineState> _machines = [];
 
     /// <param name="start">
@@ -48,6 +50,7 @@ internal sealed class Solver
         _carries = [.. network.Edges.Select(edge => Both(CarriesOf(edge.From), CarriesOf(edge.To)))];
         _order = ForwardOrder();
         _asked = [.. Enumerable.Range(0, nodes).Select(AskedItems)];
+        _selfFed = SelfFed();
         _loopOf = Loops();
         _loopMakes = [.. Enumerable.Range(0, _loopOf.Length == 0 ? 0 : _loopOf.Max() + 1).Select(loop => Enumerable.Range(0, nodes)
             .Where(node => _loopOf[node] == loop && network.Nodes[node] is FlowMachine)
@@ -129,6 +132,43 @@ internal sealed class Solver
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// BR-A9: the inputs of each station that its own outputs reach through logistics, as when a drone port refuels
+    /// itself from the fuel it brings. What a station supplies and takes back gains nothing, so such an input takes
+    /// nothing: otherwise the station would send round as much as the belt carries.
+    /// </summary>
+    private HashSet<int> SelfFed()
+    {
+        HashSet<int> selfFed = [];
+        for (int station = 0; station < _network.Nodes.Count; station++)
+        {
+            if (_network.Nodes[station] is not FlowUnknownSource)
+            {
+                continue;
+            }
+
+            HashSet<int> seen = [station];
+            Queue<int> next = new([station]);
+            while (next.TryDequeue(out int current))
+            {
+                foreach (int edge in _out[current])
+                {
+                    int to = _network.Edges[edge].To;
+                    if (to == station)
+                    {
+                        selfFed.Add(edge);
+                    }
+                    else if (_network.Nodes[to] is FlowConduit or FlowSplitter or FlowMerger && seen.Add(to))
+                    {
+                        next.Enqueue(to);
+                    }
+                }
+            }
+        }
+
+        return selfFed;
     }
 
     /// <summary>
@@ -324,6 +364,13 @@ internal sealed class Solver
         HashSet<ItemId> arriving = [];
         foreach (int edge in _in[node])
         {
+            if (_selfFed.Contains(edge))
+            {
+                _accept[edge] = 0;
+                _spare[edge] = 0;
+                continue;
+            }
+
             List<ItemId> items = [.. _offered[edge].Where(entry => entry.Value > 0).Select(entry => entry.Key)];
             // BR-A7: a full inventory takes only what the save shows arriving, as fast as it arrives; nothing else of
             // what this input brings. The belt backs up.
