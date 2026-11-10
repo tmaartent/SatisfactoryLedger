@@ -35,16 +35,30 @@ internal static class NetworkToDocument
     private static FlowNodeDocument ToDocument(FlowNode node) => node switch
     {
         FlowProvider provider => new ProviderDocument(provider.Id.Id, provider.Item.Id, provider.Offer),
-        FlowUnknownSource source => new UnknownSourceDocument(source.Id.Id, Items(source.Stock), ToWire(source.Carries), Names(source.Burns), source.BurnRate),
+        FlowUnknownSource source => new UnknownSourceDocument(
+            source.Id.Id, Items(source.Stock), ToWire(source.Carries), Names(source.Burns), source.BurnRate, ToWire(source.Inventory)),
         FlowMachine machine => new MachineDocument(machine.Id.Id, Items(machine.Demand), Items(machine.Production), Names(machine.Stocked)),
         // JSON has no infinity: a conduit without a limit has no capacity.
         FlowConduit conduit => new ConduitDocument(conduit.Id.Id, double.IsPositiveInfinity(conduit.Capacity) ? null : conduit.Capacity, ToWire(conduit.Carries)),
         FlowSplitter splitter => new SplitterDocument(splitter.Id.Id, ToWire(splitter.Carries),
             splitter.Rules is { Count: > 0 } rules ? [.. rules.Select(rule => new Wire.SortRuleDocument(rule.Output, ToWire(rule.Kind), rule.Item?.Id))] : null),
         FlowMerger merger => new MergerDocument(merger.Id.Id, ToWire(merger.Carries), merger.Priorities is { Count: > 0 } priorities ? [.. priorities] : null),
-        FlowSink sink => new SinkDocument(sink.Id.Id, Names(sink.Burns), sink.LeftoversOnly, sink.BurnRate),
+        FlowSink sink => new SinkDocument(sink.Id.Id, Names(sink.Burns), sink.LeftoversOnly, sink.BurnRate, ToWire(sink.Inventory)),
         _ => throw new ArgumentException($"{node} is not a kind of node the document knows", nameof(node)),
     };
+
+    private static InventoryDocument? ToWire(Inventory? inventory) => inventory is null ? null : new InventoryDocument(
+        inventory.Kind switch
+        {
+            Domain.InventoryKind.Slots => Wire.InventoryKind.Slots,
+            Domain.InventoryKind.Fluid => Wire.InventoryKind.Fluid,
+            Domain.InventoryKind.Depot => Wire.InventoryKind.Depot,
+            _ => throw new ArgumentOutOfRangeException(nameof(inventory), inventory.Kind, null),
+        },
+        inventory.Size,
+        inventory.Holds.ToDictionary(entry => entry.Key.Id, entry => entry.Value, StringComparer.Ordinal),
+        inventory.StackSizes.ToDictionary(entry => entry.Key.Id, entry => entry.Value, StringComparer.Ordinal),
+        inventory.Arriving.Count > 0 ? inventory.Arriving.ToDictionary(entry => entry.Key.Id, entry => entry.Value, StringComparer.Ordinal) : null);
 
     private static Dictionary<string, double> Items(IReadOnlyDictionary<ItemId, double> rates) =>
         rates.ToDictionary(rate => rate.Key.Id, rate => rate.Value, StringComparer.Ordinal);

@@ -40,6 +40,7 @@ internal static class TestWorldSnapshot
         [new("BP_ResourceNode35", "resourceNode", "Desc_OreIron_C", "normal")],
         [
             new("Desc_OreIron_C", "Iron Ore", false), new("Desc_IronIngot_C", "Iron Ingot", false),
+            new("Desc_IronRod_C", "Iron Rod", false, StackSize: 100), new("Desc_IronPlate_C", "Iron Plate", false, StackSize: 200),
             new("Desc_Water_C", "Water", true), new("Desc_FluidCanister_C", "Empty Canister", false),
             new("Desc_LiquidOil_C", "Crude Oil", true),
             new("Desc_LiquidTurboFuel_C", "Turbofuel", true),
@@ -56,7 +57,8 @@ internal static class TestWorldSnapshot
                 [new("Desc_Coal_C", 300, "Desc_Water_C", null, 0), new("Desc_CompactedCoal_C", 630, "Desc_Water_C", null, 0)]),
             new("Build_GeneratorFuel_C", 250, 0,
                 [new("Desc_LiquidFuel_C", 750, null, null, 0), new("Desc_LiquidTurboFuel_C", 2000, null, null, 0)]),
-        ]);
+        ],
+        Storages: [new("Build_StorageContainerMk2_C", 48, 0), new("Build_TrainDockingStation_C", 48, 0), new("Build_PipeStorageTank_C", 0, 400)]);
 
     public static readonly SavedWorld Saved = Read();
 

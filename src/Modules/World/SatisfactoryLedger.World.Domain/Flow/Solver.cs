@@ -14,6 +14,8 @@ internal sealed class Solver
     private readonly Carries[] _carries;
     private readonly int[] _order;
     private readonly Dictionary<ItemId, double>[] _asked;
+
+
     private readonly Dictionary<BuildableId, MachineState> _machines = [];
 
     /// <param name="start">
@@ -242,11 +244,11 @@ internal sealed class Solver
             switch (_network.Nodes[node])
             {
                 case FlowSink sink:
-                    TakeEverything(node, sink.Burns, sink.LeftoversOnly, sink.BurnRate);
+                    TakeEverything(node, sink.Burns, sink.LeftoversOnly, sink.BurnRate, sink.Inventory);
                     break;
                 // A station takes everything loaded onto it, like a consumer, while it unloads to its outputs (BR-A8, BR-A9).
                 case FlowUnknownSource source:
-                    TakeEverything(node, source.Burns, burnRate: source.BurnRate);
+                    TakeEverything(node, source.Burns, burnRate: source.BurnRate, inventory: source.Inventory);
                     break;
                 case FlowConduit conduit:
                     double firm = Math.Min(conduit.Capacity, AcceptedDownstream(node));
@@ -303,12 +305,29 @@ internal sealed class Solver
     /// than one belt bringing it share that like a merger's inputs (BR-A16).
     /// </summary>
     private void TakeEverything(int node, IReadOnlySet<ItemId>? burns, bool leftoversOnly = false,
-        double? burnRate = null)
+        double? burnRate = null, Inventory? inventory = null)
     {
         List<int> fuelInputs = [];
+        List<int> arrivingInputs = [];
+        HashSet<ItemId> arriving = [];
         foreach (int edge in _in[node])
         {
             List<ItemId> items = [.. _offered[edge].Where(entry => entry.Value > 0).Select(entry => entry.Key)];
+            // BR-A7: a full inventory takes only what the save shows arriving, as fast as it arrives; nothing else of
+            // what this input brings. The belt backs up.
+            if (inventory is not null && items.Count > 0 && !items.Any(item => double.IsPositiveInfinity(inventory.TakesPerMinute(item))))
+            {
+                _accept[edge] = 0;
+                _spare[edge] = 0;
+                if (items.Any(inventory.Takes))
+                {
+                    arrivingInputs.Add(edge);
+                    arriving.UnionWith(items.Where(inventory.Takes));
+                }
+
+                continue;
+            }
+
             bool fuel = burns is { Count: > 0 } && items.Count > 0 && items.All(burns.Contains);
             if (fuel && burnRate is not null)
             {
@@ -325,6 +344,12 @@ internal sealed class Solver
         if (fuelInputs.Count > 0)
         {
             Share(fuelInputs, burnRate!.Value, _accept, new int[fuelInputs.Count]);
+        }
+
+        if (arrivingInputs.Count > 0)
+        {
+            // An uploader takes even that only from the leftovers (BR-A8).
+            Share(arrivingInputs, arriving.Sum(inventory!.TakesPerMinute), leftoversOnly ? _spare : _accept, new int[arrivingInputs.Count]);
         }
     }
 
@@ -358,12 +383,26 @@ internal sealed class Solver
             return;
         }
 
-        double[] offers = [.. inputs.Select(edge => Total(_offered[edge]))];
-        double[] taken = new double[inputs.Count];
+        double[] taken = Prioritised(available, [.. inputs.Select(edge => Total(_offered[edge]))], priorities);
+        double total = taken.Sum();
+        for (int k = 0; k < inputs.Count; k++)
+        {
+            // An input may take what the others leave, so an input that offers more later can grow into it.
+            accept[inputs[k]] = available - (total - taken[k]);
+        }
+    }
+
+    /// <summary>
+    /// Shares <paramref name="available"/> over what each offers: the highest priority first, evenly within one priority
+    /// (<see cref="Waterfill"/>), and what's left to the next priority down.
+    /// </summary>
+    private static double[] Prioritised(double available, double[] offers, int[] priorities)
+    {
+        double[] taken = new double[offers.Length];
         double left = available;
         foreach (int priority in priorities.Distinct().OrderDescending())
         {
-            int[] group = [.. Enumerable.Range(0, inputs.Count).Where(k => priorities[k] == priority)];
+            int[] group = [.. Enumerable.Range(0, offers.Length).Where(k => priorities[k] == priority)];
             double[] share = Waterfill(left, [.. group.Select(k => offers[k])]);
             for (int j = 0; j < group.Length; j++)
             {
@@ -373,12 +412,7 @@ internal sealed class Solver
             left = Left(left, share.Sum());
         }
 
-        double total = taken.Sum();
-        for (int k = 0; k < inputs.Count; k++)
-        {
-            // An input may take what the others leave, so an input that offers more later can grow into it.
-            accept[inputs[k]] = available - (total - taken[k]);
-        }
+        return taken;
     }
 
     /// <summary>

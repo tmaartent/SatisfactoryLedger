@@ -7,4 +7,9 @@ namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 /// state a depot is full (BR-A8).
 /// </param>
 /// <param name="BurnRate">For a drone port that loads: how much of its fuel it burns per minute, when known (BR-A16).</param>
-public sealed record FlowSink(BuildableId Id, IReadOnlySet<ItemId>? Burns = null, bool LeftoversOnly = false, double? BurnRate = null) : FlowNode(Id);
+/// <param name="Inventory">
+/// Its inventory, for something at the end of a line that holds what it takes (BR-A7): it takes an item only while that
+/// fits. Null for what takes everything, such as a sink.
+/// </param>
+public sealed record FlowSink(
+    BuildableId Id, IReadOnlySet<ItemId>? Burns = null, bool LeftoversOnly = false, double? BurnRate = null, Inventory? Inventory = null) : FlowNode(Id);

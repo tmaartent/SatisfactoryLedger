@@ -42,6 +42,16 @@ public class GameClassesTests
         Assert.Equal(inventory, GameClasses.StockInventoryOf(className));
     }
 
+    [Theory]
+    [InlineData("Build_TrainDockingStation_C", "inventory")]
+    [InlineData("Build_TruckStation_C", "inventory")]
+    // A drone port keeps what it sends apart from what its drones bring (BR-A7).
+    [InlineData("Build_DroneStation_C", "InputInventory")]
+    public void A_station_that_loads_holds_what_it_sends_in_its_loading_inventory(string className, string inventory)
+    {
+        Assert.Equal(inventory, GameClasses.LoadingInventoryOf(className));
+    }
+
     [Fact]
     public void A_class_the_adapter_does_not_know_has_no_role()
     {

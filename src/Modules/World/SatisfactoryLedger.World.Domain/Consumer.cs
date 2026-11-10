@@ -38,4 +38,11 @@ public sealed class Consumer(
 
     /// <summary>Null for a sink, an uploader, a station, or a generator whose fuel isn't known: it takes everything.</summary>
     public Generation? Generation { get; } = generation;
+
+    /// <summary>
+    /// Its inventory, when the Catalog knows its size: at the end of a line it takes an item only while that fits
+    /// (BR-A7). Null when its size isn't known; it then takes everything, as before.
+    /// </summary>
+    public Inventory? Inventory { get; init; }
+
 }

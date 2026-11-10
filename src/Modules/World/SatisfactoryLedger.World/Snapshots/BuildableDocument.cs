@@ -80,11 +80,16 @@ internal sealed record BuildableDocument(
                 ProductionBoost ?? 1)
             {
                 InputStock = InputStockOf(),
+                OutputStock = OutputContents?.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
             },
-            BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf(), burnRate),
+            BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf(), burnRate)
+            {
+                Inventory = InventoryOf(catalog),
+            },
             BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf(), GenerationOf(catalog), TakesLeftoversOnly, burnRate)
             {
                 InputStock = InputStockOf(),
+                Inventory = TakesLeftoversOnly ? catalog.Depot : InventoryOf(catalog),
             },
             BuildableDocumentRole.Logistics => new Logistics(
                 id,
@@ -92,7 +97,10 @@ internal sealed record BuildableDocument(
                 catalog.TransportTiers.TryGetValue(ClassName, out TransportTierDocument? tier) ? Rate.PerMinute(tier.CapacityPerMinute) : null,
                 StockOf(),
                 SortRules?.Select(rule => new SortRule(rule.Output, rule.Kind, rule.Item is null ? null : ItemId.Of(rule.Item))).ToList(),
-                InputPriorities),
+                InputPriorities)
+            {
+                Inventory = InventoryOf(catalog),
+            },
             _ => throw new JsonException($"Buildable {Id} has an unknown role"),
         };
     }
@@ -150,6 +158,23 @@ internal sealed record BuildableDocument(
     private HashSet<ItemId>? BurnsOf() => Burns?.Select(ItemId.Of).ToHashSet();
 
     private Dictionary<ItemId, decimal>? StockOf() => Stock?.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value);
+
+    /// <summary>
+    /// BR-A7: its inventory, when the Catalog knows the size of its class: slots, or a volume of fluid. Null otherwise,
+    /// and it then takes everything, as before.
+    /// </summary>
+    private Inventory? InventoryOf(CopiedCatalog catalog)
+    {
+        if (!catalog.Storages.TryGetValue(ClassName, out StorageDocument? storage))
+        {
+            return null;
+        }
+
+        Dictionary<ItemId, decimal> holds = StockOf() ?? [];
+        return storage.Slots > 0
+            ? Inventory.OfSlots(storage.Slots, holds, catalog.StackSizes)
+            : Inventory.OfFluid(storage.FluidCubicMetres, holds);
+    }
 
     private ClockSpeed Clock() => ClockSpeed.Percent(ClockPercent ?? 100);
 

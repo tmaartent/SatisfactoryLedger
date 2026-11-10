@@ -3,6 +3,8 @@ using SatisfactoryLedger.World.Domain.Flow.Objects;
 
 using static SatisfactoryLedger.World.Domain.Tests.TestFlow;
 
+using BuildableInventory = SatisfactoryLedger.World.Domain.Inventory;
+
 namespace SatisfactoryLedger.World.Domain.Tests;
 
 /// <summary>The steady-state flow simulation (BR-A1 to BR-A10), on small hand-built networks.</summary>
@@ -452,6 +454,63 @@ public class SteadyStateTests
 
         Assert.Equal(480, result.Flow(Id("belt"), Id("sink"), Ore), Precision);
         Assert.Empty(result.UnusedSupply);
+    }
+
+    // ---- BR-A7: an inventory at the end of a line takes everything until it's full ------------------------------
+
+    private static FlowResult IntoInventory(Inventory inventory, bool leftoversOnly = false) => new TestFlow()
+        .Provider("miner", Ore, 60).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots")
+        .Inventory("container", inventory, leftoversOnly)
+        .Connect("miner", "ore", "smelter", "ingots", "container")
+        .Run();
+
+    private static readonly Dictionary<ItemId, int> IngotStacks = new() { [Ingot] = 100 };
+
+    [Fact]
+    public void A_container_at_the_end_of_a_line_with_room_takes_everything()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfSlots(24, new Dictionary<ItemId, decimal> { [Ingot] = 100 }, IngotStacks));
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_full_container_at_the_end_of_a_line_takes_nothing_and_its_machine_is_output_blocked()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfSlots(24, new Dictionary<ItemId, decimal> { [Ingot] = 2400 }, IngotStacks));
+
+        MachineState smelter = result.Machine(Id("smelter"));
+        Assert.Equal((0.0, MachineLimit.OutputBlocked), (smelter.Utilisation, smelter.Limit));
+    }
+
+    [Fact]
+    public void A_full_container_takes_only_as_much_as_the_save_shows_arriving()
+    {
+        // The smelter makes 30 a minute; the machines that showed ingots leaving make 20 of them.
+        FlowResult result = IntoInventory(BuildableInventory.OfSlots(24, new Dictionary<ItemId, decimal> { [Ingot] = 2400 }, IngotStacks) with
+        {
+            Arriving = new Dictionary<ItemId, double> { [Ingot] = 20 },
+        });
+
+        MachineState smelter = result.Machine(Id("smelter"));
+        Assert.Equal(2.0 / 3, smelter.Utilisation, Precision);
+        Assert.Equal(MachineLimit.OutputBlocked, smelter.Limit);
+    }
+
+    [Fact]
+    public void A_full_depot_takes_nothing_more_of_that_item()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfDepot(new Dictionary<ItemId, decimal> { [Ingot] = 500 }, IngotStacks, stacks: 5), leftoversOnly: true);
+
+        Assert.Equal(0.0, result.Machine(Id("smelter")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_depot_full_of_another_item_still_takes_this_one()
+    {
+        FlowResult result = IntoInventory(BuildableInventory.OfDepot(new Dictionary<ItemId, decimal> { [Ore] = 500, [Ingot] = 300 }, new Dictionary<ItemId, int> { [Ore] = 100, [Ingot] = 100 }, stacks: 5), leftoversOnly: true);
+
+        Assert.Equal(1.0, result.Machine(Id("smelter")).Utilisation, Precision);
     }
 
     // ---- BR-A9: sources with an unknown rate ------------------------------------------------------------------

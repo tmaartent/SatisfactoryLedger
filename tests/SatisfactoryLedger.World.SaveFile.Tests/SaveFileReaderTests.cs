@@ -109,6 +109,19 @@ public class SaveFileReaderTests
     }
 
     [Fact]
+    public void A_loading_platform_holds_what_is_loaded_onto_it()
+    {
+        // BR-A7: it takes everything until it's full.
+        Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronRod_C"] = 822 }, Get<SavedConsumer>(FreightPlatformLoading).Stock);
+    }
+
+    [Fact]
+    public void A_world_without_a_dimensional_depot_holds_nothing_in_one()
+    {
+        Assert.Empty(Save.DepotStock);
+    }
+
+    [Fact]
     public void An_unloading_platform_holds_what_is_on_it()
     {
         Assert.Equal(new Dictionary<string, decimal> { ["Desc_IronScrew_C"] = 7118 }, Get<SavedProvider>(FreightPlatformUnloading).Stock);

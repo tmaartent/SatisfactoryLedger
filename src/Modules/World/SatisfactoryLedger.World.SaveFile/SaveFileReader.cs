@@ -102,7 +102,14 @@ public static class SaveFileReader
                     Stock = StockOf(actor, inventory!, byPath, GameClasses.StocksLitres(className)),
                     Burns = burns,
                 },
-                BuildableRole.Station when linked => new SavedConsumer(id, className) { Burns = burns },
+                // BR-A7: a station that loads holds what's loaded onto it until it's full.
+                BuildableRole.Station when linked => new SavedConsumer(id, className)
+                {
+                    Burns = burns,
+                    Stock = GameClasses.LoadingInventoryOf(className) is { } loading
+                        ? StockOf(actor, loading, byPath, GameClasses.StocksLitres(className))
+                        : null,
+                },
                 BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className), SortRulesOf(actor), InputPrioritiesOf(actor))
                 {
                     Curve = GameClasses.LogisticsKindOf(className) == LogisticsKind.Lift ? LiftCurveOf(actor) : CurveOf(actor),
@@ -142,7 +149,36 @@ public static class SaveFileReader
             new SaveInfo(header.SessionName, header.BuildVersion, header.SaveDateTimeUtc),
             buildables,
             wiring.Connections,
-            [.. unsupported.OrderBy(entry => entry.Key, StringComparer.Ordinal).Select(entry => new UnsupportedBuildables(entry.Key, entry.Value))]);
+            [.. unsupported.OrderBy(entry => entry.Key, StringComparer.Ordinal).Select(entry => new UnsupportedBuildables(entry.Key, entry.Value))])
+        {
+            DepotStock = DepotStockOf(byPath.Values),
+        };
+    }
+
+    /// <summary>
+    /// BR-A7: what the dimensional depot holds, per item class name: the central storage subsystem's <c>mStoredItems</c>,
+    /// each an <c>ItemClass</c> and an <c>Amount</c>. Empty when the world has no depot.
+    /// </summary>
+    private static Dictionary<string, decimal> DepotStockOf(IEnumerable<ComponentObject> objects)
+    {
+        Dictionary<string, decimal> stock = new(StringComparer.Ordinal);
+        ActorObject? subsystem = objects.OfType<ActorObject>().FirstOrDefault(actor => ShortName(actor.TypePath) == "FGCentralStorageSubsystem");
+        if (subsystem?.Properties.OfType<ArrayProperty>().FirstOrDefault(property => property.Name == "mStoredItems")?.Property is not ArrayStructProperty stored)
+        {
+            return stock;
+        }
+
+        foreach (ArrayProperties entry in stored.Values.OfType<ArrayProperties>())
+        {
+            if (entry.Values.OfType<ObjectProperty>().FirstOrDefault(property => property.Name == "ItemClass")?.Value?.PathName is { Length: > 0 } path
+                && entry.Values.OfType<IntProperty>().FirstOrDefault(property => property.Name == "Amount")?.Value is int amount and > 0)
+            {
+                string item = ShortName(path);
+                stock[item] = stock.GetValueOrDefault(item) + amount;
+            }
+        }
+
+        return stock;
     }
 
     /// <summary>The belt and pipe ports of a buildable: <c>…Build_SmelterMk1_C_123.Input0</c>, and what each is linked to.</summary>

@@ -10,4 +10,8 @@ public sealed record SavedWorld(
     SaveInfo Info,
     IReadOnlyList<SavedBuildable> Buildables,
     IReadOnlyList<Connection> Connections,
-    IReadOnlyList<UnsupportedBuildables> Unsupported);
+    IReadOnlyList<UnsupportedBuildables> Unsupported)
+{
+    /// <summary>What the dimensional depot holds, per item class name (BR-A7). Empty when the world has no depot.</summary>
+    public IReadOnlyDictionary<string, decimal> DepotStock { get; init; } = new Dictionary<string, decimal>();
+}

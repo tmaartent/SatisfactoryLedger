@@ -36,6 +36,24 @@ internal sealed class TestWorld
             InputStock = new Dictionary<ItemId, decimal> { [input] = holds },
         });
 
+    /// <summary>
+    /// A machine as the save shows it (BR-A7): holding <paramref name="holds"/> of its input, and
+    /// <paramref name="waitingToLeave"/> of its output; null when the save says nothing about its output.
+    /// </summary>
+    /// <param name="batch">What one cycle makes of its output; null when that isn't known.</param>
+    public TestWorld MachineWaiting(string id, ItemId input, ItemId output, decimal holds, decimal? waitingToLeave, decimal? batch = null) =>
+        Add(new Machine(
+            BuildableId.Of(id),
+            new Recipe(PerMinute([input], 30), PerMinute([output], 30))
+            {
+                Batches = batch is { } made ? new Dictionary<ItemId, decimal> { [output] = made } : new Dictionary<ItemId, decimal>(),
+            },
+            ClockSpeed.Percent(100))
+        {
+            InputStock = new Dictionary<ItemId, decimal> { [input] = holds },
+            OutputStock = waitingToLeave is { } waiting ? new Dictionary<ItemId, decimal> { [output] = waiting } : null,
+        });
+
     /// <summary>A generator burning <paramref name="burns"/> of <paramref name="fuel"/> a minute, holding <paramref name="holds"/> of it (BR-A17).</summary>
     public TestWorld GeneratorHolding(string id, ItemId fuel, decimal burns, decimal holds) =>
         Add(new Consumer(BuildableId.Of(id), generation: new Generation(fuel, Rate.PerMinute(burns), null, Rate.Zero, null, Rate.Zero))
@@ -52,6 +70,13 @@ internal sealed class TestWorld
     public TestWorld Splitter(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Splitter));
 
     public TestWorld Merger(string id) => Add(new Logistics(BuildableId.Of(id), LogisticsKind.Merger));
+
+    /// <summary>A container with its inventory: whether it's full decides what it takes at the end of a line (BR-A7).</summary>
+    public TestWorld Container(string id, Inventory inventory) =>
+        Add(new Logistics(BuildableId.Of(id), LogisticsKind.StorageContainer) { Inventory = inventory });
+
+    /// <summary>A station that loads, with its inventory (BR-A7).</summary>
+    public TestWorld LoadingStation(string id, Inventory inventory) => Add(new Consumer(BuildableId.Of(id)) { Inventory = inventory });
 
     public TestWorld Container(string id, params (ItemId Item, decimal Count)[] stock) =>
         Add(new Logistics(BuildableId.Of(id), LogisticsKind.StorageContainer, stock: Stock(stock)));

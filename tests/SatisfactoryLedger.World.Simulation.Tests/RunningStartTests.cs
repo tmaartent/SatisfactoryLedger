@@ -38,6 +38,18 @@ public class RunningStartTests
         Assert.Equal(30, start[3][Ingot], Precision);
     }
 
+    [Fact]
+    public void The_running_start_sends_nothing_into_a_full_container()
+    {
+        FlowNetwork network = new TestFlow()
+            .Provider("miner", Ore, 60).Belt("ore")
+            .Inventory("container", Inventory.OfSlots(1, new Dictionary<ItemId, decimal> { [Ore] = 100 }, new Dictionary<ItemId, int> { [Ore] = 100 }))
+            .Connect("miner", "ore", "container")
+            .Network();
+
+        Assert.Empty(RunningStart.Of(network)[1]);
+    }
+
     private static readonly ItemId Water = ItemId.Of("Desc_Water_C");
     private static readonly ItemId Nitrogen = ItemId.Of("Desc_NitrogenGas_C");
     private static readonly ItemId NitricAcid = ItemId.Of("Desc_NitricAcid_C");

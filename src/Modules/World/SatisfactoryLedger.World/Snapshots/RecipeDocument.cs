@@ -13,7 +13,11 @@ internal sealed record RecipeDocument(string Id, decimal CycleSeconds, IReadOnly
         [.. recipe.Outputs.Select(output => new IngredientDocument(output.ItemId, output.AmountPerCycle))]);
 
     /// <summary>Per minute at 100%. An item that appears twice on one side counts once, with both amounts.</summary>
-    public Recipe ToRecipe() => new(PerMinute(Inputs), PerMinute(Outputs));
+    public Recipe ToRecipe() => new(PerMinute(Inputs), PerMinute(Outputs))
+    {
+        Batches = Outputs.GroupBy(output => output.Item, StringComparer.Ordinal)
+            .ToDictionary(group => ItemId.Of(group.Key), group => group.Sum(output => output.AmountPerCycle)),
+    };
 
     private Dictionary<ItemId, Rate> PerMinute(IEnumerable<IngredientDocument> ingredients) => ingredients
         .GroupBy(ingredient => ingredient.Item, StringComparer.Ordinal)

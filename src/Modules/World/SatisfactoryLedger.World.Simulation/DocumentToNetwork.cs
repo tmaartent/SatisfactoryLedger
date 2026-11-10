@@ -25,14 +25,29 @@ public static class DocumentToNetwork
     {
         ProviderDocument provider => new FlowProvider(BuildableId.Of(provider.Id), ItemId.Of(provider.Item), provider.Offer),
         UnknownSourceDocument source => new FlowUnknownSource(
-            BuildableId.Of(source.Id), Items(source.Stock), ToDomain(source.Carries), Items(source.Burns), source.BurnRate),
+            BuildableId.Of(source.Id), Items(source.Stock), ToDomain(source.Carries), Items(source.Burns), source.BurnRate, ToDomain(source.Inventory)),
         MachineDocument machine => new FlowMachine(BuildableId.Of(machine.Id), Items(machine.Demand), Items(machine.Production), Items(machine.Stocked)),
         ConduitDocument conduit => new FlowConduit(BuildableId.Of(conduit.Id), conduit.Capacity ?? double.PositiveInfinity, ToDomain(conduit.Carries)),
         SplitterDocument splitter => new FlowSplitter(BuildableId.Of(splitter.Id), ToDomain(splitter.Carries),
             splitter.Rules?.Select(rule => new SortRule(rule.Output, ToDomain(rule.Kind), rule.Item is null ? null : ItemId.Of(rule.Item))).ToList()),
         MergerDocument merger => new FlowMerger(BuildableId.Of(merger.Id), ToDomain(merger.Carries), merger.Priorities),
-        SinkDocument sink => new FlowSink(BuildableId.Of(sink.Id), Items(sink.Burns), sink.LeftoversOnly, sink.BurnRate),
+        SinkDocument sink => new FlowSink(BuildableId.Of(sink.Id), Items(sink.Burns), sink.LeftoversOnly, sink.BurnRate, ToDomain(sink.Inventory)),
         _ => throw new ArgumentException($"{node} is not a kind of node this service knows", nameof(node)),
+    };
+
+    private static Inventory? ToDomain(InventoryDocument? inventory) => inventory is null ? null : new Inventory(
+        inventory.Kind switch
+        {
+            Wire.InventoryKind.Slots => Domain.InventoryKind.Slots,
+            Wire.InventoryKind.Fluid => Domain.InventoryKind.Fluid,
+            Wire.InventoryKind.Depot => Domain.InventoryKind.Depot,
+            _ => throw new ArgumentOutOfRangeException(nameof(inventory), inventory.Kind, null),
+        },
+        inventory.Size,
+        inventory.Holds.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
+        inventory.StackSizes.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value))
+    {
+        Arriving = (inventory.Arriving ?? new Dictionary<string, double>()).ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
     };
 
     private static Dictionary<ItemId, double> Items(IReadOnlyDictionary<string, double> rates) =>

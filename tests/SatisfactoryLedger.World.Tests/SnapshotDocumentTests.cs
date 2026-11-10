@@ -147,6 +147,14 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void A_machine_in_the_world_knows_what_waits_to_leave_it()
+    {
+        var smelter = Assert.IsType<Machine>(Stored(TestWorldSnapshot.IngotIron).ToWorldGraph().Find(BuildableId.Of(Id("Build_SmelterMk1_C_2147301226").Id)));
+
+        Assert.Equal((98m, 1m), (smelter.OutputStock![ItemId.Of("Desc_IronIngot_C")], smelter.Batches[ItemId.Of("Desc_IronIngot_C")]));
+    }
+
+    [Fact]
     public void A_snapshot_from_before_contents_were_read_can_still_be_read_without_them()
     {
         SnapshotDocument withoutContents = TestWorldSnapshot.Document with
@@ -157,7 +165,7 @@ public class SnapshotDocumentTests
 
         SnapshotDocument read = SnapshotDocument.FromJson(withoutContents.ToJson());
 
-        Assert.Equal(11, read.Version);
+        Assert.Equal(12, read.Version);
         Assert.All(read.Buildables, buildable => Assert.Null(buildable.Contents));
     }
 
@@ -184,20 +192,48 @@ public class SnapshotDocumentTests
         Assert.Equal([new VolumeDocument(-400, -500, 0, 400, 500, 1000, 0, 0, 0, 1, 0, 0, 0)], constructor.Volumes!);
     }
 
+    // ---- BR-A7: what inventories hold, and how much fits ----------------------------------------------------------------
+
+    [Fact]
+    public void A_snapshot_keeps_the_size_of_every_storage_its_world_has()
+    {
+        Assert.Equal(
+            [("Build_PipeStorageTank_C", 0, 400m), ("Build_StorageContainerMk2_C", 48, 0m), ("Build_TrainDockingStation_C", 48, 0m)],
+            Stored().Storages!.Select(storage => (storage.Id, storage.Slots, storage.FluidCubicMetres)));
+    }
+
+    [Fact]
+    public void A_station_that_loads_takes_until_its_inventory_is_full()
+    {
+        // The loading freight platform holds 822 rods in its 48 slots: room for more.
+        Consumer station = Find<Consumer>(Stored().ToWorldGraph(), "Build_TrainDockingStation_C_2147409101");
+
+        Assert.Equal((InventoryKind.Slots, 48m, 822m), (station.Inventory!.Kind, station.Inventory.Size, station.Inventory.Holds[ItemId.Of("Desc_IronRod_C")]));
+        Assert.True(station.Inventory.Takes(ItemId.Of("Desc_IronRod_C")));
+    }
+
+    [Fact]
+    public void A_snapshot_from_before_inventories_can_still_be_read_and_takes_everything()
+    {
+        string version11 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":12", "\"version\":11", StringComparison.Ordinal);
+
+        Assert.Equal(12, SnapshotDocument.FromJson(version11).Version);
+    }
+
     [Fact]
     public void A_snapshot_from_before_lifts_had_a_curve_can_still_be_read()
     {
-        string version10 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":11", "\"version\":10", StringComparison.Ordinal);
+        string version10 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":12", "\"version\":10", StringComparison.Ordinal);
 
-        Assert.Equal(11, SnapshotDocument.FromJson(version10).Version);
+        Assert.Equal(12, SnapshotDocument.FromJson(version10).Version);
     }
 
     [Fact]
     public void A_snapshot_from_before_volumes_can_still_be_read()
     {
-        string version9 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":11", "\"version\":9", StringComparison.Ordinal);
+        string version9 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":12", "\"version\":9", StringComparison.Ordinal);
 
-        Assert.Equal(11, SnapshotDocument.FromJson(version9).Version);
+        Assert.Equal(12, SnapshotDocument.FromJson(version9).Version);
     }
 
     [Fact]
@@ -211,14 +247,14 @@ public class SnapshotDocumentTests
 
         SnapshotDocument read = SnapshotDocument.FromJson(withoutCurves.ToJson());
 
-        Assert.Equal(11, read.Version);
+        Assert.Equal(12, read.Version);
         Assert.All(read.Buildables, buildable => Assert.Null(buildable.Curve));
     }
 
     [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
-        Assert.Equal(11, Stored().Version);
+        Assert.Equal(12, Stored().Version);
     }
 
     [Fact]
@@ -310,32 +346,32 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_from_before_stock_was_read_can_still_be_read()
     {
-        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":11", "\"version\":2", StringComparison.Ordinal);
+        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":12", "\"version\":2", StringComparison.Ordinal);
 
-        Assert.Equal(11, SnapshotDocument.FromJson(version2).Version);
+        Assert.Equal(12, SnapshotDocument.FromJson(version2).Version);
     }
 
     [Fact]
     public void A_snapshot_from_before_drones_were_read_can_still_be_read()
     {
-        string version7 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":11", "\"version\":7", StringComparison.Ordinal);
+        string version7 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":12", "\"version\":7", StringComparison.Ordinal);
 
-        Assert.Equal(11, SnapshotDocument.FromJson(version7).Version);
+        Assert.Equal(12, SnapshotDocument.FromJson(version7).Version);
     }
 
     [Fact]
     public void A_snapshot_from_before_pipe_networks_can_still_be_read()
     {
-        string version8 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":11", "\"version\":8", StringComparison.Ordinal);
+        string version8 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":12", "\"version\":8", StringComparison.Ordinal);
 
-        Assert.Equal(11, SnapshotDocument.FromJson(version8).Version);
+        Assert.Equal(12, SnapshotDocument.FromJson(version8).Version);
     }
 
     [Fact]
     public void A_snapshot_imported_before_rates_were_copied_can_still_be_read_and_traced()
     {
         string version1 = TestWorldSnapshot.Document.ToJson()
-            .Replace("\"version\":11", "\"version\":1", StringComparison.Ordinal);
+            .Replace("\"version\":12", "\"version\":1", StringComparison.Ordinal);
 
         WorldGraph world = SnapshotDocument.FromJson(version1).ToWorldGraph();
 

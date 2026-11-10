@@ -61,6 +61,8 @@ internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox,
             recipesKnown.Select(RecipeDocument.From),
             nodesKnown.Select(node => new ResourceNodeDocument(node.Name, node.Resource, node.Purity)),
             generators.Select(GeneratorDocument.From));
+        // BR-A7: the stack sizes of what inventories hold decide when they're full.
+        items.UnionWith(SnapshotDocument.ItemsHeld(saved));
 
         return new CatalogCopy(
             recipesKnown,
@@ -70,6 +72,7 @@ internal sealed class ImportSaveHandler(IDbContextOutbox<WorldDbContext> outbox,
             await catalog.GetItemsAsync(items, cancellationToken),
             await catalog.GetFootprintsAsync(classes, cancellationToken),
             generators,
-            await catalog.GetDronePortsAsync(classes, cancellationToken));
+            await catalog.GetDronePortsAsync(classes, cancellationToken),
+            await catalog.GetStoragesAsync(classes, cancellationToken));
     }
 }
