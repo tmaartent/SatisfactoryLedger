@@ -47,7 +47,15 @@ internal sealed class LinearProgramme : IDisposable
     private readonly Dictionary<int, List<Constraint>> _conserved = [];
     private readonly Dictionary<int, List<Variable>> _belowOf = [];
     private readonly HashSet<(int Group, int Edge)> _capped;
+    private readonly IReadOnlyList<SharingGroup> _groups;
+    private readonly Dictionary<int, Variable> _levels = [];
     private List<Action>? _restore;
+
+    /// <summary>
+    /// The round's solution, read before any what-if. OR-Tools counts a solution as out of date once the model changes:
+    /// after the first bound is relaxed, <c>SolutionValue()</c> reads 0. What-ifs freeze to these values instead.
+    /// </summary>
+    private Dictionary<Variable, double> _solved = [];
 
     public LinearProgramme(
         FlowNetwork network, ItemsOnConnections items, IReadOnlyList<SharingGroup> groups, IReadOnlySet<(int Group, int Edge)> capped)
@@ -55,6 +63,7 @@ internal sealed class LinearProgramme : IDisposable
         _network = network;
         _items = items;
         _capped = [.. capped];
+        _groups = groups;
         _solver = Solver.CreateSolver("GLOP") ?? throw new InvalidOperationException("OR-Tools has no GLOP solver");
         _into = Lists(edge => edge.To);
         _outOf = Lists(edge => edge.From);
@@ -210,13 +219,15 @@ internal sealed class LinearProgramme : IDisposable
         [.. All(_into[conduit]).Select(variable => (variable, 1.0))]);
 
     /// <summary>Solves with some bounds relaxed, then puts every bound back as it was.</summary>
-    private double? WhatIf(Action relax, IReadOnlyList<(Variable Variable, double Coefficient)> objective)
+    private double? WhatIf(Action relax, IReadOnlyList<(Variable Variable, double Coefficient)> objective, Action? read = null)
     {
         _restore = [];
         try
         {
             relax();
-            return Maximise(objective);
+            double most = Maximise(objective);
+            read?.Invoke();
+            return most;
         }
         catch (InvalidOperationException)
         {
@@ -263,18 +274,184 @@ internal sealed class LinearProgramme : IDisposable
     }
 
     /// <summary>
-    /// After <see cref="Maximise"/> of <see cref="Push"/>: the shares that hold the sources back. The reduced cost of
-    /// their fixed "below" says that letting them fall below their level would let more be delivered, so what lies
-    /// beyond them can't take their share. The game gives such a share what its far end takes, and the others the rest.
+    /// After <see cref="Maximise"/> of <see cref="Push"/>: the shares to cap. A share is a candidate when letting it fall
+    /// below its level would deliver more: the reduced cost of its fixed "below". A tier whose block costs delivery makes
+    /// the shares above it candidates. But delivering more can also mean the items just go elsewhere (an overflow sink,
+    /// another input of the same merger), and the game doesn't cap a share for that. So each candidate is confirmed: it
+    /// is capped only when its far end really holds it below its level (<see cref="HeldByFarEnd"/>).
     /// </summary>
-    /// <para>
-    /// A tier that waits for the ones above it holds the sources back too when blocking it costs delivery: then the
-    /// shares above it can take no more, and all of them that aren't capped yet are.
-    /// </para>
-    public IEnumerable<(int Group, int Edge)> SharesHoldingBack() =>
-        _uncappedShares.Where(share => share.Value.Below.ReducedCost() > CostsDelivery).Select(share => share.Key)
-            .Concat(_blockedTiers.Values.Where(tier => tier.Blocked.ReducedCost() > CostsDelivery).SelectMany(tier => tier.Waiting))
-            .Distinct();
+    public List<(int Group, int Edge)> SharesHoldingBack()
+    {
+        List<(int Group, int Edge)> candidates =
+        [
+            .. _uncappedShares.Where(share => share.Value.Below.ReducedCost() > CostsDelivery).Select(share => share.Key)
+                .Concat(_blockedTiers.Values.Where(tier => tier.Blocked.ReducedCost() > CostsDelivery).SelectMany(tier => tier.Waiting))
+                .Distinct()
+        ];
+        _solved = _flow.Values.Concat(_utilisation.Values).ToDictionary(variable => variable, variable => variable.SolutionValue());
+        Dictionary<int, double> levels = candidates.Select(share => share.Group).Distinct()
+            .ToDictionary(group => group, group => _levels[group].SolutionValue());
+        // Batch after batch among the ones that rose, each with fewer near ends relaxed, until none more stays put.
+        HashSet<(int Group, int Edge)> rose = [.. candidates];
+        while (true)
+        {
+            HashSet<(int Group, int Edge)> still = Rising([.. rose], levels);
+            if (still.Count == rose.Count)
+            {
+                break;
+            }
+
+            rose = still;
+        }
+
+        return [.. candidates.Where(share => !rose.Contains(share) || HeldByFarEnd(share, levels[share.Group]))];
+    }
+
+    /// <summary>
+    /// All candidates in one what-if: every near end relaxed at once, each candidate at least at its level, the most of
+    /// them together. One still at its level when its near end and all the others are relaxed is held by its far end:
+    /// tested alone it would be held too, with less relaxed. The ones that rose may only have risen because the others
+    /// were relaxed with them: they are asked again among themselves, and the last ones one by one. A big part has hundreds
+    /// of candidates a round, and most are held: this asks a few times instead of hundreds.
+    /// </summary>
+    private HashSet<(int Group, int Edge)> Rising(List<(int Group, int Edge)> candidates, Dictionary<int, double> levels)
+    {
+        if (candidates.Count < 2)
+        {
+            return [.. candidates];
+        }
+
+        Dictionary<(int Group, int Edge), double> carried = [];
+        HashSet<int> groups = [.. candidates.Select(share => share.Group)];
+        WhatIf(
+            () =>
+            {
+                double room = levels.Values.Max() + 1;
+                foreach (int group in groups)
+                {
+                    RelaxNearEnd(_groups[group], room);
+                    Fix(_levels[group], levels[group]);
+                    FreezeOtherSide(_groups[group]);
+                }
+
+                foreach ((int Group, int Edge) share in candidates)
+                {
+                    Free([share.Edge]);
+                }
+
+                // Each candidate may rise above its level, not fall below it: share = level − below, with below ≤ 0.
+                foreach ((int Group, int Edge) share in candidates)
+                {
+                    Variable below = _uncappedShares[share].Below;
+                    (double lower, double upper) = (below.Lb(), below.Ub());
+                    _restore!.Add(() => below.SetBounds(lower, upper));
+                    below.SetBounds(double.NegativeInfinity, 0);
+                }
+            },
+            [.. groups.SelectMany(group => NearSide(_groups[group]))],
+            () => candidates.ForEach(share => carried[share] = _uncappedShares[share].Carried.Sum(variable => variable.SolutionValue())));
+
+        return [.. candidates.Where(share => !carried.TryGetValue(share, out double most) || most > levels[share.Group] + (1e-6 * Math.Max(1, levels[share.Group])))];
+    }
+
+    /// <summary>
+    /// Whether what lies at the far end of a share holds it at its level: for a splitter's output, what lies beyond can't
+    /// take more even if the splitter had more to give; for an input, what feeds it can't offer more even if the node
+    /// took everything. Asked with the near end giving or taking up to one item a minute more than the level: enough to
+    /// tell, and it keeps a sink beyond from making the question unbounded.
+    /// </summary>
+    private bool HeldByFarEnd((int Group, int Edge) share, double level)
+    {
+        SharingGroup group = _groups[share.Group];
+        List<(Variable Variable, double Coefficient)> nearSide = NearSide(group);
+        double now = nearSide.Sum(term => term.Coefficient * _solved[term.Variable]);
+        double most = WhatIf(
+            () =>
+            {
+                RelaxNearEnd(group, level + 1);
+                Fix(_levels[share.Group], level);
+                FreezeOtherSide(group);
+                Free([share.Edge]);
+            },
+            nearSide) ?? now;
+        return most <= now + (1e-6 * Math.Max(1, now));
+    }
+
+    /// <summary>
+    /// The near side of a group's node: what a splitter sends out, or what any other node takes in, of the items the
+    /// group shares. Asked with the other side frozen (<see cref="FreezeOtherSide"/>), its rise is what the far ends of
+    /// the shares could still take, or still offer.
+    /// </summary>
+    private List<(Variable Variable, double Coefficient)> NearSide(SharingGroup group) =>
+    [
+        .. (group.Inputs ? _into[group.Node] : _outOf[group.Node])
+            .SelectMany(edge => _items.Items[edge].Where(item => group.Items?.Contains(item) != false).Select(item => (_flow[(edge, item)], 1.0)))
+    ];
+
+    /// <summary>
+    /// Holds the other side of a group's node where the solution has it: a splitter's inputs, any other node's outputs, a
+    /// machine's utilisation. Then items can't circle back through the node, and a node can't seem to take more just by
+    /// passing on less.
+    /// </summary>
+    private void FreezeOtherSide(SharingGroup group)
+    {
+        if (_network.Nodes[group.Node] is FlowMachine)
+        {
+            Fix(_utilisation[group.Node], _solved[_utilisation[group.Node]]);
+            return;
+        }
+
+        foreach (int edge in group.Inputs ? _outOf[group.Node] : _into[group.Node])
+        {
+            foreach (ItemId item in _items.Items[edge])
+            {
+                Fix(_flow[(edge, item)], _solved[_flow[(edge, item)]]);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Holds a variable where the solution has it, give or take a hair: exactly the solution's value can be just out of
+    /// reach of the solver's own tolerances, and a what-if without an answer would be read wrongly.
+    /// </summary>
+    private void Fix(Variable variable, double value)
+    {
+        (double lower, double upper) = (variable.Lb(), variable.Ub());
+        _restore!.Add(() => variable.SetBounds(lower, upper));
+        double hair = 1e-7 * Math.Max(1, Math.Abs(value));
+        variable.SetBounds(Math.Max(lower, value - hair), Math.Min(upper, value + hair));
+    }
+
+    /// <summary>
+    /// Lets the near end of a group's shares give or take up to <paramref name="room"/> more: a splitter may send out more
+    /// than comes in, a machine may take more than it uses, any other node may keep what comes in.
+    /// </summary>
+    private void RelaxNearEnd(SharingGroup group, double room)
+    {
+        if (!group.Inputs)
+        {
+            Widen(_conserved.GetValueOrDefault(group.Node) ?? [], -room, null);
+        }
+        else if (_network.Nodes[group.Node] is FlowMachine)
+        {
+            Widen((_takes.GetValueOrDefault(group.Node) ?? []).Where(input => group.Items?.Contains(input.Key) != false).Select(input => input.Value), null, room);
+        }
+        else
+        {
+            Widen(_conserved.GetValueOrDefault(group.Node) ?? [], null, room);
+        }
+    }
+
+    /// <summary>Sets new bounds on these constraints for a what-if; null keeps that bound.</summary>
+    private void Widen(IEnumerable<Constraint> constraints, double? lower, double? upper)
+    {
+        foreach (Constraint constraint in constraints)
+        {
+            (double was, double wasUpper) = (constraint.Lb(), constraint.Ub());
+            _restore!.Add(() => constraint.SetBounds(was, wasUpper));
+            constraint.SetBounds(lower ?? was, upper ?? wasUpper);
+        }
+    }
 
     public LinearFlow Result() => new(
         _network,
@@ -379,6 +556,7 @@ internal sealed class LinearProgramme : IDisposable
     private void Share(int group, SharingGroup sharing, IReadOnlySet<(int Group, int Edge)> capped)
     {
         Variable level = _solver.MakeNumVar(0, double.PositiveInfinity, $"t{group}");
+        _levels[group] = level;
         foreach (int edge in sharing.Edges)
         {
             List<Variable> carried = [.. sharing.Items is { } shared ? shared.SelectMany(item => Over([edge], item)) : All([edge])];

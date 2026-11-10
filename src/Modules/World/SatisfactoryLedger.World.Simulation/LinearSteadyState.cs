@@ -138,27 +138,27 @@ internal static class LinearSteadyState
                         ItemId first = sent.First();
                         List<int> main = [.. outOf[node].Where(edge => rules.Takes(edge, first))];
                         List<int> overflow = [.. outOf[node].Where(edge => rules.Overflows(edge, first))];
-                        AddTiers(sentItems, [.. main.Where(edge => !leftovers.Of(edge))], [.. overflow.Where(edge => !leftovers.Of(edge))],
+                        AddTiers(node, false, sentItems, [.. main.Where(edge => !leftovers.Of(edge))], [.. overflow.Where(edge => !leftovers.Of(edge))],
                             [.. main.Where(leftovers.Of)], [.. overflow.Where(leftovers.Of)]);
                     }
 
-                    AddIfShared(into[node], null);
+                    AddIfShared(node, true, into[node], null);
                     break;
                 case FlowSplitter:
-                    AddTiers(null, [.. outOf[node].Where(edge => !leftovers.Of(edge))], [.. outOf[node].Where(leftovers.Of)]);
-                    AddIfShared(into[node], null);
+                    AddTiers(node, false, null, [.. outOf[node].Where(edge => !leftovers.Of(edge))], [.. outOf[node].Where(leftovers.Of)]);
+                    AddIfShared(node, true, into[node], null);
                     break;
                 case FlowMerger { Priorities.Count: > 0 } merger:
                     int PriorityOf(int edge) => network.Ports[edge].To is int port && port < merger.Priorities!.Count ? merger.Priorities[port] : 0;
-                    AddTiers(null, [.. into[node].GroupBy(PriorityOf).OrderByDescending(priority => priority.Key).Select(priority => priority.ToList())]);
+                    AddTiers(node, true, null, [.. into[node].GroupBy(PriorityOf).OrderByDescending(priority => priority.Key).Select(priority => priority.ToList())]);
                     break;
                 case FlowMerger or FlowConduit:
-                    AddIfShared(into[node], null);
+                    AddIfShared(node, true, into[node], null);
                     break;
                 case FlowMachine machine:
                     foreach (ItemId item in machine.Demand.Keys)
                     {
-                        AddIfShared([.. into[node].Where(edge => items.Items[edge].Contains(item))], item is null ? null : new HashSet<ItemId> { item });
+                        AddIfShared(node, true, [.. into[node].Where(edge => items.Items[edge].Contains(item))], new HashSet<ItemId> { item });
                     }
 
                     break;
@@ -167,28 +167,28 @@ internal static class LinearSteadyState
 
         return groups;
 
-        void AddIfShared(List<int> edges, IReadOnlySet<ItemId>? shared)
+        void AddIfShared(int node, bool inputs, List<int> edges, IReadOnlySet<ItemId>? shared)
         {
             if (edges.Count > 1)
             {
-                groups.Add(new SharingGroup(edges, shared));
+                groups.Add(new SharingGroup(node, inputs, edges, shared));
             }
         }
 
         // Tiers in the order they're served. A single tier is an ordinary group; empty tiers are skipped.
-        void AddTiers(IReadOnlySet<ItemId>? shared, params List<int>[] tiers)
+        void AddTiers(int node, bool inputs, IReadOnlySet<ItemId>? shared, params List<int>[] tiers)
         {
             List<List<int>> served = [.. tiers.Where(tier => tier.Count > 0)];
             if (served.Count == 1)
             {
-                AddIfShared(served[0], shared);
+                AddIfShared(node, inputs, served[0], shared);
                 return;
             }
 
             List<int> above = [];
             for (int tier = 0; tier < served.Count; tier++)
             {
-                groups.Add(new SharingGroup(served[tier], shared, tier, [.. above]));
+                groups.Add(new SharingGroup(node, inputs, served[tier], shared, tier, [.. above]));
                 above.Add(groups.Count - 1);
             }
         }

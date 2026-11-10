@@ -86,6 +86,44 @@ public class LinearTiersTests
         Assert.Equal(1.0, result.Machine(Id("constructor")).Utilisation, Precision);
     }
 
+    [Fact]
+    public void A_main_output_is_served_before_the_overflow_even_when_another_line_could_feed_what_lies_beyond_it()
+    {
+        // Found on the big world: a second line into the same merger tempted the LP to send everything to the overflow.
+        // In the game the splitter fills its main output first, and the merger takes evenly from both lines: 20 each.
+        FlowResult result = Solve(new TestFlow()
+            .Provider("a", Ore, 60).Belt("in").SmartSplitter("split", Rule(1, SortRuleKind.Any), Rule(0, SortRuleKind.Overflow))
+            .Belt("main").Belt("overflow").Sink("overflow sink")
+            .Provider("b", Ore, 60).Belt("other line")
+            .Merger("merge").Belt("to smelter").Machine("smelter", [(Ore, 40)], [])
+            .Connect("a", "in", "split").ConnectPort("split", 1, "main").Connect("main", "merge")
+            .ConnectPort("split", 0, "overflow").Connect("overflow", "overflow sink")
+            .Connect("b", "other line", "merge")
+            .Connect("merge", "to smelter", "smelter"));
+
+        Assert.Equal(20, result.Flow(Id("main"), Id("merge"), Ore), Precision);
+        Assert.Equal(20, result.Flow(Id("other line"), Id("merge"), Ore), Precision);
+        Assert.Equal(40, result.Flow(Id("overflow"), Id("overflow sink"), Ore), Precision);
+    }
+
+    [Fact]
+    public void A_merger_input_is_not_held_back_just_because_its_items_could_go_elsewhere()
+    {
+        // A plain splitter's second output goes to a sink: diverting the merger input there would deliver more, but the
+        // merger still takes evenly from both lines.
+        FlowResult result = Solve(new TestFlow()
+            .Provider("a", Ore, 60).Belt("in").Splitter("split").Belt("to merge").Belt("to sink").Sink("sink")
+            .Provider("b", Ore, 60).Belt("other line")
+            .Merger("merge").Belt("to smelter").Machine("smelter", [(Ore, 40)], [])
+            .Connect("a", "in", "split", "to merge", "merge")
+            .Connect("split", "to sink", "sink")
+            .Connect("b", "other line", "merge")
+            .Connect("merge", "to smelter", "smelter"));
+
+        Assert.Equal(20, result.Flow(Id("to merge"), Id("merge"), Ore), Precision);
+        Assert.Equal(20, result.Flow(Id("other line"), Id("merge"), Ore), Precision);
+    }
+
     // ---- BR-A5: priority mergers ---------------------------------------------------------------------------------
 
     /// <summary>Two lines into a priority merger, onto a belt that carries 60: input 0 has priority 2, input 1 has 0.</summary>
