@@ -144,9 +144,9 @@ public class ModuleBoundaryTests
 
     // Without this, the rule above would also pass if the namespace pattern matched nothing at all.
     [Fact]
-    public void The_linear_steady_state_is_where_OR_Tools_is_used()
+    public void The_linear_programme_is_where_OR_Tools_is_used()
     {
-        Types().That().ResideInAssembly(SolutionAssemblies.WorldSimulation).And().HaveName("LinearSteadyState")
+        Types().That().ResideInAssembly(SolutionAssemblies.WorldSimulation).And().HaveName("LinearProgramme")
             .Should().DependOnAny(OrTools)
             .Check(Architecture);
     }

@@ -14,6 +14,7 @@ internal sealed class ItemsOnConnections
     private readonly List<int>[] _out;
     private readonly Carries[] _carries;
     private readonly HashSet<ItemId>[] _items;
+    private readonly Dictionary<int, double> _asked = [];
     private readonly Queue<(int Edge, ItemId Item)> _toPass = new();
 
     private ItemsOnConnections(FlowNetwork network)
@@ -29,13 +30,18 @@ internal sealed class ItemsOnConnections
         _items = [.. network.Edges.Select(_ => new HashSet<ItemId>())];
     }
 
-    /// <summary>Per connection of <paramref name="network"/>, in its order, the items that can flow over it.</summary>
-    public static IReadOnlyList<IReadOnlySet<ItemId>> Of(FlowNetwork network)
+    /// <summary>Per connection, in the network's order, the items that can flow over it.</summary>
+    public IReadOnlyList<IReadOnlySet<ItemId>> Items => _items;
+
+    /// <summary>Per source of unknown rate, by its position: how much the machines it reaches ask a minute of what it sends (BR-A9).</summary>
+    public IReadOnlyDictionary<int, double> Asked => _asked;
+
+    public static ItemsOnConnections Of(FlowNetwork network)
     {
         var items = new ItemsOnConnections(network);
         items.Enter();
         items.Pass();
-        return items._items;
+        return items;
     }
 
     private void Enter()
@@ -46,7 +52,7 @@ internal sealed class ItemsOnConnections
             {
                 FlowProvider provider => [provider.Item],
                 FlowMachine machine => machine.Production.Where(product => product.Value > 0).Select(product => product.Key),
-                FlowUnknownSource source => Asked(node, source),
+                FlowUnknownSource source => AskedOf(node, source),
                 _ => [],
             };
 
@@ -83,9 +89,9 @@ internal sealed class ItemsOnConnections
     /// BR-A9: what a source of unknown rate is asked for: the inputs of the machines it reaches through logistics, as
     /// far as the line into each carries them, narrowed to what it holds when it holds any of them.
     /// </summary>
-    private HashSet<ItemId> Asked(int node, FlowUnknownSource source)
+    private HashSet<ItemId> AskedOf(int node, FlowUnknownSource source)
     {
-        HashSet<ItemId> asked = [];
+        Dictionary<ItemId, double> asked = [];
         HashSet<int> seen = [node];
         Queue<int> next = new([node]);
         while (next.TryDequeue(out int current))
@@ -95,7 +101,11 @@ internal sealed class ItemsOnConnections
                 switch (_network.Nodes[_network.Edges[edge].To])
                 {
                     case FlowMachine machine:
-                        asked.UnionWith(machine.Demand.Keys.Where(item => CanCarry(edge, item)));
+                        foreach ((ItemId item, double rate) in machine.Demand.Where(demand => CanCarry(edge, demand.Key)))
+                        {
+                            asked[item] = asked.GetValueOrDefault(item) + rate;
+                        }
+
                         break;
                     case FlowConduit or FlowSplitter or FlowMerger:
                         next.Enqueue(_network.Edges[edge].To);
@@ -105,7 +115,9 @@ internal sealed class ItemsOnConnections
         }
 
         HashSet<ItemId> held = [.. source.Stock.Where(stock => stock.Value > 0).Select(stock => stock.Key)];
-        return held.Overlaps(asked) ? [.. asked.Intersect(held)] : asked;
+        HashSet<ItemId> sends = held.Overlaps(asked.Keys) ? [.. asked.Keys.Intersect(held)] : [.. asked.Keys];
+        _asked[node] = sends.Sum(item => asked[item]);
+        return sends;
     }
 
     private bool CanCarry(int edge, ItemId item) => _carries[edge] switch

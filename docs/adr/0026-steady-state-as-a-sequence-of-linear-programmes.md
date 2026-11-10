@@ -20,7 +20,11 @@ A linear programme that maximises flow finds the top of a loop directly. But the
   - A provider delivers at most its offer (BR-A2). A source of unknown rate delivers what's asked, in proportion to what its machines ask (BR-A9). A sink takes everything (BR-A7, A8).
   - Sharing: a level per splitter and per merger, with the equalities and bounds above (BR-A4, A5).
   - Priorities (priority mergers, overflow outputs, uploaders and fuel that take only leftovers, BR-A5, A8) as **staged objectives**: solve the higher stage, fix its result, solve the next.
-  - Objective: the most flow. Its exact weights (provider delivery, machine utilisation) are settled by the existing tests.
+  - **Three objectives per round**, each solved with the ones before it held (settled in part C, 2026-11-10):
+    1. **What the sources push in:** provider deliveries, plus what sources of unknown rate are asked for. Machines are passive, as in the game: they run on what reaches them. Maximising their utilisation first would starve a sink that a splitter feeds alongside a machine.
+    2. **The capped shares filled:** each takes all its far end allows, the game's min(take, share).
+    3. **Every machine's utilisation:** this is what runs a loop no source pushes.
+  - **Correcting the guess:** after objective 1, a share whose equality has a negative dual value is capped for the next round. Lowering it below its level would let more be delivered, so its far end can't take the share. Shares are only ever capped, never uncapped, so the sequence ends within as many rounds as there are shares.
 - **Findings** (starved of, blocked on, bottlenecks) are read from the solved flows and from each machine's demand and room, instead of from the sweep's *offered* values.
 - **Google OR-Tools, GLOP** (`Google.OrTools` 9.15), an open-source LP solver with a .NET API.
 - **Where the code lives, as World.SaveFile does it:** the library stays out of `World.Domain`.
