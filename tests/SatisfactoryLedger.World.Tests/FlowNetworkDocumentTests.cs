@@ -1,9 +1,14 @@
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Domain.Flow.Objects;
+using SatisfactoryLedger.World.Analysis;
+using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain.Tests;
+using SatisfactoryLedger.World.Simulation;
+using Carries = SatisfactoryLedger.World.Domain.Flow.Objects.Carries;
+using SortRuleKind = SatisfactoryLedger.World.Domain.SortRuleKind;
 
-namespace SatisfactoryLedger.World.Simulation.Tests;
+namespace SatisfactoryLedger.World.Tests;
 
 /// <summary>The flow network as the API sends it to the analysis service (ADR-0018), and back.</summary>
 public class FlowNetworkDocumentTests

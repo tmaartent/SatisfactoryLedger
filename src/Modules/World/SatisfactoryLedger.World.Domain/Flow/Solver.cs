@@ -16,7 +16,12 @@ internal sealed class Solver
     private readonly Dictionary<ItemId, double>[] _asked;
     private readonly Dictionary<BuildableId, MachineState> _machines = [];
 
-    public Solver(FlowNetwork network)
+    /// <param name="start">
+    /// Per connection, in the network's order, what to start from as if it were flowing: a running state found elsewhere
+    /// (ADR-0026). The sweeps then settle the rules from there, and wind down what can't keep going. Null starts from
+    /// zero, with only loops primed.
+    /// </param>
+    public Solver(FlowNetwork network, IReadOnlyList<IReadOnlyDictionary<ItemId, double>>? start = null)
     {
         _network = network;
         int nodes = network.Nodes.Count;
@@ -37,6 +42,23 @@ internal sealed class Solver
         _order = ForwardOrder();
         _asked = [.. Enumerable.Range(0, nodes).Select(AskedItems)];
         PrimeLoops();
+        if (start is not null)
+        {
+            PrimeFrom(start);
+        }
+    }
+
+    /// <summary>Every connection starts as offering and carrying what <paramref name="start"/> says flows over it.</summary>
+    private void PrimeFrom(IReadOnlyList<IReadOnlyDictionary<ItemId, double>> start)
+    {
+        for (int edge = 0; edge < start.Count; edge++)
+        {
+            foreach ((ItemId item, double rate) in start[edge].Where(entry => entry.Value > 0 && CanCarry(edge, entry.Key)))
+            {
+                _offered[edge][item] = Math.Max(_offered[edge].GetValueOrDefault(item), rate);
+                _flow[edge][item] = Math.Max(_flow[edge].GetValueOrDefault(item), rate);
+            }
+        }
     }
 
     /// <summary>

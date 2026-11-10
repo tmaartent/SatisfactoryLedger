@@ -8,6 +8,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Modules\World\SatisfactoryLedger.World.Contracts\SatisfactoryLedger.World.Contracts.csproj" />
     <ProjectReference Include="..\Modules\World\SatisfactoryLedger.World.Simulation\SatisfactoryLedger.World.Simulation.csproj" />
     <ProjectReference Include="..\SatisfactoryLedger.ServiceDefaults\SatisfactoryLedger.ServiceDefaults.csproj" />
   </ItemGroup>

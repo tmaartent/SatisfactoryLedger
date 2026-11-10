@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.World.Persistence;
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 
 namespace SatisfactoryLedger.World.Analysis;
 

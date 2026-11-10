@@ -1,4 +1,4 @@
-namespace SatisfactoryLedger.World.Simulation;
+namespace SatisfactoryLedger.World.Contracts.Analysis;
 
 /// <summary>What the API and the analysis service agree on to find each other (ADR-0018).</summary>
 public static class AnalysisMessaging

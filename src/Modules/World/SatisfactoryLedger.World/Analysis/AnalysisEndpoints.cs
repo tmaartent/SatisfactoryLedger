@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.World.Persistence;
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Snapshots;
 
 using Wolverine;

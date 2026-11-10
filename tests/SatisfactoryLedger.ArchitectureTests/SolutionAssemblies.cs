@@ -20,7 +20,10 @@ internal static class SolutionAssemblies
 
     /// <summary>Anti-corruption layers around a third-party library, part of their module (ADR-0013).</summary>
     public static readonly Assembly WorldSaveFile = typeof(World.SaveFile.SaveFileReader).Assembly;
-    private static readonly Assembly[] Adapters = [WorldSaveFile];
+
+    /// <summary>The solver around OR-Tools, run by the analysis service only (ADR-0026).</summary>
+    public static readonly Assembly WorldSimulation = typeof(World.Simulation.DocumentToNetwork).Assembly;
+    private static readonly Assembly[] Adapters = [WorldSaveFile, WorldSimulation];
 
     public static readonly Assembly[] All = [..Domain, ..Contracts, ..Implementation, ..Adapters];
     

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SatisfactoryLedger.World.Simulation;
+namespace SatisfactoryLedger.World.Contracts.Analysis;
 
 /// <summary>The JSON settings of the documents both services read and write: camelCase, enums as camelCase strings.</summary>
 public static class SimulationJson

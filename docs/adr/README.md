@@ -31,5 +31,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0023](0023-pipe-networks-as-one-hub.md) | A pipe network is one hub in the analysis | Accepted |
 | [0024](0024-areas-in-3d-with-threejs.md) | An area of the map in 3D, drawn with three.js | Accepted |
 | [0025](0025-factories-defined-by-their-machines.md) | A factory is defined by its machines | Accepted |
+| [0026](0026-steady-state-as-a-sequence-of-linear-programmes.md) | The steady state as a sequence of linear programmes, in World.Simulation | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

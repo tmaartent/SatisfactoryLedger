@@ -1,4 +1,5 @@
 using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 
 namespace SatisfactoryLedger.AnalysisService;
 

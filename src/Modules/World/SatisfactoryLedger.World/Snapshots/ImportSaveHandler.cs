@@ -2,7 +2,7 @@ using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.SaveFile;
-using SatisfactoryLedger.World.Simulation;
+using SatisfactoryLedger.World.Contracts.Analysis;
 
 using Wolverine.EntityFrameworkCore;
 

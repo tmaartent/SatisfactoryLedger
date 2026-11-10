@@ -1,8 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Shared by the API and the analysis service (ADR-0018): the message, the documents, and the computation. -->
+  <!-- The solver the analysis service runs (ADR-0026): OR-Tools stays in here, out of the domain. -->
   <ItemGroup>
     <ProjectReference Include="..\SatisfactoryLedger.World.Domain\SatisfactoryLedger.World.Domain.csproj" />
+    <ProjectReference Include="..\SatisfactoryLedger.World.Contracts\SatisfactoryLedger.World.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.OrTools" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SatisfactoryLedger.World.Simulation.Tests" />
   </ItemGroup>
 
 </Project>

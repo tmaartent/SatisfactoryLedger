@@ -96,8 +96,10 @@ internal sealed class TestFlow
         return this;
     }
 
-    public FlowResult Run(int maxSweeps = SteadyState.MaxSweeps) =>
-        SteadyState.Of(new FlowNetwork(_nodes, _connections, _fluids), maxSweeps);
+    public FlowResult Run(int maxSweeps = SteadyState.MaxSweeps) => SteadyState.Of(Network(), maxSweeps);
+
+    /// <summary>The network as built: to start the sweeps from a running state (ADR-0026).</summary>
+    public FlowNetwork Network() => new(_nodes, _connections, _fluids);
 
     private TestFlow Add(FlowNode node)
     {

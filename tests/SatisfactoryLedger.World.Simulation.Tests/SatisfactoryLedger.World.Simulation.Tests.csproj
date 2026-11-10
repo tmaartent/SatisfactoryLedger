@@ -22,7 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The steady-state queries the tests share (written once, in World.Domain.Tests). -->
+    <!-- The network builder, items and result queries of the sweep's tests (written once, in World.Domain.Tests). -->
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\TestFlow.cs" Link="TestFlow.cs" />
+    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\Items.cs" Link="Items.cs" />
     <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\FlowResultQueries.cs" Link="FlowResultQueries.cs" />
   </ItemGroup>
 

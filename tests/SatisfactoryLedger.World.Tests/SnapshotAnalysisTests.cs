@@ -3,6 +3,7 @@ using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Domain.Flow.Objects;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
+using MachineLimit = SatisfactoryLedger.World.Contracts.Analysis.MachineLimit;
 
 namespace SatisfactoryLedger.World.Tests;
 
