@@ -7,7 +7,10 @@ using Wire = SatisfactoryLedger.World.Contracts.Analysis;
 
 namespace SatisfactoryLedger.World.Simulation;
 
-/// <summary>Simulates a world's flow network and keeps what the findings need, as an analysis document (ADR-0017).</summary>
+/// <summary>
+/// Simulates a world's flow network and keeps what the findings need, as an analysis document (ADR-0017): the sweeps,
+/// started from the linear programme's running state (ADR-0026).
+/// </summary>
 public static class NetworkAnalysis
 {
     extension(AnalysisDocument)
@@ -15,7 +18,9 @@ public static class NetworkAnalysis
         public static AnalysisDocument Compute(FlowNetwork network)
         {
             ArgumentNullException.ThrowIfNull(network);
-            FlowResult result = SteadyState.Of(network);
+            // ADR-0026: the sweeps start from the most that can flow, so loops and whole regions that wait on each
+            // other start running; the sweeps then settle the game's rules and wind down what can't keep going.
+            FlowResult result = SteadyState.Of(network, start: LinearSteadyState.RunningStart(network));
 
             Dictionary<string, IReadOnlyDictionary<string, double>> into = new(StringComparer.Ordinal);
             foreach (FlowConduit conduit in network.Nodes.OfType<FlowConduit>())

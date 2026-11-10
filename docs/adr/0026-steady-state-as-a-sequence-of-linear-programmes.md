@@ -1,6 +1,6 @@
 # ADR-0026: The steady state as a sequence of linear programmes, in World.Simulation
 
-- **Status:** Accepted (formulation to be refined while building it)
+- **Status:** Accepted, then changed on 2026-11-10: see *Changed: the LP starts the sweep* at the end
 - **Date:** 2026-11-10
 - **Amends:** [ADR-0018](0018-analysis-as-a-separate-service-over-rabbitmq.md): what the two services share.
 
@@ -48,3 +48,15 @@ A linear programme that maximises flow finds the top of a loop directly. But the
 - The analysis service carries OR-Tools' native runtime, tens of MB per platform.
 - Results change where the sweep didn't settle, and in loops: a new analysis version, so every stored analysis is computed again.
 - Convergence of the sequence isn't guaranteed, just as with the sweep. A part that doesn't settle stays *approximate* (BR-A10).
+
+## Changed: the LP starts the sweep (2026-11-10)
+Building the sequence showed what an LP can't do well here. The game's sharing rule, share = min(far-end limit, level), is a **complementarity condition**: either a share carries the level, or something beyond it holds it lower. An LP can express either branch but not the choice between them. Every way of choosing (capping from duals, confirming caps with what-ifs, starting with everything capped) needed more heuristics. And on the owner's current world, the full LP failed numerically ("ABNORMAL") on one part.
+
+The sweep handles the rule natively. Its one real flaw is starting from zero: in the owner's world, an aluminium chain (a loop through the refinery's water) stood still in the sweep while running at 100% in the game.
+
+**Decision (the owner's, 2026-11-10): the LP gives the sweep its start.** One linear programme per part, with every share free, finds the most that can flow, and then every machine as fast as it can go. The sweep starts from that state instead of from zero (loops were primed before, BR-A10), settles the game's rules, and winds down what can't keep going. **The sweep stays** and keeps its rules and tests. A part whose programme fails starts from zero, as before.
+
+On the owner's current world (42,517 nodes): about a second for the start, 5 s for the sweep. Every part settles; before, one part of 313 buildables didn't. 211 machines run higher and 64 lower; mean utilisation goes from 0.865 to 0.900. The aluminium chain runs, as the owner confirmed in the game.
+
+**What it leaves behind:** the full LP (`LinearSteadyState.Of`, its findings and the sequence of rounds) has no production caller now. It goes before `feat/lp-solver` is merged, so that only the running start remains.
+

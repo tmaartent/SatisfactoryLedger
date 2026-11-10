@@ -47,7 +47,11 @@ public static class SteadyState
     /// <summary>Solids, then fluids: <c>true</c> means fluid.</summary>
     internal static readonly bool[] Forms = [false, true];
 
-    public static FlowResult Of(FlowNetwork network, int maxSweeps = MaxSweeps)
+    /// <param name="start">
+    /// Per connection of <paramref name="network"/>, in its order, a running state to start from (ADR-0026): the most that
+    /// can flow, from the linear programme. Null starts from zero, with only loops primed.
+    /// </param>
+    public static FlowResult Of(FlowNetwork network, int maxSweeps = MaxSweeps, IReadOnlyList<IReadOnlyDictionary<ItemId, double>>? start = null)
     {
         ArgumentNullException.ThrowIfNull(network);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSweeps);
@@ -61,7 +65,7 @@ public static class SteadyState
 
         foreach ((FlowNetwork part, IReadOnlyList<int> edges) in network.Parts())
         {
-            PartResult result = new Solver(part).Run(maxSweeps);
+            PartResult result = new Solver(part, start is null ? null : [.. edges.Select(edge => start[edge])]).Run(maxSweeps);
 
             for (int k = 0; k < edges.Count; k++)
             {

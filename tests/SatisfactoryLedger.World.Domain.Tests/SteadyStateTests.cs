@@ -349,6 +349,22 @@ public class SteadyStateTests
         Assert.Equal(MachineLimit.Starved, result.Machine(Id("acid blender")).Limit);
     }
 
+    [Fact]
+    public void A_sweep_started_from_more_than_can_flow_settles_on_what_does()
+    {
+        // A running start claims 30 ore a minute everywhere; the miner offers only 10 (ADR-0026).
+        TestFlow flow = new TestFlow()
+            .Provider("miner", Ore, 10).Belt("ore").Machine("smelter", Ore, 30, Ingot, 30).Belt("ingots").Sink("sink")
+            .Connect("miner", "ore", "smelter", "ingots", "sink");
+        Dictionary<ItemId, double> ore = new() { [Ore] = 30 };
+        Dictionary<ItemId, double> ingots = new() { [Ingot] = 30 };
+
+        FlowResult result = SteadyState.Of(flow.Network(), start: [ore, ore, ingots, ingots]);
+
+        Assert.Equal(1.0 / 3, result.Machine(Id("smelter")).Utilisation, Precision);
+        Assert.Equal(10, result.Flow(Id("ingots"), Id("sink"), Ingot), Precision);
+    }
+
     // ---- BR-A4: splitters -------------------------------------------------------------------------------------
 
     [Fact]

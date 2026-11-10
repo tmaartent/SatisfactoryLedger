@@ -28,9 +28,11 @@ public sealed record AnalysisDocument(
     /// Version 5: what a machine or generator holds counts as supplied while it lasts 30 minutes (BR-A17), and loops
     /// start as if running (BR-A10).
     /// Version 6: every input a machine is short of, and every product that can't leave, with their shares (BR-A11).
+    /// Version 7: the sweeps start from the most that can flow (ADR-0026), so loops and regions that wait on each other
+    /// are no longer found standing still.
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 

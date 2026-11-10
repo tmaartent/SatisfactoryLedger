@@ -1,4 +1,5 @@
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.Domain.Tests;
 
@@ -198,6 +199,26 @@ public class LinearSteadyStateTests
     public void A_loop_that_gives_back_too_little_stops()
     {
         Assert.Equal(0, Solve(NitricAcidLoop(waterBack: 5)).Machine(Id("acid blender")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_sweep_from_the_running_start_keeps_a_loop_that_gives_back_all_it_needs_at_100_percent()
+    {
+        FlowNetwork network = NitricAcidLoop(waterBack: 10).Network();
+
+        FlowResult result = SteadyState.Of(network, start: LinearSteadyState.RunningStart(network));
+
+        Assert.Equal(1.0, result.Machine(Id("acid blender")).Utilisation, Precision);
+    }
+
+    [Fact]
+    public void A_sweep_from_the_running_start_winds_down_a_loop_that_gives_back_too_little()
+    {
+        FlowNetwork network = NitricAcidLoop(waterBack: 5).Network();
+
+        FlowResult result = SteadyState.Of(network, start: LinearSteadyState.RunningStart(network));
+
+        Assert.Equal(0, result.Machine(Id("acid blender")).Utilisation, 0.001);
     }
 
     private static readonly ItemId Ficsonium = ItemId.Of("Desc_Ficsonium_C");

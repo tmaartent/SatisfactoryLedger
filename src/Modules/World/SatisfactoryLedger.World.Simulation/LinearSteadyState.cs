@@ -78,6 +78,45 @@ internal static class LinearSteadyState
         return new FlowResult(network, flows, machines, bottlenecks, unused, unknown, parts);
     }
 
+    /// <summary>
+    /// A running state to start the sweeps from (ADR-0026): the most that can flow when every share is free, then every
+    /// machine as fast as it can go. Loops and whole regions that would wait on each other start running; the sweeps then
+    /// settle the game's rules from there, and wind down what can't keep going.
+    /// </summary>
+    public static IReadOnlyList<IReadOnlyDictionary<ItemId, double>> RunningStart(FlowNetwork network)
+    {
+        ArgumentNullException.ThrowIfNull(network);
+
+        // Part by part: smaller programmes are better conditioned, and one that fails leaves the others their start.
+        var start = new IReadOnlyDictionary<ItemId, double>[network.Edges.Count];
+        foreach ((FlowNetwork part, IReadOnlyList<int> edges) in network.Parts())
+        {
+            ItemsOnConnections items = ItemsOnConnections.Of(part);
+            List<SharingGroup> groups = SharingGroups(part, items);
+            HashSet<(int Group, int Edge)> free = [.. groups.SelectMany((group, index) => group.Edges.Select(edge => (index, edge)))];
+            using var programme = new LinearProgramme(part, items, groups, free);
+            IReadOnlyList<IReadOnlyDictionary<ItemId, double>> flows;
+            try
+            {
+                programme.Keep(programme.Push, programme.Maximise(programme.Push));
+                programme.Maximise(programme.Utilisation);
+                flows = programme.Result().Flows;
+            }
+            catch (InvalidOperationException)
+            {
+                // No running start for this part: the sweeps start it from zero, as before.
+                flows = [.. edges.Select(_ => new Dictionary<ItemId, double>())];
+            }
+
+            for (int k = 0; k < edges.Count; k++)
+            {
+                start[edges[k]] = flows[k];
+            }
+        }
+
+        return start;
+    }
+
     /// <summary>Above this many machines held back, their what-ifs are spread over copies of the programme.</summary>
     private const int HeldPerCopy = 25;
 
