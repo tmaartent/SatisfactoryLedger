@@ -29,7 +29,7 @@ import { LimitFacts, limitText } from './limit-text';
  * What the world's analysis and a factory's analysis have in common (BR-A9 to A13). Generators (BR-A15) are in both:
  * a factory has those chosen as its machines (BR-W2). Only the world's has drone ports (BR-A16).
  */
-export type Findings = Pick<AnalysisResponse, 'summary' | 'machines' | 'bottlenecks' | 'unusedSupply' | 'unknownSupply' | 'settled'> & {
+export type Findings = Pick<AnalysisResponse, 'summary' | 'generatorSummary' | 'machines' | 'bottlenecks' | 'unusedSupply' | 'unknownSupply' | 'settled'> & {
   generators?: GeneratorFinding[];
   dronePorts?: DronePortFinding[];
 };

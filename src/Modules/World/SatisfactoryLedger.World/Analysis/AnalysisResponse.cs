@@ -5,6 +5,7 @@ namespace SatisfactoryLedger.World.Analysis;
 internal sealed record AnalysisResponse(
     bool Settled,
     AnalysisSummary Summary,
+    GeneratorSummary GeneratorSummary,
     IReadOnlyList<ApproximatePart> ApproximateParts,
     IReadOnlyList<MachineFinding> Machines,
     IReadOnlyList<BottleneckFinding> Bottlenecks,

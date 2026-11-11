@@ -1,7 +1,10 @@
 using SatisfactoryLedger.World.Analysis;
+using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.Contracts.Analysis;
+using SatisfactoryLedger.World.SaveFile;
+using SatisfactoryLedger.World.Snapshots;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
 using SatisfactoryLedger.World.Simulation;
@@ -42,6 +45,28 @@ public class GeneratorFindingsTests
         Assert.Equal(
             Analysis.Generators.Select(generator => generator.Utilisation).Order(),
             Analysis.Generators.Select(generator => generator.Utilisation));
+    }
+
+    [Fact]
+    public void The_generator_summary_counts_its_generators_by_how_they_run()
+    {
+        // The nuclear plant and the coal generator run; the fuel generator starves.
+        Assert.Equal(new GeneratorSummary(3, 2, 1, 0, 0), Analysis.GeneratorSummary);
+    }
+
+    [Fact]
+    public void A_generator_whose_fuel_is_not_known_counts_as_fuel_unknown()
+    {
+        var saved = new SavedWorld(
+            new SaveInfo("Empty slot", 517554, new DateTime(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc)),
+            [new SavedConsumer(BuildableId.Of(Id("Build_GeneratorFuel_C_1")), "Build_GeneratorFuel_C")],
+            [],
+            []);
+        SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
+
+        AnalysisResponse analysis = SnapshotAnalysis.For(snapshot, AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson()));
+
+        Assert.Equal(new GeneratorSummary(1, 0, 0, 0, 1), analysis.GeneratorSummary);
     }
 
     private static GeneratorFinding Generator(string id) => Assert.Single(Analysis.Generators, generator => generator.Id == id);

@@ -868,6 +868,7 @@
         "required": [
           "settled",
           "summary",
+          "generatorSummary",
           "approximateParts",
           "machines",
           "bottlenecks",
@@ -883,6 +884,9 @@
           },
           "summary": {
             "$ref": "#/components/schemas/AnalysisSummary"
+          },
+          "generatorSummary": {
+            "$ref": "#/components/schemas/GeneratorSummary"
           },
           "approximateParts": {
             "type": "array",
@@ -1256,6 +1260,7 @@
           "name",
           "settled",
           "summary",
+          "generatorSummary",
           "output",
           "power",
           "machines",
@@ -1278,6 +1283,9 @@
           },
           "summary": {
             "$ref": "#/components/schemas/AnalysisSummary"
+          },
+          "generatorSummary": {
+            "$ref": "#/components/schemas/GeneratorSummary"
           },
           "output": {
             "type": "array",
@@ -1610,6 +1618,38 @@
               "number"
             ],
             "format": "double"
+          }
+        }
+      },
+      "GeneratorSummary": {
+        "required": [
+          "generators",
+          "running",
+          "starved",
+          "outputBlocked",
+          "fuelUnknown"
+        ],
+        "type": "object",
+        "properties": {
+          "generators": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "starved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "outputBlocked": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fuelUnknown": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

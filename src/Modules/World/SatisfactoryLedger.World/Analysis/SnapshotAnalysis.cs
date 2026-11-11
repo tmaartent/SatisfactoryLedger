@@ -48,6 +48,7 @@ internal static class SnapshotAnalysis
             factory.Name,
             findings.Settled,
             findings.Summary,
+            findings.GeneratorSummary,
             FactoryOutputs.Of(snapshot, world, factory, members, analysis, factories),
             PowerOf(snapshot, members, analysis),
             findings.Machines,
@@ -104,6 +105,9 @@ internal static class SnapshotAnalysis
         // A factory lists the generators it has as machines (BR-W2); the whole world lists them all.
         List<MachineStateDocument> generators = [.. analysis.Machines
             .Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Consumer && buildables[machine.Id].Fuel is not null && isMachine(machine.Id))];
+        // A generator whose fuel isn't known isn't simulated (BR-A15); the summary still counts it.
+        int fuelUnknown = snapshot.Buildables.Count(buildable =>
+            buildable.Role == BuildableDocumentRole.Consumer && buildable.Fuel is null && snapshot.IsMachineOrGenerator(buildable) && isMachine(buildable.Id));
         return new AnalysisResponse(
             unsettled.Count == 0,
             new AnalysisSummary(
@@ -112,6 +116,12 @@ internal static class SnapshotAnalysis
                 machines.Count(machine => machine.Limit == MachineLimit.Starved),
                 machines.Count(machine => machine.Limit == MachineLimit.OutputBlocked),
                 machines.Count(machine => machine.Limit == MachineLimit.NoRecipe)),
+            new GeneratorSummary(
+                generators.Count + fuelUnknown,
+                generators.Count(generator => generator.Limit == MachineLimit.None),
+                generators.Count(generator => generator.Limit == MachineLimit.Starved),
+                generators.Count(generator => generator.Limit == MachineLimit.OutputBlocked),
+                fuelUnknown),
             [
                 .. unsettled.OrderByDescending(part => part.Buildables.Count)
                     .Select(part => new ApproximatePart(part.Buildables.Count, part.Sweeps, part.Buildables[0]))
