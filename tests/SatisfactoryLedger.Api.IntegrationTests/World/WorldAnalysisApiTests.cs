@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 
@@ -93,7 +93,7 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_factory_analysis_says_what_it_makes_now_and_at_100_percent()
+    public async Task A_factory_analysis_says_what_it_makes_now_and_at_100_percent_and_where_it_goes()
     {
         (Snapshot snapshot, Factory factory) = await DefineIronPlatesAsync();
 
@@ -102,7 +102,9 @@ public sealed class WorldAnalysisApiTests(LedgerApiFactory api) : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonNode analysis = (await response.Content.ReadFromJsonAsync<JsonNode>(TestContext.Current.CancellationToken))!;
-        Assert.Equal("""[{"item":"Desc_IronPlate_C","now":15,"atFullSpeed":15}]""", analysis["output"]!.ToJsonString());
+        Assert.Equal(
+            """[{"item":"Desc_IronPlate_C","now":15,"atFullSpeed":15,"receiversNeed":0,"othersBring":0,"short":0,"sunk":0,"cannotLeave":0,"destinations":[{"kind":"storage","factoryId":null,"factory":null,"building":null,"perMinute":15}]}]""",
+            analysis["output"]!.ToJsonString());
         Assert.Equal(analysis["summary"]!["machines"]!.GetValue<int>(), analysis["machines"]!.AsArray().Count);
     }
 

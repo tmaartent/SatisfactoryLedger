@@ -1331,7 +1331,13 @@
         "required": [
           "item",
           "now",
-          "atFullSpeed"
+          "atFullSpeed",
+          "receiversNeed",
+          "othersBring",
+          "short",
+          "sunk",
+          "cannotLeave",
+          "destinations"
         ],
         "type": "object",
         "properties": {
@@ -1345,6 +1351,32 @@
           "atFullSpeed": {
             "type": "number",
             "format": "double"
+          },
+          "receiversNeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "othersBring": {
+            "type": "number",
+            "format": "double"
+          },
+          "short": {
+            "type": "number",
+            "format": "double"
+          },
+          "sunk": {
+            "type": "number",
+            "format": "double"
+          },
+          "cannotLeave": {
+            "type": "number",
+            "format": "double"
+          },
+          "destinations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutputDestination"
+            }
           }
         }
       },
@@ -2120,6 +2152,54 @@
             }
           }
         }
+      },
+      "OutputDestination": {
+        "required": [
+          "kind",
+          "factoryId",
+          "factory",
+          "building",
+          "perMinute"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/OutputDestinationKind"
+          },
+          "factoryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "factory": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "building": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "perMinute": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "OutputDestinationKind": {
+        "enum": [
+          "factory",
+          "noFactory",
+          "sink",
+          "consumer",
+          "storage",
+          "nowhere"
+        ]
       },
       "PositionDocument": {
         "required": [

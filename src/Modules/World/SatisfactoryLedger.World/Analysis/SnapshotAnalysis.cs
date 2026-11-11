@@ -19,7 +19,9 @@ internal static class SnapshotAnalysis
     /// whole world, because a factory depends on its supply. Null when the factory can't be traced in this snapshot
     /// (BR-W11).
     /// </summary>
-    public static FactoryAnalysisResponse? ForFactory(SnapshotDocument snapshot, Factories.StoredFactory factory, AnalysisDocument analysis)
+    /// <param name="factories">The world's factories: where its output goes (BR-A18).</param>
+    public static FactoryAnalysisResponse? ForFactory(
+        SnapshotDocument snapshot, Factories.StoredFactory factory, AnalysisDocument analysis, IEnumerable<Factories.StoredFactory> factories)
     {
         WorldGraph world = snapshot.ToWorldGraph();
         FactoryDefinition? definition = factory.ToDefinition(Factories.MachineMatch.In(snapshot, factory.Machines));
@@ -46,49 +48,13 @@ internal static class SnapshotAnalysis
             factory.Name,
             findings.Settled,
             findings.Summary,
-            OutputOf(world, members, analysis),
+            FactoryOutputs.Of(snapshot, world, factory, members, analysis, factories),
             PowerOf(snapshot, members, analysis),
             findings.Machines,
             findings.Generators,
             findings.Bottlenecks,
             findings.UnusedSupply,
             findings.UnknownSupply);
-    }
-
-    /// <summary>Per item the producers make: what leaves over its outputs now, and what they'd make at 100%.</summary>
-    private static List<FactoryOutput> OutputOf(WorldGraph world, FactoryMembers members, AnalysisDocument analysis)
-    {
-        Dictionary<string, double> now = new(StringComparer.Ordinal);
-        foreach (FactoryConnection output in members.Outputs)
-        {
-            IReadOnlyDictionary<string, double> leaving = Over(output, world, analysis);
-            foreach (string item in output.Items.Select(item => item.Id))
-            {
-                now[item] = now.GetValueOrDefault(item) + leaving.GetValueOrDefault(item);
-            }
-        }
-
-        Dictionary<string, double> atFullSpeed = new(StringComparer.Ordinal);
-        foreach (Buildable producer in members.Producers.Select(id => world.Find(id)).OfType<Buildable>())
-        {
-            // A machine makes its recipe's products; a generator leaves its waste (BR-A8).
-            IEnumerable<KeyValuePair<ItemId, SharedKernel.Rate>> made = producer switch
-            {
-                Machine machine => machine.Production,
-                Consumer { Generation: { Byproduct: { } waste } generation } => [new(waste, generation.Leaves)],
-                _ => [],
-            };
-            foreach ((ItemId item, SharedKernel.Rate rate) in made)
-            {
-                atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) + rate.ToDouble();
-            }
-        }
-
-        return
-        [
-            .. atFullSpeed.Keys.Union(now.Keys).Order(StringComparer.Ordinal)
-                .Select(item => new FactoryOutput(item, Round(now.GetValueOrDefault(item)), Round(atFullSpeed.GetValueOrDefault(item))))
-        ];
     }
 
     /// <summary>
@@ -111,36 +77,6 @@ internal static class SnapshotAnalysis
             : new FactoryPower(
                 Round(generators.Sum(generator => generator.AtFullSpeed * generator.Utilisation)),
                 Round(generators.Sum(generator => generator.AtFullSpeed)));
-    }
-
-    /// <summary>
-    /// What flows over an output, per item and minute. The stored analysis keeps what flows into each belt, lift, pipe
-    /// and container in a line (ADR-0017), so it's read from there:
-    /// <list type="bullet">
-    /// <item>into a storage container at the end of the line: what flows into the logistics that feed it;</item>
-    /// <item>from logistics with one way out: what flows into it;</item>
-    /// <item>otherwise into the logistics across. When that's fed from elsewhere too, such as a pipe network shared
-    /// with other factories, this counts their part as well.</item>
-    /// </list>
-    /// </summary>
-    private static IReadOnlyDictionary<string, double> Over(FactoryConnection output, WorldGraph world, AnalysisDocument analysis)
-    {
-        IReadOnlyDictionary<string, double> Into(BuildableId id) => analysis.Into.GetValueOrDefault(id.Id) ?? new Dictionary<string, double>();
-
-        if (output.Outside is null)
-        {
-            return world.Upstream(output.Inside)
-                .SelectMany(feeder => Into(feeder.Id))
-                .GroupBy(flow => flow.Key, StringComparer.Ordinal)
-                .ToDictionary(item => item.Key, item => item.Sum(flow => flow.Value), StringComparer.Ordinal);
-        }
-
-        if (world.Find(output.Inside) is Logistics && world.Downstream(output.Inside).Count() == 1)
-        {
-            return Into(output.Inside);
-        }
-
-        return world.Find(output.Outside) is Logistics ? Into(output.Outside) : new Dictionary<string, double>();
     }
 
     /// <summary>
@@ -339,5 +275,5 @@ internal static class SnapshotAnalysis
         return ordered;
     }
 
-    private static double Round(double value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);
+    internal static double Round(double value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);
 }

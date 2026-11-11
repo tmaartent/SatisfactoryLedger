@@ -22,7 +22,7 @@ public class GeneratorFactoryTests
     };
 
     private static readonly FactoryAnalysisResponse Analysis = SnapshotAnalysis.ForFactory(
-        WithGenerators, Power, AnalysisDocument.FromJson(AnalysisDocument.Compute(WithGenerators.ToFlowNetwork()).ToJson()))!;
+        WithGenerators, Power, AnalysisDocument.FromJson(AnalysisDocument.Compute(WithGenerators.ToFlowNetwork()).ToJson()), [Power])!;
 
     [Fact]
     public void A_factory_of_a_nuclear_plant_is_traced_with_the_plant_as_its_machine()
@@ -51,7 +51,8 @@ public class GeneratorFactoryTests
     public void The_waste_its_plant_leaves_is_its_output()
     {
         // 0.2 rods a minute leave 10 waste a minute.
-        Assert.Equal([new FactoryOutput("Desc_NuclearWaste_C", 10, 10)], Analysis.Output);
+        FactoryOutput waste = Assert.Single(Analysis.Output);
+        Assert.Equal(("Desc_NuclearWaste_C", 10.0, 10.0), (waste.Item, waste.Now, waste.AtFullSpeed));
     }
 
     [Fact]
@@ -65,6 +66,6 @@ public class GeneratorFactoryTests
             Machines = [.. new[] { SmelterA, SmelterB, ConstructorC }.Select(id => StoredMachine.From(Document.Buildables.Single(buildable => buildable.Id == id)))],
         };
 
-        Assert.Null(SnapshotAnalysis.ForFactory(Document, plates, TestWorldAnalysis)!.Power);
+        Assert.Null(SnapshotAnalysis.ForFactory(Document, plates, TestWorldAnalysis, [plates])!.Power);
     }
 }

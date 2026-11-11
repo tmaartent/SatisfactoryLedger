@@ -15,6 +15,15 @@ Ideas for practising AI engineering on this project (an MCP server, evals, RAG, 
 
 **What it would take:** the save's railroad subsystem (timetables, stops, rules per stop), the truck and drone route data, the cargo per trip and the round trip time. A lot of tables for a rate that's still an estimate.
 
+### A full container beside a sink
+*Raised 2026-11-11, step 38; kept as is for now.*
+
+**What:** a full container at the end of a line takes nothing while another end of that line (a sink, a container with room, a machine) can take what's made. Only when no other end can does "the save overrules full" (BR-A7) let it take the arriving rate.
+
+**Why:** in the Ballistic Warp Drives factory a smart splitter sends *any* to a container holding 2,400 (full) and *overflow* to an AWESOME Sink. In the game everything goes to the sink. The model shares the arriving 0.965/min evenly over the two ends, so the factory page shows 0.4825 into storage and 0.4825 sunk. The manufacturers run at 100% either way, so their findings are right; only where the output goes is off.
+
+**What it would take:** in the solver, the full-but-arriving inventory takes only what the line's other ends leave, like a depot uploader (BR-A8). A new analysis version, so every snapshot is analysed again.
+
 ### An exact steady state, as a linear programme
 *Raised 2026-11-05, step 13.*
 

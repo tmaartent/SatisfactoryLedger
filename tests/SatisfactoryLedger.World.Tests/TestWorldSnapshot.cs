@@ -77,6 +77,7 @@ internal static class TestWorldSnapshot
     public static readonly string NuclearPlant = Id("Build_GeneratorNuclear_C_2147427188");
     public static readonly string CoalGenerator = Id("Build_GeneratorCoal_C_2147408929");
     public static readonly string FuelGenerator = Id("Build_GeneratorFuel_C_2147379250");
+    public static readonly string TurbofuelPackager = Id("Build_Packager_C_2147370289");
 
     public static string Id(string name) => $"Persistent_Level:PersistentLevel.{name}";
 
