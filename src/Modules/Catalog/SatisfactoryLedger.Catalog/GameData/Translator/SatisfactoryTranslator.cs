@@ -253,6 +253,16 @@ internal class SatisfactoryTranslator
     /// The footprint of every building with clearance boxes (ADR-0020). A class can be in more than one section; the
     /// first is taken.
     /// </summary>
+    public static List<Buildable> TranslateToBuildables(List<GameDataGroupDto> dataList)
+    {
+        return
+        [
+            .. dataList.OfType<BuildableNameGroupDto>().SelectMany(dto => dto.Classes)
+                .DistinctBy(dto => dto.ClassName, StringComparer.Ordinal)
+                .Select(dto => Buildable.Create(BuildableId.Of(dto.ClassName), dto.DisplayName))
+        ];
+    }
+
     public static List<Footprint> TranslateToFootprints(List<GameDataGroupDto> dataList)
     {
         return

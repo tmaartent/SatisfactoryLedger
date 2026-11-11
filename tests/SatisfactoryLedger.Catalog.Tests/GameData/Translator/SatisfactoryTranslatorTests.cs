@@ -482,6 +482,29 @@ public class SatisfactoryTranslatorTests
         Assert.Equal(cubicMetres, SatisfactoryTranslator.TranslateToStorages(resources).Single(storage => storage.Id == StorageId.Of(building)).FluidCubicMetres);
     }
 
+    [Theory]
+    [InlineData("Build_TrainDockingStation_C", "Freight Platform")]
+    [InlineData("Build_ConveyorAttachmentSplitterSmart_C", "Smart Splitter")]
+    [InlineData("Build_CentralStorage_C", "Dimensional Depot Uploader")]
+    [InlineData("Build_PipeStorageTank_C", "Fluid Buffer")]
+    [InlineData("Build_ResourceSink_C", "AWESOME Sink")]
+    [InlineData("Build_PipelineJunction_Cross_C", "Pipeline Junction")]
+    public async Task Every_buildable_in_the_game_file_has_the_name_the_game_shows(string buildable, string name)
+    {
+        // From any section, imported or not: splitters, junctions and sinks have no section of their own here.
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.Equal(name, SatisfactoryTranslator.TranslateToBuildables(resources).Single(entry => entry.Id == BuildableId.Of(buildable)).Name);
+    }
+
+    [Fact]
+    public async Task Only_what_the_player_places_is_a_buildable()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.All(SatisfactoryTranslator.TranslateToBuildables(resources), entry => Assert.StartsWith("Build_", entry.Id.Id, StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task A_fluid_freight_platform_has_no_size_the_game_file_states_plainly()
     {

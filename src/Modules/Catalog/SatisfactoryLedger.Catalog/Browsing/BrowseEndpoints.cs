@@ -36,6 +36,10 @@ internal static class BrowseEndpoints
             .WithName("GetResourceNodes")
             .WithSummary("Resource nodes and resource well satellites from the map, optionally only one resource: ?resource=Desc_OreIron_C");
 
+        catalog.MapGet("/buildables", GetBuildablesAsync)
+            .WithName("GetBuildables")
+            .WithSummary("Everything the player places, by class name, with the name the game shows");
+
         catalog.MapGet("/extractors", GetExtractorsAsync)
             .WithName("GetExtractors")
             .WithSummary("Miners and extractors with what they extract per minute on a normal-purity node at 100% clock speed");
@@ -94,6 +98,17 @@ internal static class BrowseEndpoints
         List<TransportTierResponse> response = await db.TransportTiers.AsNoTracking()
             .OrderBy(tier => tier.Form).ThenBy(tier => tier.Capacity).ThenBy(tier => tier.Name)
             .Select(tier => new TransportTierResponse(tier.Id.Id, tier.Name, tier.Form, tier.Capacity, tier.IsInGame))
+            .ToListAsync(cancellationToken);
+
+        return TypedResults.Ok(response);
+    }
+
+    private static async Task<Ok<List<BuildableResponse>>> GetBuildablesAsync(
+        CatalogDbContext db, CancellationToken cancellationToken)
+    {
+        List<BuildableResponse> response = await db.Buildables.AsNoTracking()
+            .OrderBy(buildable => buildable.Name)
+            .Select(buildable => new BuildableResponse(buildable.Id.Id, buildable.Name, buildable.IsInGame))
             .ToListAsync(cancellationToken);
 
         return TypedResults.Ok(response);
