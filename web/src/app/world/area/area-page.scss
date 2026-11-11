@@ -41,6 +41,73 @@
   pointer-events: none;
 }
 
+.drag-box {
+  position: absolute;
+  border: 1px solid #42a5f5;
+  background: rgb(66 165 245 / 15%);
+  pointer-events: none;
+}
+
+.factory {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  .how {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding-left: 18px;
+    font: var(--mat-sys-body-medium);
+  }
+
+  .clicked {
+    font: var(--mat-sys-title-small);
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+}
+
+.legend {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  ul {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// A factory's colour as an outline, the way its machines are drawn.
+.swatch {
+  width: 12px;
+  height: 12px;
+  border: 2px solid;
+  border-radius: 2px;
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
 .cut {
   display: flex;
   align-items: center;

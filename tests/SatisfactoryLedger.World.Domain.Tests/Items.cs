@@ -9,4 +9,7 @@ internal static class Items
     public static readonly ItemId Screw = ItemId.Of("Desc_IronScrew_C");
     public static readonly ItemId ReinforcedIronPlate = ItemId.Of("Desc_IronPlateReinforced_C");
     public static readonly ItemId Coal = ItemId.Of("Desc_Coal_C");
+    public static readonly ItemId UraniumFuelRod = ItemId.Of("Desc_NuclearFuelRod_C");
+    public static readonly ItemId UraniumWaste = ItemId.Of("Desc_NuclearWaste_C");
+    public static readonly ItemId Water = ItemId.Of("Desc_Water_C");
 }

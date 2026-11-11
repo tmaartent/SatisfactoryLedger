@@ -38,7 +38,7 @@ internal static class SnapshotAnalysis
             id => members.Machines.Contains(BuildableId.Of(id)),
             id => members.Logistics.Contains(BuildableId.Of(id)),
             id => members.Suppliers.Contains(BuildableId.Of(id)),
-            // A generator or a drone port is never part of a factory (BR-W1, BR-W8).
+            // A drone port is never part of a factory (BR-W1, BR-W8); a generator is, when chosen as one of its machines.
             wholeWorld: false);
 
         return new FactoryAnalysisResponse(
@@ -47,7 +47,9 @@ internal static class SnapshotAnalysis
             findings.Settled,
             findings.Summary,
             OutputOf(world, members, analysis),
+            PowerOf(snapshot, members, analysis),
             findings.Machines,
+            findings.Generators,
             findings.Bottlenecks,
             findings.UnusedSupply,
             findings.UnknownSupply);
@@ -67,9 +69,16 @@ internal static class SnapshotAnalysis
         }
 
         Dictionary<string, double> atFullSpeed = new(StringComparer.Ordinal);
-        foreach (Machine producer in members.Producers.Select(id => world.Find(id)).OfType<Machine>())
+        foreach (Buildable producer in members.Producers.Select(id => world.Find(id)).OfType<Buildable>())
         {
-            foreach ((ItemId item, SharedKernel.Rate rate) in producer.Production)
+            // A machine makes its recipe's products; a generator leaves its waste (BR-A8).
+            IEnumerable<KeyValuePair<ItemId, SharedKernel.Rate>> made = producer switch
+            {
+                Machine machine => machine.Production,
+                Consumer { Generation: { Byproduct: { } waste } generation } => [new(waste, generation.Leaves)],
+                _ => [],
+            };
+            foreach ((ItemId item, SharedKernel.Rate rate) in made)
             {
                 atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) + rate.ToDouble();
             }
@@ -80,6 +89,28 @@ internal static class SnapshotAnalysis
             .. atFullSpeed.Keys.Union(now.Keys).Order(StringComparer.Ordinal)
                 .Select(item => new FactoryOutput(item, Round(now.GetValueOrDefault(item)), Round(atFullSpeed.GetValueOrDefault(item))))
         ];
+    }
+
+    /// <summary>
+    /// The power its generators make (decided 2026-11-11): at 100%, each generator's power at its clock speed; now, that
+    /// times how fast the flow lets it run. A generator whose fuel isn't known isn't simulated: it counts at 100% only.
+    /// Null for a factory without generators.
+    /// </summary>
+    private static FactoryPower? PowerOf(SnapshotDocument snapshot, FactoryMembers members, AnalysisDocument analysis)
+    {
+        Dictionary<string, GeneratorDocument> catalog = (snapshot.Generators ?? []).ToDictionary(generator => generator.Id, StringComparer.Ordinal);
+        Dictionary<string, double> utilisation = analysis.Machines.ToDictionary(state => state.Id, state => state.Utilisation, StringComparer.Ordinal);
+        List<(double AtFullSpeed, double Utilisation)> generators = [.. snapshot.Buildables
+            .Where(buildable => members.Machines.Contains(BuildableId.Of(buildable.Id)) && buildable.Role == BuildableDocumentRole.Consumer)
+            .Where(buildable => catalog.ContainsKey(buildable.ClassName))
+            .Select(buildable => (
+                (double)(catalog[buildable.ClassName].PowerMegawatts * (buildable.ClockPercent ?? 100) / 100),
+                utilisation.GetValueOrDefault(buildable.Id)))];
+        return generators.Count == 0
+            ? null
+            : new FactoryPower(
+                Round(generators.Sum(generator => generator.AtFullSpeed * generator.Utilisation)),
+                Round(generators.Sum(generator => generator.AtFullSpeed)));
     }
 
     /// <summary>
@@ -116,7 +147,7 @@ internal static class SnapshotAnalysis
     /// The findings of the machines, conduits and suppliers the filters let through; worst first. Whether they settled
     /// is read from <paramref name="unsettled"/>: the parts of the world they're in that didn't settle.
     /// </summary>
-    /// <param name="wholeWorld">True for the whole world: generators and drone ports are listed too.</param>
+    /// <param name="wholeWorld">True for the whole world: drone ports are listed too.</param>
     private static AnalysisResponse Findings(
         SnapshotDocument snapshot,
         AnalysisDocument analysis,
@@ -134,9 +165,9 @@ internal static class SnapshotAnalysis
         // The flow simulates generators like machines (BR-A8), but they're consumers: their own findings (BR-A15).
         List<MachineStateDocument> machines = [.. analysis.Machines
             .Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Machine && isMachine(machine.Id))];
-        List<MachineStateDocument> generators = wholeWorld
-            ? [.. analysis.Machines.Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Consumer && buildables[machine.Id].Fuel is not null)]
-            : [];
+        // A factory lists the generators it has as machines (BR-W2); the whole world lists them all.
+        List<MachineStateDocument> generators = [.. analysis.Machines
+            .Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Consumer && buildables[machine.Id].Fuel is not null && isMachine(machine.Id))];
         return new AnalysisResponse(
             unsettled.Count == 0,
             new AnalysisSummary(

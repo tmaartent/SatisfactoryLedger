@@ -93,6 +93,7 @@ internal sealed record BuildableDocument(
             {
                 InputStock = InputStockOf(),
                 Inventory = TakesLeftoversOnly ? catalog.Depot : InventoryOf(catalog),
+                IsGenerator = catalog.Generators.ContainsKey(ClassName),
             },
             BuildableDocumentRole.Logistics => new Logistics(
                 id,

@@ -29,6 +29,28 @@
   margin: 16px 0 8px;
 }
 
+// A factory's colour as an outline, the way its machines are edged on the map and in 3D.
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border: 2px solid;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.factories-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  p {
+    margin: 0;
+  }
+}
+
 .utilisation {
   min-width: 140px;
 

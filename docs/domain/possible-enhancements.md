@@ -105,7 +105,7 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 ### A factory in 3D
 *Raised 2026-11-08.*
 
-**Step 26 built the first half:** draw a rectangle on the map and see that area in 3D, with each machine's recipe, stock and findings (ADR-0024). **Step 27** made a factory its machines, with several outputs and inputs (ADR-0025). Still to do (part 2b): selecting a factory's machines in that view, and the factory page with its outputs and inputs.
+**Step 26 built the first half:** draw a rectangle on the map and see that area in 3D, with each machine's recipe, stock and findings (ADR-0024). **Step 27** made a factory its machines, with several outputs and inputs (ADR-0025). **Step 37** selects a factory's machines in that view. Still to do (part 2b): a live preview of the traced factory before saving, and the factory page with its outputs and inputs.
 
 **What:** on a factory's page, its members in 3D: machines as their real clearance boxes, belts and pipes along their curves, each machine coloured by the analysis, with a height cut-off and a tooltip per machine. Turn, zoom and move with the mouse.
 

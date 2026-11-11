@@ -8,17 +8,18 @@ import { RouterLink } from '@angular/router';
 import { Api } from '../api/api';
 import { analyseFactory } from '../api/fn/world/analyse-factory';
 import { CatalogNames } from '../shared/catalog-names';
-import { perMinute } from '../shared/display';
+import { megawatts, perMinute } from '../shared/display';
 import { problemMessage, whenAnalysed } from '../shared/problem';
 import { FindingsView } from './findings';
 
-/** A factory's findings in one snapshot: what it makes now and at 100%, and why not more (BR-A14). */
+/** A factory's findings in one snapshot: what it makes now and at 100%, its generators' power, and why not more (BR-A14). */
 @Component({
   selector: 'app-factory-page',
   imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, FindingsView],
   templateUrl: './factory-page.html',
   styles: `
     .output { max-width: 640px; margin-bottom: 24px; }
+    .power { margin-bottom: 24px; }
     .short { color: var(--mat-sys-error); }
   `,
 })
@@ -38,5 +39,6 @@ export class FactoryPage {
 
   protected readonly outputColumns = ['item', 'now', 'atFullSpeed'];
   protected readonly perMinute = perMinute;
+  protected readonly megawatts = megawatts;
   protected readonly problem = problemMessage;
 }

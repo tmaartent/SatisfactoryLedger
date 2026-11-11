@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, resource, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, linkedSignal, resource, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -21,6 +21,7 @@ import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { areaBetween } from '../area/area-model';
+import { factoryColour, machineOwners } from '../area/factory-outlines';
 import {
   MachineStatus,
   conveyorColours,
@@ -92,7 +93,9 @@ export class MapPage {
     loader: ({ params }) => this.api.invoke(traceFactories, params),
   });
 
-  protected readonly factoryId = signal<string | null>(null);
+  /** ?factory=…: the factory highlighted when the map opens; the list can choose another. */
+  readonly factory = input<string>();
+  protected readonly factoryId = linkedSignal(() => this.factory() ?? null);
   protected readonly showFreeNodes = signal(true);
   /** Colour belts by what they carry most of, instead of grey (pipes stay teal, bottlenecks red). */
   protected readonly colourByItem = signal(false);
@@ -118,6 +121,13 @@ export class MapPage {
   private readonly factoryMachines = computed(() => {
     const factory = this.factories.value()?.find((trace) => trace.factoryId === this.factoryId());
     return factory ? new Set(factory.machines.map((machine) => machine.id)) : null;
+  });
+  /** The factories each machine is in, with their colour: the same edges as in 3D. */
+  private readonly owners = computed(() => machineOwners(this.factories.value() ?? []));
+  /** The factories to choose from, each with the colour its machines are outlined in. */
+  protected readonly factoryOptions = computed(() => {
+    const factories = this.factories.value() ?? [];
+    return factories.map((factory) => ({ ...factory, colour: factoryColour(factories, factory.factoryId) }));
   });
 
   protected readonly legend = (['none', 'starved', 'outputBlocked', 'noRecipe', 'unknown'] as MachineStatus[]).map((status) => ({
@@ -264,6 +274,7 @@ export class MapPage {
     const utilisations = this.utilisations();
     const findings = this.machineFindings();
     const highlighted = this.factoryMachines();
+    const owners = this.owners();
     if (!this.map) return;
 
     this.machineLayer.clearLayers();
@@ -271,12 +282,14 @@ export class MapPage {
     for (const machine of machines) {
       const status: MachineStatus = statuses.get(machine.id) ?? 'unknown';
       const inFactory = highlighted?.has(machine.id) ?? false;
+      const owner = owners.get(machine.id)?.[0];
       const point = toMapPoint(machine.position);
       points.push(point);
       const utilisation = utilisations.get(machine.id);
       const shape = this.shape(machine.position, machine.yaw, machine.className, {
-        color: inFactory ? '#ffffff' : statusColours[status],
-        weight: inFactory ? 2 : 1,
+        // A factory's machines are edged in its colour, boldly when it is the one highlighted.
+        color: owner?.colour ?? statusColours[status],
+        weight: inFactory ? 3.5 : owner ? 2 : 1,
         fillColor: statusColours[status],
         fillOpacity: highlighted && !inFactory ? 0.15 : 0.75,
         opacity: highlighted && !inFactory ? 0.15 : 1,

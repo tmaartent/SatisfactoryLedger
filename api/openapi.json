@@ -1257,7 +1257,9 @@
           "settled",
           "summary",
           "output",
+          "power",
           "machines",
+          "generators",
           "bottlenecks",
           "unusedSupply",
           "unknownSupply"
@@ -1283,10 +1285,26 @@
               "$ref": "#/components/schemas/FactoryOutput"
             }
           },
+          "power": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FactoryPower"
+              }
+            ]
+          },
           "machines": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MachineFinding"
+            }
+          },
+          "generators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GeneratorFinding"
             }
           },
           "bottlenecks": {
@@ -1325,6 +1343,23 @@
             "format": "double"
           },
           "atFullSpeed": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "FactoryPower": {
+        "required": [
+          "nowMegawatts",
+          "atFullSpeedMegawatts"
+        ],
+        "type": "object",
+        "properties": {
+          "nowMegawatts": {
+            "type": "number",
+            "format": "double"
+          },
+          "atFullSpeedMegawatts": {
             "type": "number",
             "format": "double"
           }
@@ -1864,7 +1899,8 @@
           "className",
           "position",
           "yaw",
-          "contents"
+          "contents",
+          "isGenerator"
         ],
         "type": "object",
         "properties": {
@@ -1890,6 +1926,9 @@
               "type": "number",
               "format": "double"
             }
+          },
+          "isGenerator": {
+            "type": "boolean"
           }
         }
       },

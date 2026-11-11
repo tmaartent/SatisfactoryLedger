@@ -7,7 +7,8 @@ using SatisfactoryLedger.World.Snapshots;
 namespace SatisfactoryLedger.World.Factories;
 
 /// <summary>
-/// Defines a factory in a world by its machines (BR-W2, BR-W11), checked against the world's latest snapshot. Until
+/// Defines a factory in a world by its machines (BR-W2, BR-W11), checked against the world's latest snapshot: none of
+/// them may be another factory's (BR-W5). Until
 /// the 3D selection replaces the old dialog, a factory can still be given by its output belt and input items: its
 /// machines are then traced from that belt right away, and stored instead.
 /// </summary>
@@ -30,9 +31,16 @@ internal sealed class DefineFactoryHandler(WorldDbContext db, ICatalogQueries ca
             return invalid;
         }
 
-        if (await db.Factories.AnyAsync(existing => existing.World == factory.World && existing.Name == factory.Name, cancellationToken))
+        List<StoredFactory> others = await db.Factories.Where(existing => existing.World == factory.World).ToListAsync(cancellationToken);
+        if (others.Any(existing => existing.Name == factory.Name))
         {
             return new DefineFactoryOutcome.NameTaken();
+        }
+
+        IReadOnlyList<TakenMachine> taken = ClaimedMachines.Among(factory.Machines.Select(machine => machine.Id), latest, others);
+        if (taken.Count > 0)
+        {
+            return new DefineFactoryOutcome.MachinesTaken(taken);
         }
 
         db.Factories.Add(factory);
@@ -43,7 +51,7 @@ internal sealed class DefineFactoryHandler(WorldDbContext db, ICatalogQueries ca
     private static DefineFactoryOutcome.NotMachines? WithMachines(StoredFactory factory, IEnumerable<string> ids, SnapshotDocument latest)
     {
         Dictionary<string, BuildableDocument> machines = latest.Buildables
-            .Where(buildable => buildable.Role == BuildableDocumentRole.Machine)
+            .Where(latest.IsMachineOrGenerator)
             .ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         List<string> distinct = [.. ids.Distinct(StringComparer.Ordinal)];
         string[] notMachines = [.. distinct.Where(id => !machines.ContainsKey(id))];

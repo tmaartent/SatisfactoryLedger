@@ -10,7 +10,9 @@ internal sealed record FactoryAnalysisResponse(
     bool Settled,
     AnalysisSummary Summary,
     IReadOnlyList<FactoryOutput> Output,
+    FactoryPower? Power,
     IReadOnlyList<MachineFinding> Machines,
+    IReadOnlyList<GeneratorFinding> Generators,
     IReadOnlyList<BottleneckFinding> Bottlenecks,
     IReadOnlyList<UnusedSupplyFinding> UnusedSupply,
     IReadOnlyList<UnknownSupplyFinding> UnknownSupply);

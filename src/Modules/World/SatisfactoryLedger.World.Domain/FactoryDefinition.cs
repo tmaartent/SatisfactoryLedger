@@ -1,8 +1,10 @@
+using SatisfactoryLedger.SharedKernel;
+
 namespace SatisfactoryLedger.World.Domain;
 
 /// <summary>
-/// A factory as the player defines it: its machines (BR-W2). The game has no notion of a factory, so this is the
-/// player's own data. Its logistics, outputs and inputs are derived from the world (BR-W3, BR-W4).
+/// A factory as the player defines it: its machines, generators included (BR-W2). The game has no notion of a factory,
+/// so this is the player's own data. Its logistics, outputs and inputs are derived from the world (BR-W3, BR-W4).
 /// </summary>
 public sealed class FactoryDefinition
 {
@@ -19,12 +21,18 @@ public sealed class FactoryDefinition
     public IReadOnlySet<BuildableId> Machines { get; }
 
     /// <summary>Whether any of its machines is in the world (BR-W11).</summary>
-    public bool IsTraceableIn(WorldGraph world) => Machines.Any(id => world.Find(id) is Machine);
+    public bool IsTraceableIn(WorldGraph world) => Machines.Any(id => CanBeChosen(world.Find(id)));
+
+    /// <summary>
+    /// BR-W2: what a factory's machines can be: a machine, or a generator (decided 2026-11-11). A generator not chosen
+    /// stays a consumer at the end of a line, as sinks and stations do (BR-W8).
+    /// </summary>
+    private static bool CanBeChosen(Buildable? buildable) => buildable is Machine or Consumer { IsGenerator: true };
 
     /// <summary>Finds what belongs to the factory in a world: its machines there, its logistics, outputs and inputs.</summary>
     public FactoryMembers TraceMembers(WorldGraph world)
     {
-        HashSet<BuildableId> machines = Machines.Where(id => world.Find(id) is Machine).ToHashSet();
+        HashSet<BuildableId> machines = Machines.Where(id => CanBeChosen(world.Find(id))).ToHashSet();
         HashSet<BuildableId> logistics = OwnedLogistics(world, machines);
         var factory = new Trace(world, machines, logistics);
 
@@ -167,15 +175,15 @@ public sealed class FactoryDefinition
         }
 
         /// <summary>What the factory's machines that reach this member make.</summary>
-        private List<ItemId> Made(BuildableId member) => Ordered(MachinesReaching(member).SelectMany(id => Machine(id).Produces));
+        private List<ItemId> Made(BuildableId member) => Ordered(MachinesReaching(member).SelectMany(Produces));
 
         /// <summary>What the factory's machines this member reaches ask for and don't get from inside the factory.</summary>
         private List<ItemId> Asked(BuildableId member) => Ordered(Reach(member, world.Downstream).SelectMany(id =>
         {
             HashSet<ItemId> fromInside = Reach(id, world.Upstream, startsAtMachine: false)
-                .SelectMany(supplier => Machine(supplier).Produces)
+                .SelectMany(Produces)
                 .ToHashSet();
-            return Machine(id).Consumes.Where(item => !fromInside.Contains(item));
+            return Consumes(id).Where(item => !fromInside.Contains(item));
         }));
 
         /// <summary>
@@ -212,7 +220,23 @@ public sealed class FactoryDefinition
             return reached;
         }
 
-        private Machine Machine(BuildableId id) => (Machine)world.Find(id)!;
+        /// <summary>What one of its machines makes: a machine its recipe's products, a generator its waste.</summary>
+        private IEnumerable<ItemId> Produces(BuildableId id) => world.Find(id) switch
+        {
+            Machine machine => machine.Produces,
+            Consumer { Generation: { Byproduct: { } waste } generation } when generation.Leaves > Rate.Zero => [waste],
+            _ => [],
+        };
+
+        /// <summary>What one of its machines takes in: a machine its recipe's inputs, a generator its fuel and water.</summary>
+        private IEnumerable<ItemId> Consumes(BuildableId id) => world.Find(id) switch
+        {
+            Machine machine => machine.Consumes,
+            Consumer { Generation: { } generation } => generation.SupplementalNeeded > Rate.Zero && generation.Supplemental is { } water
+                ? [generation.Fuel, water]
+                : [generation.Fuel],
+            _ => [],
+        };
 
         private static List<ItemId> Ordered(IEnumerable<ItemId> items) =>
             items.Distinct().OrderBy(item => item.Id, StringComparer.Ordinal).ToList();

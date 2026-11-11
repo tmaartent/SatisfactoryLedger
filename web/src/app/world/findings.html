@@ -33,6 +33,21 @@
             }
           </td>
         </ng-container>
+        <ng-container matColumnDef="factory">
+          <th mat-header-cell *matHeaderCellDef>Factory</th>
+          <td mat-cell *matCellDef="let m">
+            @if (factoryOf(m.id); as factory) {
+              <span class="swatch" [style.border-color]="factory.colour"></span>
+              @if (snapshotId(); as snapshot) {
+                <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{ factory.name }}</a>
+              } @else {
+                {{ factory.name }}
+              }
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
         <ng-container matColumnDef="recipe">
           <th mat-header-cell *matHeaderCellDef>Recipe</th>
           <td mat-cell *matCellDef="let m">{{ names.recipe(m.recipe) }}</td>
@@ -61,8 +76,8 @@
             }
           </td>
         </ng-container>
-        <tr mat-header-row *matHeaderRowDef="machineColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: machineColumns"></tr>
+        <tr mat-header-row *matHeaderRowDef="machineColumns()"></tr>
+        <tr mat-row *matRowDef="let row; columns: machineColumns()"></tr>
       </table>
     </div>
     <mat-paginator
@@ -73,6 +88,56 @@
       (page)="page.set($event)"
     />
   </mat-tab>
+
+  @if (factories()) {
+    <mat-tab [label]="'Factories (' + factoryRows().length + ')'">
+      <div class="explanation factories-header">
+        <p class="muted">A factory is the machines and generators you choose in 3D (BR-W2), traced in every snapshot of its world.</p>
+        @if (snapshotId(); as snapshot) {
+          <a mat-flat-button [routerLink]="['/snapshots', snapshot, 'map']"><mat-icon>add</mat-icon> Define a factory</a>
+        }
+      </div>
+      @if (factoryRows().length === 0) {
+        <p class="muted">No factories in this world yet. Open an area of the map in 3D to choose a factory's machines.</p>
+      } @else {
+        <div class="table-scroll">
+          <table mat-table [dataSource]="factoryRows()">
+            <ng-container matColumnDef="factory">
+              <th mat-header-cell *matHeaderCellDef>Factory</th>
+              <td mat-cell *matCellDef="let factory">
+                <span class="swatch" [style.border-color]="factory.colour"></span>
+                @if (snapshotId(); as snapshot) {
+                  <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{ factory.name }}</a>
+                } @else {
+                  {{ factory.name }}
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="machines">
+              <th mat-header-cell *matHeaderCellDef class="number">Machines</th>
+              <td mat-cell *matCellDef="let factory" class="number">{{ factory.traceable ? factory.machines.length : '—' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="makes">
+              <th mat-header-cell *matHeaderCellDef>Makes</th>
+              <td mat-cell *matCellDef="let factory">
+                @if (factory.traceable) {
+                  {{ itemsOf(factory.outputs) }}
+                } @else {
+                  <span class="muted">None of its machines are in this snapshot.</span>
+                }
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="needs">
+              <th mat-header-cell *matHeaderCellDef>Needs from outside</th>
+              <td mat-cell *matCellDef="let factory">{{ factory.traceable ? itemsOf(factory.inputs) : '' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="factoryColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: factoryColumns"></tr>
+          </table>
+        </div>
+      }
+    </mat-tab>
+  }
 
   <mat-tab [label]="'Bottlenecks (' + f.bottlenecks.length + ')'">
     <p class="muted explanation">Belts and pipes at their capacity while more is offered to them.</p>
@@ -191,7 +256,7 @@
       </table>
     </div>
   </mat-tab>
-  @if (f.generators; as generators) {
+  @if (generators(); as generators) {
     <mat-tab [label]="'Generators (' + generators.length + ')'">
       <p class="muted explanation">
         Generators burning a known fuel, at full power (BR-A8): what they burn, and why they run below it.
@@ -204,6 +269,21 @@
               {{ names.building(g.className) }}
               @if (g.approximate) {
                 <mat-icon inline matTooltip="Approximate">blur_on</mat-icon>
+              }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="factory">
+            <th mat-header-cell *matHeaderCellDef>Factory</th>
+            <td mat-cell *matCellDef="let g">
+              @if (factoryOf(g.id); as factory) {
+                <span class="swatch" [style.border-color]="factory.colour"></span>
+                @if (snapshotId(); as snapshot) {
+                  <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{ factory.name }}</a>
+                } @else {
+                  {{ factory.name }}
+                }
+              } @else {
+                <span class="muted">—</span>
               }
             </td>
           </ng-container>
@@ -235,8 +315,8 @@
             }
           </td>
           </ng-container>
-          <tr mat-header-row *matHeaderRowDef="generatorColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: generatorColumns"></tr>
+          <tr mat-header-row *matHeaderRowDef="generatorColumns()"></tr>
+          <tr mat-row *matRowDef="let row; columns: generatorColumns()"></tr>
         </table>
       </div>
     </mat-tab>

@@ -197,4 +197,67 @@ public class FactoryDefinitionTests
     {
         Assert.Throws<ArgumentException>(() => new FactoryDefinition([]));
     }
+
+    /// <summary>
+    /// rod maker → rods → nuclear plant → waste → waste box (a container at the end), with water from a pump. Rods
+    /// stand in for fuel rods, so the rod maker has a recipe the test items know.
+    /// </summary>
+    private static TestWorld NuclearPlant() => new TestWorld()
+        .Miner("ingots").Belt("to rod maker").Machine("rod maker", Items.IronIngot, Items.UraniumFuelRod).Belt("rods")
+        .Miner("pump").Pipe("water")
+        .Generator("plant", Items.UraniumFuelRod, 0.2m, Items.Water, 240, Items.UraniumWaste, 10).Belt("waste").Container("waste box")
+        .Connect("ingots", "to rod maker", "rod maker", "rods", "plant", "waste", "waste box")
+        .Connect("pump", "water", "plant");
+
+    [Fact]
+    public void A_generator_can_be_one_of_its_machines()
+    {
+        Assert.Equal(["plant", "rod maker"], Names(Trace(NuclearPlant(), "rod maker", "plant").Machines));
+    }
+
+    [Fact]
+    public void A_factory_of_generators_only_can_be_traced()
+    {
+        Assert.True(new FactoryDefinition([Id("plant")]).IsTraceableIn(NuclearPlant().Build()));
+    }
+
+    [Fact]
+    public void The_fuel_line_to_its_own_generator_is_its_own_and_no_output()
+    {
+        FactoryMembers factory = Trace(NuclearPlant(), "rod maker", "plant");
+
+        Assert.Contains(Id("rods"), factory.Logistics);
+        Assert.DoesNotContain(factory.Outputs, output => output.Items.Contains(Items.UraniumFuelRod));
+    }
+
+    [Fact]
+    public void The_waste_its_generator_leaves_is_an_output()
+    {
+        FactoryMembers factory = Trace(NuclearPlant(), "rod maker", "plant");
+
+        FactoryConnection output = Assert.Single(factory.Outputs);
+        Assert.Equal(Id("waste box"), output.Inside);
+        Assert.Equal([Items.UraniumWaste], output.Items);
+        Assert.Contains(Id("plant"), factory.Producers);
+    }
+
+    [Fact]
+    public void Its_generator_asks_for_its_fuel_and_water_from_outside()
+    {
+        FactoryMembers factory = Trace(NuclearPlant(), "plant");
+
+        Assert.Contains(Items.UraniumFuelRod, Assert.Single(factory.Inputs, input => input.Outside == Id("rods")).Items);
+        Assert.Contains(Items.Water, Assert.Single(factory.Inputs, input => input.Outside == Id("pump")).Items);
+    }
+
+    [Fact]
+    public void A_generator_not_chosen_stays_the_end_of_the_line_and_the_fuel_into_it_an_output()
+    {
+        FactoryMembers factory = Trace(NuclearPlant(), "rod maker");
+
+        Assert.Contains(Id("rods"), factory.Logistics);
+        FactoryConnection output = Assert.Single(factory.Outputs);
+        Assert.Equal((Id("rods"), (BuildableId?)Id("plant")), (output.Inside, output.Outside));
+        Assert.Equal([Items.UraniumFuelRod], output.Items);
+    }
 }

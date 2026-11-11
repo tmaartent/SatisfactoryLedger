@@ -1,6 +1,9 @@
 <div class="page-header">
   <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"><mat-icon>arrow_back</mat-icon></a>
   <h1>{{ analysis.value()?.name ?? 'Factory' }}</h1>
+  <span class="spacer"></span>
+  <a mat-stroked-button [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ factory: factoryId() }"><mat-icon>map</mat-icon> Map</a>
+  <a mat-stroked-button [routerLink]="['/snapshots', id(), 'area']" [queryParams]="{ factory: factoryId() }"><mat-icon>view_in_ar</mat-icon> 3D</a>
 </div>
 
 @if (analysis.value(); as factory) {
@@ -21,6 +24,14 @@
     <tr mat-header-row *matHeaderRowDef="outputColumns"></tr>
     <tr mat-row *matRowDef="let row; columns: outputColumns"></tr>
   </table>
+
+  @if (factory.power; as power) {
+    <h2>Power</h2>
+    <p class="power">
+      <span [class.short]="power.nowMegawatts < power.atFullSpeedMegawatts">{{ megawatts(power.nowMegawatts) }}</span> now ·
+      {{ megawatts(power.atFullSpeedMegawatts) }} at 100%
+    </p>
+  }
 
   <app-findings [findings]="factory" [snapshotId]="id()" />
 } @else if (analysis.error(); as error) {

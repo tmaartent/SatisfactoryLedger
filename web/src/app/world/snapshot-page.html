@@ -25,45 +25,13 @@
           }
           @default {
             @if (analysis.value(); as findings) {
-              <app-findings [findings]="findings" [snapshotId]="id()" />
+              <app-findings [findings]="findings" [snapshotId]="id()" [factories]="factories.value()" />
             } @else if (analysis.error(); as error) {
               <p>The findings couldn't be loaded: {{ problem(error) }}</p>
             } @else {
               <mat-progress-bar mode="indeterminate" />
             }
           }
-        }
-      </div>
-    </mat-tab>
-
-    <mat-tab label="Factories">
-      <div class="tab-body">
-        <div class="page-header">
-          <p class="muted">A factory is an output belt and the items that come in (BR-W2), traced in every snapshot of its world.</p>
-          <span class="spacer"></span>
-          <button mat-flat-button (click)="defineFactory()"><mat-icon>add</mat-icon> Define a factory</button>
-        </div>
-        @if (factories.value(); as list) {
-          @if (list.length === 0) {
-            <p class="muted">No factories in {{ s.sessionName }} yet.</p>
-          }
-          <mat-nav-list>
-            @for (factory of list; track factory.factoryId) {
-              <a mat-list-item [routerLink]="['factories', factory.factoryId]" [disabled]="!factory.traceable">
-                <mat-icon matListItemIcon>{{ factory.traceable ? 'precision_manufacturing' : 'link_off' }}</mat-icon>
-                <span matListItemTitle>{{ factory.name }}</span>
-                <span matListItemLine>
-                  @if (factory.traceable) {
-                    {{ factory.machines.length }} machines, {{ factory.logistics }} belts and splitters
-                  } @else {
-                    Its output belt isn't in this snapshot.
-                  }
-                </span>
-              </a>
-            }
-          </mat-nav-list>
-        } @else if (factories.error(); as error) {
-          <p>The factories couldn't be loaded: {{ problem(error) }}</p>
         }
       </div>
     </mat-tab>

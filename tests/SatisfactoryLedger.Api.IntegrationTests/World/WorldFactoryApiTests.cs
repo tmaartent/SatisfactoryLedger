@@ -176,6 +176,30 @@ public sealed class WorldFactoryApiTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_generator_can_be_one_of_a_factorys_machines()
+    {
+        await _client.ImportSaveAsync(WorldClient.WorldWithGenerators);
+
+        HttpResponseMessage response = await _client.DefineFactoryAsync("Development", "Power", WorldClient.NuclearPlant);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_machine_of_one_factory_cannot_be_in_another()
+    {
+        await DefineIronPlatesAsync();
+
+        HttpResponseMessage response = await _client.DefineFactoryAsync("Development", "Smelting", WorldClient.IronPlateMachines[1]);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        ProblemDetails problem = await ProblemAsync(response);
+        Assert.Equal("World.MachinesTaken", problem.Extensions["code"]?.ToString());
+        Assert.Contains("Iron plates", problem.Extensions["taken"]?.ToString(), StringComparison.Ordinal);
+        Assert.Contains(WorldClient.IronPlateMachines[1], problem.Extensions["taken"]?.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_factory_in_a_world_without_snapshots_is_unprocessable()
     {
         HttpResponseMessage response = await _client.DefineFactoryAsync("Somewhere else", "Iron plates", WorldClient.IronPlateMachines);

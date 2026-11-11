@@ -18,6 +18,14 @@ export function areaBetween(a: Position, b: Position): Area {
   return { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
 }
 
+/** The area around a factory's machines: from the outermost ones, a margin further on every side. Nothing without any. */
+export function areaAround(positions: readonly Position[], margin: number): Area | null {
+  if (positions.length === 0) return null;
+  const xs = positions.map((p) => p.x);
+  const ys = positions.map((p) => p.y);
+  return { x0: Math.min(...xs) - margin, y0: Math.min(...ys) - margin, x1: Math.max(...xs) + margin, y1: Math.max(...ys) + margin };
+}
+
 export function inArea(position: Position, area: Area): boolean {
   return position.x >= area.x0 && position.x <= area.x1 && position.y >= area.y0 && position.y <= area.y1;
 }

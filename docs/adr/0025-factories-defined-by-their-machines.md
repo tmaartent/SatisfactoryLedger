@@ -17,7 +17,9 @@ The owner also found that *which logistics belongs to a factory* can't be decide
 - **Outputs and inputs are handovers** (BR-W4): from a member to what isn't one, or into nothing after an own container at the end of a line. There can be several of each.
 - **Stored as machine references:** id, class and position, as a jsonb list on `factories.machines`. A machine rebuilt between saves gets a new id, so it's matched by **class and position within a metre**. One without a match is reported as **missing** (BR-W11).
 - **Old factories are converted:** at startup, each factory still stored by its output belt is traced once in its world's latest snapshot, and stored as the machines that trace finds. One that can't be traced there is left as it was, logged, and tried again at the next start. Until then it isn't traceable.
-- **The old define request still works** until part 2b replaces the dialog: an output belt and input items are traced right away and stored as machines. `POST /factories` takes `machines` or `outputBelt`, not both.
+- **The old define request still works:** an output belt and input items are traced right away and stored as machines. `POST /factories` takes `machines` or `outputBelt`, not both. Since step 37 the web app no longer sends it: factories are chosen in 3D.
+- **A generator can be one of a factory's machines** (BR-W2, decided 2026-11-11). In the domain it's still a `Consumer`, now with `IsGenerator`; `FactoryDefinition` treats a chosen one as a machine that takes its fuel and water and makes its waste. The API, the stored `machines` and the term *machines* stay as they are: generators are among them. The factory's findings add its generators and their power.
+- **A machine belongs to one factory at most** (BR-W5, decided 2026-11-11). The rule spans the world's factories, so `DefineFactoryHandler` checks it beside the unique name (`ClaimedMachines`), not in `FactoryDefinition`. Overlapping factories stored before it are kept and shown.
 - **A factory's output now** (BR-A14) is read from the stored analysis's flows into logistics (ADR-0017). It doesn't store a flow per connection.
 
 ## Alternatives considered
@@ -30,4 +32,4 @@ The owner also found that *which logistics belongs to a factory* can't be decide
 - `FactoryDefinition` is now its machines only; the name stays with the stored definition, since tracing never reads it. The old trace survives as `OutputBeltTrace`, only for converting and for the old dialog.
 - The `factories` table gains a `machines` jsonb column; `output_belt` and `input_items` become nullable and stay filled only for factories not converted yet.
 - An output into a line shared with other factories reports the line's whole flow as "now", their part included (`SnapshotAnalysis.Over`).
-- The web app's factory page and the 3D selection follow in part 2b.
+- The web app chooses a factory's machines in the 3D view of an area (step 37): a click adds or takes out one, a box dragged with shift or alt adds or takes out every machine inside it. The factory page with outputs and inputs follows in part 2b.
