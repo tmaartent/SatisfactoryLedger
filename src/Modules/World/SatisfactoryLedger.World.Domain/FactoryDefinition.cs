@@ -30,11 +30,12 @@ public sealed class FactoryDefinition
     private static bool CanBeChosen(Buildable? buildable) => buildable is Machine or Consumer { IsGenerator: true };
 
     /// <summary>Finds what belongs to the factory in a world: its machines there, its logistics, outputs and inputs.</summary>
-    public FactoryMembers TraceMembers(WorldGraph world)
+    /// <param name="fluids">The items pipes carry; belts carry the rest (BR-W4).</param>
+    public FactoryMembers TraceMembers(WorldGraph world, IReadOnlySet<ItemId> fluids)
     {
         HashSet<BuildableId> machines = Machines.Where(id => CanBeChosen(world.Find(id))).ToHashSet();
         HashSet<BuildableId> logistics = OwnedLogistics(world, machines);
-        var factory = new Trace(world, machines, logistics);
+        var factory = new Trace(world, fluids, machines, logistics);
 
         List<FactoryConnection> outputs = factory.Outputs();
         List<FactoryConnection> inputs = factory.Inputs();
@@ -96,29 +97,50 @@ public sealed class FactoryDefinition
         world.Upstream(id).Concat(world.Downstream(id));
 
     /// <summary>A factory's members in one world, and what can be read from them.</summary>
-    private sealed class Trace(WorldGraph world, HashSet<BuildableId> machines, HashSet<BuildableId> logistics)
+    private sealed class Trace(WorldGraph world, IReadOnlySet<ItemId> fluids, HashSet<BuildableId> machines, HashSet<BuildableId> logistics)
     {
         private bool IsMember(BuildableId id) => machines.Contains(id) || logistics.Contains(id);
 
         private IEnumerable<BuildableId> Members => machines.Concat(logistics);
 
-        /// <summary>Every handover from a member to what isn't one, and every owned line that ends inside the factory.</summary>
+        /// <summary>
+        /// Every handover from a member to what isn't one, and every owned line that ends in its own container, carrying
+        /// what can leave there. One whose line carries none of what its machines make (a pipe on a fluid port its
+        /// recipe doesn't use) is no output.
+        /// </summary>
         public List<FactoryConnection> Outputs() =>
         [
             .. Members
-                .SelectMany(inside => Across(world.Downstream(inside), inside, logistics.Contains(inside)))
+                .SelectMany(inside => Across(world.Downstream(inside), inside))
                 .Distinct()
-                .Select(handover => new FactoryConnection(handover.Inside, handover.Outside, Made(handover.Inside))),
+                .Select(handover => Carried(handover, Made(handover.Inside)))
+                .OfType<FactoryConnection>(),
         ];
 
-        /// <summary>Every handover to a member from what isn't one, and every owned line that starts inside the factory.</summary>
+        /// <summary>
+        /// Every handover to a member from what isn't one, and every owned line that starts at a container nothing feeds, carrying
+        /// what can arrive there. One whose line carries none of what its machines ask for is no input.
+        /// </summary>
         public List<FactoryConnection> Inputs() =>
         [
             .. Members
-                .SelectMany(inside => Across(world.Upstream(inside), inside, logistics.Contains(inside)))
+                .SelectMany(inside => Across(world.Upstream(inside), inside))
                 .Distinct()
-                .Select(handover => new FactoryConnection(handover.Inside, handover.Outside, Asked(handover.Inside))),
+                .Select(handover => Carried(handover, Asked(handover.Inside)))
+                .OfType<FactoryConnection>(),
         ];
+
+        /// <summary>
+        /// BR-W4: a handover carries the items of its line's form: a pipe fluids, a belt solids. Its line is the side
+        /// that's logistics; between a machine and a consumer, anything goes. Null when none of the items fits.
+        /// </summary>
+        private FactoryConnection? Carried((BuildableId Inside, BuildableId? Outside) handover, List<ItemId> items)
+        {
+            Logistics? line = world.Find(handover.Inside) as Logistics
+                ?? (handover.Outside is { } outside ? world.Find(outside) as Logistics : null);
+            List<ItemId> carried = line is null ? items : [.. items.Where(item => fluids.Contains(item) == line.CarriesFluids)];
+            return items.Count > 0 && carried.Count == 0 ? null : new FactoryConnection(handover.Inside, handover.Outside, carried);
+        }
 
         /// <summary>
         /// The providers and unfed containers upstream of its inputs, through logistics (BR-A14). The walk stops at
@@ -158,12 +180,15 @@ public sealed class FactoryDefinition
         /// <summary>The factory's machines whose output reaches this member through its own logistics, or the member itself.</summary>
         public HashSet<BuildableId> MachinesReaching(BuildableId member) => Reach(member, world.Upstream);
 
-        /// <summary>The handovers across the given neighbours of a member, or one to nothing when an owned line ends there.</summary>
-        private IEnumerable<(BuildableId Inside, BuildableId? Outside)> Across(
-            IEnumerable<Buildable> neighbours, BuildableId inside, bool isOwnedLogistics)
+        /// <summary>
+        /// The handovers across the given neighbours of a member, or one to nothing when an owned line ends there in a
+        /// container or fluid buffer (BR-W4). A belt, lift or pipe that just stops is no handover (decided 2026-11-11).
+        /// </summary>
+        private IEnumerable<(BuildableId Inside, BuildableId? Outside)> Across(IEnumerable<Buildable> neighbours, BuildableId inside)
         {
             List<Buildable> all = neighbours.ToList();
-            if (all.Count == 0 && isOwnedLogistics)
+            if (all.Count == 0 && logistics.Contains(inside)
+                && world.Find(inside) is Logistics { Kind: LogisticsKind.StorageContainer or LogisticsKind.FluidBuffer })
             {
                 yield return (inside, null);
             }

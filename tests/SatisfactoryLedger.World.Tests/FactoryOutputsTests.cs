@@ -95,6 +95,36 @@ public class FactoryOutputsTests
     }
 
     [Fact]
+    public void What_its_producers_make_for_its_own_machines_only_is_no_output()
+    {
+        // box → in → packager → (fuel → generator, cans → sink): the packager unpacks turbofuel for the factory's own
+        // fuel generator, so only its empty canisters leave.
+        var saved = new SavedWorld(
+            new SaveInfo("Unpacking", 517554, new DateTime(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc)),
+            [
+                new SavedLogistics(Saved("box"), "Build_StorageContainerMk1_C", LogisticsKind.StorageContainer)
+                {
+                    Stock = new Dictionary<string, decimal> { ["Desc_TurboFuel_C"] = 1_000 },
+                },
+                new SavedLogistics(Saved("in"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedMachine(Saved("packager"), "Build_Packager_C", "Recipe_UnpackageTurboFuel_C", ClockSpeed.Percent(100), 1),
+                new SavedLogistics(Saved("fuel"), "Build_PipelineMK2_C", LogisticsKind.Pipe),
+                new SavedConsumer(Saved("generator"), "Build_GeneratorFuel_C") { Fuel = "Desc_LiquidTurboFuel_C", ClockSpeed = ClockSpeed.Percent(100) },
+                new SavedLogistics(Saved("cans"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedConsumer(Saved("sink"), "Build_ResourceSink_C"),
+            ],
+            [
+                new Connection(Saved("box"), Saved("in")), new Connection(Saved("in"), Saved("packager")),
+                new Connection(Saved("packager"), Saved("fuel")), new Connection(Saved("fuel"), Saved("generator")),
+                new Connection(Saved("packager"), Saved("cans")), new Connection(Saved("cans"), Saved("sink")),
+            ],
+            []);
+        FactoryOutput output = Assert.Single(OutputOf(saved, "packager", "generator"));
+
+        Assert.Equal("Desc_FluidCanister_C", output.Item);
+    }
+
+    [Fact]
     public void What_goes_into_a_portal_goes_to_a_consumer_named_after_its_building()
     {
         // box → ore → smelter → ingots → portal.
@@ -119,6 +149,43 @@ public class FactoryOutputsTests
         OutputDestination destination = Assert.Single(Assert.Single(OutputOf(saved, "smelter")).Destinations);
 
         Assert.Equal((OutputDestinationKind.Consumer, "Build_Portal_C"), (destination.Kind, destination.Building));
+    }
+
+    [Fact]
+    public void What_its_own_machines_take_of_an_item_that_leaves_is_not_what_it_could_make_more()
+    {
+        // box → ore → smelter → ingots → split → (to constructor → constructor at 50% → plates → sink, spare → sink):
+        // the smelter makes 30 ingots a minute, its own constructor takes 15, so 15 can leave at most.
+        var saved = new SavedWorld(
+            new SaveInfo("Own use", 517554, new DateTime(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc)),
+            [
+                new SavedLogistics(Saved("box"), "Build_StorageContainerMk1_C", LogisticsKind.StorageContainer)
+                {
+                    Stock = new Dictionary<string, decimal> { ["Desc_OreIron_C"] = 1_000 },
+                },
+                new SavedLogistics(Saved("ore"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedMachine(Saved("smelter"), "Build_SmelterMk1_C", "Recipe_IngotIron_C", ClockSpeed.Percent(100), 1),
+                new SavedLogistics(Saved("ingots"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedLogistics(Saved("split"), "Build_ConveyorAttachmentSplitter_C", LogisticsKind.Splitter),
+                new SavedLogistics(Saved("to constructor"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedMachine(Saved("constructor"), "Build_ConstructorMk1_C", "Recipe_IronPlate_C", ClockSpeed.Percent(50), 1),
+                new SavedLogistics(Saved("plates"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedConsumer(Saved("plate sink"), "Build_ResourceSink_C"),
+                new SavedLogistics(Saved("spare"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedConsumer(Saved("ingot sink"), "Build_ResourceSink_C"),
+            ],
+            [
+                new Connection(Saved("box"), Saved("ore")), new Connection(Saved("ore"), Saved("smelter")),
+                new Connection(Saved("smelter"), Saved("ingots")), new Connection(Saved("ingots"), Saved("split")),
+                new Connection(Saved("split"), Saved("to constructor")), new Connection(Saved("to constructor"), Saved("constructor")),
+                new Connection(Saved("constructor"), Saved("plates")), new Connection(Saved("plates"), Saved("plate sink")),
+                new Connection(Saved("split"), Saved("spare")), new Connection(Saved("spare"), Saved("ingot sink")),
+            ],
+            []);
+
+        FactoryOutput ingots = OutputOf(saved, "smelter", "constructor").Single(output => output.Item == "Desc_IronIngot_C");
+
+        Assert.Equal(15, ingots.AtFullSpeed);
     }
 
     private static BuildableId Saved(string name) => BuildableId.Of(TestWorldSnapshot.Id(name));

@@ -6,7 +6,7 @@ public class FactoryDefinitionTests
     private static BuildableId Id(string name) => BuildableId.Of(name);
 
     private static FactoryMembers Trace(TestWorld world, params string[] machines) =>
-        new FactoryDefinition(machines.Select(Id)).TraceMembers(world.Build());
+        new FactoryDefinition(machines.Select(Id)).TraceMembers(world.Build(), Items.Fluids);
 
     private static IEnumerable<string> Names(IEnumerable<BuildableId> ids) => ids.Select(id => id.Id).Order(StringComparer.Ordinal);
 
@@ -71,13 +71,13 @@ public class FactoryDefinitionTests
     }
 
     /// <summary>
-    /// Two encoders of two factories leave their dark matter residue in one pipe network; a collider of a third takes
-    /// it. The network is fed by more than one factory, so it belongs to none of them.
+    /// Two machines of two factories leave their byproduct, a fluid (water stands in for dark matter residue), in one
+    /// pipe network; a collider of a third takes it. The network is fed by more than one factory, so it belongs to none of them.
     /// </summary>
     private static TestWorld ResidueNetwork() => new TestWorld()
-        .Machine("encoder A", Items.IronIngot, Items.Coal).Pipe("pipe A")
-        .Machine("encoder B", Items.IronIngot, Items.Coal).Pipe("pipe B")
-        .PipeNetwork("network").Pipe("to collider").Machine("collider", Items.Coal, Items.IronPlate)
+        .Machine("encoder A", Items.IronIngot, Items.Water).Pipe("pipe A")
+        .Machine("encoder B", Items.IronIngot, Items.Water).Pipe("pipe B")
+        .PipeNetwork("network").Pipe("to collider").Machine("collider", Items.Water, Items.IronPlate)
         .Connect("encoder A", "pipe A", "network", "to collider", "collider")
         .Connect("encoder B", "pipe B", "network");
 
@@ -89,7 +89,7 @@ public class FactoryDefinitionTests
         Assert.Empty(encoders.Logistics);
         FactoryConnection output = Assert.Single(encoders.Outputs);
         Assert.Equal((Id("encoder A"), (BuildableId?)Id("pipe A")), (output.Inside, output.Outside));
-        Assert.Equal([Items.Coal], output.Items);
+        Assert.Equal([Items.Water], output.Items);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public class FactoryDefinitionTests
 
         FactoryConnection input = Assert.Single(colliders.Inputs);
         Assert.Equal((Id("collider"), (BuildableId?)Id("to collider")), (input.Inside, input.Outside));
-        Assert.Equal([Items.Coal], input.Items);
+        Assert.Equal([Items.Water], input.Items);
     }
 
     [Fact]
@@ -259,5 +259,82 @@ public class FactoryDefinitionTests
         FactoryConnection output = Assert.Single(factory.Outputs);
         Assert.Equal((Id("rods"), (BuildableId?)Id("plant")), (output.Inside, output.Outside));
         Assert.Equal([Items.UraniumFuelRod], output.Items);
+    }
+
+    /// <summary>
+    /// station → packaged → packager → (tanks → sink, nitrogen → blender), with plates on a belt and water on a pipe from
+    /// outside, and the blender's spare fluid output on a pipe that goes nowhere. The packager unpacks the gas for the
+    /// blender, which makes cooling systems.
+    /// </summary>
+    private static TestWorld Unpacking() => new TestWorld()
+        .Station("station").Belt("packaged").Machine("packager", [Items.PackagedNitrogenGas], [Items.NitrogenGas, Items.EmptyFluidTank])
+        .Belt("tanks").Sink("tank sink").Pipe("nitrogen")
+        .Miner("pump").Pipe("water").Belt("plates")
+        .Machine("blender", [Items.NitrogenGas, Items.Water, Items.IronPlate], [Items.CoolingSystem]).Belt("out").Sink("sink").Pipe("spare")
+        .Connect("station", "packaged", "packager", "tanks", "tank sink")
+        .Connect("packager", "nitrogen", "blender", "out", "sink")
+        .Connect("pump", "water", "blender")
+        .Connect("station", "plates", "blender")
+        .Connect("blender", "spare");
+
+    [Fact]
+    public void An_output_on_a_belt_carries_only_the_solids_its_machines_make()
+    {
+        FactoryMembers factory = Trace(Unpacking(), "packager", "blender");
+
+        Assert.Equal([Items.EmptyFluidTank], factory.Outputs.Single(output => output.Inside == Id("tanks")).Items);
+        Assert.DoesNotContain(factory.Outputs, output => output.Items.Contains(Items.NitrogenGas));
+    }
+
+    [Fact]
+    public void A_pipe_from_a_fluid_port_its_recipe_does_not_use_is_no_output()
+    {
+        FactoryMembers factory = Trace(Unpacking(), "packager", "blender");
+
+        Assert.DoesNotContain(factory.Outputs, output => output.Inside == Id("spare"));
+    }
+
+    [Fact]
+    public void An_input_on_a_pipe_brings_only_fluids_and_one_on_a_belt_only_solids()
+    {
+        FactoryMembers factory = Trace(Unpacking(), "packager", "blender");
+
+        Assert.Equal([Items.Water], factory.Inputs.Single(input => input.Inside == Id("water")).Items);
+        Assert.Equal([Items.IronPlate], factory.Inputs.Single(input => input.Inside == Id("plates")).Items);
+    }
+
+    [Fact]
+    public void A_belt_of_its_own_that_goes_nowhere_is_no_output()
+    {
+        // The smelter's ingots go to the constructor; a lift off the last splitter ends in nothing.
+        TestWorld world = new TestWorld()
+            .Miner("miner").Belt("ore").Machine("smelter", Items.IronOre, Items.IronIngot).Belt("ingots").Splitter("split")
+            .Belt("to constructor").Machine("constructor", Items.IronIngot, Items.IronPlate).Belt("plates").Container("box")
+            .Lift("dead end")
+            .Connect("miner", "ore", "smelter", "ingots", "split", "to constructor", "constructor", "plates", "box")
+            .Connect("split", "dead end");
+
+        FactoryMembers factory = Trace(world, "smelter", "constructor");
+
+        Assert.Contains(Id("dead end"), factory.Logistics);
+        FactoryConnection output = Assert.Single(factory.Outputs);
+        Assert.Equal(Id("box"), output.Inside);
+    }
+
+    [Fact]
+    public void A_belt_of_its_own_that_starts_at_nothing_is_no_input()
+    {
+        // A loose belt merges into the smelter's ore line; nothing feeds it.
+        TestWorld world = new TestWorld()
+            .Miner("miner").Belt("ore").Belt("loose").Merger("merge").Belt("in")
+            .Machine("smelter", Items.IronOre, Items.IronIngot).Belt("ingots").Container("box")
+            .Connect("miner", "ore", "merge", "in", "smelter", "ingots", "box")
+            .Connect("loose", "merge");
+
+        FactoryMembers factory = Trace(world, "smelter");
+
+        Assert.Contains(Id("loose"), factory.Logistics);
+        FactoryConnection input = Assert.Single(factory.Inputs);
+        Assert.Equal(Id("miner"), input.Outside);
     }
 }

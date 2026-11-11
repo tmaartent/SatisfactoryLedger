@@ -54,27 +54,37 @@ internal static class FactoryOutputs
             }
         }
 
+        // Only what leaves: a product its own machines take all of, such as gas unpacked for its blenders, isn't output.
+        HashSet<ItemId> leaves = [.. members.Outputs.SelectMany(output => output.Items)];
+
+        // At 100%, what its machines make of it less what its own machines take of it (decided 2026-11-11): a loop
+        // that makes rubber and takes some back for its plastic only lets the rest leave.
         Dictionary<string, double> atFullSpeed = new(StringComparer.Ordinal);
+        foreach (Buildable member in members.Machines.Select(id => world.Find(id)).OfType<Buildable>())
+        {
+            foreach ((ItemId item, Rate rate) in Makes(member).Where(product => leaves.Contains(product.Key)))
+            {
+                atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) + rate.ToDouble();
+            }
+
+            foreach ((ItemId item, Rate rate) in Takes(member).Where(input => leaves.Contains(input.Key)))
+            {
+                atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) - rate.ToDouble();
+            }
+        }
+
+        // What an output blocked producer would make at 100% but can't get out.
         Dictionary<string, double> cannotLeave = new(StringComparer.Ordinal);
         foreach (Buildable producer in members.Producers.Select(id => world.Find(id)).OfType<Buildable>())
         {
-            // A machine makes its recipe's products; a generator leaves its waste (BR-A8).
-            IEnumerable<KeyValuePair<ItemId, Rate>> made = producer switch
+            if (states.GetValueOrDefault(producer.Id.Id) is not { Limit: MachineLimit.OutputBlocked } state)
             {
-                Machine machine => machine.Production,
-                Consumer { Generation: { Byproduct: { } waste } generation } => [new(waste, generation.Leaves)],
-                _ => [],
-            };
-            MachineStateDocument? state = states.GetValueOrDefault(producer.Id.Id);
-            foreach ((ItemId item, Rate rate) in made)
-            {
-                atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) + rate.ToDouble();
+                continue;
+            }
 
-                // What an output blocked producer would make at 100% but can't get out.
-                if (state is { Limit: MachineLimit.OutputBlocked })
-                {
-                    cannotLeave[item.Id] = cannotLeave.GetValueOrDefault(item.Id) + rate.ToDouble() * (1 - state.Utilisation);
-                }
+            foreach ((ItemId item, Rate rate) in Makes(producer).Where(product => leaves.Contains(product.Key)))
+            {
+                cannotLeave[item.Id] = cannotLeave.GetValueOrDefault(item.Id) + rate.ToDouble() * (1 - state.Utilisation);
             }
         }
 
@@ -93,7 +103,7 @@ internal static class FactoryOutputs
                 return new FactoryOutput(
                     item,
                     SnapshotAnalysis.Round(now.GetValueOrDefault(item)),
-                    SnapshotAnalysis.Round(atFullSpeed.GetValueOrDefault(item)),
+                    SnapshotAnalysis.Round(Math.Max(0, atFullSpeed.GetValueOrDefault(item))),
                     SnapshotAnalysis.Round(need),
                     SnapshotAnalysis.Round(Math.Max(0, get - brings)),
                     SnapshotAnalysis.Round(Math.Max(0, need - get)),
@@ -139,6 +149,23 @@ internal static class FactoryOutputs
 
         string? ClassOf(BuildableId id) => buildables.GetValueOrDefault(id.Id)?.ClassName;
     }
+
+    /// <summary>What one of its machines makes at 100%: a machine its recipe's products, a generator its waste (BR-A8).</summary>
+    private static IEnumerable<KeyValuePair<ItemId, Rate>> Makes(Buildable member) => member switch
+    {
+        Machine machine => machine.Production,
+        Consumer { Generation: { Byproduct: { } waste } generation } => [new(waste, generation.Leaves)],
+        _ => [],
+    };
+
+    /// <summary>What one of its machines takes at 100%: a machine its recipe's inputs, a generator its fuel and water.</summary>
+    private static IEnumerable<KeyValuePair<ItemId, Rate>> Takes(Buildable member) => member switch
+    {
+        Machine machine => machine.Demand,
+        Consumer { Generation: { Supplemental: { } water } generation } => [new(generation.Fuel, generation.Burns), new(water, generation.SupplementalNeeded)],
+        Consumer { Generation: { } generation } => [new(generation.Fuel, generation.Burns)],
+        _ => [],
+    };
 
     /// <summary>
     /// Who each machine in this snapshot belongs to: this factory's own members, and the other factories' machines as

@@ -30,7 +30,7 @@ internal static class SnapshotAnalysis
             return null;
         }
 
-        FactoryMembers members = definition.TraceMembers(world);
+        FactoryMembers members = definition.TraceMembers(world, snapshot.Fluids.Select(ItemId.Of).ToHashSet());
         bool IsMember(string id) => members.Contains(BuildableId.Of(id));
         List<UnsettledPartDocument> parts = [.. analysis.UnsettledParts.Where(part => part.Buildables.Any(IsMember))];
         AnalysisResponse findings = Findings(

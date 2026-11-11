@@ -13,13 +13,14 @@ public class TestWorldFactoryTests
 {
     private static readonly ItemId IronOre = ItemId.Of("Desc_OreIron_C");
     private static readonly ItemId IronIngot = ItemId.Of("Desc_IronIngot_C");
+    private static readonly ItemId Water = ItemId.Of("Desc_Water_C");
 
     private static readonly Dictionary<string, (ItemId[] Consumes, ItemId[] Produces)> Recipes = new()
     {
         ["Recipe_IngotIron_C"] = ([IronOre], [IronIngot]),
         ["Recipe_IronPlate_C"] = ([IronIngot], [ItemId.Of("Desc_IronPlate_C")]),
         ["Recipe_IronRod_C"] = ([IronIngot], [ItemId.Of("Desc_IronRod_C")]),
-        ["Recipe_PackagedWater_C"] = ([ItemId.Of("Desc_Water_C"), ItemId.Of("Desc_FluidCanister_C")], [ItemId.Of("Desc_PackagedWater_C")]),
+        ["Recipe_PackagedWater_C"] = ([Water, ItemId.Of("Desc_FluidCanister_C")], [ItemId.Of("Desc_PackagedWater_C")]),
     };
 
     private static WorldGraph Graph() => new(
@@ -40,7 +41,7 @@ public class TestWorldFactoryTests
 
     private static readonly BuildableId[] IronPlateMachines = [SmelterA, SmelterB, ConstructorC];
 
-    private static FactoryMembers IronPlates(WorldGraph world) => new FactoryDefinition(IronPlateMachines).TraceMembers(world);
+    private static FactoryMembers IronPlates(WorldGraph world) => new FactoryDefinition(IronPlateMachines).TraceMembers(world, new HashSet<ItemId> { Water });
 
     [Fact]
     public void The_iron_plate_factory_owns_its_supply_line_from_the_miner_since_it_feeds_nothing_else()
