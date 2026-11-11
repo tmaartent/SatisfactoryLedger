@@ -152,6 +152,16 @@ public class CatalogImportTests
     }
 
     [Fact]
+    public void An_import_counts_the_buildables_it_named()
+    {
+        var platform = Buildable.Create(BuildableId.Of("Build_TrainDockingStation_C"), "Freight Platform");
+
+        var import = RecordImport("1.2", buildables: CatalogEntries.Reconcile([], [platform]));
+
+        Assert.Equal(new ImportCounts(Added: 1, Updated: 0, NoLongerInGame: 0), import.Buildables);
+    }
+
+    [Fact]
     public void An_import_counts_the_generators_it_changed()
     {
         var generator = Generator.Create(GeneratorId.Of("Build_GeneratorCoal_C"), "Coal-Powered Generator", 75, 10, []);
@@ -188,7 +198,8 @@ public class CatalogImportTests
         CatalogEntryChanges<Extractor>? extractors = null,
         CatalogEntryChanges<Footprint>? footprints = null,
         CatalogEntryChanges<Generator>? generators = null,
-        CatalogEntryChanges<DronePort>? dronePorts = null) =>
+        CatalogEntryChanges<DronePort>? dronePorts = null,
+        CatalogEntryChanges<Buildable>? buildables = null) =>
         CatalogImport.RecordDocs(
             CatalogImportId.New(),
             gameVersion,
@@ -201,5 +212,6 @@ public class CatalogImportTests
             footprints ?? CatalogEntries.Reconcile<Footprint>([], []),
             generators ?? CatalogEntries.Reconcile<Generator>([], []),
             dronePorts ?? CatalogEntries.Reconcile<DronePort>([], []),
-            CatalogEntries.Reconcile<Storage>([], []));
+            CatalogEntries.Reconcile<Storage>([], []),
+            buildables ?? CatalogEntries.Reconcile<Buildable>([], []));
 }

@@ -32,6 +32,8 @@ internal sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> option
 
     public DbSet<Storage> Storages => Set<Storage>();
 
+    public DbSet<Buildable> Buildables => Set<Buildable>();
+
     public DbSet<ResourceNode> ResourceNodes => Set<ResourceNode>();
 
     public DbSet<CatalogImport> Imports => Set<CatalogImport>();

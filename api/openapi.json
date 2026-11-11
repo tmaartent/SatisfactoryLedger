@@ -300,6 +300,30 @@
         }
       }
     },
+    "/api/v1/catalog/buildables": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Everything the player places, by class name, with the name the game shows",
+        "operationId": "GetBuildables",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildableResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/catalog/extractors": {
       "get": {
         "tags": [
@@ -1024,6 +1048,25 @@
           }
         }
       },
+      "BuildableResponse": {
+        "required": [
+          "id",
+          "name",
+          "inGame"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "inGame": {
+            "type": "boolean"
+          }
+        }
+      },
       "CatalogImportSource": {
         "enum": [
           "docsFile",
@@ -1589,6 +1632,7 @@
           "generators",
           "dronePorts",
           "storages",
+          "buildables",
           "resourceNodes",
           "noLongerInGame"
         ],
@@ -1633,6 +1677,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "storages": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "buildables": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "resourceNodes": {

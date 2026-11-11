@@ -35,7 +35,8 @@ internal class SatisfactoryImporter
             .. document.RootElement.EnumerateArray()
                 .Where(IsSupportedGroup)
                 .Select(group => group.Deserialize<GameDataGroupDto>()!),
-            FootprintsOf(document.RootElement)
+            FootprintsOf(document.RootElement),
+            BuildableNamesOf(document.RootElement)
         ];
     }
 
@@ -63,6 +64,32 @@ internal class SatisfactoryImporter
         }
 
         return footprints;
+    }
+
+    // What the game calls each thing the player places, from every section: the Build_ classes and their display names.
+    private static BuildableNameGroupDto BuildableNamesOf(JsonElement groups)
+    {
+        var names = new BuildableNameGroupDto();
+        foreach (JsonElement group in groups.EnumerateArray())
+        {
+            if (!group.TryGetProperty("Classes", out JsonElement classes) || classes.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (JsonElement entry in classes.EnumerateArray())
+            {
+                if (entry.TryGetProperty("ClassName", out JsonElement className)
+                    && className.GetString() is { } name && name.StartsWith("Build_", StringComparison.Ordinal)
+                    && entry.TryGetProperty("mDisplayName", out JsonElement displayName)
+                    && displayName.GetString() is { Length: > 0 } shown)
+                {
+                    names.Classes.Add(new BuildableNameDto { ClassName = name, DisplayName = shown });
+                }
+            }
+        }
+
+        return names;
     }
 
     private static bool IsSupportedGroup(JsonElement group)

@@ -80,6 +80,15 @@ public sealed class CatalogBrowseApiTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Buildables_are_listed_with_the_names_the_game_shows()
+    {
+        var buildables = await _client.GetAsync<CatalogBuildable[]>("/api/v1/catalog/buildables");
+
+        Assert.Equal(546, buildables.Length);
+        Assert.Equal("Freight Platform", Assert.Single(buildables, buildable => buildable.Id == "Build_TrainDockingStation_C").Name);
+    }
+
+    [Fact]
     public async Task Extractors_are_listed_with_what_they_extract_on_a_normal_node()
     {
         var extractors = await _client.GetAsync<CatalogExtractor[]>("/api/v1/catalog/extractors");

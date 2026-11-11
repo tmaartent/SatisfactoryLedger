@@ -24,6 +24,27 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.GameObjects.Buildable", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("IsInGame")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_in_game");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_buildables");
+
+                    b.ToTable("buildables", "catalog");
+                });
+
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.GameObjects.Building", b =>
                 {
                     b.Property<string>("Id")
@@ -472,6 +493,23 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("source");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Buildables", "SatisfactoryLedger.Catalog.Domain.Import.CatalogImport.Buildables#ImportCounts", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Added")
+                                .HasColumnType("integer")
+                                .HasColumnName("buildables_added");
+
+                            b1.Property<int>("NoLongerInGame")
+                                .HasColumnType("integer")
+                                .HasColumnName("buildables_no_longer_in_game");
+
+                            b1.Property<int>("Updated")
+                                .HasColumnType("integer")
+                                .HasColumnName("buildables_updated");
+                        });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Buildings", "SatisfactoryLedger.Catalog.Domain.Import.CatalogImport.Buildings#ImportCounts", b1 =>
                         {
