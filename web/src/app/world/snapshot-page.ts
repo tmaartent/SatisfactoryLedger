@@ -1,7 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, effect, inject, input, resource } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -15,11 +14,10 @@ import { traceFactories } from '../api/fn/world/trace-factories';
 import { AnalysisStatusChip } from '../shared/analysis-status-chip';
 import { CatalogNames } from '../shared/catalog-names';
 import { problemMessage } from '../shared/problem';
-import { DefineFactoryDialog, DefineFactoryDialogData } from './define-factory-dialog';
 import { FindingsView } from './findings';
 import { SnapshotDeletion } from './snapshot-deletion';
 
-/** One snapshot: what it holds, its findings once the analysis is ready, and the factories traced in it. */
+/** One snapshot: what it holds, and its findings once the analysis is ready, its factories among them. */
 @Component({
   selector: 'app-snapshot-page',
   imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, MatListModule, MatProgressBarModule, MatTabsModule, AnalysisStatusChip, FindingsView],
@@ -27,7 +25,6 @@ import { SnapshotDeletion } from './snapshot-deletion';
 })
 export class SnapshotPage {
   private readonly api = inject(Api);
-  private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
   private readonly deletion = inject(SnapshotDeletion);
   protected readonly names = inject(CatalogNames);
@@ -49,6 +46,7 @@ export class SnapshotPage {
     loader: ({ params }) => this.api.invoke(analyseSnapshot, params),
   });
 
+  /** The world's factories traced in this snapshot: the findings' Factories tab, and which factory each machine is in. */
   protected readonly factories = resource({
     params: () => ({ id: this.id() }),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
@@ -69,17 +67,5 @@ export class SnapshotPage {
   protected async delete(): Promise<void> {
     const snapshot = this.snapshot.value();
     if (snapshot && (await this.deletion.confirmAndDelete(snapshot))) await this.router.navigate(['/snapshots']);
-  }
-
-  protected defineFactory(): void {
-    const snapshot = this.snapshot.value();
-    if (!snapshot) return;
-    const data: DefineFactoryDialogData = { snapshotId: snapshot.id, world: snapshot.sessionName };
-    this.dialog
-      .open(DefineFactoryDialog, { data, width: '640px' })
-      .afterClosed()
-      .subscribe((defined) => {
-        if (defined) this.factories.reload();
-      });
   }
 }

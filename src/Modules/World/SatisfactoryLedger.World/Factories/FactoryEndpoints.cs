@@ -15,6 +15,7 @@ internal static class FactoryEndpoints
     public const string NotAnOutputBeltCode = "World.NotAnOutputBelt";
     public const string NotMachinesCode = "World.NotMachines";
     public const string FactoryNameTakenCode = "World.FactoryNameTaken";
+    public const string MachinesTakenCode = "World.MachinesTaken";
     public const string UnknownInputItemsCode = "World.UnknownInputItems";
 
     public static RouteGroupBuilder MapFactoryEndpoints(this RouteGroupBuilder world)
@@ -89,8 +90,8 @@ internal static class FactoryEndpoints
             DefineFactoryOutcome.UnknownWorld => Problem(StatusCodes.Status422UnprocessableEntity, UnknownWorldCode,
                 "There's no world with this name", $"No snapshot has the session name \"{request.World}\". Import a save of it first."),
             DefineFactoryOutcome.NotMachines notMachines => Problem(StatusCodes.Status422UnprocessableEntity, NotMachinesCode,
-                "Some ids are not machines in this world",
-                $"Not machines in the world's latest snapshot: {string.Join(", ", notMachines.Ids)}.",
+                "Some ids are not machines or generators in this world",
+                $"Not machines or generators in the world's latest snapshot: {string.Join(", ", notMachines.Ids)}.",
                 ("ids", notMachines.Ids)),
             DefineFactoryOutcome.NotAnOutputBelt => Problem(StatusCodes.Status422UnprocessableEntity, NotAnOutputBeltCode,
                 "The output belt is not a belt in this world",
@@ -101,6 +102,10 @@ internal static class FactoryEndpoints
                 ("items", unknown.Items)),
             DefineFactoryOutcome.NameTaken => Problem(StatusCodes.Status409Conflict, FactoryNameTakenCode,
                 "The world already has a factory with this name", $"\"{request.Name}\" is taken in {request.World}."),
+            DefineFactoryOutcome.MachinesTaken taken => Problem(StatusCodes.Status409Conflict, MachinesTakenCode,
+                "Some machines already belong to another factory",
+                $"A machine belongs to one factory at most: {string.Join(", ", taken.Machines.Select(machine => $"{machine.Id} is in \"{machine.Factory}\""))}.",
+                ("taken", taken.Machines)),
             _ => throw new InvalidOperationException($"Unhandled outcome {outcome}"),
         };
     }

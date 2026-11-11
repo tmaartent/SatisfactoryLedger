@@ -21,6 +21,15 @@ public class WorldMapTests
     }
 
     [Fact]
+    public void A_generator_is_a_consumer_that_says_it_is_a_generator()
+    {
+        WorldMapResponse map = WorldMap.For(WithGenerators);
+
+        Assert.True(Assert.Single(map.Consumers, consumer => consumer.Id == NuclearPlant).IsGenerator);
+        Assert.DoesNotContain(map.Consumers, consumer => consumer.ClassName == "Build_ResourceSink_C" && consumer.IsGenerator);
+    }
+
+    [Fact]
     public void A_miner_shows_the_resource_and_the_purity_of_its_node()
     {
         MapProvider miner = Assert.Single(Map.Providers, provider => provider.Id == Miner);

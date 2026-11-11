@@ -3,6 +3,9 @@
   <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · 3D</h1>
   <span class="spacer"></span>
   <span class="muted">{{ machineCount() }} machines, {{ buildings().length }} buildings in the area</span>
+  @if (!defining()) {
+    <button mat-flat-button (click)="startDefining()"><mat-icon>add</mat-icon> Define a factory</button>
+  }
 </div>
 
 @if (world.isLoading()) {
@@ -15,7 +18,16 @@
 <div class="layout">
   <div class="viewer">
     <div #stage class="stage">
-      <span class="hint">Drag to turn, scroll to zoom, right-drag to move. Click a machine to see it.</span>
+      @if (dragBox(); as box) {
+        <div class="drag-box" [style.left.px]="box.left" [style.top.px]="box.top" [style.width.px]="box.right - box.left" [style.height.px]="box.bottom - box.top"></div>
+      }
+      <span class="hint">
+        @if (defining()) {
+          Click a machine to add it, click it again to take it out. Shift-drag to add a box of them, alt-drag to take them out.
+        } @else {
+          Drag to turn, scroll to zoom, right-drag to move. Click a machine to see it.
+        }
+      </span>
     </div>
     @if (heights().high > heights().low) {
       <label class="cut">
@@ -28,7 +40,41 @@
   </div>
 
   <aside class="panel" aria-live="polite">
-    @if (selected(); as building) {
+    @if (defining()) {
+      <section class="factory">
+        <h2>New factory</h2>
+        <ul class="how">
+          <li><b>Click</b> a machine or generator to add it; it turns blue. Click it again to take it out.</li>
+          <li>Hold <b>Shift</b> and drag a box to add every one inside it.</li>
+          <li>Hold <b>Alt</b> and drag a box to take them out.</li>
+          <li>Machines outlined in colour are another factory's and can't be added.</li>
+          <li>Sinks, storage containers and stations aren't part of a factory: a factory is its machines and generators.</li>
+        </ul>
+        <p>{{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators included</p>
+        @if (clickedMachine(); as building) {
+          <p class="clicked">
+            {{ names.building(building.className) }}
+            @if (selectedOwners().length > 0) {
+              <span class="muted"> · already in {{ selectedOwners()[0].name }}</span>
+            }
+          </p>
+        }
+        <mat-form-field subscriptSizing="dynamic">
+          <mat-label>Name</mat-label>
+          <input matInput [(ngModel)]="factoryName" (keydown.enter)="save()" />
+        </mat-form-field>
+        @if (saveError(); as message) {
+          <p class="error">{{ message }}</p>
+        }
+        <div class="actions">
+          <button mat-button (click)="stopDefining()">Cancel</button>
+          <button mat-flat-button (click)="save()" [disabled]="!canSave()">Save</button>
+        </div>
+      </section>
+    }
+    @if (defining()) {
+      <!-- While defining, the panel names the machine clicked and nothing more. -->
+    } @else if (selected(); as building) {
       <h2>{{ names.building(building.className) }}</h2>
       @if (building.recipe) {
         <p class="recipe">{{ names.recipe(building.recipe) }}</p>
@@ -54,12 +100,36 @@
           <dt>Holds</dt>
           <dd>{{ contents(building.contents) }}</dd>
         }
+        @if (selectedOwners().length > 0) {
+          <dt>Factory</dt>
+          <dd>
+            @for (owner of selectedOwners(); track owner.factoryId; let last = $last) {
+              <a [routerLink]="['/snapshots', id(), 'factories', owner.factoryId]">{{ owner.name }}</a>{{ last ? '' : ' and ' }}
+            }
+            @if (selectedOwners().length > 1) {
+              <span class="error"> · a machine belongs to one factory at most</span>
+            }
+          </dd>
+        }
         <dt>Where</dt>
         <dd>{{ position(building.position) }}</dd>
       </dl>
       <a mat-stroked-button [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ focus: building.id }">Show on the map</a>
     } @else {
       <p class="muted">Click a machine to see its recipe, what it holds, and why it runs as it does.</p>
+    }
+    @if (factoriesShown().length > 0) {
+      <section class="legend">
+        <h2>Factories here</h2>
+        <ul>
+          @for (factory of factoriesShown(); track factory.factoryId) {
+            <li>
+              <span class="swatch" [style.border-color]="factory.colour"></span>
+              <a [routerLink]="['/snapshots', id(), 'factories', factory.factoryId]">{{ factory.name }}</a>
+            </li>
+          }
+        </ul>
+      </section>
     }
   </aside>
 </div>

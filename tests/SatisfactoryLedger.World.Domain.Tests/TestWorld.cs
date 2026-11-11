@@ -1,4 +1,4 @@
-using SatisfactoryLedger.SharedKernel;
+﻿using SatisfactoryLedger.SharedKernel;
 
 namespace SatisfactoryLedger.World.Domain.Tests;
 
@@ -61,6 +61,7 @@ internal sealed class TestWorld
         Add(new Consumer(BuildableId.Of(id), generation: new Generation(fuel, Rate.PerMinute(burns), null, Rate.Zero, null, Rate.Zero))
         {
             InputStock = new Dictionary<ItemId, decimal> { [fuel] = holds },
+            IsGenerator = true,
         });
 
     /// <param name="capacity">Per minute, or null when it isn't known.</param>
@@ -98,7 +99,7 @@ internal sealed class TestWorld
     /// <summary>A generator burning a known fuel (BR-A8), at the rates given per minute.</summary>
     public TestWorld Generator(string id, ItemId fuel, decimal burns, ItemId? water = null, decimal needs = 0, ItemId? waste = null, decimal leaves = 0) =>
         Add(new Consumer(BuildableId.Of(id), generation: new Generation(
-            fuel, Rate.PerMinute(burns), water, Rate.PerMinute(needs), waste, Rate.PerMinute(leaves))));
+            fuel, Rate.PerMinute(burns), water, Rate.PerMinute(needs), waste, Rate.PerMinute(leaves))) { IsGenerator = true });
 
     /// <summary>A drone port that unloads and burns <paramref name="perMinute"/> of <paramref name="fuel"/> (BR-A16).</summary>
     public TestWorld StationBurning(string id, ItemId fuel, Rate perMinute) =>

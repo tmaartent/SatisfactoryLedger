@@ -36,6 +36,11 @@ export function percent(fraction: number): string {
   return `${Math.floor(fraction * 1000) / 10}%`;
 }
 
+/** Power in MW, with at most one decimal and the thousands grouped: a power plant makes thousands. */
+export function megawatts(power: number): string {
+  return `${power.toLocaleString('en-US', { maximumFractionDigits: 1 })} MW`;
+}
+
 /** A rate per minute, with at most two decimals. */
 export function perMinute(rate: number): string {
   return `${Number(rate.toFixed(2))}/min`;

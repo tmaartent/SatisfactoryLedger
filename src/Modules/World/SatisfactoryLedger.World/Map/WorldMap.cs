@@ -39,11 +39,12 @@ internal static class WorldMap
                         conveyor.Curve!,
                         conveyor.Contents))
             ],
-            [.. Having(BuildableDocumentRole.Logistics).Where(logistics => logistics.Curve is not { Count: > 0 }).Select(Building)],
-            [.. Having(BuildableDocumentRole.Consumer).Select(Building)],
+            [.. Having(BuildableDocumentRole.Logistics).Where(logistics => logistics.Curve is not { Count: > 0 }).Select(buildable => Building(snapshot, buildable))],
+            [.. Having(BuildableDocumentRole.Consumer).Select(buildable => Building(snapshot, buildable))],
             snapshot.Footprints ?? []);
     }
 
-    private static MapBuilding Building(BuildableDocument buildable) =>
-        new(buildable.Id, buildable.ClassName, buildable.Position!, buildable.Yaw ?? 0, buildable.Contents);
+    private static MapBuilding Building(SnapshotDocument snapshot, BuildableDocument buildable) =>
+        new(buildable.Id, buildable.ClassName, buildable.Position!, buildable.Yaw ?? 0, buildable.Contents,
+            buildable.Role == BuildableDocumentRole.Consumer && snapshot.IsMachineOrGenerator(buildable));
 }

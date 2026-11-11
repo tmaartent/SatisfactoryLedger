@@ -154,6 +154,14 @@ internal sealed record SnapshotDocument(
     /// <summary>The world as a network the flow analysis can run on.</summary>
     public FlowNetwork ToFlowNetwork() => WorldFlow.From(ToWorldGraph(), Fluids.Select(ItemId.Of));
 
+    /// <summary>
+    /// What a factory's machines can be (BR-W2): a machine, or a generator the Catalog knew at import (decided
+    /// 2026-11-11). Sinks, uploaders and stations can't.
+    /// </summary>
+    public bool IsMachineOrGenerator(BuildableDocument buildable) =>
+        buildable.Role == BuildableDocumentRole.Machine
+        || (buildable.Role == BuildableDocumentRole.Consumer && (Generators ?? []).Any(generator => generator.Id == buildable.ClassName));
+
     /// <summary>The world as a graph the domain can trace and analyse, with the rates the Catalog gave at import.</summary>
     public WorldGraph ToWorldGraph()
     {

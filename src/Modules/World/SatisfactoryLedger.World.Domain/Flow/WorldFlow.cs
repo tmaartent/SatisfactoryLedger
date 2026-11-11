@@ -184,10 +184,7 @@ public static class WorldFlow
         return machines;
     }
 
-    private static Carries CarriesOf(Logistics logistics) =>
-        logistics.Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction or LogisticsKind.PipeNetwork or LogisticsKind.FluidBuffer
-            ? Carries.Fluids
-            : Carries.Solids;
+    private static Carries CarriesOf(Logistics logistics) => logistics.CarriesFluids ? Carries.Fluids : Carries.Solids;
 
     /// <summary>BR-A17: the inputs whose stock lasts at least as long as a station's must to be confirmed (BR-A9).</summary>
     private static HashSet<ItemId> Stocked(IReadOnlyDictionary<ItemId, Rate> demand, IReadOnlyDictionary<ItemId, decimal> stock) =>

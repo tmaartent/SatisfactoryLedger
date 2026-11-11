@@ -23,6 +23,11 @@ internal static class WorldClient
     /// <summary>The test world, linked from the save-file adapter's tests (see docs/guide/log/07).</summary>
     public const string TestWorld = "Fixtures/Development.sav";
 
+    /// <summary>The test world saved again with a nuclear plant, a coal and a fuel generator (see docs/guide/log/23).</summary>
+    public const string WorldWithGenerators = "Fixtures/Generators.sav";
+
+    public static readonly string NuclearPlant = Id("Build_GeneratorNuclear_C_2147427188");
+
     public static async Task<HttpResponseMessage> PostSaveAsync(this HttpClient client, byte[] save, string fileName = "Development.sav")
     {
         using var form = new MultipartFormDataContent();

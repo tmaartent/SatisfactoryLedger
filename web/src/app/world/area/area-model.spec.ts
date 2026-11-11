@@ -1,7 +1,7 @@
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { VolumeDocument } from '../../api/models/volume-document';
-import { Area, areaBetween, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene, volumeCorners } from './area-model';
+import { Area, areaAround, areaBetween, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene, volumeCorners } from './area-model';
 
 const volume = (patch: Partial<VolumeDocument> = {}): VolumeDocument => ({
   minX: -400, minY: -500, minZ: 0, maxX: 400, maxY: 500, maxZ: 1000,
@@ -28,6 +28,16 @@ describe('area model', () => {
       const point = (x: number): CurvePointDocument => ({ location: { x, y: 500, z: 0 }, arriveTangent: { x: 1, y: 0, z: 0 }, leaveTangent: { x: 1, y: 0, z: 0 } });
 
       expect([curveInArea([point(-500), point(500)], area), curveInArea([point(-900), point(-500)], area)]).toEqual([true, false]);
+    });
+  });
+
+  describe("the area around a factory's machines", () => {
+    it('reaches a margin past the outermost ones on every side', () => {
+      expect(areaAround([{ x: 0, y: 500, z: 0 }, { x: 1000, y: -500, z: 800 }], 100)).toEqual({ x0: -100, y0: -600, x1: 1100, y1: 600 });
+    });
+
+    it('is nothing when none of its machines are in the snapshot', () => {
+      expect(areaAround([], 100)).toBeNull();
     });
   });
 

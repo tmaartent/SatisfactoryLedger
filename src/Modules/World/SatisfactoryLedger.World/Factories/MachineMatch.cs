@@ -21,7 +21,7 @@ internal sealed record MachineMatch(IReadOnlyList<BuildableId> Ids, IReadOnlyLis
     public static MachineMatch In(SnapshotDocument snapshot, IEnumerable<StoredMachine> machines)
     {
         Dictionary<string, BuildableDocument> snapshotMachines = snapshot.Buildables
-            .Where(buildable => buildable.Role == BuildableDocumentRole.Machine)
+            .Where(snapshot.IsMachineOrGenerator)
             .ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         List<StoredMachine> stored = machines.ToList();
         HashSet<string> taken = [.. stored.Select(machine => machine.Id).Where(snapshotMachines.ContainsKey)];

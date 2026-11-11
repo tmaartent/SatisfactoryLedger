@@ -1,26 +1,88 @@
 <div class="page-header">
   <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"><mat-icon>arrow_back</mat-icon></a>
   <h1>{{ analysis.value()?.name ?? 'Factory' }}</h1>
+  <span class="spacer"></span>
+  <a mat-stroked-button [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ factory: factoryId() }"><mat-icon>map</mat-icon> Map</a>
+  <a mat-stroked-button [routerLink]="['/snapshots', id(), 'area']" [queryParams]="{ factory: factoryId() }"><mat-icon>view_in_ar</mat-icon> 3D</a>
 </div>
 
 @if (analysis.value(); as factory) {
   <h2>Output</h2>
-  <table mat-table [dataSource]="factory.output" class="output">
-    <ng-container matColumnDef="item">
-      <th mat-header-cell *matHeaderCellDef>Item</th>
-      <td mat-cell *matCellDef="let o">{{ names.item(o.item) }}</td>
-    </ng-container>
-    <ng-container matColumnDef="now">
-      <th mat-header-cell *matHeaderCellDef class="number">Now</th>
-      <td mat-cell *matCellDef="let o" class="number" [class.short]="o.now < o.atFullSpeed">{{ perMinute(o.now) }}</td>
-    </ng-container>
-    <ng-container matColumnDef="atFullSpeed">
-      <th mat-header-cell *matHeaderCellDef class="number">At 100%</th>
-      <td mat-cell *matCellDef="let o" class="number">{{ perMinute(o.atFullSpeed) }}</td>
-    </ng-container>
-    <tr mat-header-row *matHeaderRowDef="outputColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: outputColumns"></tr>
-  </table>
+  @if (factory.output.length === 0) {
+    <p class="muted">Nothing leaves this factory.</p>
+  } @else {
+    <table mat-table [dataSource]="factory.output" class="output">
+      <ng-container matColumnDef="item">
+        <th mat-header-cell *matHeaderCellDef>Item</th>
+        <td mat-cell *matCellDef="let o">{{ names.item(o.item) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="now">
+        <th mat-header-cell *matHeaderCellDef class="number">Now</th>
+        <td mat-cell *matCellDef="let o" class="number" [class.short]="o.now < o.atFullSpeed">{{ perMinute(o.now) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="atFullSpeed">
+        <th mat-header-cell *matHeaderCellDef class="number">At 100%</th>
+        <td mat-cell *matCellDef="let o" class="number">{{ perMinute(o.atFullSpeed) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="receiversNeed">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What the machines and generators its outputs reach would take at 100%, from whatever source">
+          Receivers need
+        </th>
+        <td mat-cell *matCellDef="let o" class="number">{{ o.receiversNeed > 0 ? perMinute(o.receiversNeed) : '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="othersBring">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What those receivers take now from other sources, besides this factory">
+          Others bring
+        </th>
+        <td mat-cell *matCellDef="let o" class="number">{{ o.othersBring > 0 ? perMinute(o.othersBring) : '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="short">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What those receivers would take more at 100% than they get now, from all sources together">
+          Short
+        </th>
+        <td mat-cell *matCellDef="let o" class="number" [class.short]="o.short > 0">{{ o.short > 0 ? perMinute(o.short) : '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="sunk">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What reaches an AWESOME Sink">Sunk</th>
+        <td mat-cell *matCellDef="let o" class="number">{{ o.sunk > 0 ? perMinute(o.sunk) : '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="cannotLeave">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What its output blocked machines would make more at 100%, but can't get out">
+          Can't leave
+        </th>
+        <td mat-cell *matCellDef="let o" class="number">{{ o.cannotLeave > 0 ? perMinute(o.cannotLeave) : '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="destinations">
+        <th mat-header-cell *matHeaderCellDef>Goes to</th>
+        <td mat-cell *matCellDef="let o">
+          <ul class="destinations">
+            @for (destination of destinations(o); track $index) {
+              <li>
+                @if (destination.factoryId; as factoryId) {
+                  <a [routerLink]="['/snapshots', id(), 'factories', factoryId]">{{ destinationLabel(destination) }}</a>
+                } @else {
+                  {{ destinationLabel(destination) }}
+                }
+                <span class="muted">{{ perMinute(destination.perMinute) }}</span>
+              </li>
+            } @empty {
+              <li class="muted">Nothing leaves now</li>
+            }
+          </ul>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="outputColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: outputColumns"></tr>
+    </table>
+  }
+
+  @if (factory.power; as power) {
+    <h2>Power</h2>
+    <p class="power">
+      <span [class.short]="power.nowMegawatts < power.atFullSpeedMegawatts">{{ megawatts(power.nowMegawatts) }}</span> now ·
+      {{ megawatts(power.atFullSpeedMegawatts) }} at 100%
+    </p>
+  }
 
   <app-findings [findings]="factory" [snapshotId]="id()" />
 } @else if (analysis.error(); as error) {

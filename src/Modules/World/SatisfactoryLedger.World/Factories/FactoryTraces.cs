@@ -10,6 +10,7 @@ internal static class FactoryTraces
     public static IReadOnlyList<FactoryTrace> TraceAll(SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
     {
         WorldGraph world = snapshot.ToWorldGraph();
+        HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         BuildableReference Reference(BuildableId id) => new(id.Id, buildables[id.Id].ClassName);
         ConnectionSummary Summary(FactoryConnection connection) => new(
@@ -29,7 +30,7 @@ internal static class FactoryTraces
                     return new FactoryTrace(factory.Id, factory.Name, false, [], 0, [], [], missing);
                 }
 
-                FactoryMembers members = definition.TraceMembers(world);
+                FactoryMembers members = definition.TraceMembers(world, fluids);
                 return new FactoryTrace(
                     factory.Id,
                     factory.Name,

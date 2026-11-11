@@ -24,6 +24,7 @@ const machine = (id: string, limit: MachineFinding['limit'], limitingItem: strin
 const findings: Findings = {
   // As the API sends them: every machine, the one running worst first.
   summary: { machines: 3, running: 1, starved: 1, outputBlocked: 1, noRecipe: 0 },
+  generatorSummary: { generators: 0, running: 0, starved: 0, outputBlocked: 0, fuelUnknown: 0 },
   machines: [machine('a', 'starved', 'Desc_IronIngot_C'), machine('b', 'outputBlocked', 'Desc_IronPlate_C'), machine('c', 'none', null, 'Desc_PlutoniumWaste_C')],
   bottlenecks: [],
   unusedSupply: [],
@@ -64,13 +65,13 @@ const catalogNames: Partial<CatalogNames> = {
 };
 
 describe('FindingsView', () => {
-  async function render() {
+  async function render(shown: Findings = findings) {
     TestBed.configureTestingModule({
       imports: [FindingsView],
       providers: [{ provide: CatalogNames, useValue: catalogNames }, provideRouter([])],
     });
     const fixture = TestBed.createComponent(FindingsView);
-    fixture.componentRef.setInput('findings', findings);
+    fixture.componentRef.setInput('findings', shown);
     fixture.componentRef.setInput('snapshotId', 's1');
     await fixture.whenStable();
     return fixture;
@@ -127,6 +128,26 @@ describe('FindingsView', () => {
       (row) => row.textContent ?? '',
     );
   }
+
+  const summaries = (element: HTMLElement) =>
+    Array.from(element.querySelectorAll('.summary')).map((row) =>
+      Array.from(row.querySelectorAll('mat-card')).map((card) => (card.textContent ?? '').replace(/(\d)(\D)/, '$1 $2').trim()),
+    );
+
+  it('counts the generators in a row of their own, next to the machines', async () => {
+    const fixture = await render({
+      ...findings,
+      generatorSummary: { generators: 360, running: 300, starved: 60, outputBlocked: 0, fuelUnknown: 0 },
+    });
+
+    expect(summaries(fixture.nativeElement)[1]).toEqual(['360 generators', '300 at 100%', '60 starved', '0 output blocked', '0 fuel unknown']);
+  });
+
+  it('shows no generator row without generators', async () => {
+    const fixture = await render();
+
+    expect(summaries(fixture.nativeElement)).toHaveLength(1);
+  });
 
   it('lists each generator with its fuel and why it runs below full power', async () => {
     const fixture = await render();

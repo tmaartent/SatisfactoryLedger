@@ -15,6 +15,15 @@ Ideas for practising AI engineering on this project (an MCP server, evals, RAG, 
 
 **What it would take:** the save's railroad subsystem (timetables, stops, rules per stop), the truck and drone route data, the cargo per trip and the round trip time. A lot of tables for a rate that's still an estimate.
 
+### A full container beside a sink
+*Raised 2026-11-11, step 38; kept as is for now.*
+
+**What:** a full container at the end of a line takes nothing while another end of that line (a sink, a container with room, a machine) can take what's made. Only when no other end can does "the save overrules full" (BR-A7) let it take the arriving rate.
+
+**Why:** in the Ballistic Warp Drives factory a smart splitter sends *any* to a container holding 2,400 (full) and *overflow* to an AWESOME Sink. In the game everything goes to the sink. The model shares the arriving 0.965/min evenly over the two ends, so the factory page shows 0.4825 into storage and 0.4825 sunk. The manufacturers run at 100% either way, so their findings are right; only where the output goes is off.
+
+**What it would take:** in the solver, the full-but-arriving inventory takes only what the line's other ends leave, like a depot uploader (BR-A8). A new analysis version, so every snapshot is analysed again.
+
 ### An exact steady state, as a linear programme
 *Raised 2026-11-05, step 13.*
 
@@ -105,7 +114,7 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 ### A factory in 3D
 *Raised 2026-11-08.*
 
-**Step 26 built the first half:** draw a rectangle on the map and see that area in 3D, with each machine's recipe, stock and findings (ADR-0024). **Step 27** made a factory its machines, with several outputs and inputs (ADR-0025). Still to do (part 2b): selecting a factory's machines in that view, and the factory page with its outputs and inputs.
+**Step 26 built the first half:** draw a rectangle on the map and see that area in 3D, with each machine's recipe, stock and findings (ADR-0024). **Step 27** made a factory its machines, with several outputs and inputs (ADR-0025). **Step 37** selects a factory's machines in that view. Still to do (part 2b): a live preview of the traced factory before saving, and the factory page with its outputs and inputs.
 
 **What:** on a factory's page, its members in 3D: machines as their real clearance boxes, belts and pipes along their curves, each machine coloured by the analysis, with a height cut-off and a tooltip per machine. Turn, zoom and move with the mouse.
 

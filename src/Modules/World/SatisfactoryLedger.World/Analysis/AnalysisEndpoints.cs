@@ -64,7 +64,11 @@ internal static class AnalysisEndpoints
         switch (await StoredAsync(id, db, bus, cancellationToken))
         {
             case { Document: { } analysis }:
-                FactoryAnalysisResponse? findings = SnapshotAnalysis.ForFactory(snapshot.Value.Document, factory, analysis);
+                List<Factories.StoredFactory> factories = await db.Factories.AsNoTracking()
+                    .Where(other => other.World == factory.World)
+                    .OrderBy(other => other.Id)
+                    .ToListAsync(cancellationToken);
+                FactoryAnalysisResponse? findings = SnapshotAnalysis.ForFactory(snapshot.Value.Document, factory, analysis, factories);
                 return findings is null ? TypedResults.NotFound() : TypedResults.Ok(findings);
             case { Error: { } error }:
                 return Failed(error);

@@ -1,4 +1,4 @@
-import { classNameAsWords, perMinute, percent, positionInMetres } from './display';
+import { classNameAsWords, megawatts, perMinute, percent, positionInMetres } from './display';
 
 describe('display', () => {
   it('names a building by its class name without the prefix and suffix', () => {
@@ -37,5 +37,11 @@ describe('display', () => {
   it('shows a rate per minute with at most two decimals', () => {
     expect(perMinute(22.5)).toBe('22.5/min');
     expect(perMinute(13.33333)).toBe('13.33/min');
+  });
+
+  it('shows power in MW with at most one decimal, thousands grouped', () => {
+    expect(megawatts(2500)).toBe('2,500 MW');
+    expect(megawatts(187.5)).toBe('187.5 MW');
+    expect(megawatts(33.3333)).toBe('33.3 MW');
   });
 });
