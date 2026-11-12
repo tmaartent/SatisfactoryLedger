@@ -16,10 +16,6 @@ internal static class WorldClient
         client.PostAsJsonAsync("/api/v1/world/factories", new { world, name, machines }, TestContext.Current.CancellationToken);
 
     /// <summary>The old way, until the 3D selection replaces the dialog: by output belt and input items.</summary>
-    public static Task<HttpResponseMessage> DefineFactoryByOutputBeltAsync(
-        this HttpClient client, string world, string name, string outputBelt, params string[] inputItems) =>
-        client.PostAsJsonAsync("/api/v1/world/factories", new { world, name, outputBelt, inputItems }, TestContext.Current.CancellationToken);
-
     /// <summary>The test world, linked from the save-file adapter's tests (see docs/guide/log/07).</summary>
     public const string TestWorld = "Fixtures/Development.sav";
 

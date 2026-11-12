@@ -6,8 +6,7 @@ using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
 namespace SatisfactoryLedger.World.Tests;
 
 /// <summary>
-/// A factory definition traced in a stored snapshot (BR-W3, BR-W4, BR-W11), converting one defined by its output belt
-/// (BR-W2), and the belts the old dialog suggests (BR-W12).
+/// A factory definition traced in a stored snapshot (BR-W3, BR-W4, BR-W11).
 /// </summary>
 public class FactoryTracesTests
 {
@@ -19,15 +18,6 @@ public class FactoryTracesTests
         World = "Development",
         Name = "Iron plates",
         Machines = [Machine(SmelterA), Machine(SmelterB), Machine(ConstructorC)],
-    };
-
-    private static StoredFactory ByOutputBelt() => new()
-    {
-        Id = Guid.CreateVersion7(),
-        World = "Development",
-        Name = "Iron plates",
-        OutputBelt = BeltIntoContainer,
-        InputItems = ["Desc_OreIron_C"],
     };
 
     private static FactoryTrace Trace(SnapshotDocument snapshot, StoredFactory factory) => FactoryTraces.TraceAll(snapshot, [factory]).Single();
@@ -111,36 +101,6 @@ public class FactoryTracesTests
         Assert.Equal([Id("Build_SmelterMk1_C_1")], trace.Missing.Select(machine => machine.Id));
     }
 
-    [Fact]
-    public void A_factory_defined_by_its_output_belt_converts_to_the_machines_traced_from_it_with_their_positions()
-    {
-        StoredFactory factory = ByOutputBelt();
-
-        Assert.True(factory.ConvertIn(Document));
-
-        Assert.Equal([ConstructorC, SmelterA, SmelterB], factory.Machines.Select(machine => machine.Id));
-        Assert.Equal(Find(SmelterA).Position!.X, factory.Machines[1].X);
-        Assert.Null(factory.OutputBelt);
-        Assert.Null(factory.InputItems);
-    }
-
-    [Fact]
-    public void A_factory_whose_output_belt_is_not_in_the_latest_snapshot_stays_as_it_was()
-    {
-        StoredFactory factory = ByOutputBelt();
-
-        Assert.False(factory.ConvertIn(Without(BeltIntoContainer)));
-
-        Assert.Empty(factory.Machines);
-        Assert.Equal(BeltIntoContainer, factory.OutputBelt);
-    }
-
-    [Fact]
-    public void A_factory_not_converted_yet_is_not_traceable()
-    {
-        Assert.False(Trace(Document, ByOutputBelt()).Traceable);
-    }
-
     private static BuildableDocument Find(string id) => Document.Buildables.Single(buildable => buildable.Id == id);
 
     /// <summary>The snapshot with one buildable replaced by another, connected the same way.</summary>
@@ -152,35 +112,5 @@ public class FactoryTracesTests
             Buildables = [.. Document.Buildables.Select(buildable => buildable.Id == old.Id ? replacement : buildable)],
             Connections = [.. Document.Connections.Select(connection => connection with { From = Swap(connection.From), To = Swap(connection.To) })],
         };
-    }
-
-    [Fact]
-    public void The_belt_into_the_storage_container_is_suggested_as_an_output_belt_with_iron_plates()
-    {
-        OutputBeltSuggestion suggestion = Assert.Single(OutputBeltSuggestions.For(Document), belt => belt.Belt == BeltIntoContainer);
-
-        Assert.Equal("Build_ConveyorBeltMk1_C", suggestion.ClassName);
-        Assert.Equal(["Desc_IronPlate_C"], suggestion.Items);
-        Assert.Equal(["Build_StorageContainerMk2_C"], suggestion.Into.Select(into => into.ClassName));
-        Assert.NotNull(suggestion.Position);
-    }
-
-    [Fact]
-    public void A_suggestion_says_which_machines_a_factory_from_that_belt_would_contain()
-    {
-        OutputBeltSuggestion suggestion = Assert.Single(OutputBeltSuggestions.For(Document), belt => belt.Belt == BeltIntoContainer);
-
-        Assert.Equal(
-            new Dictionary<string, int> { ["Build_ConstructorMk1_C"] = 1, ["Build_SmelterMk1_C"] = 2 },
-            suggestion.Machines);
-    }
-
-    [Fact]
-    public void The_belts_into_the_sink_and_the_one_that_ends_in_the_air_are_suggested_too()
-    {
-        HashSet<string> suggested = [.. OutputBeltSuggestions.For(Document).Select(belt => belt.Belt)];
-
-        Assert.Contains(Id("Build_ConveyorBeltMk1_C_2147281116"), suggested);
-        Assert.Contains(Id("Build_ConveyorBeltMk6_C_2147274025"), suggested);
     }
 }

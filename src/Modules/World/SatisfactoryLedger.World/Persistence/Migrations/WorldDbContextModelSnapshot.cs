@@ -71,18 +71,10 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.PrimitiveCollection<List<string>>("InputItems")
-                        .HasColumnType("text[]")
-                        .HasColumnName("input_items");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
-
-                    b.Property<string>("OutputBelt")
-                        .HasColumnType("text")
-                        .HasColumnName("output_belt");
 
                     b.Property<string>("World")
                         .IsRequired()

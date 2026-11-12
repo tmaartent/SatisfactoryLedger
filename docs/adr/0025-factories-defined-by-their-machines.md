@@ -33,3 +33,11 @@ The owner also found that *which logistics belongs to a factory* can't be decide
 - The `factories` table gains a `machines` jsonb column; `output_belt` and `input_items` become nullable and stay filled only for factories not converted yet.
 - An output into a line shared with other factories reports the line's whole flow as "now", their part included (`SnapshotAnalysis.Over`).
 - The web app chooses a factory's machines in the 3D view of an area (step 37): a click adds or takes out one, a box dragged with shift or alt adds or takes out every machine inside it. The factory page with outputs and inputs follows in part 2b.
+
+## Update 2026-11-12: the output belt way removed
+
+Every factory in the owner's database was stored by its machines (72 of 72; none had an output belt or input items left), and the web app hasn't used the old request since step 37 (step 43). So the old way went, as the owner chose:
+
+- `POST /factories` takes `machines` only; `outputBelt` and `inputItems` are gone, with the problem codes `World.NotAnOutputBelt` and `World.UnknownInputItems`.
+- `GET /snapshots/{id}/output-belts` (BR-W12) is gone, with `OutputBeltSuggestions` and the domain's `CandidateOutputBelts` and `OutputBeltTrace`.
+- The startup conversion (`FactoryConversion`) is gone, and the migration `DropFactoryOutputBelt` drops the `output_belt` and `input_items` columns.

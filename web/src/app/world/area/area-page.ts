@@ -215,7 +215,7 @@ export class AreaPage {
     this.saveError.set(null);
     try {
       const factory = await this.api.invoke(defineFactory, {
-        body: { world: snapshot.sessionName, name: this.factoryName().trim(), machines: [...this.chosen()], outputBelt: null, inputItems: null },
+        body: { world: snapshot.sessionName, name: this.factoryName().trim(), machines: [...this.chosen()] },
       });
       await this.router.navigate(['/snapshots', this.id(), 'factories', factory.id]);
     } catch (error) {
