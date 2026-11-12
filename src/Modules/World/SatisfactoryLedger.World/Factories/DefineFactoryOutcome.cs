@@ -15,12 +15,6 @@ internal abstract record DefineFactoryOutcome
     /// <summary>Ids that aren't machines or generators in the world's latest snapshot (BR-W2).</summary>
     internal sealed record NotMachines(IReadOnlyList<string> Ids) : DefineFactoryOutcome;
 
-    /// <summary>The output belt isn't a belt fed by machines in the world's latest snapshot.</summary>
-    internal sealed record NotAnOutputBelt : DefineFactoryOutcome;
-
-    /// <summary>Input items the Catalog doesn't know: a typo, most likely (BR-W2).</summary>
-    internal sealed record UnknownInputItems(IReadOnlyList<string> Items) : DefineFactoryOutcome;
-
     /// <summary>Chosen machines another factory of the world already has (BR-W5).</summary>
     internal sealed record MachinesTaken(IReadOnlyList<TakenMachine> Machines) : DefineFactoryOutcome;
 

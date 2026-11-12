@@ -12,8 +12,6 @@ internal sealed class StoredFactoryConfiguration : IEntityTypeConfiguration<Stor
         factory.Property(f => f.World);
         factory.Property(f => f.Name);
         factory.ComplexCollection(f => f.Machines, machine => machine.ToJson("machines"));
-        factory.Property(f => f.OutputBelt);
-        factory.PrimitiveCollection(f => f.InputItems);
 
         // BR-W11: within a world, factory names are unique.
         factory.HasIndex(f => new { f.World, f.Name }).IsUnique();

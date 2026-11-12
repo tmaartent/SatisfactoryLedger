@@ -32,7 +32,7 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | Term | Definition | Code |
 |---|---|---|
 | **World** | Every snapshot with the same session name. Factory definitions belong to a world (BR-W11). | `StoredSnapshot.SessionName`, `StoredFactory.World` |
-| **Candidate Output Belt** | A belt where items leave a group of machines: fed by machines through logistics, ending in a container, a consumer or nothing. Suggested for the old define request; the web app chooses machines in 3D instead (BR-W12). | `CandidateOutputBelts`, `OutputBeltCandidate` |
+| **Candidate Output Belt** | *Removed 2026-11-12.* A belt where items leave a group of machines, suggested for the old define request (BR-W12, superseded). | — |
 | **Steady State** | What flows where once everything has run long enough to settle (BR-A1 to A10). An approximation to 0.0001/min. | `SteadyState`, `FlowResult` |
 | **Utilisation** | The share of 100% a machine runs at: the lowest of what its inputs supply and its outputs take (BR-A1). | `MachineState.Utilisation` |
 | **Starved / Output Blocked** | Why a machine runs below 100% (below 99.9%: a smaller shortfall counts as running): too little of an input is offered, or an output can't leave (BR-A11). | `MachineLimit` |
@@ -78,7 +78,7 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Others Bring** / **Short** | Of those receivers: what they take now from sources other than this factory; and what they'd take more at 100% than they get now from all sources (BR-A18). | `OutputDestinations.ReceiversGet`, `FactoryOutput.OthersBring`, `FactoryOutput.Short` |
 | **Sunk** / **Can't Leave** | Of a factory's output: what reaches an AWESOME Sink; and what its output blocked producers would make more at 100% (BR-A18). | `FactoryOutput.Sunk`, `FactoryOutput.CannotLeave` |
 | **Source** (of an input) | Where some of what a factory takes in comes from: another factory, machines of no factory, a building on its own (a Miner, a Freight Platform, …), or nowhere; in proportion at mergers (BR-A19). *Comes from* on the factory page. | `InputSources`, `InputSource`, `InputSourceKind`, `FactoryInput` |
-| **Output Belt** | *Before 2026-11-09:* the belt where a factory's merged output left it, marked by the player. Now only used to trace the machines of a factory defined that way, once (BR-W2). | `OutputBeltTrace` |
+| **Output Belt** | *Before 2026-11-09:* the belt where a factory's merged output left it, marked by the player. *Removed 2026-11-12:* every stored factory had been converted to its machines (BR-W2). | — |
 | **Factory Members** | What belongs to a factory in one snapshot: its machines there, the logistics it owns, its outputs and inputs, its suppliers and producers. | `FactoryMembers` |
 | **Factory Output / Input** | Where a factory hands over to the world, or the world to it: its machine or logistics on the inside, what lies across (or nothing, at a storage container of its own), and the items (BR-W4). | `FactoryConnection` |
 | **Line** | Logistics connected to each other, with the machines, providers and consumers at its ends. A line belongs to a factory when every machine on it is the factory's; one that touches machines of several factories connects them (BR-W3). | `FactoryDefinition.OwnedLogistics` |

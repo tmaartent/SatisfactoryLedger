@@ -12,22 +12,16 @@ namespace SatisfactoryLedger.World.Factories;
 internal static class FactoryEndpoints
 {
     public const string UnknownWorldCode = "World.UnknownWorld";
-    public const string NotAnOutputBeltCode = "World.NotAnOutputBelt";
     public const string NotMachinesCode = "World.NotMachines";
     public const string FactoryNameTakenCode = "World.FactoryNameTaken";
     public const string MachinesTakenCode = "World.MachinesTaken";
-    public const string UnknownInputItemsCode = "World.UnknownInputItems";
 
     public static RouteGroupBuilder MapFactoryEndpoints(this RouteGroupBuilder world)
     {
-        world.MapGet("/snapshots/{id:guid}/output-belts", GetOutputBeltsAsync)
-            .WithName("GetOutputBelts")
-            .WithSummary("Candidate output belts in a snapshot: where items leave a group of machines (BR-W12)");
-
         world.MapPost("/factories", DefineAsync)
             .WithName("DefineFactory")
             .WithSummary("Define a factory in a world by its machines (BR-W2)")
-            .WithDescription("A factory belongs to a world (a session name) and is traced in every snapshot of it. Its machines must be machines in the world's latest snapshot. Instead of machines, an output belt and input items can still be given: the machines are then traced from that belt.")
+            .WithDescription("A factory belongs to a world (a session name) and is traced in every snapshot of it. Its machines must be machines or generators in the world's latest snapshot, and none of them another factory's.")
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
 
@@ -46,13 +40,6 @@ internal static class FactoryEndpoints
         return world;
     }
 
-    private static async Task<Results<Ok<IReadOnlyList<OutputBeltSuggestion>>, NotFound>> GetOutputBeltsAsync(
-        Guid id, WorldDbContext db, CancellationToken cancellationToken)
-    {
-        var snapshot = await db.LoadSnapshotAsync(id, cancellationToken);
-        return snapshot is null ? TypedResults.NotFound() : TypedResults.Ok(OutputBeltSuggestions.For(snapshot.Value.Document));
-    }
-
     private static async Task<Results<Created<FactoryResponse>, ValidationProblem, ProblemHttpResult>> DefineAsync(
         DefineFactoryRequest request, DefineFactoryHandler handler, CancellationToken cancellationToken)
     {
@@ -67,11 +54,9 @@ internal static class FactoryEndpoints
             errors["name"] = ["Give the factory a name."];
         }
 
-        bool hasMachines = request.Machines is { Length: > 0 };
-        bool hasOutputBelt = !string.IsNullOrWhiteSpace(request.OutputBelt);
-        if (hasMachines == hasOutputBelt)
+        if (request.Machines is not { Length: > 0 })
         {
-            errors["machines"] = ["Give the ids of the factory's machines, or else the id of its output belt, but not both."];
+            errors["machines"] = ["Give the ids of the factory's machines."];
         }
 
         if (errors.Count > 0)
@@ -80,7 +65,7 @@ internal static class FactoryEndpoints
         }
 
         DefineFactoryOutcome outcome = await handler.HandleAsync(
-            new DefineFactoryCommand(request.World!, request.Name!, request.Machines ?? [], hasOutputBelt ? request.OutputBelt : null, request.InputItems ?? []),
+            new DefineFactoryCommand(request.World!, request.Name!, request.Machines!),
             cancellationToken);
 
         return outcome switch
@@ -93,13 +78,6 @@ internal static class FactoryEndpoints
                 "Some ids are not machines or generators in this world",
                 $"Not machines or generators in the world's latest snapshot: {string.Join(", ", notMachines.Ids)}.",
                 ("ids", notMachines.Ids)),
-            DefineFactoryOutcome.NotAnOutputBelt => Problem(StatusCodes.Status422UnprocessableEntity, NotAnOutputBeltCode,
-                "The output belt is not a belt in this world",
-                $"{request.OutputBelt} is not a belt or lift fed by machines in the world's latest snapshot."),
-            DefineFactoryOutcome.UnknownInputItems unknown => Problem(StatusCodes.Status422UnprocessableEntity, UnknownInputItemsCode,
-                "The Catalog doesn't know some input items",
-                $"Unknown items: {string.Join(", ", unknown.Items)}. Input items are class names, as listed at GET /api/v1/catalog/items.",
-                ("items", unknown.Items)),
             DefineFactoryOutcome.NameTaken => Problem(StatusCodes.Status409Conflict, FactoryNameTakenCode,
                 "The world already has a factory with this name", $"\"{request.Name}\" is taken in {request.World}."),
             DefineFactoryOutcome.MachinesTaken taken => Problem(StatusCodes.Status409Conflict, MachinesTakenCode,

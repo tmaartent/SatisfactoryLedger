@@ -74,10 +74,4 @@ public class TestWorldFactoryTests
     {
         Assert.False(IronPlates(Graph()).Contains(Sink));
     }
-
-    [Fact]
-    public void The_iron_plate_factory_as_defined_before_by_its_output_belt_converts_to_its_three_machines()
-    {
-        Assert.Equal(IronPlateMachines.ToHashSet(), new OutputBeltTrace(BeltIntoContainer, [IronOre]).Machines(Graph()).ToHashSet());
-    }
 }

@@ -489,51 +489,13 @@
         }
       }
     },
-    "/api/v1/world/snapshots/{id}/output-belts": {
-      "get": {
-        "tags": [
-          "World"
-        ],
-        "summary": "Candidate output belts in a snapshot: where items leave a group of machines (BR-W12)",
-        "operationId": "GetOutputBelts",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/OutputBeltSuggestion"
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found"
-          }
-        }
-      }
-    },
     "/api/v1/world/factories": {
       "post": {
         "tags": [
           "World"
         ],
         "summary": "Define a factory in a world by its machines (BR-W2)",
-        "description": "A factory belongs to a world (a session name) and is traced in every snapshot of it. Its machines must be machines in the world's latest snapshot. Instead of machines, an output belt and input items can still be given: the machines are then traced from that belt.",
+        "description": "A factory belongs to a world (a session name) and is traced in every snapshot of it. Its machines must be machines or generators in the world's latest snapshot, and none of them another factory's.",
         "operationId": "DefineFactory",
         "requestBody": {
           "content": {
@@ -1129,9 +1091,7 @@
         "required": [
           "world",
           "name",
-          "machines",
-          "outputBelt",
-          "inputItems"
+          "machines"
         ],
         "type": "object",
         "properties": {
@@ -1148,21 +1108,6 @@
             ]
           },
           "machines": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
-            }
-          },
-          "outputBelt": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "inputItems": {
             "type": [
               "null",
               "array"
@@ -1450,9 +1395,7 @@
           "id",
           "world",
           "name",
-          "machines",
-          "outputBelt",
-          "inputItems"
+          "machines"
         ],
         "type": "object",
         "properties": {
@@ -1470,21 +1413,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/BuildableReference"
-            }
-          },
-          "outputBelt": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "inputItems": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "type": "string"
             }
           }
         }
@@ -2235,54 +2163,6 @@
           "yaw": {
             "type": "number",
             "format": "double"
-          }
-        }
-      },
-      "OutputBeltSuggestion": {
-        "required": [
-          "belt",
-          "className",
-          "items",
-          "into",
-          "position",
-          "machines"
-        ],
-        "type": "object",
-        "properties": {
-          "belt": {
-            "type": "string"
-          },
-          "className": {
-            "type": "string"
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "into": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BuildableReference"
-            }
-          },
-          "position": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PositionDocument"
-              }
-            ]
-          },
-          "machines": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "integer",
-              "format": "int32"
-            }
           }
         }
       },
