@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
+using SatisfactoryLedger.World.Analysis;
+using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -37,7 +39,27 @@ internal static class FactoryEndpoints
             .WithName("TraceFactories")
             .WithSummary("Every factory of the snapshot's world, traced in this snapshot (BR-W3, BR-W11)");
 
+        // A POST that stores nothing: a selection can hold hundreds of ids, too many for a query string.
+        world.MapPost("/snapshots/{id:guid}/factory-preview", PreviewAsync)
+            .WithName("PreviewFactory")
+            .WithSummary("What chosen machines would make a factory in this snapshot, before it's saved: the logistics it would own and its outputs and inputs (BR-W3, BR-W4)");
+
         return world;
+    }
+
+    private static async Task<Results<Ok<FactoryPreview>, NotFound>> PreviewAsync(
+        Guid id, FactoryPreviewRequest request, WorldDbContext db, CancellationToken cancellationToken)
+    {
+        var snapshot = await db.LoadSnapshotAsync(id, cancellationToken);
+        if (snapshot is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        // What crosses now, once the snapshot's analysis is stored; the preview doesn't ask for one.
+        StoredAnalysis? stored = await db.Analyses.AsNoTracking().SingleOrDefaultAsync(analysis => analysis.SnapshotId == id, cancellationToken);
+        AnalysisDocument? analysis = stored is { IsCurrent: true, Content: { } content } ? AnalysisDocument.FromJson(content) : null;
+        return TypedResults.Ok(FactoryTraces.Preview(snapshot.Value.Document, request.Machines ?? [], analysis));
     }
 
     private static async Task<Results<Created<FactoryResponse>, ValidationProblem, ProblemHttpResult>> DefineAsync(

@@ -1,3 +1,5 @@
+using SatisfactoryLedger.World.Analysis;
+using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -12,11 +14,6 @@ internal static class FactoryTraces
         WorldGraph world = snapshot.ToWorldGraph();
         HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
-        BuildableReference Reference(BuildableId id) => new(id.Id, buildables[id.Id].ClassName);
-        ConnectionSummary Summary(FactoryConnection connection) => new(
-            Reference(connection.Inside),
-            connection.Outside is { } outside ? Reference(outside) : null,
-            [.. connection.Items.Select(item => item.Id)]);
 
         return
         [
@@ -42,10 +39,71 @@ internal static class FactoryTraces
                             .OrderBy(machine => machine.Id, StringComparer.Ordinal)
                     ],
                     members.Logistics.Count,
-                    [.. members.Outputs.Select(Summary).OrderBy(output => output.Inside.Id, StringComparer.Ordinal)],
-                    [.. members.Inputs.Select(Summary).OrderBy(input => input.Inside.Id, StringComparer.Ordinal)],
+                    Summaries(members.Outputs, buildables),
+                    Summaries(members.Inputs, buildables),
                     missing);
             })
+        ];
+    }
+
+    /// <summary>
+    /// What the chosen machines would make a factory in this snapshot, before it's saved (part 2b(2)). Ids that aren't
+    /// machines or generators here are left out; with none left, it owns and hands over nothing.
+    /// </summary>
+    /// <param name="analysis">The snapshot's stored analysis, for what crosses now; null while it isn't ready.</param>
+    public static FactoryPreview Preview(SnapshotDocument snapshot, IEnumerable<string> machines, AnalysisDocument? analysis)
+    {
+        Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
+        List<BuildableId> chosen = [.. machines
+            .Distinct(StringComparer.Ordinal)
+            .Where(id => buildables.TryGetValue(id, out BuildableDocument? buildable) && snapshot.IsMachineOrGenerator(buildable))
+            .Select(BuildableId.Of)];
+        if (chosen.Count == 0)
+        {
+            return new FactoryPreview([], [], [], [], []);
+        }
+
+        WorldGraph world = snapshot.ToWorldGraph();
+        FactoryMembers members = new FactoryDefinition(chosen).TraceMembers(world, snapshot.Fluids.Select(ItemId.Of).ToHashSet());
+        Dictionary<string, MachineStateDocument> states = (analysis?.Machines ?? []).ToDictionary(state => state.Id, StringComparer.Ordinal);
+        return new FactoryPreview(
+            [.. members.Logistics.Select(id => id.Id).Order(StringComparer.Ordinal)],
+            Summaries(members.Outputs, buildables),
+            Summaries(members.Inputs, buildables),
+            PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, analysis!).GetValueOrDefault(item.Id), analysis is not null),
+            PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, analysis!, members, states), analysis is not null));
+    }
+
+    /// <summary>Per item over the connections, what crosses now: summed, most first; without rates when they aren't known.</summary>
+    private static List<PreviewItem> PerItem(IEnumerable<FactoryConnection> connections, Func<FactoryConnection, ItemId, double> crossing, bool known)
+    {
+        Dictionary<string, double> perItem = new(StringComparer.Ordinal);
+        foreach (FactoryConnection connection in connections)
+        {
+            foreach (ItemId item in connection.Items)
+            {
+                perItem[item.Id] = perItem.GetValueOrDefault(item.Id) + (known ? crossing(connection, item) : 0);
+            }
+        }
+
+        return
+        [
+            .. perItem.OrderByDescending(entry => entry.Value).ThenBy(entry => entry.Key, StringComparer.Ordinal)
+                .Select(entry => new PreviewItem(entry.Key, known ? SnapshotAnalysis.Round(entry.Value) : null)),
+        ];
+    }
+
+    private static List<ConnectionSummary> Summaries(IEnumerable<FactoryConnection> connections, Dictionary<string, BuildableDocument> buildables)
+    {
+        BuildableReference Reference(BuildableId id) => new(id.Id, buildables[id.Id].ClassName);
+        return
+        [
+            .. connections
+                .Select(connection => new ConnectionSummary(
+                    Reference(connection.Inside),
+                    connection.Outside is { } outside ? Reference(outside) : null,
+                    [.. connection.Items.Select(item => item.Id)]))
+                .OrderBy(connection => connection.Inside.Id, StringComparer.Ordinal),
         ];
     }
 }

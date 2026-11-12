@@ -655,6 +655,51 @@
         }
       }
     },
+    "/api/v1/world/snapshots/{id}/factory-preview": {
+      "post": {
+        "tags": [
+          "World"
+        ],
+        "summary": "What chosen machines would make a factory in this snapshot, before it's saved: the logistics it would own and its outputs and inputs (BR-W3, BR-W4)",
+        "operationId": "PreviewFactory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactoryPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactoryPreview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/v1/world/snapshots/{id}/analysis": {
       "get": {
         "tags": [
@@ -1387,6 +1432,65 @@
           "atFullSpeedMegawatts": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "FactoryPreview": {
+        "required": [
+          "logistics",
+          "outputs",
+          "inputs",
+          "leaving",
+          "arriving"
+        ],
+        "type": "object",
+        "properties": {
+          "logistics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionSummary"
+            }
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionSummary"
+            }
+          },
+          "leaving": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewItem"
+            }
+          },
+          "arriving": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewItem"
+            }
+          }
+        }
+      },
+      "FactoryPreviewRequest": {
+        "required": [
+          "machines"
+        ],
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -2254,6 +2358,25 @@
           },
           "z": {
             "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "PreviewItem": {
+        "required": [
+          "item",
+          "perMinute"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "perMinute": {
+            "type": [
+              "null",
+              "number"
+            ],
             "format": "double"
           }
         }
