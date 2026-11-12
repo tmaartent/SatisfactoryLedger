@@ -163,3 +163,8 @@ export const purityColours: Record<string, string> = {
   normal: '#bdbdbd',
   pure: '#fff176',
 };
+
+/** Text as it reads in a tooltip, which Leaflet takes as HTML: a player's factory name may hold <, & or quotes. */
+export function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

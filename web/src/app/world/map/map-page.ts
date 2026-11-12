@@ -21,11 +21,12 @@ import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { areaBetween } from '../area/area-model';
-import { factoryColour, machineOwners } from '../area/factory-outlines';
+import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
 import {
   MachineStatus,
   conveyorColours,
   describeContents,
+  escapeHtml,
   footprintCorners,
   freeNodes,
   fromMapPoint,
@@ -300,9 +301,11 @@ export class MapPage {
             (findings.get(machine.id) ? this.limitLine(findings.get(machine.id)!) : '') +
             (machine.inputContents ? `In: ${this.contents(machine.inputContents)}<br>` : '') +
             (machine.outputContents ? `Out: ${this.contents(machine.outputContents)}<br>` : '') +
+            this.factoryLine(owner) +
             positionInMetres(machine.position),
         )
         .addTo(this.machineLayer);
+      this.opensFactory(shape, owner);
       this.shapes.set(machine.id, shape);
     }
 
@@ -378,6 +381,7 @@ export class MapPage {
     if (!this.map) return;
 
     this.otherLayer.clearLayers();
+    const owners = this.owners();
     const style = (consumer: boolean): L.PathOptions => ({
       color: consumer ? '#ab47bc' : '#78909c',
       weight: 1,
@@ -389,6 +393,7 @@ export class MapPage {
         // A generator burning a known fuel shows how it runs (BR-A15), in the machines' colours.
         const generator = consumer ? generators.get(building.id) : undefined;
         const colour = generator ? statusColours[generator.limit] : undefined;
+        const owner = owners.get(building.id)?.[0];
         const shape = this.shape(
           building.position,
           building.yaw,
@@ -403,12 +408,29 @@ export class MapPage {
                   this.limitLine(generator)
                 : '') +
               (building.contents ? `Holds: ${this.contents(building.contents)}<br>` : '') +
+              this.factoryLine(owner) +
               positionInMetres(building.position),
           )
           .addTo(this.otherLayer);
+        this.opensFactory(shape, owner);
         this.shapes.set(building.id, shape);
       }
     }
+  }
+
+  /** The factory a building belongs to, as a tooltip line; empty when it belongs to none. */
+  private factoryLine(owner: OutlinedFactory | undefined): string {
+    return owner ? `Factory <b>${escapeHtml(owner.name)}</b> · click to open<br>` : '';
+  }
+
+  /** A click on a factory's building opens the factory's page; not while drawing an area for 3D. */
+  private opensFactory(shape: L.Path, owner: OutlinedFactory | undefined): void {
+    if (!owner) return;
+    shape.on('click', (event: L.LeafletMouseEvent) => {
+      if (this.drawing()) return;
+      L.DomEvent.stopPropagation(event);
+      void this.router.navigate(['/snapshots', this.id(), 'factories', owner.factoryId]);
+    });
   }
 
   /** Why it runs as it does, as a tooltip line; empty when there's nothing to say. */

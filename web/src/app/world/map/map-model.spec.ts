@@ -4,9 +4,13 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { describeContents, footprintCorners, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
+import { describeContents, escapeHtml, footprintCorners, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
+  it('shows a name in a tooltip as written, not as markup', () => {
+    expect(escapeHtml('Plates & <Rods> "east"')).toBe('Plates &amp; &lt;Rods&gt; &quot;east&quot;');
+  });
+
   it('turns a point on the map back into a game position, the opposite of placing it', () => {
     expect(fromMapPoint(500, 123.45)).toEqual({ x: 12345, y: -50000, z: 0 });
   });
