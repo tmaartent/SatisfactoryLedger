@@ -4,9 +4,27 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { describeContents, escapeHtml, footprintCorners, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
+import { buildingStyle, describeContents, escapeHtml, footprintCorners, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
+  describe('a building in its factory', () => {
+    it("is edged in its factory's colour over the fill of how it runs", () => {
+      expect(buildingStyle('#66bb6a', '#ff4081', null)).toEqual({ color: '#ff4081', weight: 2, fillColor: '#66bb6a', fillOpacity: 0.75, opacity: 1 });
+    });
+
+    it('is edged boldly when its factory is the one highlighted', () => {
+      expect(buildingStyle('#66bb6a', '#ff4081', true)).toMatchObject({ weight: 3.5, opacity: 1 });
+    });
+
+    it('is dimmed when another factory is highlighted', () => {
+      expect(buildingStyle('#66bb6a', '#ff4081', false)).toMatchObject({ weight: 2, fillOpacity: 0.15, opacity: 0.15 });
+    });
+
+    it('of no factory is edged in its own fill', () => {
+      expect(buildingStyle('#66bb6a', undefined, null)).toMatchObject({ color: '#66bb6a', weight: 1 });
+    });
+  });
+
   it('shows a name in a tooltip as written, not as markup', () => {
     expect(escapeHtml('Plates & <Rods> "east"')).toBe('Plates &amp; &lt;Rods&gt; &quot;east&quot;');
   });
