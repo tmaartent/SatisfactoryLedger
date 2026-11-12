@@ -168,3 +168,19 @@ export const purityColours: Record<string, string> = {
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+/**
+ * How a machine or a factory's generator is drawn: filled by how it runs, edged in its factory's colour, boldly when its
+ * factory is the one highlighted, and dimmed when another one is.
+ * @param inHighlighted whether it's in the highlighted factory; null when no factory is highlighted.
+ */
+export function buildingStyle(fill: string, factoryColour: string | undefined, inHighlighted: boolean | null) {
+  const dimmed = inHighlighted === false;
+  return {
+    color: factoryColour ?? fill,
+    weight: inHighlighted ? 3.5 : factoryColour ? 2 : 1,
+    fillColor: fill,
+    fillOpacity: dimmed ? 0.15 : 0.75,
+    opacity: dimmed ? 0.15 : 1,
+  };
+}

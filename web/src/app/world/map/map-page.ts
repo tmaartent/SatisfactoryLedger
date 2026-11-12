@@ -24,6 +24,7 @@ import { areaBetween } from '../area/area-model';
 import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
 import {
   MachineStatus,
+  buildingStyle,
   conveyorColours,
   describeContents,
   escapeHtml,
@@ -287,14 +288,9 @@ export class MapPage {
       const point = toMapPoint(machine.position);
       points.push(point);
       const utilisation = utilisations.get(machine.id);
-      const shape = this.shape(machine.position, machine.yaw, machine.className, {
-        // A factory's machines are edged in its colour, boldly when it is the one highlighted.
-        color: owner?.colour ?? statusColours[status],
-        weight: inFactory ? 3.5 : owner ? 2 : 1,
-        fillColor: statusColours[status],
-        fillOpacity: highlighted && !inFactory ? 0.15 : 0.75,
-        opacity: highlighted && !inFactory ? 0.15 : 1,
-      })
+      // A factory's machines are edged in its colour, boldly when it is the one highlighted.
+      const style = buildingStyle(statusColours[status], owner?.colour, highlighted ? inFactory : null);
+      const shape = this.shape(machine.position, machine.yaw, machine.className, style)
         .bindTooltip(
           `<b>${this.names.building(machine.className)}</b> · ${this.names.recipe(machine.recipe)}<br>` +
             `${statusLabels[status]}${utilisation !== undefined ? ` · ${percent(utilisation)}` : ''}<br>` +
@@ -382,10 +378,12 @@ export class MapPage {
 
     this.otherLayer.clearLayers();
     const owners = this.owners();
+    const highlighted = this.factoryMachines();
+    const consumerColour = '#ab47bc';
     const style = (consumer: boolean): L.PathOptions => ({
-      color: consumer ? '#ab47bc' : '#78909c',
+      color: consumer ? consumerColour : '#78909c',
       weight: 1,
-      fillColor: consumer ? '#ab47bc' : '#546e7a',
+      fillColor: consumer ? consumerColour : '#546e7a',
       fillOpacity: 0.5,
     });
     for (const [buildings, consumer] of [[world?.logistics ?? [], false], [world?.consumers ?? [], true]] as const) {
@@ -398,7 +396,8 @@ export class MapPage {
           building.position,
           building.yaw,
           building.className,
-          colour ? { color: colour, weight: 1, fillColor: colour, fillOpacity: 0.75 } : style(consumer),
+          // A generator of a factory is edged in its colour, as its machines are.
+          colour || owner ? buildingStyle(colour ?? consumerColour, owner?.colour, highlighted ? highlighted.has(building.id) : null) : style(consumer),
           2,
         )
           .bindTooltip(
