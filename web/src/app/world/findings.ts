@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
@@ -66,6 +66,8 @@ export class FindingsView {
    * says which factory it is in. A factory's own page leaves them out: all its machines are in it.
    */
   readonly factories = input<FactoryTrace[]>();
+  /** A factory the player wants deleted, from the Factories tab; the page asks first. */
+  readonly deleteFactory = output<FactoryTrace>();
 
   /** Each factory with its colour, the one its machines are edged in on the map and in 3D. */
   protected readonly factoryRows = computed(() => {
@@ -96,7 +98,7 @@ export class FindingsView {
   protected readonly machineColumns = computed(() =>
     this.factories() ? ['machine', 'factory', 'recipe', 'utilisation', 'limit', 'position'] : ['machine', 'recipe', 'utilisation', 'limit', 'position'],
   );
-  protected readonly factoryColumns = ['factory', 'machines', 'makes', 'needs'];
+  protected readonly factoryColumns = ['factory', 'machines', 'makes', 'needs', 'actions'];
   protected readonly bottleneckColumns = ['belt', 'flow', 'offeredMore', 'position'];
   protected readonly unusedColumns = ['source', 'item', 'delivered', 'offered', 'position'];
   protected readonly unknownColumns = ['source', 'delivered', 'stock', 'position'];

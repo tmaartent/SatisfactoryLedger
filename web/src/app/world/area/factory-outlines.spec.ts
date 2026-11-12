@@ -1,10 +1,20 @@
-import { factoriesInArea, factoryColour, machineOwners, outlineColours } from './factory-outlines';
+import { blockedMachines, factoriesInArea, factoryColour, machineOwners, outlineColours } from './factory-outlines';
 
 const factory = (factoryId: string, name: string, ...machines: string[]) => ({ factoryId, name, machines: machines.map((id) => ({ id })) });
 
 describe('factories in the 3D view', () => {
   const plates = factory('f1', 'Iron plates', 'smelter', 'constructor');
   const rods = factory('f2', 'Iron rods', 'rod maker');
+
+  describe('the machines that cannot be chosen', () => {
+    it("are every factory's machines when defining a new one", () => {
+      expect([...blockedMachines(machineOwners([plates, rods]), null)].sort()).toEqual(['constructor', 'rod maker', 'smelter']);
+    });
+
+    it("are only the other factories' machines when editing one", () => {
+      expect([...blockedMachines(machineOwners([plates, rods]), 'f1')]).toEqual(['rod maker']);
+    });
+  });
 
   describe('the owners of a machine', () => {
     it('are the factories it is in', () => {

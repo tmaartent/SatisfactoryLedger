@@ -14,6 +14,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Api } from '../../api/api';
 import { analyseSnapshot } from '../../api/fn/world/analyse-snapshot';
 import { defineFactory } from '../../api/fn/world/define-factory';
+import { editFactory } from '../../api/fn/world/edit-factory';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
@@ -27,7 +28,8 @@ import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { LimitFacts, limitText } from '../limit-text';
 import { conveyorColours, describeContents, statusColours, statusLabels, MachineStatus } from '../map/map-model';
 import { Area, areaAround, Box, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
-import { factoriesInArea, machineOwners } from './factory-outlines';
+import { FactoryDeletion } from '../factory-deletion';
+import { blockedMachines, factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
 import { boxSelect, rectBetween, ScreenPoint, ScreenRect, toggle } from './selection';
 
@@ -71,6 +73,7 @@ const SIDES = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6,
 export class AreaPage {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
+  private readonly factoryDeletion = inject(FactoryDeletion);
   protected readonly names = inject(CatalogNames);
 
   /** From the route: /snapshots/:id/area?x0=…&y0=…&x1=…&y1=… (centimetres), or ?factory=… for the area around a factory. */
@@ -131,6 +134,8 @@ export class AreaPage {
     loader: ({ params }) => this.api.invoke(traceFactories, params),
   });
   private readonly owners = computed(() => machineOwners(this.factories.value() ?? []));
+  /** The machines that can't be chosen: every factory's, or while editing one, the other factories' (BR-W5). */
+  private readonly blocked = computed(() => blockedMachines(this.owners(), this.editing()));
   protected readonly factoriesShown = computed(() => factoriesInArea(this.factories.value() ?? [], new Set(this.buildings().map((b) => b.id))));
 
   protected readonly selected = signal<AreaBuilding | null>(null);
@@ -159,6 +164,8 @@ export class AreaPage {
 
   /** Defining a factory: the machines chosen so far, by id, and what to call it. */
   protected readonly defining = signal(false);
+  /** The factory being edited; null when a new one is defined. */
+  protected readonly editing = signal<string | null>(null);
   protected readonly chosen = signal<ReadonlySet<string>>(new Set());
   protected readonly factoryName = signal('');
   protected readonly saving = signal(false);
@@ -223,24 +230,46 @@ export class AreaPage {
     this.saveError.set(null);
   }
 
+  /** Edits a factory as a new one is defined: its machines chosen, its name filled in. */
+  protected startEditing(factory: OutlinedFactory): void {
+    const machines = this.factories.value()?.find((trace) => trace.factoryId === factory.factoryId)?.machines ?? [];
+    this.editing.set(factory.factoryId);
+    this.chosen.set(new Set(machines.map((machine) => machine.id)));
+    this.factoryName.set(factory.name);
+    this.settled.set([]);
+    this.saveError.set(null);
+    this.defining.set(true);
+  }
+
+  /** After asking; then the factories again, without it. */
+  protected async deleteFactory(factory: OutlinedFactory): Promise<void> {
+    if (!(await this.factoryDeletion.confirmAndDelete(factory))) return;
+    if (this.editing() === factory.factoryId) this.stopDefining();
+    this.factories.reload();
+  }
+
   protected stopDefining(): void {
     this.defining.set(false);
+    this.editing.set(null);
     this.chosen.set(new Set());
     this.settled.set([]);
     this.factoryName.set('');
     this.saveError.set(null);
   }
 
-  /** Stores the factory in the snapshot's world, then opens its page. */
+  /** Stores the factory, new or edited, in the snapshot's world, then opens its page. */
   protected async save(): Promise<void> {
     const snapshot = this.snapshot.value();
     if (!snapshot || !this.canSave()) return;
     this.saving.set(true);
     this.saveError.set(null);
     try {
-      const factory = await this.api.invoke(defineFactory, {
-        body: { world: snapshot.sessionName, name: this.factoryName().trim(), machines: [...this.chosen()] },
-      });
+      const name = this.factoryName().trim();
+      const machines = [...this.chosen()];
+      const editing = this.editing();
+      const factory = editing
+        ? await this.api.invoke(editFactory, { id: editing, body: { name, machines } })
+        : await this.api.invoke(defineFactory, { body: { world: snapshot.sessionName, name, machines } });
       await this.router.navigate(['/snapshots', this.id(), 'factories', factory.id]);
     } catch (error) {
       this.saveError.set(problemMessage(error));
@@ -469,7 +498,7 @@ export class AreaPage {
       const hit = ray.intersectObjects(this.content.children.filter((o) => o.visible && o.userData['building']), false)[0];
       const building = hit ? (hit.object.userData['building'] as AreaBuilding) : null;
       this.selected.set(building);
-      if (this.defining() && choosable(building) && !this.owners().has(building.id)) this.chosen.update((chosen) => toggle(chosen, building.id));
+      if (this.defining() && choosable(building) && !this.blocked().has(building.id)) this.chosen.update((chosen) => toggle(chosen, building.id));
     });
   }
 
@@ -518,11 +547,11 @@ export class AreaPage {
   private machinesOnScreen(stage: HTMLElement): (ScreenPoint & { id: string })[] {
     const { clientWidth: width, clientHeight: height } = stage;
     const middle = new THREE.Vector3();
-    const owners = this.owners();
+    const blocked = this.blocked();
     return this.content.children
       .filter((o) => {
         const building = o.userData['building'] as AreaBuilding | undefined;
-        return o.visible && choosable(building) && !owners.has(building.id);
+        return o.visible && choosable(building) && !blocked.has(building.id);
       })
       .flatMap((o) => {
         const geometry = (o as THREE.Mesh).geometry;

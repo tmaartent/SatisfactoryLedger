@@ -35,6 +35,17 @@ internal static class FactoryEndpoints
             .WithName("GetFactory")
             .WithSummary("One factory definition");
 
+        world.MapPut("/factories/{id:guid}", EditAsync)
+            .WithName("EditFactory")
+            .WithSummary("Give a factory a new name and machines (BR-W2, BR-W5, BR-W11)")
+            .WithDescription("Its machines are all of them after the edit, checked as when defining it: machines or generators in its world's latest snapshot, and none of them another factory's.")
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity);
+
+        world.MapDelete("/factories/{id:guid}", DeleteAsync)
+            .WithName("DeleteFactory")
+            .WithSummary("Delete a factory definition: its machines belong to no factory again");
+
         world.MapGet("/snapshots/{id:guid}/factories", TraceAsync)
             .WithName("TraceFactories")
             .WithSummary("Every factory of the snapshot's world, traced in this snapshot (BR-W3, BR-W11)");
@@ -90,25 +101,69 @@ internal static class FactoryEndpoints
             new DefineFactoryCommand(request.World!, request.Name!, request.Machines!),
             cancellationToken);
 
+        return outcome is DefineFactoryOutcome.Defined defined
+            ? TypedResults.Created($"/api/v1/world/factories/{defined.Factory.Id}", FactoryResponse.From(defined.Factory))
+            : ProblemOf(outcome, request.Name!, request.World!);
+    }
+
+    private static async Task<Results<Ok<FactoryResponse>, NotFound, ValidationProblem, ProblemHttpResult>> EditAsync(
+        Guid id, EditFactoryRequest request, DefineFactoryHandler handler, CancellationToken cancellationToken)
+    {
+        Dictionary<string, string[]> errors = [];
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            errors["name"] = ["Give the factory a name."];
+        }
+
+        if (request.Machines is not { Length: > 0 })
+        {
+            errors["machines"] = ["Give the ids of the factory's machines."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        DefineFactoryOutcome outcome = await handler.EditAsync(new EditFactoryCommand(id, request.Name!, request.Machines!), cancellationToken);
         return outcome switch
         {
-            DefineFactoryOutcome.Defined defined =>
-                TypedResults.Created($"/api/v1/world/factories/{defined.Factory.Id}", FactoryResponse.From(defined.Factory)),
-            DefineFactoryOutcome.UnknownWorld => Problem(StatusCodes.Status422UnprocessableEntity, UnknownWorldCode,
-                "There's no world with this name", $"No snapshot has the session name \"{request.World}\". Import a save of it first."),
-            DefineFactoryOutcome.NotMachines notMachines => Problem(StatusCodes.Status422UnprocessableEntity, NotMachinesCode,
-                "Some ids are not machines or generators in this world",
-                $"Not machines or generators in the world's latest snapshot: {string.Join(", ", notMachines.Ids)}.",
-                ("ids", notMachines.Ids)),
-            DefineFactoryOutcome.NameTaken => Problem(StatusCodes.Status409Conflict, FactoryNameTakenCode,
-                "The world already has a factory with this name", $"\"{request.Name}\" is taken in {request.World}."),
-            DefineFactoryOutcome.MachinesTaken taken => Problem(StatusCodes.Status409Conflict, MachinesTakenCode,
-                "Some machines already belong to another factory",
-                $"A machine belongs to one factory at most: {string.Join(", ", taken.Machines.Select(machine => $"{machine.Id} is in \"{machine.Factory}\""))}.",
-                ("taken", taken.Machines)),
-            _ => throw new InvalidOperationException($"Unhandled outcome {outcome}"),
+            DefineFactoryOutcome.Defined edited => TypedResults.Ok(FactoryResponse.From(edited.Factory)),
+            DefineFactoryOutcome.UnknownFactory => TypedResults.NotFound(),
+            _ => ProblemOf(outcome, request.Name!, world: null),
         };
     }
+
+    private static async Task<Results<NoContent, NotFound>> DeleteAsync(Guid id, WorldDbContext db, CancellationToken cancellationToken)
+    {
+        StoredFactory? factory = await db.Factories.FindAsync([id], cancellationToken);
+        if (factory is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        db.Factories.Remove(factory);
+        await db.SaveChangesAsync(cancellationToken);
+        return TypedResults.NoContent();
+    }
+
+    /// <summary>The problem for an outcome that isn't a factory defined or edited.</summary>
+    private static ProblemHttpResult ProblemOf(DefineFactoryOutcome outcome, string name, string? world) => outcome switch
+    {
+        DefineFactoryOutcome.UnknownWorld => Problem(StatusCodes.Status422UnprocessableEntity, UnknownWorldCode,
+            "There's no world with this name", $"No snapshot has the session name \"{world}\". Import a save of it first."),
+        DefineFactoryOutcome.NotMachines notMachines => Problem(StatusCodes.Status422UnprocessableEntity, NotMachinesCode,
+            "Some ids are not machines or generators in this world",
+            $"Not machines or generators in the world's latest snapshot: {string.Join(", ", notMachines.Ids)}.",
+            ("ids", notMachines.Ids)),
+        DefineFactoryOutcome.NameTaken => Problem(StatusCodes.Status409Conflict, FactoryNameTakenCode,
+            "The world already has a factory with this name", $"\"{name}\" is taken in this world."),
+        DefineFactoryOutcome.MachinesTaken taken => Problem(StatusCodes.Status409Conflict, MachinesTakenCode,
+            "Some machines already belong to another factory",
+            $"A machine belongs to one factory at most: {string.Join(", ", taken.Machines.Select(machine => $"{machine.Id} is in \"{machine.Factory}\""))}.",
+            ("taken", taken.Machines)),
+        _ => throw new InvalidOperationException($"Unhandled outcome {outcome}"),
+    };
 
     private static async Task<Ok<List<FactoryResponse>>> ListAsync(string? world, WorldDbContext db, CancellationToken cancellationToken)
     {

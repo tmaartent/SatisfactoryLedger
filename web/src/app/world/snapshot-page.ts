@@ -14,6 +14,7 @@ import { traceFactories } from '../api/fn/world/trace-factories';
 import { AnalysisStatusChip } from '../shared/analysis-status-chip';
 import { CatalogNames } from '../shared/catalog-names';
 import { problemMessage } from '../shared/problem';
+import { FactoryDeletion } from './factory-deletion';
 import { FindingsView } from './findings';
 import { SnapshotDeletion } from './snapshot-deletion';
 
@@ -27,6 +28,7 @@ export class SnapshotPage {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
   private readonly deletion = inject(SnapshotDeletion);
+  private readonly factoryDeletion = inject(FactoryDeletion);
   protected readonly names = inject(CatalogNames);
 
   /** From the route: /snapshots/:id. */
@@ -61,6 +63,11 @@ export class SnapshotPage {
       const timer = setTimeout(() => this.snapshot.reload(), 2000);
       onCleanup(() => clearTimeout(timer));
     });
+  }
+
+  /** After asking; then the factories again, without it. */
+  protected async deleteFactory(factory: { factoryId: string; name: string }): Promise<void> {
+    if (await this.factoryDeletion.confirmAndDelete(factory)) this.factories.reload();
   }
 
   /** After asking; then back to the list. */

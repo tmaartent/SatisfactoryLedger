@@ -25,7 +25,7 @@
           }
           @default {
             @if (analysis.value(); as findings) {
-              <app-findings [findings]="findings" [snapshotId]="id()" [factories]="factories.value()" />
+              <app-findings [findings]="findings" [snapshotId]="id()" [factories]="factories.value()" (deleteFactory)="deleteFactory($event)" />
             } @else if (analysis.error(); as error) {
               <p>The findings couldn't be loaded: {{ problem(error) }}</p>
             } @else {

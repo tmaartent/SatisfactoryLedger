@@ -11,7 +11,7 @@ using SatisfactoryLedger.World.Persistence;
 namespace SatisfactoryLedger.Api.IntegrationTests.World;
 
 /// <summary>
-/// Factory definitions over the API: defining by machines, and tracing (BR-W2, BR-W4, BR-W11).
+/// Factory definitions over the API: defining by machines, editing, deleting, and tracing (BR-W2, BR-W4, BR-W5, BR-W11).
 /// </summary>
 public sealed class WorldFactoryApiTests(LedgerApiFactory api) : IAsyncLifetime
 {
@@ -186,6 +186,84 @@ public sealed class WorldFactoryApiTests(LedgerApiFactory api) : IAsyncLifetime
     {
         HttpResponseMessage response = await _client.PostAsJsonAsync(
             $"/api/v1/world/snapshots/{Guid.NewGuid()}/factory-preview", new { machines = WorldClient.IronPlateMachines }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Editing_a_factory_stores_its_new_name_and_machines()
+    {
+        Factory factory = await DefineIronPlatesAsync();
+
+        HttpResponseMessage response = await _client.EditFactoryAsync(factory.Id, "Smelting", WorldClient.IronPlateMachines[1], WorldClient.IronPlateMachines[2]);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Factory readBack = await _client.GetAsync<Factory>($"/api/v1/world/factories/{factory.Id}");
+        Assert.Equal("Smelting", readBack.Name);
+        Assert.Equal(WorldClient.IronPlateMachines[1..], readBack.Machines.Select(machine => machine.Id));
+    }
+
+    [Fact]
+    public async Task A_factory_keeps_its_name_and_machines_when_edited_with_them()
+    {
+        Factory factory = await DefineIronPlatesAsync();
+
+        HttpResponseMessage response = await _client.EditFactoryAsync(factory.Id, "Iron plates", WorldClient.IronPlateMachines);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_factory_cannot_be_edited_to_take_another_factorys_machine()
+    {
+        Factory plates = await DefineIronPlatesAsync();
+        (await _client.EditFactoryAsync(plates.Id, "Iron plates", WorldClient.IronPlateMachines[0], WorldClient.IronPlateMachines[1])).EnsureSuccessStatusCode();
+        HttpResponseMessage defined = await _client.DefineFactoryAsync("Development", "Smelting", WorldClient.IronPlateMachines[2]);
+        Factory smelting = (await defined.Content.ReadFromJsonAsync<Factory>(TestContext.Current.CancellationToken))!;
+
+        HttpResponseMessage response = await _client.EditFactoryAsync(smelting.Id, "Smelting", WorldClient.IronPlateMachines[1], WorldClient.IronPlateMachines[2]);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("World.MachinesTaken", (await ProblemAsync(response)).Extensions["code"]?.ToString());
+    }
+
+    [Fact]
+    public async Task A_factory_cannot_be_renamed_to_another_factorys_name()
+    {
+        await DefineIronPlatesAsync();
+        HttpResponseMessage defined = await _client.DefineFactoryAsync("Development", "Power", WorldClient.Id("Build_Packager_C_2147260704"));
+        Factory other = (await defined.Content.ReadFromJsonAsync<Factory>(TestContext.Current.CancellationToken))!;
+
+        HttpResponseMessage response = await _client.EditFactoryAsync(other.Id, "Iron plates", WorldClient.Id("Build_Packager_C_2147260704"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("World.FactoryNameTaken", (await ProblemAsync(response)).Extensions["code"]?.ToString());
+    }
+
+    [Fact]
+    public async Task An_unknown_factory_cannot_be_edited()
+    {
+        HttpResponseMessage response = await _client.EditFactoryAsync(Guid.NewGuid(), "Smelting", WorldClient.IronPlateMachines[1]);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_deleted_factory_is_gone_and_its_machines_are_free_again()
+    {
+        Factory factory = await DefineIronPlatesAsync();
+
+        HttpResponseMessage response = await _client.DeleteAsync($"/api/v1/world/factories/{factory.Id}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Empty(await _client.GetAsync<Factory[]>("/api/v1/world/factories?world=Development"));
+        Assert.Equal(HttpStatusCode.Created, (await _client.DefineFactoryAsync("Development", "Again", WorldClient.IronPlateMachines)).StatusCode);
+    }
+
+    [Fact]
+    public async Task An_unknown_factory_cannot_be_deleted()
+    {
+        HttpResponseMessage response = await _client.DeleteAsync($"/api/v1/world/factories/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

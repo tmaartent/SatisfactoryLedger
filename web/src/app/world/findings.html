@@ -140,6 +140,14 @@
               <th mat-header-cell *matHeaderCellDef>Needs from outside</th>
               <td mat-cell *matCellDef="let factory">{{ factory.traceable ? itemsOf(factory.inputs) : '' }}</td>
             </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let factory" class="actions">
+                <button mat-icon-button (click)="deleteFactory.emit(factory)" [attr.aria-label]="'Delete ' + factory.name" matTooltip="Delete this factory">
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            </ng-container>
             <tr mat-header-row *matHeaderRowDef="factoryColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: factoryColumns"></tr>
           </table>
