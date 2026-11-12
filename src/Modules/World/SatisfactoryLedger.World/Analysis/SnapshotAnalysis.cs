@@ -50,6 +50,7 @@ internal static class SnapshotAnalysis
             findings.Summary,
             findings.GeneratorSummary,
             FactoryOutputs.Of(snapshot, world, factory, members, analysis, factories),
+            FactoryInputs.Of(snapshot, world, factory, members, analysis, factories),
             PowerOf(snapshot, members, analysis),
             findings.Machines,
             findings.Generators,

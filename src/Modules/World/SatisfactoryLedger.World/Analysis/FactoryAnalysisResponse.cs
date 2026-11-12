@@ -11,6 +11,7 @@ internal sealed record FactoryAnalysisResponse(
     AnalysisSummary Summary,
     GeneratorSummary GeneratorSummary,
     IReadOnlyList<FactoryOutput> Output,
+    IReadOnlyList<FactoryInput> Input,
     FactoryPower? Power,
     IReadOnlyList<MachineFinding> Machines,
     IReadOnlyList<GeneratorFinding> Generators,
