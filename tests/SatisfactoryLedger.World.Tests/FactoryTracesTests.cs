@@ -113,4 +113,39 @@ public class FactoryTracesTests
             Connections = [.. Document.Connections.Select(connection => connection with { From = Swap(connection.From), To = Swap(connection.To) })],
         };
     }
+
+    [Fact]
+    public void A_preview_of_chosen_machines_says_which_logistics_they_would_own_and_what_they_hand_over()
+    {
+        FactoryPreview preview = FactoryTraces.Preview(Document, [SmelterA, SmelterB, ConstructorC], analysis: null);
+
+        Assert.Contains(BeltIntoContainer, preview.Logistics);
+        Assert.Contains(preview.Outputs, output => output.Items.Contains("Desc_IronPlate_C"));
+        Assert.Contains(preview.Inputs, input => input.Items.Contains("Desc_OreIron_C"));
+    }
+
+    [Fact]
+    public void A_preview_of_ids_that_are_no_machines_owns_and_hands_over_nothing()
+    {
+        FactoryPreview preview = FactoryTraces.Preview(Document, [BeltIntoContainer, Id("Build_SmelterMk1_C_1")], analysis: null);
+
+        Assert.Equal((0, 0, 0), (preview.Logistics.Count, preview.Outputs.Count, preview.Inputs.Count));
+    }
+
+    [Fact]
+    public void A_preview_says_per_item_what_leaves_and_arrives_now_by_the_stored_analysis()
+    {
+        FactoryPreview preview = FactoryTraces.Preview(Document, [SmelterA, SmelterB, ConstructorC], TestWorldAnalysis);
+
+        Assert.Equal([new PreviewItem("Desc_IronPlate_C", 15)], preview.Leaving);
+        Assert.Equal("Desc_OreIron_C", Assert.Single(preview.Arriving).Item);
+    }
+
+    [Fact]
+    public void A_preview_before_the_analysis_is_ready_names_the_items_without_rates()
+    {
+        FactoryPreview preview = FactoryTraces.Preview(Document, [SmelterA, SmelterB, ConstructorC], analysis: null);
+
+        Assert.Equal([new PreviewItem("Desc_IronPlate_C", null)], preview.Leaving);
+    }
 }

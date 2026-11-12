@@ -35,7 +35,7 @@ internal static class FactoryInputs
             BuildableId start = input.Outside ?? input.Inside;
             foreach (ItemId item in input.Items)
             {
-                double amount = Arriving(input, item);
+                double amount = Arriving(input, item, world, analysis, members, states);
                 now[item.Id] = now.GetValueOrDefault(item.Id) + amount;
 
                 // From its own belt or pipe when it has one, so that one's room counts too.
@@ -168,39 +168,6 @@ internal static class FactoryInputs
 
         double Into(BuildableId id, ItemId item) => analysis.Into.GetValueOrDefault(id.Id)?.GetValueOrDefault(item.Id) ?? 0;
 
-        // What arrives over an input of one item, read from the stored flows as for an output:
-        // - from a container nothing feeds: what flows into the logistics it feeds;
-        // - into logistics with one way in: what flows into it;
-        // - from logistics with one way out: what flows into that;
-        // - otherwise (a machine fed from a splitter or pipe network shared with others): what the machine takes at the
-        //   rate it runs, shared over its inputs that bring the item.
-        double Arriving(FactoryConnection input, ItemId item)
-        {
-            if (input.Outside is not { } outside)
-            {
-                return world.Downstream(input.Inside).Sum(next => Into(next.Id, item));
-            }
-
-            if (world.Find(input.Inside) is Logistics && world.Upstream(input.Inside).Count() == 1)
-            {
-                return Into(input.Inside, item);
-            }
-
-            if (world.Find(outside) is Logistics && world.Downstream(outside).Count() == 1)
-            {
-                return Into(outside, item);
-            }
-
-            double takes = (states.GetValueOrDefault(input.Inside.Id)?.Utilisation ?? 0) * world.Find(input.Inside) switch
-            {
-                Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
-                Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
-                Consumer { Generation: { Supplemental: { } water } generation } when water == item => generation.SupplementalNeeded.ToDouble(),
-                _ => 0,
-            };
-            return takes / members.Inputs.Count(other => other.Inside == input.Inside && other.Items.Contains(item));
-        }
-
         // What a buildable sends on, of one item: the stored flow into a belt, pipe or container; for a machine or
         // generator what it makes at the rate it runs; for a provider what it delivers.
         double FlowOutOf(BuildableId id, ItemId item)
@@ -230,5 +197,50 @@ internal static class FactoryInputs
             Logistics { Kind: LogisticsKind.Belt or LogisticsKind.Lift or LogisticsKind.Pipe or LogisticsKind.PipeNetwork } => (InputSourceKind.Nowhere, null, null, null),
             _ => (InputSourceKind.Building, null, buildables.GetValueOrDefault(start.Id)?.ClassName, start.Id),
         };
+    }
+
+    /// <summary>
+    /// What arrives over an input of one item now, read from the stored flows as for an output:
+    /// <list type="bullet">
+    /// <item>from a container nothing feeds: what flows into the logistics it feeds;</item>
+    /// <item>into logistics with one way in: what flows into it;</item>
+    /// <item>from logistics with one way out: what flows into that;</item>
+    /// <item>otherwise (a machine fed from a splitter or pipe network shared with others): what the machine takes at the
+    /// rate it runs, shared over its inputs that bring the item.</item>
+    /// </list>
+    /// </summary>
+    internal static double Arriving(
+        FactoryConnection input,
+        ItemId item,
+        WorldGraph world,
+        AnalysisDocument analysis,
+        FactoryMembers members,
+        IReadOnlyDictionary<string, MachineStateDocument> states)
+    {
+        double Into(BuildableId id) => analysis.Into.GetValueOrDefault(id.Id)?.GetValueOrDefault(item.Id) ?? 0;
+
+        if (input.Outside is not { } outside)
+        {
+            return world.Downstream(input.Inside).Sum(next => Into(next.Id));
+        }
+
+        if (world.Find(input.Inside) is Logistics && world.Upstream(input.Inside).Count() == 1)
+        {
+            return Into(input.Inside);
+        }
+
+        if (world.Find(outside) is Logistics && world.Downstream(outside).Count() == 1)
+        {
+            return Into(outside);
+        }
+
+        double takes = (states.GetValueOrDefault(input.Inside.Id)?.Utilisation ?? 0) * world.Find(input.Inside) switch
+        {
+            Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
+            Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
+            Consumer { Generation: { Supplemental: { } water } generation } when water == item => generation.SupplementalNeeded.ToDouble(),
+            _ => 0,
+        };
+        return takes / members.Inputs.Count(other => other.Inside == input.Inside && other.Items.Contains(item));
     }
 }

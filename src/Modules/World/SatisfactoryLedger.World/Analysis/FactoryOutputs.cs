@@ -196,7 +196,7 @@ internal static class FactoryOutputs
     /// with other factories, this counts their part as well.</item>
     /// </list>
     /// </summary>
-    private static IReadOnlyDictionary<string, double> Over(FactoryConnection output, WorldGraph world, AnalysisDocument analysis)
+    internal static IReadOnlyDictionary<string, double> Over(FactoryConnection output, WorldGraph world, AnalysisDocument analysis)
     {
         IReadOnlyDictionary<string, double> Into(BuildableId id) => analysis.Into.GetValueOrDefault(id.Id) ?? new Dictionary<string, double>();
 

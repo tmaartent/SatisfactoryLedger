@@ -51,6 +51,28 @@
           <li>Sinks, storage containers and stations aren't part of a factory: a factory is its machines and generators.</li>
         </ul>
         <p>{{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators included</p>
+        @if (preview.value(); as preview) {
+          <div class="preview">
+            <p><span class="swatch output"></span> Where items leave</p>
+            <ul>
+              @for (output of preview.leaving; track output.item) {
+                <li>{{ names.item(output.item) }} <span class="muted">{{ output.perMinute === null ? '' : perMinute(output.perMinute) }}</span></li>
+              } @empty {
+                <li class="muted">Nothing leaves it</li>
+              }
+            </ul>
+            <p><span class="swatch input"></span> Where items come in</p>
+            <ul>
+              @for (input of preview.arriving; track input.item) {
+                <li>{{ names.item(input.item) }} <span class="muted">{{ input.perMinute === null ? '' : perMinute(input.perMinute) }}</span></li>
+              } @empty {
+                <li class="muted">Nothing comes in</li>
+              }
+            </ul>
+          </div>
+        } @else if (preview.isLoading()) {
+          <p class="muted">Tracing…</p>
+        }
         @if (clickedMachine(); as building) {
           <p class="clicked">
             {{ names.building(building.className) }}

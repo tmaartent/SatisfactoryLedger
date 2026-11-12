@@ -17,16 +17,18 @@ import { defineFactory } from '../../api/fn/world/define-factory';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
+import { previewFactory } from '../../api/fn/world/preview-factory';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { GeneratorFinding } from '../../api/models/generator-finding';
 import { MachineFinding } from '../../api/models/machine-finding';
 import { CatalogNames } from '../../shared/catalog-names';
-import { percent, Position, positionInMetres } from '../../shared/display';
+import { percent, perMinute, Position, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { LimitFacts, limitText } from '../limit-text';
 import { conveyorColours, describeContents, statusColours, statusLabels, MachineStatus } from '../map/map-model';
 import { Area, areaAround, Box, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
 import { factoriesInArea, machineOwners } from './factory-outlines';
+import { handoverPoint } from './factory-preview';
 import { boxSelect, rectBetween, ScreenPoint, ScreenRect, toggle } from './selection';
 
 /** A building in the area, with what the panel shows about it. */
@@ -162,10 +164,21 @@ export class AreaPage {
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly canSave = computed(() => this.chosen().size > 0 && this.factoryName().trim() !== '' && !this.saving());
+
+  /** The chosen machines once the choosing pauses: the preview follows them (part 2b(2)). */
+  private readonly settled = signal<readonly string[]>([]);
+  /** What the chosen machines would make a factory, traced without saving it: what it would own and hand over. */
+  protected readonly preview = resource({
+    params: () => (this.defining() && this.settled().length > 0 ? { id: this.id(), body: { machines: [...this.settled()] } } : undefined),
+    loader: ({ params }) => this.api.invoke(previewFactory, params),
+  });
+  private readonly owned = computed(() => new Set(this.preview.value()?.logistics ?? []));
+  private readonly previewLayer = new THREE.Group();
   /** The box being dragged, on screen, while shift or alt is held. */
   protected readonly dragBox = signal<ScreenRect | null>(null);
 
   protected readonly percent = percent;
+  protected readonly perMinute = perMinute;
   protected readonly position = positionInMetres;
 
   private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
@@ -181,6 +194,7 @@ export class AreaPage {
 
   constructor() {
     this.scene.add(this.content);
+    this.scene.add(this.previewLayer);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
     const sun = new THREE.DirectionalLight(0xffffff, 1.6);
     sun.position.set(60, 140, 90);
@@ -192,17 +206,27 @@ export class AreaPage {
     // Redraw when the world or its analysis arrives; three.js knows nothing about signals.
     effect(() => this.draw());
     effect(() => this.applyCutOff(this.cutOff()));
-    effect(() => this.paint(this.glowing(), this.chosen()));
+    effect(() => this.paint(this.glowing(), this.chosen(), this.owned()));
+
+    // The preview follows the choice once it pauses for a moment, not every machine a dragged box sweeps in.
+    effect((onCleanup) => {
+      const chosen = [...this.chosen()];
+      const timer = setTimeout(() => this.settled.set(chosen), 300);
+      onCleanup(() => clearTimeout(timer));
+    });
+    effect(() => this.drawPreview());
   }
 
   protected startDefining(): void {
     this.defining.set(true);
+    this.settled.set([]);
     this.saveError.set(null);
   }
 
   protected stopDefining(): void {
     this.defining.set(false);
     this.chosen.set(new Set());
+    this.settled.set([]);
     this.factoryName.set('');
     this.saveError.set(null);
   }
@@ -353,8 +377,47 @@ export class AreaPage {
     // A redraw makes new meshes: the cut-off and the colours of the selection apply to those too.
     untracked(() => {
       this.applyCutOff(this.cutOff());
-      this.paint(this.glowing(), this.chosen());
+      this.paint(this.glowing(), this.chosen(), this.owned());
     });
+  }
+
+  /**
+   * The preview in 3D: the belts and pipes the factory would own drawn again over the others, a little thicker, and a
+   * marker where each of its lines crosses: green going out, orange coming in.
+   */
+  private drawPreview(): void {
+    const preview = this.preview.value();
+    const world = this.world.value();
+    this.previewLayer.clear();
+    if (!preview || !world) return;
+
+    const area = this.area();
+    const middle = { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
+    const at = (p: Position) => new THREE.Vector3(...toScene(p, middle));
+    const owned = new Set(preview.logistics);
+    const tubes: THREE.BufferGeometry[] = [];
+    for (const conveyor of world.conveyors) {
+      if (!owned.has(conveyor.id) || conveyor.curve.length < 2 || !curveInArea(conveyor.curve, area)) continue;
+      const points = sampleCurve3d(conveyor.curve).map(at);
+      tubes.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), Math.max(2, points.length), conveyor.kind === 'pipe' ? 0.55 : 0.4, 5, false));
+    }
+    if (tubes.length > 0) this.previewLayer.add(new THREE.Mesh(mergeGeometries(tubes), this.ownedMaterial));
+
+    const conveyors = new Map(world.conveyors.map((conveyor) => [conveyor.id, conveyor]));
+    const positions = new Map(this.buildings().map((building) => [building.id, building.position]));
+    const lines = [
+      [preview.outputs, 'output', this.outputMarker],
+      [preview.inputs, 'input', this.inputMarker],
+    ] as const;
+    for (const [connections, direction, material] of lines) {
+      for (const connection of connections) {
+        const point = handoverPoint(connection, direction, (id) => conveyors.get(id), (id) => positions.get(id));
+        if (!point || !inArea(point, area)) continue;
+        const marker = new THREE.Mesh(this.markerGeometry, material);
+        marker.position.copy(at(point));
+        this.previewLayer.add(marker);
+      }
+    }
   }
 
   /**
@@ -474,14 +537,20 @@ export class AreaPage {
   /** The building looked at glows a little, so it can be found again after turning the view; chosen machines are blue. */
   private readonly highlightMaterial = new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffd54f', emissiveIntensity: 0.6, side: THREE.DoubleSide });
   private readonly chosenMaterial = new THREE.MeshLambertMaterial({ color: '#42a5f5', emissive: '#1565c0', emissiveIntensity: 0.5, side: THREE.DoubleSide });
+  /** The preview: what the factory would own in teal, its outputs green and its inputs orange. */
+  private readonly ownedMaterial = new THREE.MeshLambertMaterial({ color: '#26a69a', emissive: '#00695c', emissiveIntensity: 0.5, side: THREE.DoubleSide, clippingPlanes: [this.clip] });
+  private readonly outputMarker = new THREE.MeshLambertMaterial({ color: '#66bb6a', emissive: '#2e7d32', emissiveIntensity: 0.6, clippingPlanes: [this.clip] });
+  private readonly inputMarker = new THREE.MeshLambertMaterial({ color: '#ffa726', emissive: '#e65100', emissiveIntensity: 0.6, clippingPlanes: [this.clip] });
+  private readonly markerGeometry = new THREE.SphereGeometry(1.2, 12, 8);
 
-  private paint(selectedId: string | null, chosen: ReadonlySet<string>): void {
+  private paint(selectedId: string | null, chosen: ReadonlySet<string>, owned: ReadonlySet<string>): void {
     for (const object of this.content.children) {
       const building = object.userData['building'] as AreaBuilding | undefined;
       if (!building) continue;
       (object as THREE.Mesh).material =
         building.id === selectedId ? this.highlightMaterial
         : chosen.has(building.id) ? this.chosenMaterial
+        : owned.has(building.id) ? this.ownedMaterial
         : (object.userData['material'] as THREE.Material);
     }
   }

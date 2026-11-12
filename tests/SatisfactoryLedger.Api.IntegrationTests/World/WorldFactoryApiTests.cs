@@ -169,6 +169,28 @@ public sealed class WorldFactoryApiTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Previewing_chosen_machines_says_what_the_factory_would_own_and_hand_over_without_storing_it()
+    {
+        HttpResponseMessage response = await _client.PostAsJsonAsync(
+            $"/api/v1/world/snapshots/{_snapshot.Id}/factory-preview", new { machines = WorldClient.IronPlateMachines }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var preview = (await response.Content.ReadFromJsonAsync<FactoryPreview>(TestContext.Current.CancellationToken))!;
+        Assert.Contains(WorldClient.BeltIntoContainer, preview.Logistics);
+        Assert.Contains(preview.Outputs, output => output.Items.Contains("Desc_IronPlate_C"));
+        Assert.Empty(await _client.GetAsync<Factory[]>("/api/v1/world/factories?world=Development"));
+    }
+
+    [Fact]
+    public async Task A_preview_in_an_unknown_snapshot_is_not_found()
+    {
+        HttpResponseMessage response = await _client.PostAsJsonAsync(
+            $"/api/v1/world/snapshots/{Guid.NewGuid()}/factory-preview", new { machines = WorldClient.IronPlateMachines }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task The_factories_of_an_unknown_snapshot_are_not_found()
     {
         HttpResponseMessage response = await _client.GetAsync($"/api/v1/world/snapshots/{Guid.NewGuid()}/factories", TestContext.Current.CancellationToken);

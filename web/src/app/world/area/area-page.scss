@@ -177,3 +177,30 @@
 .muted {
   color: var(--mat-sys-on-surface-variant);
 }
+
+.preview {
+  p {
+    margin: 8px 0 2px;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    vertical-align: middle;
+
+    &.output {
+      background: #66bb6a;
+    }
+
+    &.input {
+      background: #ffa726;
+    }
+  }
+}
