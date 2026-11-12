@@ -13,7 +13,7 @@ internal sealed class StoredFactory
     /// <summary>The session name of the world it belongs to.</summary>
     public required string World { get; init; }
 
-    public required string Name { get; init; }
+    public required string Name { get; set; }
 
     /// <summary>Its machines (BR-W2).</summary>
     public List<StoredMachine> Machines { get; set; } = [];

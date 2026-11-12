@@ -149,6 +149,23 @@ describe('FindingsView', () => {
     expect(summaries(fixture.nativeElement)).toHaveLength(1);
   });
 
+  it('offers to delete a factory from the overview of factories', async () => {
+    const fixture = await render();
+    const plates = { factoryId: 'f1', name: 'Iron plates', traceable: true, machines: [], logistics: 0, outputs: [], inputs: [], missing: [] };
+    fixture.componentRef.setInput('factories', [plates]);
+    await fixture.whenStable();
+    const deleted: string[] = [];
+    fixture.componentInstance.deleteFactory.subscribe((factory) => deleted.push(factory.factoryId));
+
+    await openTab(fixture, 'Factories');
+    const button = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.mat-mdc-tab-body-active button')).find(
+      (candidate) => candidate.getAttribute('aria-label') === 'Delete Iron plates',
+    ) as HTMLButtonElement;
+    button.click();
+
+    expect(deleted).toEqual(['f1']);
+  });
+
   it('lists each generator with its fuel and why it runs below full power', async () => {
     const fixture = await render();
 

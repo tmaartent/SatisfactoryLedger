@@ -42,12 +42,12 @@
   <aside class="panel" aria-live="polite">
     @if (defining()) {
       <section class="factory">
-        <h2>New factory</h2>
+        <h2>{{ editing() ? 'Edit factory' : 'New factory' }}</h2>
         <ul class="how">
           <li><b>Click</b> a machine or generator to add it; it turns blue. Click it again to take it out.</li>
           <li>Hold <b>Shift</b> and drag a box to add every one inside it.</li>
           <li>Hold <b>Alt</b> and drag a box to take them out.</li>
-          <li>Machines outlined in colour are another factory's and can't be added.</li>
+          <li>Machines outlined in colour are another factory's and can't be added{{ editing() ? '; this factory\'s own can be taken out' : '' }}.</li>
           <li>Sinks, storage containers and stations aren't part of a factory: a factory is its machines and generators.</li>
         </ul>
         <p>{{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators included</p>
@@ -148,6 +148,12 @@
             <li>
               <span class="swatch" [style.border-color]="factory.colour"></span>
               <a [routerLink]="['/snapshots', id(), 'factories', factory.factoryId]">{{ factory.name }}</a>
+              @if (!defining()) {
+                <span class="legend-actions">
+                  <button mat-icon-button (click)="startEditing(factory)" [attr.aria-label]="'Edit ' + factory.name"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button (click)="deleteFactory(factory)" [attr.aria-label]="'Delete ' + factory.name"><mat-icon>delete</mat-icon></button>
+                </span>
+              }
             </li>
           }
         </ul>

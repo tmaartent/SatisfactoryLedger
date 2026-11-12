@@ -45,3 +45,11 @@ export function factoriesInArea(factories: readonly TracedFactory[], inArea: Rea
 export function factoryColour(factories: readonly TracedFactory[], factoryId: string): string | undefined {
   return outlined(factories).find((factory) => factory.factoryId === factoryId)?.colour;
 }
+
+/**
+ * The machines that can't be chosen (BR-W5): every factory's, or, while editing a factory, the other factories'. Its
+ * own machines can be taken out and put back.
+ */
+export function blockedMachines(owners: ReadonlyMap<string, OutlinedFactory[]>, editing: string | null): Set<string> {
+  return new Set([...owners].filter(([, factories]) => factories.some((factory) => factory.factoryId !== editing)).map(([id]) => id));
+}
