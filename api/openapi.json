@@ -1262,6 +1262,7 @@
           "summary",
           "generatorSummary",
           "output",
+          "input",
           "power",
           "machines",
           "generators",
@@ -1291,6 +1292,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/FactoryOutput"
+            }
+          },
+          "input": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FactoryInput"
             }
           },
           "power": {
@@ -1331,6 +1338,39 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/UnknownSupplyFinding"
+            }
+          }
+        }
+      },
+      "FactoryInput": {
+        "required": [
+          "item",
+          "now",
+          "atFullSpeed",
+          "short",
+          "sources"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "now": {
+            "type": "number",
+            "format": "double"
+          },
+          "atFullSpeed": {
+            "type": "number",
+            "format": "double"
+          },
+          "short": {
+            "type": "number",
+            "format": "double"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InputSource"
             }
           }
         }
@@ -1819,6 +1859,59 @@
             "$ref": "#/components/schemas/RateResponse"
           }
         }
+      },
+      "InputSource": {
+        "required": [
+          "kind",
+          "factoryId",
+          "factory",
+          "building",
+          "id",
+          "perMinute"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/InputSourceKind"
+          },
+          "factoryId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "factory": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "building": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "perMinute": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "InputSourceKind": {
+        "enum": [
+          "factory",
+          "noFactory",
+          "building",
+          "nowhere"
+        ]
       },
       "ItemForm": {
         "enum": [

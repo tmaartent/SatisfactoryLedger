@@ -76,6 +76,57 @@
     </table>
   }
 
+  <h2>Input</h2>
+  @if (factory.input.length === 0) {
+    <p class="muted">Nothing comes into this factory.</p>
+  } @else {
+    <table mat-table [dataSource]="factory.input" class="output">
+      <ng-container matColumnDef="item">
+        <th mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let i">{{ names.item(i.item) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="now">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What arrives over its inputs now">Now</th>
+        <td mat-cell *matCellDef="let i" class="number">{{ perMinute(i.now) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="atFullSpeed">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What it needs from outside at 100%: what its machines take, less what they make themselves">
+          At 100%
+        </th>
+        <td mat-cell *matCellDef="let i" class="number">{{ perMinute(i.atFullSpeed) }}</td>
+      </ng-container>
+      <ng-container matColumnDef="short">
+        <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What its sources can't bring at 100%: what it needs less what arrives now, what they have to spare, as far as the belts and pipes between have room">
+          Short
+        </th>
+        <td mat-cell *matCellDef="let i" class="number" [class.short]="i.short > 0">{{ i.short > 0 ? perMinute(i.short) : '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="sources">
+        <th mat-header-cell *matHeaderCellDef>Comes from</th>
+        <td mat-cell *matCellDef="let i">
+          <ul class="destinations">
+            @for (source of sources(i); track $index) {
+              <li>
+                @if (source.factoryId; as factoryId) {
+                  <a [routerLink]="['/snapshots', id(), 'factories', factoryId]">{{ sourceLabel(source) }}</a>
+                } @else if (source.id; as buildingId) {
+                  <a [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ focus: buildingId }" matTooltip="Show on the map">{{ sourceLabel(source) }}</a>
+                } @else {
+                  {{ sourceLabel(source) }}
+                }
+                <span class="muted">{{ perMinute(source.perMinute) }}</span>
+              </li>
+            } @empty {
+              <li class="muted">Nothing arrives now</li>
+            }
+          </ul>
+        </td>
+      </ng-container>
+      <tr mat-header-row *matHeaderRowDef="inputColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: inputColumns"></tr>
+    </table>
+  }
+
   @if (factory.power; as power) {
     <h2>Power</h2>
     <p class="power">

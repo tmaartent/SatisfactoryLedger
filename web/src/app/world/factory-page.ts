@@ -8,7 +8,10 @@ import { RouterLink } from '@angular/router';
 
 import { Api } from '../api/api';
 import { analyseFactory } from '../api/fn/world/analyse-factory';
+import { FactoryInput } from '../api/models/factory-input';
 import { FactoryOutput } from '../api/models/factory-output';
+import { InputSource } from '../api/models/input-source';
+import { InputSourceKind } from '../api/models/input-source-kind';
 import { OutputDestination } from '../api/models/output-destination';
 import { OutputDestinationKind } from '../api/models/output-destination-kind';
 import { CatalogNames } from '../shared/catalog-names';
@@ -27,6 +30,7 @@ import { FindingsView } from './findings';
   styles: `
     .output { margin-bottom: 24px; }
     .destinations { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; }
+    .destinations li { display: inline-flex; gap: 4px; }
     .muted { color: var(--mat-sys-on-surface-variant); }
     .power { margin-bottom: 24px; }
     .short { color: var(--mat-sys-error); }
@@ -58,6 +62,26 @@ export class FactoryPage {
   };
 
   // Material's table rows are untyped (let o is any) in the template: these methods type them.
+  protected readonly inputColumns = ['item', 'now', 'atFullSpeed', 'short', 'sources'];
+
+  private readonly sourceLabels: Record<InputSourceKind, string> = {
+    factory: 'Factory',
+    noFactory: 'Machines of no factory',
+    building: 'Building',
+    nowhere: 'A belt or pipe from nowhere',
+  };
+
+  protected sources(input: FactoryInput): InputSource[] {
+    return input.sources;
+  }
+
+  protected sourceLabel(source: InputSource): string {
+    if (source.building) {
+      return this.names.building(source.building);
+    }
+    return source.factory ?? this.sourceLabels[source.kind];
+  }
+
   protected destinations(output: FactoryOutput): OutputDestination[] {
     return output.destinations;
   }

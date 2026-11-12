@@ -13,7 +13,7 @@ namespace SatisfactoryLedger.World.Analysis;
 internal static class FactoryOutputs
 {
     /// <summary>The class of the AWESOME Sink: what reaches it is sunk.</summary>
-    private const string SinkClass = "Build_ResourceSink_C";
+    internal const string SinkClass = "Build_ResourceSink_C";
 
     /// <summary>The consumers that use up what they get, shown by building (decided 2026-11-11). Stations and uploaders store it.</summary>
     private static readonly HashSet<string> UsesUp = new(["Build_Portal_C", "Build_AlienPowerBuilding_C"], StringComparer.Ordinal);
@@ -151,7 +151,7 @@ internal static class FactoryOutputs
     }
 
     /// <summary>What one of its machines makes at 100%: a machine its recipe's products, a generator its waste (BR-A8).</summary>
-    private static IEnumerable<KeyValuePair<ItemId, Rate>> Makes(Buildable member) => member switch
+    internal static IEnumerable<KeyValuePair<ItemId, Rate>> Makes(Buildable member) => member switch
     {
         Machine machine => machine.Production,
         Consumer { Generation: { Byproduct: { } waste } generation } => [new(waste, generation.Leaves)],
@@ -159,7 +159,7 @@ internal static class FactoryOutputs
     };
 
     /// <summary>What one of its machines takes at 100%: a machine its recipe's inputs, a generator its fuel and water.</summary>
-    private static IEnumerable<KeyValuePair<ItemId, Rate>> Takes(Buildable member) => member switch
+    internal static IEnumerable<KeyValuePair<ItemId, Rate>> Takes(Buildable member) => member switch
     {
         Machine machine => machine.Demand,
         Consumer { Generation: { Supplemental: { } water } generation } => [new(generation.Fuel, generation.Burns), new(water, generation.SupplementalNeeded)],
@@ -171,7 +171,7 @@ internal static class FactoryOutputs
     /// Who each machine in this snapshot belongs to: this factory's own members, and the other factories' machines as
     /// matched in it (BR-W11). The first factory wins for a machine stored in two, from before BR-W5.
     /// </summary>
-    private static Dictionary<BuildableId, StoredFactory> OwnersIn(
+    internal static Dictionary<BuildableId, StoredFactory> OwnersIn(
         SnapshotDocument snapshot, StoredFactory factory, FactoryMembers members, IEnumerable<StoredFactory> factories)
     {
         Dictionary<BuildableId, StoredFactory> owners = members.Machines.ToDictionary(id => id, _ => factory);
