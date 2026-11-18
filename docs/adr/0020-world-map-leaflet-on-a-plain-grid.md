@@ -36,7 +36,7 @@ Every finding has a position, but tables don't show where things are, or how far
   - Snapshots keep it rounded to 0.01 cm (snapshot version 5).
   - The web app samples it into a line: straight stretches as their two ends, bends in 8 steps.
 - **Footprints come from the Docs file** (decided 2026-11-06). Each building class has clearance boxes there (`mClearanceData`), in its own coordinates.
-  - The Catalog keeps a **Footprint** per class: the rectangle around its hard boxes, each box moved and turned by its offset. Soft boxes, the room kept free around a building, count only when a building has nothing else (a splitter).
+  - The Catalog keeps a **Footprint** per class: the rectangle around its hard boxes, each box moved and turned by its offset. The turn is applied in 3D, all eight corners, before the rectangle is taken seen from above (fixed 2026-11-18: only the turn around the vertical was applied, so the Particle Accelerator's tilted arch counted flat, and boxes tilted a quarter or more came out mirrored; it covered 50 metres instead of 37). The map draws a building as **each of its boxes seen from above** (decided 2026-11-18), one Leaflet polygon of several outlines with a non-zero fill so overlapping boxes don't cut holes: a Quantum Encoder is its cross of boxes, not the rectangle around them. The rectangle stays for what needs one size. Soft boxes, the room kept free around a building, count only when a building has nothing else (a splitter).
   - Snapshots copy the footprints of the classes they have, like recipes.
   - The save reader keeps which way each buildable faces (its yaw), and the map turns the footprint by it.
   - A class without a footprint (a lift) is a dot.

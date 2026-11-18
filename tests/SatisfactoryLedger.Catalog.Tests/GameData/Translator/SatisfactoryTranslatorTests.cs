@@ -335,6 +335,16 @@ public class SatisfactoryTranslatorTests
     }
 
     [Fact]
+    public async Task A_particle_accelerators_tilted_arch_counts_tilted_seen_from_above_37_by_27_metres()
+    {
+        // Its arch's boxes are turned around the y axis, up to a quarter: seen from above they're shorter than their
+        // length (2026-11-18: counted flat, the accelerator covered 53 metres and overflowed its plot).
+        Footprint collider = await FootprintOfAsync("Build_HadronCollider_C");
+
+        Assert.Equal((-1800m, -1400m, 1900m, 1300m), (collider.MinX, collider.MinY, collider.MaxX, collider.MaxY));
+    }
+
+    [Fact]
     public async Task A_splitter_covers_the_room_of_its_soft_box()
     {
         Footprint splitter = await FootprintOfAsync("Build_ConveyorAttachmentSplitter_C");
