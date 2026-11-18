@@ -19,6 +19,8 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <param name="CeilingMetres">How high the floor below the factories is, where their belts run (decided 2026-11-18).</param>
 /// <param name="Exclusions">Rectangles drawn inside the area where no factory may stand, in the game's centimetres: the
 /// plots they touch are kept free.</param>
+/// <param name="SupplyLines">Whether belts are routed as supply lines (decided 2026-11-18): what brings an item runs past
+/// the factories that take it, topped up by priority mergers, instead of a belt from each source to each.</param>
 internal sealed record ArrangementSettings(
     WorldRectangle? Area,
     double PlotWidthMetres,
@@ -28,7 +30,8 @@ internal sealed record ArrangementSettings(
     int Together,
     double SpotWeight,
     double CeilingMetres,
-    IReadOnlyList<WorldRectangle> Exclusions)
+    IReadOnlyList<WorldRectangle> Exclusions,
+    bool SupplyLines = false)
 {
     /// <summary>The floor below the plots where the belts are routed, in squares of one foundation.</summary>
     public BeltFloor Floor => BeltFloor.Of(PlotWidthMetres, PlotDepthMetres, RoadXMetres, RoadYMetres, CeilingMetres);

@@ -161,6 +161,10 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<bool>("SupplyLines")
+                        .HasColumnType("boolean")
+                        .HasColumnName("supply_lines");
+
                     b.Property<int>("Together")
                         .HasColumnType("integer")
                         .HasColumnName("together");

@@ -30,7 +30,8 @@ internal sealed record SnapshotDocument(
     IReadOnlyList<DronePortDocument>? DronePorts = null,
     IReadOnlyList<StorageDocument>? Storages = null,
     IReadOnlyDictionary<string, int>? StackSizes = null,
-    IReadOnlyDictionary<string, decimal>? DepotStock = null)
+    IReadOnlyDictionary<string, decimal>? DepotStock = null,
+    IReadOnlyList<PipeLinkDocument>? PipeLinks = null)
 {
     /// <summary>
     /// Version 2 added extractors, transport tiers, resource nodes and fluids; a version 1 snapshot has none of them.
@@ -50,8 +51,10 @@ internal sealed record SnapshotDocument(
     /// Version 12 added what inventories hold and how much fits (BR-A7): the storage sizes, the stack sizes of what's
     /// held, what loading stations and the dimensional depot hold. In a version 11 snapshot everything takes everything,
     /// as before.
+    /// Version 13 added which pipes touch, to follow a pipe piece by piece through its network (decided 2026-11-18); in a
+    /// version 12 snapshot pipes aren't followed.
     /// </summary>
-    public const int CurrentVersion = 12;
+    public const int CurrentVersion = 13;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -103,8 +106,13 @@ internal sealed record SnapshotDocument(
             // Of what's held, and of what the recipes make: a machine's room for its next batch (BR-A7).
             catalog.Items.Where(item => (held.Contains(item.Id) || items.Contains(item.Id)) && item.StackSize > 0)
                 .ToDictionary(item => item.Id, item => item.StackSize, StringComparer.Ordinal),
-            saved.DepotStock.Count > 0 ? saved.DepotStock : null);
+            saved.DepotStock.Count > 0 ? saved.DepotStock : null,
+            saved.PipeLinks.Count > 0 ? [.. saved.PipeLinks.Select(link => new PipeLinkDocument(link.A.Id, link.B.Id))] : null);
     }
+
+    /// <summary>Per pipe (or junction, pump or buffer), the ones it touches, both ways; none in snapshots from before them.</summary>
+    public ILookup<string, string> PipeNeighbours() =>
+        (PipeLinks ?? []).SelectMany(link => new[] { (From: link.A, To: link.B), (From: link.B, To: link.A) }).ToLookup(link => link.From, link => link.To, StringComparer.Ordinal);
 
     /// <summary>What any inventory of the save holds, and what the dimensional depot holds: their stack sizes decide "full" (BR-A7).</summary>
     public static HashSet<string> ItemsHeld(SavedWorld saved) =>
@@ -136,7 +144,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),

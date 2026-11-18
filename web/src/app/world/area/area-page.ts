@@ -27,7 +27,8 @@ import { percent, perMinute, Position, positionInMetres } from '../../shared/dis
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { LimitFacts, limitText } from '../limit-text';
 import { conveyorColours, describeContents, statusColours, statusLabels, MachineStatus } from '../map/map-model';
-import { Area, areaAround, Box, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
+import { boxGeometry } from './box-geometry';
+import { Area, areaAround, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
 import { FactoryDeletion } from '../factory-deletion';
 import { blockedMachines, factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
@@ -54,9 +55,6 @@ const factoryMargin = 1500;
 function choosable(building: AreaBuilding | null | undefined): building is AreaBuilding {
   return building?.kind === 'machine' || (building?.kind === 'consumer' && building.isGenerator === true);
 }
-
-/** The six sides of a box, as corner numbers (see Box): drawn as two triangles each. */
-const SIDES = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]];
 
 /**
  * An area of a snapshot in 3D (ADR-0024): every building inside a rectangle drawn on the map, as its clearance boxes,
@@ -368,7 +366,7 @@ export class AreaPage {
       const finding = findings.get(building.id);
       const colour = finding ? statusColours[finding.limit] : building.kind === 'machine' ? statusColours.unknown : building.kind === 'consumer' ? '#ab47bc' : '#78909c';
       const boxes = buildingBoxes(building, footprints);
-      const geometry = mergeGeometries(boxes.map((box) => this.boxGeometry(box, at)));
+      const geometry = mergeGeometries(boxes.map((box) => boxGeometry(box, at)));
       const material = this.material(colour);
       const mesh = new THREE.Mesh(geometry, material);
       const top = Math.max(...boxes.flat().map((corner) => corner.z)) / 100;
@@ -461,16 +459,6 @@ export class AreaPage {
       if (object.visible && object.userData['building']) roof = Math.max(roof, object.userData['top'] as number);
     }
     this.clip.constant = limit === null ? Infinity : roof;
-  }
-
-  private boxGeometry(box: Box, at: (p: Position) => THREE.Vector3): THREE.BufferGeometry {
-    const corners = box.map(at);
-    const positions: number[] = [];
-    for (const [a, b, c, d] of SIDES) for (const k of [a, b, c, a, c, d]) positions.push(corners[k].x, corners[k].y, corners[k].z);
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.computeVertexNormals();
-    return geometry;
   }
 
   /** Looks at the whole area from the south-east, a little from above. */

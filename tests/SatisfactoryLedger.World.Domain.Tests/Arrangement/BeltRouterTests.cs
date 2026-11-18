@@ -342,6 +342,166 @@ public class BeltRouterTests
     }
 
     [Fact]
+    public void A_pipe_crosses_over_a_belt_where_both_run_straight_on_another_level()
+    {
+        // Water west to the refinery east, ingots north to rods south: they cross in the middle (decided 2026-11-18).
+        BeltRouting routing = Route(
+            new GridRectangle(0, 0, 3, 3),
+            new() { ["water"] = new(0, 1, 1, 1), ["refinery"] = new(2, 1, 1, 1), ["ingots"] = new(1, 2, 1, 1), ["rods"] = new(1, 0, 1, 1) },
+            [new ArrangementLink("water", "refinery", Belts: 0, Pipes: 1), new ArrangementLink("ingots", "rods", 1)]);
+
+        Assert.Empty(routing.Unrouted);
+        Assert.NotEqual(LevelAt(routing.Belts[0], new FloorSquare(1, 1)), LevelAt(routing.Belts[1], new FloorSquare(1, 1)));
+    }
+
+    [Fact]
+    public void A_pipe_never_crosses_a_belt_on_one_level()
+    {
+        BeltRouting routing = Route(
+            new GridRectangle(0, 0, 3, 3),
+            new() { ["water"] = new(0, 1, 1, 1), ["refinery"] = new(2, 1, 1, 1), ["ingots"] = new(1, 2, 1, 1), ["rods"] = new(1, 0, 1, 1) },
+            [new ArrangementLink("water", "refinery", Belts: 0, Pipes: 1), new ArrangementLink("ingots", "rods", 1)],
+            levels: 1);
+
+        Assert.Single(routing.Unrouted);
+    }
+
+    private static SupplyLeg Leg(string from, string to, bool injection = false, int? onto = null, int? off = null) =>
+        new(from, to, "Desc_OreIron_C", Pipe: false, 300, injection, Overflow: off is not null, onto, off);
+
+    private static BeltRouting RouteLines(GridRectangle area, Dictionary<string, GridRectangle> places, params SupplyLeg[] legs) =>
+        BeltRouter.RouteLines(new BeltFloor(1, 1, 0, 0, 16), area, places, legs, new Dictionary<string, GridRectangle>());
+
+    /// <summary>The squares a belt passes, corner to corner.</summary>
+    private static List<FloorSquare> Squares(RoutedBelt belt)
+    {
+        List<FloorSquare> squares = [belt.Corners[0]];
+        foreach ((FloorSquare a, FloorSquare b) in belt.Corners.Zip(belt.Corners.Skip(1)))
+        {
+            for (int step = 1; step <= Math.Abs(b.X - a.X) + Math.Abs(b.Y - a.Y); step++)
+            {
+                squares.Add(new FloorSquare(a.X + (Math.Sign(b.X - a.X) * step), a.Y + (Math.Sign(b.Y - a.Y) * step)));
+            }
+        }
+
+        return squares;
+    }
+
+    [Fact]
+    public void A_top_up_belt_ends_on_the_lines_belt_before_the_factory_at_a_priority_merger()
+    {
+        // The line runs east along the middle row to the smelters; more miners stand north of it (decided 2026-11-18).
+        BeltRouting routing = RouteLines(
+            new GridRectangle(0, 0, 10, 5),
+            new() { ["miners"] = new(0, 2, 1, 1), ["smelters"] = new(9, 2, 1, 1), ["more"] = new(5, 4, 1, 1) },
+            Leg("miners", "smelters"),
+            Leg("more", "smelters", injection: true, onto: 0));
+
+        RoutedBelt line = routing.Belts.Single(belt => belt.From == "miners");
+        RoutedBelt topUp = routing.Belts.Single(belt => belt.From == "more");
+        Assert.Empty(routing.Unrouted);
+        Assert.True(topUp.EndsOnBelt);
+        Assert.Contains(topUp.Corners[^1], Squares(line)[1..^1]);
+        Assert.Equal(LevelAt(line, topUp.Corners[^1]), topUp.Levels[^1]);
+        Assert.Equal(new FloorSquare(9, 2), line.Corners[^1]);
+    }
+
+    [Fact]
+    public void A_top_up_joins_the_line_anywhere_along_it_nearest_where_it_comes_from()
+    {
+        // A long line east; the more miners stand by its start, far from the factory (2026-11-18: joins only near the
+        // factory found no room on short or crowded belts, and the top-up went up into the factory instead).
+        BeltRouting routing = RouteLines(
+            new GridRectangle(0, 0, 20, 5),
+            new() { ["miners"] = new(0, 2, 1, 1), ["smelters"] = new(19, 2, 1, 1), ["more"] = new(3, 4, 1, 1) },
+            Leg("miners", "smelters"),
+            Leg("more", "smelters", injection: true, onto: 0));
+
+        RoutedBelt topUp = routing.Belts.Single(belt => belt.From == "more");
+        Assert.True(topUp.EndsOnBelt);
+        Assert.Equal(new FloorSquare(3, 2), topUp.Corners[^1]);
+    }
+
+    [Fact]
+    public void A_top_up_boxed_out_of_its_line_is_laid_right_after_it_on_another_try()
+    {
+        // Two shorter belts run beside the line, north and south, on the floor, so they're laid first: the top-up can't
+        // reach the line on its level, and falls back to the factory. On another try the line and its top-up go first
+        // (decided 2026-11-18), and the two cross over the top-up instead.
+        BeltRouting routing = RouteLines(
+            new GridRectangle(0, 0, 12, 7),
+            new()
+            {
+                ["miners"] = new(0, 3, 1, 1), ["smelters"] = new(11, 2, 1, 3), ["more"] = new(5, 6, 1, 1),
+                ["a"] = new(1, 2, 1, 1), ["b"] = new(10, 2, 1, 1), ["c"] = new(1, 4, 1, 1), ["d"] = new(10, 4, 1, 1),
+            },
+            Leg("miners", "smelters"),
+            Leg("more", "smelters", injection: true, onto: 0),
+            Leg("a", "b"),
+            Leg("c", "d"));
+
+        Assert.Empty(routing.Unrouted);
+        Assert.True(routing.Belts.Single(belt => belt.From == "more").EndsOnBelt);
+    }
+
+    [Fact]
+    public void A_top_ups_overflow_leaves_its_belt_at_a_smart_splitter()
+    {
+        // The top-up comes down from the north onto the line; its overflow runs on west to a factory of its own.
+        BeltRouting routing = RouteLines(
+            new GridRectangle(0, 0, 10, 7),
+            new() { ["miners"] = new(0, 2, 1, 1), ["smelters"] = new(9, 2, 1, 1), ["more"] = new(5, 6, 1, 1), ["plates"] = new(0, 4, 1, 1) },
+            Leg("miners", "smelters"),
+            Leg("more", "smelters", injection: true, onto: 0),
+            Leg("smelters", "plates", off: 1));
+
+        RoutedBelt topUp = routing.Belts.Single(belt => belt.From == "more");
+        RoutedBelt overflow = routing.Belts.Single(belt => belt.To == "plates");
+        Assert.Empty(routing.Unrouted);
+        Assert.True(overflow.StartsOnBelt);
+        Assert.Contains(overflow.Corners[0], Squares(topUp)[1..^1]);
+    }
+
+    [Fact]
+    public void A_belt_to_a_spot_outside_leaves_the_floor_where_its_existing_belt_comes_in()
+    {
+        // The miner stands far east, but its belt in the save comes in at the north edge, above the smelters
+        // (decided 2026-11-18): the belt leaves the floor there, not at the east edge facing the miner.
+        BeltRouting routing = BeltRouter.Route(
+            new BeltFloor(1, 1, 0, 0, 16),
+            new GridRectangle(0, 0, 10, 5),
+            new Dictionary<string, GridRectangle> { ["smelters"] = new(2, 1, 1, 1) },
+            [new ArrangementLink("miner", "smelters", Belts: 1)],
+            new Dictionary<string, GridRectangle> { ["miner"] = new(30, 2, 1, 1) },
+            new Dictionary<string, GridRectangle> { ["miner"] = new(1, 4, 3, 2) });
+
+        RoutedBelt belt = Assert.Single(routing.Belts);
+        Assert.True(belt.LeavesFloor);
+        Assert.Equal(4, belt.Corners[0].Y);
+        Assert.InRange(belt.Corners[0].X, 1, 3);
+    }
+
+    [Fact]
+    public void A_belt_whose_existing_belt_comes_in_beyond_the_floor_runs_along_the_floor_to_the_edge_by_it()
+    {
+        // The drawn area reaches past the floor (whole plots): the miner's belt comes in east of it, by the top rows. The
+        // belt runs along the floor to the edge there, not to the edge by the smelters (2026-11-18: it left by its
+        // factory, and the rest of the way was a line across the map).
+        BeltRouting routing = BeltRouter.Route(
+            new BeltFloor(1, 1, 0, 0, 16),
+            new GridRectangle(0, 0, 10, 5),
+            new Dictionary<string, GridRectangle> { ["smelters"] = new(2, 0, 1, 1) },
+            [new ArrangementLink("miner", "smelters", Belts: 1)],
+            new Dictionary<string, GridRectangle> { ["miner"] = new(30, 4, 1, 1) },
+            new Dictionary<string, GridRectangle> { ["miner"] = new(11, 3, 3, 2) });
+
+        RoutedBelt belt = Assert.Single(routing.Belts);
+        Assert.True(belt.LeavesFloor);
+        Assert.Equal(9, belt.Corners[0].X);
+        Assert.InRange(belt.Corners[0].Y, 3, 4);
+    }
+
+    [Fact]
     public void A_belt_that_cannot_get_through_is_routed_first_on_another_try()
     {
         // Shortest first, ingots to rods runs straight over (2, 1), the only square of the plates' lift. Routed first,

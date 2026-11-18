@@ -6,8 +6,22 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 /// <param name="Pipe">Whether it's a pipe: pipes stack only with pipes, belts only with belts.</param>
 /// <param name="Levels">Its level in the stacks on each straight run, from one corner to the next: a belt keeps its level
 /// from turn to turn (decided 2026-11-18).</param>
-/// <param name="Index">Which of its link's belts it is, from 0; or of its pipes, for a pipe.</param>
-public sealed record RoutedBelt(string From, string To, IReadOnlyList<FloorSquare> Corners, bool LeavesFloor, bool Pipe, IReadOnlyList<int> Levels, int Index)
+/// <param name="Index">Which of its link's belts it is, from 0; or of its pipes, for a pipe. For a supply line's leg, its
+/// number among the legs.</param>
+/// <param name="StartsOnBelt">Whether it starts on another belt, at a smart splitter on its first square, instead of a
+/// lift (decided 2026-11-18).</param>
+/// <param name="EndsOnBelt">Whether it ends on another belt, at a priority merger on its last square, instead of a lift
+/// (decided 2026-11-18).</param>
+public sealed record RoutedBelt(
+    string From,
+    string To,
+    IReadOnlyList<FloorSquare> Corners,
+    bool LeavesFloor,
+    bool Pipe,
+    IReadOnlyList<int> Levels,
+    int Index,
+    bool StartsOnBelt = false,
+    bool EndsOnBelt = false)
 {
     /// <summary>Where it turns 4 metres or more up or down, on a lift; a change of 2 is a ramp (<see cref="BeltFloor.ClimbNeedsLift"/>).</summary>
     public IReadOnlyList<FloorSquare> Lifts =>

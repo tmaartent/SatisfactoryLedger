@@ -8,6 +8,7 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <param name="Cost">The belt work of the proposed layout.</param>
 /// <param name="BeltMetres">How long the routed belts and pipes are together, lifts not counted; null without routed belts.</param>
 /// <param name="TallestStack">The most belts stacked on one square of the belt floor.</param>
+/// <param name="SupplyLines">Whether its belts were routed as supply lines.</param>
 /// <param name="UnroutedBelts">How many belts and pipes couldn't be routed without crossing.</param>
 internal sealed record ArrangementSummary(
     Guid Id,
@@ -22,6 +23,7 @@ internal sealed record ArrangementSummary(
     int Together,
     double SpotWeight,
     double CeilingMetres,
+    bool SupplyLines,
     int Seconds,
     ArrangementRunStatus Status,
     DateTimeOffset RequestedAt,
@@ -39,7 +41,7 @@ internal sealed record ArrangementSummary(
     {
         ArrangementProposalDocument? proposal = run.Proposal is { } json ? ArrangementProposalDocument.FromJson(json) : null;
         return new ArrangementSummary(
-            run.Id, run.SnapshotId, run.World, run.Area, run.Exclusions, run.PlotWidthMetres, run.PlotDepthMetres, run.RoadXMetres, run.RoadYMetres, run.Together, run.SpotWeight, run.CeilingMetres, run.Seconds,
+            run.Id, run.SnapshotId, run.World, run.Area, run.Exclusions, run.PlotWidthMetres, run.PlotDepthMetres, run.RoadXMetres, run.RoadYMetres, run.Together, run.SpotWeight, run.CeilingMetres, run.SupplyLines, run.Seconds,
             run.Status, run.RequestedAt, run.ComputedAt, run.Duration, run.Error, proposal?.CostNow, proposal?.Cost, proposal?.Quality,
             MetresOf(run, proposal), proposal?.TallestStack, proposal?.Unrouted?.Sum(link => link.Belts + link.Pipes));
     }

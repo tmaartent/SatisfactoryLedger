@@ -53,6 +53,12 @@
     <mat-label>Belt floor (foundations high)</mat-label>
     <input matInput type="number" min="1" name="ceiling" [(ngModel)]="ceiling" />
   </mat-form-field>
+  <mat-slide-toggle
+    name="supplyLines"
+    [(ngModel)]="supplyLines"
+    matTooltip="Route what brings an item as one line past the factories that take it, topped up by priority mergers where it runs short, instead of a belt from each source to each factory. Placing stays the same."
+    >Supply lines</mat-slide-toggle
+  >
   <mat-form-field subscriptSizing="dynamic">
     <mat-label>Solver time (s)</mat-label>
     <input matInput type="number" min="1" max="600" name="seconds" [(ngModel)]="seconds" />
@@ -104,6 +110,9 @@
             <td class="number">
               @if (run.beltMetres !== null) {
                 {{ run.beltMetres | number: '1.0-0' }} m · stacks up to {{ run.tallestStack }}
+                @if (run.supplyLines) {
+                  · supply lines
+                }
                 @if (run.unroutedBelts) {
                   <span class="error">· {{ run.unroutedBelts }} not routed</span>
                 }

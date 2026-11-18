@@ -7,6 +7,9 @@ namespace SatisfactoryLedger.World.Contracts.Arrangement;
 /// <param name="Levels">Its level in the stacks on each run from one corner to the next; none in runs from before levels.</param>
 /// <param name="Lifts">The corners where it changes 4 metres or more, on a lift.</param>
 /// <param name="Index">Which of its link's belts it is, from 0; or of its pipes, for a pipe.</param>
+/// <param name="Load">What it carries; null in runs from before the service told it.</param>
+/// <param name="StartsOnBelt">Whether it starts on another belt, at a smart splitter, instead of a lift.</param>
+/// <param name="EndsOnBelt">Whether it ends on another belt, at a priority merger, instead of a lift.</param>
 public sealed record RoutedBeltDocument(
     string From,
     string To,
@@ -15,4 +18,7 @@ public sealed record RoutedBeltDocument(
     bool Pipe = false,
     IReadOnlyList<int>? Levels = null,
     IReadOnlyList<FloorSquareDocument>? Lifts = null,
-    int Index = 0);
+    int Index = 0,
+    BeltLoadDocument? Load = null,
+    bool StartsOnBelt = false,
+    bool EndsOnBelt = false);

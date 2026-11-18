@@ -27,6 +27,8 @@ import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
 import { getArrangement } from '../../api/fn/world/get-arrangement';
+import { getArrangementMachines } from '../../api/fn/world/get-arrangement-machines';
+import { ArrangedMachineResponse } from '../../api/models/arranged-machine-response';
 import { getArrangements } from '../../api/fn/world/get-arrangements';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
@@ -41,18 +43,21 @@ import { ArrangementDeletion } from './arrangement-deletion';
 import { BeltFloor3dDialog, BeltFloor3dDialogData } from './belt-floor-3d-dialog';
 import { CatalogNames } from '../../shared/catalog-names';
 import { MatDialog } from '@angular/material/dialog';
-import { toMapPoint } from '../map/map-model';
+import { footprintShapes, toMapPoint } from '../map/map-model';
 import {
   areaBetween,
   beltEnds,
   beltLine,
   beltTooltip,
   factoryTooltip,
+  joinedWays,
   ceilingHeights,
   ceilingMetres,
   foundations,
   mapBounds,
   metres,
+  lineJoints,
+  placedMachines,
   movedMetres,
   saving,
 } from './arrangement-model';
@@ -118,6 +123,8 @@ export class ArrangementPage {
   protected readonly spotWeight = signal(0.5);
   /** The ceiling of the belt floor below the factories, in foundation heights of 4 metres (BR-O2). */
   protected readonly ceiling = signal(8);
+  /** Whether belts are routed as supply lines, topped up by priority mergers (BR-O2). */
+  protected readonly supplyLines = signal(false);
   protected readonly seconds = signal(60);
   /** The area drawn to arrange, in the game's centimetres. */
   protected readonly area = signal<WorldRectangle | null>(null);
@@ -142,7 +149,11 @@ export class ArrangementPage {
   protected open3d(): void {
     const arrangement = this.arrangement.value();
     if (!arrangement) return;
-    const data: BeltFloor3dDialogData = { arrangement, colourOf: this.colourOf() };
+    const data: BeltFloor3dDialogData = {
+      arrangement,
+      colourOf: this.colourOf(),
+      machines: this.machines.value() ?? null,
+    };
     this.dialog.open(BeltFloor3dDialog, { data, width: '95vw', maxWidth: '95vw', height: '90vh' });
   }
 
@@ -184,6 +195,18 @@ export class ArrangementPage {
       return id ? { id } : undefined;
     },
     loader: ({ params }) => this.api.invoke(getArrangement, params),
+  });
+
+  /**
+   * The shown run's machines as they stand now, to draw moved with their factories as the map draws machines: asked
+   * once the run is ready, since they're read from its snapshot.
+   */
+  private readonly machines = resource({
+    params: () => {
+      const summary = this.arrangement.value()?.summary;
+      return summary?.status === 'ready' ? { id: summary.id } : undefined;
+    },
+    loader: ({ params }) => this.api.invoke(getArrangementMachines, params),
   });
 
   /** The factories of the shown run, the farthest move first. */
@@ -292,6 +315,7 @@ export class ArrangementPage {
       this.together.set(run.together);
       this.spotWeight.set(run.spotWeight);
       this.ceiling.set(ceilingHeights(run.ceilingMetres));
+      this.supplyLines.set(run.supplyLines);
       this.seconds.set(run.seconds);
     });
     effect(() => (this.drawing() ? this.map?.dragging.disable() : this.map?.dragging.enable()));
@@ -326,6 +350,7 @@ export class ArrangementPage {
           together: this.together(),
           spotWeight: this.spotWeight(),
           ceilingMetres: ceilingMetres(this.ceiling()),
+          supplyLines: this.supplyLines(),
           seconds: this.seconds(),
         },
       });
@@ -455,6 +480,13 @@ export class ArrangementPage {
     const traces = this.factories.value() ?? [];
     const points = this.machinePoints();
     const [showNow, focused] = [this.showNow(), this.focused()];
+    const machines = this.machines.value();
+    const footprints = new Map(
+      (machines?.footprints ?? []).map((footprint) => [footprint.id, footprint]),
+    );
+    const owned = new Map<string, ArrangedMachineResponse[]>();
+    for (const machine of machines?.machines ?? [])
+      owned.set(machine.factoryId, [...(owned.get(machine.factoryId) ?? []), machine]);
     if (!this.map) return;
     this.runLayer.clearLayers();
     this.beltLayer.clearLayers();
@@ -481,17 +513,34 @@ export class ArrangementPage {
       const name = factory.name ?? '(deleted)';
       const proposed = L.latLngBounds(mapBounds(factory.proposed));
       const metres = movedMetres(factory.now, factory.proposed);
+      const standing = owned.get(factory.factoryId) ?? [];
       L.rectangle(proposed, {
         color: colour,
         weight: focused.has(factory.factoryId) ? 4 : 2,
         fillColor: colour,
-        fillOpacity: 0.45,
+        fillOpacity: standing.length > 0 ? 0.15 : 0.45,
       })
         .bindTooltip(factoryTooltip(name, metres))
         .on('mouseover', () => this.drawLinks(arrangement, factory.factoryId, centres))
         .on('mouseout', () => this.linkLayer.clearLayers())
         .on('click', () => this.toggleFocus(factory.factoryId))
         .addTo(this.runLayer);
+
+      // Its machines in the middle of the plot, as the map draws them, facing the same way (decided 2026-11-18).
+      for (const moved of placedMachines(standing, footprints, factory.proposed)) {
+        if (!footprints.has(moved.className)) continue;
+        L.polygon(
+          footprintShapes(moved, footprints).map((ring) => [ring]),
+          {
+            fillRule: 'nonzero',
+            color: colour,
+            weight: 1,
+            fillColor: colour,
+            fillOpacity: 0.85,
+            interactive: false,
+          },
+        ).addTo(this.runLayer);
+      }
 
       // Where it stands now: the rectangle around its machines, as built.
       const machines = points.get(factory.factoryId) ?? [];
@@ -541,6 +590,8 @@ export class ArrangementPage {
     focused: ReadonlySet<string>,
   ): void {
     const factories = new Set(arrangement.factories.map((factory) => factory.factoryId));
+    // Spots whose existing belt comes into the area: the yellow circle stands where it comes in, drawn with the way.
+    const comingIn = new Set(arrangement.ways.map((way) => way.spotId));
     for (const belt of arrangement.belts) {
       const picked = focused.has(belt.from) || focused.has(belt.to);
       const dimmed = focused.size > 0 && !picked;
@@ -563,7 +614,12 @@ export class ArrangementPage {
         .addTo(this.beltLayer);
       const spot =
         ends.spot === 'start' ? line[0] : ends.spot === 'end' ? line[line.length - 1] : null;
-      for (const lift of [line[0], line[line.length - 1]]) {
+      // Its lifts: none where it joins another belt, at a splitter or merger drawn below.
+      const lifts = [
+        ...(belt.startsOnBelt ? [] : [line[0]]),
+        ...(belt.endsOnBelt ? [] : [line[line.length - 1]]),
+      ];
+      for (const lift of lifts) {
         const atSpot = lift === spot;
         L.circleMarker(lift, {
           radius: picked ? 3 : 2,
@@ -573,7 +629,11 @@ export class ArrangementPage {
           fillOpacity: dimmed ? 0.25 : 1,
           interactive: false,
         }).addTo(this.beltLayer);
-        if (atSpot && belt.leavesFloor)
+        if (
+          atSpot &&
+          belt.leavesFloor &&
+          !comingIn.has(ends.spot === 'start' ? belt.from : belt.to)
+        )
           L.circleMarker(lift, {
             radius: 6,
             weight: 2,
@@ -583,6 +643,77 @@ export class ArrangementPage {
             interactive: false,
           }).addTo(this.beltLayer);
       }
+    }
+
+    // Outside the area, the existing belts the routed ones join where they come into the area (decided 2026-11-18):
+    // dotted, in the colour of the factory they serve, from the building to a yellow circle on the area's edge. The
+    // routed belts run on across the strip of the area off the floor to it, at right angles.
+    const names = {
+      item: (item: string) => this.names.item(item),
+      building: (name: string) => this.names.building(name),
+    };
+    for (const way of joinedWays(arrangement.ways, arrangement.belts, factories, names)) {
+      const colour = factoryColour(traces, way.factory) ?? '#e0e0e0';
+      const dimmed = focused.size > 0 && !focused.has(way.factory);
+      const entry = toMapPoint({ ...way.entry, z: 0 });
+      const line = way.points.map((point) => toMapPoint({ ...point, z: 0 }));
+      L.polyline(line, {
+        color: colour,
+        weight: 1.5,
+        opacity: dimmed ? 0.25 : 0.8,
+        dashArray: '2 4',
+        interactive: false,
+      }).addTo(this.beltLayer);
+      L.polyline(line, { opacity: 0, weight: 10 })
+        .bindTooltip(way.tooltip, { sticky: true })
+        .addTo(this.beltLayer);
+      for (const link of way.links)
+        L.polyline(
+          link.map((point) => toMapPoint({ ...point, z: 0 })),
+          {
+            color: colour,
+            weight: 1.5,
+            opacity: dimmed ? 0.25 : 0.9,
+            interactive: false,
+          },
+        ).addTo(this.beltLayer);
+      L.circleMarker(entry, {
+        radius: 6,
+        weight: 2,
+        color: '#ffb300',
+        fill: false,
+        opacity: dimmed ? 0.25 : 1,
+        interactive: false,
+      }).addTo(this.beltLayer);
+    }
+
+    // Where supply lines are topped up (decided 2026-11-18): a priority merger, an orange square, where a top-up belt
+    // ends; a smart splitter, a blue diamond, where its overflow runs on.
+    for (const joint of lineJoints(arrangement.belts, (item) => this.names.item(item))) {
+      const [lat, lng] = toMapPoint({ ...joint.at, z: 0 });
+      const [r, d] = [2.5, 3.5];
+      const shape: [number, number][] =
+        joint.kind === 'merger'
+          ? [
+              [lat - r, lng - r],
+              [lat - r, lng + r],
+              [lat + r, lng + r],
+              [lat + r, lng - r],
+            ]
+          : [
+              [lat - d, lng],
+              [lat, lng + d],
+              [lat + d, lng],
+              [lat, lng - d],
+            ];
+      L.polygon(shape, {
+        color: '#111111',
+        weight: 1,
+        fillColor: joint.kind === 'merger' ? '#ff9800' : '#29b6f6',
+        fillOpacity: 1,
+      })
+        .bindTooltip(joint.tooltip)
+        .addTo(this.beltLayer);
     }
   }
 

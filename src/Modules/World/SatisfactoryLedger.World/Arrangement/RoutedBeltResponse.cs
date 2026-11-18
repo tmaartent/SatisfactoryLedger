@@ -11,6 +11,11 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <param name="Levels">Its level on each run, from 0 on the floor: 1 on one belt, 2 on two. Empty for runs from before levels.</param>
 /// <param name="Item">What it carries; null in runs from before loads.</param>
 /// <param name="PerMinute">How much of it a minute.</param>
+/// <param name="Injection">Whether it brings a second source into a supply line, by a priority merger where it ends.</param>
+/// <param name="Overflow">Whether it carries a top-up's overflow on, from a smart splitter where it starts.</param>
+/// <param name="StartsOnBelt">Whether it starts on another belt, at its smart splitter, instead of a lift up from below a
+/// factory or spot.</param>
+/// <param name="EndsOnBelt">Whether it ends on another belt, at its priority merger, instead of a lift up into a factory.</param>
 internal sealed record RoutedBeltResponse(
     string From,
     string To,
@@ -21,4 +26,8 @@ internal sealed record RoutedBeltResponse(
     IReadOnlyList<WorldPoint> Lifts,
     IReadOnlyList<int> Levels,
     string? Item,
-    double? PerMinute);
+    double? PerMinute,
+    bool Injection,
+    bool Overflow,
+    bool StartsOnBelt,
+    bool EndsOnBelt);

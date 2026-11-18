@@ -96,6 +96,19 @@ public class ConnectionBuilderTests
     }
 
     [Fact]
+    public void A_pipe_network_keeps_which_of_its_pipes_touch_to_follow_a_pipe_piece_by_piece()
+    {
+        Wiring wiring = Wire(
+        [
+            .. Feeds("pump.Output", "a.PipelineConnection0"),
+            .. Pipe("a.PipelineConnection1", "b.PipelineConnection0"),
+            .. FedBy("b.PipelineConnection1", "refinery.PipeInputFactory"),
+        ]);
+
+        Assert.Equal([(B("a"), B("b"))], wiring.PipeLinks);
+    }
+
+    [Fact]
     public void A_pipe_network_knows_its_pipes()
     {
         Wiring wiring = Wire(

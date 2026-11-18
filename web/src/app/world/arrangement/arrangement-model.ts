@@ -3,6 +3,8 @@ import { RoutedBeltResponse } from '../../api/models/routed-belt-response';
 import { WorldPoint } from '../../api/models/world-point';
 import { WorldRectangle } from '../../api/models/world-rectangle';
 import { perMinute } from '../../shared/display';
+import { FootprintDocument } from '../../api/models/footprint-document';
+import { buildingBoxes } from '../area/area-model';
 import { fromMapPoint, toMapPoint } from '../map/map-model';
 
 /** A rectangle of the world as two opposite corners on the map, as the map places buildings. */
@@ -18,6 +20,31 @@ export function movedMetres(now: WorldRectangle, proposed: WorldRectangle): numb
   const centre = (r: WorldRectangle) => [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
   const [[x0, y0], [x1, y1]] = [centre(now), centre(proposed)];
   return Math.round(Math.hypot(x1 - x0, y1 - y0) / 100);
+}
+
+/**
+ * The machines of an arranged factory where the run would put them (decided 2026-11-18: drawn as the map draws
+ * machines): every factory is a blueprint that fills its plot, so the rectangle around their boxes, turned the way
+ * they face, stands in the middle of the proposed plot. They keep their places to each other and the way they face.
+ * The plot the factory is on now isn't the reference: the plots start at the drawn area's corner, not where the
+ * blueprints were placed.
+ */
+export function placedMachines<
+  T extends { className: string; position: { x: number; y: number; z: number }; yaw: number },
+>(
+  machines: readonly T[],
+  footprints: ReadonlyMap<string, FootprintDocument>,
+  plot: WorldRectangle,
+): T[] {
+  if (machines.length === 0) return [];
+  const corners = machines.flatMap((machine) => buildingBoxes(machine, footprints).flat());
+  const middle = (values: number[]) => (Math.min(...values) + Math.max(...values)) / 2;
+  const dx = (plot.x0 + plot.x1) / 2 - middle(corners.map((corner) => corner.x));
+  const dy = (plot.y0 + plot.y1) / 2 - middle(corners.map((corner) => corner.y));
+  return machines.map((machine) => ({
+    ...machine,
+    position: { x: machine.position.x + dx, y: machine.position.y + dy, z: machine.position.z },
+  }));
 }
 
 /** The belt work saved, as a share of what it is now: "−34%". */
@@ -82,6 +109,132 @@ export function beltEnds(
     : { factory: belt.from, spot: 'end' };
 }
 
+/**
+ * The existing belts outside the area that routed belts join where they leave the floor (decided 2026-11-18): each with
+ * where it comes into the area (its last point, on the area's edge); how each belt joining it gets there from its end
+ * on the floor's edge, across the strip of the area that isn't floor and then along the area's edge, at right angles;
+ * the factory of one of them for its colour; what it says when pointed at; and the levels the belts joining it run on
+ * there, to show it with them. One no routed belt joins is left out.
+ */
+export function joinedWays(
+  ways: readonly { spotId: string; points: WorldPoint[] }[],
+  belts: readonly Pick<
+    RoutedBeltResponse,
+    | 'from'
+    | 'to'
+    | 'leavesFloor'
+    | 'corners'
+    | 'levels'
+    | 'item'
+    | 'perMinute'
+    | 'pipe'
+    | 'injection'
+  >[],
+  factories: ReadonlySet<string>,
+  names: { item: (item: string) => string; building: (className: string) => string },
+): {
+  points: WorldPoint[];
+  factory: string;
+  entry: WorldPoint;
+  links: WorldPoint[][];
+  tooltip: string;
+  levels: number[];
+}[] {
+  return ways.flatMap((way) => {
+    const joining = belts.filter(
+      (belt) => belt.leavesFloor && (belt.from === way.spotId || belt.to === way.spotId),
+    );
+    const entry = way.points[way.points.length - 1];
+    if (joining.length === 0 || !entry) return [];
+    const links = joining.map((belt) =>
+      across(
+        belt.from === way.spotId ? belt.corners[0] : belt.corners[belt.corners.length - 1],
+        entry,
+      ),
+    );
+    const carried = [
+      ...new Set(joining.map((belt) => carries(belt, names.item)).filter((text) => text !== null)),
+    ];
+    return [
+      {
+        points: way.points,
+        factory: beltEnds(joining[0], factories).factory,
+        entry,
+        links,
+        tooltip: [
+          `<b>Existing belt</b> from ${spotName(way.spotId, names.building)}`,
+          ...carried,
+        ].join('<br>'),
+        levels: [
+          ...new Set(
+            joining.map((belt) =>
+              belt.from === way.spotId
+                ? (belt.levels[0] ?? 0)
+                : (belt.levels[belt.levels.length - 1] ?? 0),
+            ),
+          ),
+        ],
+      },
+    ];
+  });
+}
+
+/**
+ * From a belt's end on the floor's edge to where its existing belt comes in on the area's edge, at right angles: across
+ * the strip between them first, then along the area's edge; straight when they're in line.
+ */
+function across(end: WorldPoint, entry: WorldPoint): WorldPoint[] {
+  const corner =
+    Math.abs(entry.x - end.x) >= Math.abs(entry.y - end.y)
+      ? { x: entry.x, y: end.y }
+      : { x: end.x, y: entry.y };
+  const same = (a: WorldPoint, b: WorldPoint) => a.x === b.x && a.y === b.y;
+  return same(corner, end) || same(corner, entry) ? [end, entry] : [end, corner, entry];
+}
+
+/**
+ * The building of a spot by its id, as the game names it: "Miner Mk.2", "Miner Mk.2 and 2 more" for buildings merged
+ * onto one belt ("…Build_MinerMk2_C_2147339296+2"); the id itself when it names none.
+ */
+function spotName(spotId: string, building: (className: string) => string): string {
+  const className = /(Build_\w+?_C)_\d+/.exec(spotId)?.[1];
+  const more = /\+(\d+)/.exec(spotId)?.[1];
+  return `${className ? building(className) : spotId}${more ? ` and ${more} more` : ''}`;
+}
+
+/**
+ * How a piece of a belt shows in 3D for the levels picked (decided 2026-11-18): a run, a lift, a splitter or merger on
+ * it, or the existing belt outside it joins. A belt with a run on a level picked shows whole, so it's seen how it
+ * connects: its pieces on the levels picked as they are, the rest faded. One with no run on a level picked is hidden.
+ * @param own the levels the piece is on
+ * @param belt the levels its belt (or belts) run on
+ */
+export function levelShown(
+  levels: ReadonlySet<number> | null,
+  own: readonly number[],
+  belt: readonly number[],
+): 'full' | 'faded' | 'hidden' {
+  if (levels === null) return 'full';
+  if (!belt.some((level) => levels.has(level))) return 'hidden';
+  return own.some((level) => levels.has(level)) ? 'full' : 'faded';
+}
+
+/**
+ * The factories shown in 3D for the levels picked (decided 2026-11-18): with every level, all of them (null); else
+ * those a belt or pipe running on a picked level comes from or goes to, so only what the lines shown connect shows.
+ */
+export function shownFactories(
+  levels: ReadonlySet<number> | null,
+  belts: readonly Pick<RoutedBeltResponse, 'from' | 'to' | 'levels'>[],
+): Set<string> | null {
+  if (levels === null) return null;
+  return new Set(
+    belts
+      .filter((belt) => belt.levels.some((level) => levels.has(level)))
+      .flatMap((belt) => [belt.from, belt.to]),
+  );
+}
+
 /** How long a ramp of 2 metres is along its belt: half a foundation. */
 const rampMetres = 4;
 
@@ -92,10 +245,21 @@ const rampMetres = 4;
  * or more is a lift, straight up or down at the turn (decided 2026-11-18). Runs from before levels lie on the floor.
  */
 export function beltPath3d(
-  belt: Pick<RoutedBeltResponse, 'corners' | 'heights' | 'lifts'>,
+  belt: Pick<RoutedBeltResponse, 'corners' | 'heights' | 'lifts'> &
+    Partial<Pick<RoutedBeltResponse, 'from' | 'to' | 'startsOnBelt' | 'endsOnBelt'>>,
   middle: { x: number; y: number },
   ceilingMetres: number,
+  factories?: ReadonlySet<string>,
 ): [number, number, number][] {
+  // At an end, a lift: up into a factory; down to the ground at a node, station or drone port, which stand on it, and
+  // at the floor's edge, where a belt leaves to join an existing one (when it's known which ends are factories); none
+  // where it joins another belt.
+  const liftTo = (end: string | undefined, joins: boolean | undefined): number | null =>
+    joins
+      ? null
+      : factories === undefined || (end !== undefined && factories.has(end))
+        ? ceilingMetres
+        : 0;
   const { corners } = belt;
   const heights = belt.heights.length > 0 ? belt.heights : corners.slice(1).map(() => 0);
   const at = (point: WorldPoint, height: number): [number, number, number] => [
@@ -106,7 +270,12 @@ export function beltPath3d(
   const onLift = (point: WorldPoint) =>
     belt.lifts.some((lift) => lift.x === point.x && lift.y === point.y);
 
-  const path = [at(corners[0], ceilingMetres), at(corners[0], heights[0])];
+  // A lift down from the factory or spot above, unless it starts on another belt, at its smart splitter.
+  const start = liftTo(belt.from, belt.startsOnBelt);
+  const path = [
+    ...(start !== null && start !== heights[0] ? [at(corners[0], start)] : []),
+    at(corners[0], heights[0]),
+  ];
   for (let i = 1; i < corners.length - 1; i++) {
     const [before, corner, after] = [heights[i - 1], corners[i], heights[i]];
     if (before === after) {
@@ -126,17 +295,76 @@ export function beltPath3d(
   }
 
   const last = corners[corners.length - 1];
-  path.push(at(last, heights[heights.length - 1]), at(last, ceilingMetres));
+  // A lift up into the factory or spot, unless it ends on another belt, at its priority merger.
+  path.push(at(last, heights[heights.length - 1]));
+  const end = liftTo(belt.to, belt.endsOnBelt);
+  if (end !== null && end !== heights[heights.length - 1]) path.push(at(last, end));
   return path;
 }
 
 /** What a routed belt carries, as its tooltip says it: "Iron Ingot · 600/min"; null for runs from before loads. */
 export function carries(
-  belt: Pick<RoutedBeltResponse, 'item' | 'perMinute' | 'pipe'>,
+  belt: Pick<RoutedBeltResponse, 'item' | 'perMinute' | 'pipe' | 'injection'>,
   name: (item: string) => string,
 ): string | null {
   if (belt.item == null || belt.perMinute == null) return null;
-  return `${name(belt.item)} · ${perMinute(belt.perMinute)}${belt.pipe ? ' · pipe' : ''}`;
+  return [
+    name(belt.item),
+    perMinute(belt.perMinute),
+    ...(belt.pipe ? ['pipe'] : []),
+    ...(belt.injection ? ['into a priority merger'] : []),
+  ].join(' · ');
+}
+
+/**
+ * A smart splitter or a priority merger of a supply line on the belt floor (decided 2026-11-18), on the map and in 3D:
+ * where a belt carrying a top-up's overflow on starts, at its smart splitter, and where a top-up belt ends, at its
+ * priority merger; with what it says when pointed at. On the floor, at the belt's height in metres, where the belt joins
+ * another there; else null, up in the factory, where the belts go up into it.
+ */
+export function lineJoints(
+  belts: readonly (Pick<
+    RoutedBeltResponse,
+    'corners' | 'heights' | 'levels' | 'item' | 'perMinute' | 'pipe' | 'injection' | 'overflow'
+  > &
+    Partial<Pick<RoutedBeltResponse, 'startsOnBelt' | 'endsOnBelt'>>)[],
+  name: (item: string) => string,
+): {
+  kind: 'splitter' | 'merger';
+  at: WorldPoint;
+  height: number | null;
+  level: number;
+  tooltip: string;
+}[] {
+  return belts.flatMap((belt) => {
+    const [first, last] = [belt.corners[0], belt.corners[belt.corners.length - 1]];
+    if (!first || !last) return [];
+    const what = belt.item ? name(belt.item) : 'the item';
+    return [
+      ...(belt.overflow
+        ? [
+            {
+              kind: 'splitter' as const,
+              at: first,
+              height: belt.startsOnBelt ? (belt.heights[0] ?? 0) : null,
+              level: belt.levels[0] ?? 0,
+              tooltip: `<b>Smart splitter</b><br>the overflow of ${what} runs on${belt.perMinute != null ? `: ${perMinute(belt.perMinute)}` : ''}`,
+            },
+          ]
+        : []),
+      ...(belt.injection
+        ? [
+            {
+              kind: 'merger' as const,
+              at: last,
+              height: belt.endsOnBelt ? (belt.heights[belt.heights.length - 1] ?? 0) : null,
+              level: belt.levels[belt.levels.length - 1] ?? 0,
+              tooltip: `<b>Priority merger</b><br>${carries(belt, name) ?? what}`,
+            },
+          ]
+        : []),
+    ];
+  });
 }
 
 /** What a proposed factory says when pointed at, on the map and in 3D: its name, and how far it moves. */
@@ -156,7 +384,7 @@ export function levelText(levels: readonly number[]): string | null {
 
 /** What a routed belt says when pointed at, on the map and in 3D: what it carries, and its level. */
 export function beltTooltip(
-  belt: Pick<RoutedBeltResponse, 'item' | 'perMinute' | 'pipe' | 'levels'>,
+  belt: Pick<RoutedBeltResponse, 'item' | 'perMinute' | 'pipe' | 'injection' | 'levels'>,
   name: (item: string) => string,
 ): string {
   return [carries(belt, name) ?? 'From a run before loads', levelText(belt.levels)]
@@ -170,15 +398,22 @@ export function beltTooltip(
  * they reach. From 0 for runs from before levels.
  */
 export function beltStretches3d(
-  belt: Pick<RoutedBeltResponse, 'corners' | 'heights' | 'levels' | 'lifts'>,
+  belt: Pick<RoutedBeltResponse, 'corners' | 'heights' | 'levels' | 'lifts'> &
+    Partial<Pick<RoutedBeltResponse, 'from' | 'to' | 'startsOnBelt' | 'endsOnBelt'>>,
   middle: { x: number; y: number },
   ceilingMetres: number,
+  factories?: ReadonlySet<string>,
 ): { from: [number, number, number]; to: [number, number, number]; level: number }[] {
   const levelAt = (height: number) => belt.levels[belt.heights.indexOf(height)] ?? 0;
-  const path = beltPath3d(belt, middle, ceilingMetres);
-  return path.slice(1).map((to, i) => ({
-    from: path[i],
-    to,
-    level: levelAt(Math.min(path[i][1], to[1])),
-  }));
+  const path = beltPath3d(belt, middle, ceilingMetres, factories);
+  const last = path.length - 2;
+  return path.slice(1).map((to, i) => {
+    const from = path[i];
+    // A lift at an end goes with the belt's run there, up to a factory or down to the ground; a ramp or lift between
+    // two runs with the lower.
+    const lift = from[0] === to[0] && from[2] === to[2];
+    const height =
+      lift && i === 0 ? to[1] : lift && i === last ? from[1] : Math.min(from[1], to[1]);
+    return { from, to, level: levelAt(height) };
+  });
 }

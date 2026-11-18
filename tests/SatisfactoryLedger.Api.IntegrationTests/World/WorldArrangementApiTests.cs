@@ -89,6 +89,44 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
     }
 
     [Fact]
+    public async Task With_supply_lines_the_belts_are_routed_as_lines_and_say_what_they_carry()
+    {
+        ArrangementSummary requested = (await (await RequestAsync(new { plotWidthMetres = 16, plotDepthMetres = 16, roadXMetres = 8, roadYMetres = 8, supplyLines = true, seconds = 5 }))
+            .Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+
+        Arrangement ready = await ReadyAsync(requested.Id);
+
+        Assert.True(ready.Summary.SupplyLines);
+        Assert.Equal(0, ready.Summary.UnroutedBelts);
+        Assert.Contains(ready.Belts, belt => belt.Item == "Desc_IronIngot_C");
+        Assert.All(ready.Belts, belt => Assert.True(belt.Item is not null && belt.PerMinute > 0 && !belt.Injection, $"{belt.From} → {belt.To} carries {belt.Item} at {belt.PerMinute}"));
+    }
+
+    [Fact]
+    public async Task The_machines_of_a_runs_factories_come_with_their_footprints_as_they_stand_now()
+    {
+        ArrangementSummary requested = (await (await RequestAsync(new { plotWidthMetres = 16, plotDepthMetres = 16, roadXMetres = 8, roadYMetres = 8, seconds = 5 }))
+            .Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+        Arrangement ready = await ReadyAsync(requested.Id);
+
+        ArrangementMachines machines = await _client.GetAsync<ArrangementMachines>($"/api/v1/world/arrangements/{requested.Id}/machines");
+
+        Assert.Equal(
+            ready.Factories.Select(factory => factory.FactoryId).Order(),
+            machines.Machines.Select(machine => machine.FactoryId).Distinct().Order());
+        Assert.All(machines.Machines, machine => Assert.Contains(machines.Footprints, footprint => footprint.Id == machine.ClassName));
+    }
+
+    [Fact]
+    public async Task The_machines_of_an_unknown_run_are_not_found()
+    {
+        HttpResponseMessage response = await _client.GetAsync(
+            $"/api/v1/world/arrangements/{Guid.CreateVersion7()}/machines", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Belts_to_nodes_and_stations_cannot_weigh_below_nothing()
     {
         HttpResponseMessage response = await RequestAsync(new { spotWeight = -1 });

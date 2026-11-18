@@ -120,6 +120,6 @@ internal static class ConnectionBuilder
             .Where(network => !fedHubs.Contains(network.Hub))
             .SelectMany(network => network.Pipes.Where(fluidBuffers.Contains).Select(buffer => new Connection(buffer, network.Hub))));
 
-        return new Wiring([.. connections.Distinct()], networks);
+        return new Wiring([.. connections.Distinct()], networks, [.. undirected.Distinct()]);
     }
 }

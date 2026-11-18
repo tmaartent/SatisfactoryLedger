@@ -6,15 +6,20 @@ import {
   beltStretches3d,
   carries,
   factoryTooltip,
+  joinedWays,
   levelText,
+  lineJoints,
   beltTooltip,
   ceilingHeights,
   ceilingMetres,
   foundations,
   mapBounds,
   metres,
+  placedMachines,
   movedMetres,
   saving,
+  shownFactories,
+  levelShown,
 } from './arrangement-model';
 
 describe('optimal arrangement', () => {
@@ -125,6 +130,62 @@ describe('optimal arrangement', () => {
 
       expect(beltPath3d(belt, middle, 32)[1]).toEqual([0, 0, 0]);
     });
+
+    it("lifts a belt up only into a factory: to a miner, station or drone port, or the floor's edge it leaves by, it goes down to the ground", () => {
+      const belt = {
+        from: 'miner',
+        to: 'smelters',
+        corners: [
+          { x: 0, y: 0 },
+          { x: 1600, y: 0 },
+        ],
+        heights: [4],
+        lifts: [],
+      };
+
+      expect(beltPath3d(belt, middle, 32, new Set(['smelters']))).toEqual([
+        [0, 0, 0],
+        [0, 4, 0],
+        [16, 4, 0],
+        [16, 32, 0],
+      ]);
+    });
+
+    it('stops a belt that ends on another at its level there, at the merger: no lift up into the factory', () => {
+      const belt = {
+        corners: [
+          { x: 0, y: 0 },
+          { x: 1600, y: 0 },
+        ],
+        heights: [4],
+        lifts: [],
+        endsOnBelt: true,
+      };
+
+      expect(beltPath3d(belt, middle, 32)).toEqual([
+        [0, 32, 0],
+        [0, 4, 0],
+        [16, 4, 0],
+      ]);
+    });
+
+    it('starts a belt that leaves another at its level there, at the splitter: no lift down from a factory', () => {
+      const belt = {
+        corners: [
+          { x: 0, y: 0 },
+          { x: 1600, y: 0 },
+        ],
+        heights: [4],
+        lifts: [],
+        startsOnBelt: true,
+      };
+
+      expect(beltPath3d(belt, middle, 32)).toEqual([
+        [0, 4, 0],
+        [16, 4, 0],
+        [16, 32, 0],
+      ]);
+    });
   });
 
   describe('what a routed belt carries, as its tooltip says it', () => {
@@ -132,19 +193,242 @@ describe('optimal arrangement', () => {
       ({ Desc_IronIngot_C: 'Iron Ingot', Desc_Water_C: 'Water' })[item] ?? item;
 
     it('names the item and its rate', () => {
-      expect(carries({ item: 'Desc_IronIngot_C', perMinute: 12.5, pipe: false }, name)).toBe(
-        'Iron Ingot · 12.5/min',
-      );
+      expect(
+        carries({ item: 'Desc_IronIngot_C', perMinute: 12.5, pipe: false, injection: false }, name),
+      ).toBe('Iron Ingot · 12.5/min');
     });
 
     it('says so for a pipe', () => {
-      expect(carries({ item: 'Desc_Water_C', perMinute: 500, pipe: true }, name)).toBe(
-        'Water · 500/min · pipe',
-      );
+      expect(
+        carries({ item: 'Desc_Water_C', perMinute: 500, pipe: true, injection: false }, name),
+      ).toBe('Water · 500/min · pipe');
+    });
+
+    it('says when it tops up a supply line by a priority merger', () => {
+      expect(
+        carries({ item: 'Desc_IronIngot_C', perMinute: 300, pipe: false, injection: true }, name),
+      ).toBe('Iron Ingot · 300/min · into a priority merger');
     });
 
     it('says nothing for a run from before loads', () => {
-      expect(carries({ item: null, perMinute: null, pipe: false }, name)).toBeNull();
+      expect(
+        carries({ item: null, perMinute: null, pipe: false, injection: false }, name),
+      ).toBeNull();
+    });
+  });
+
+  describe('the machines of an arranged factory', () => {
+    // A footprint 10 metres along its x and 2 across, from its position forward.
+    const footprints = new Map([
+      [
+        'Build_SmelterMk1_C',
+        { id: 'Build_SmelterMk1_C', minX: 0, maxX: 1000, minY: -100, maxY: 100 },
+      ],
+    ]);
+    const plot = { x0: 0, y0: 0, x1: 4800, y1: 4800 };
+
+    it('stand in the middle of the proposed plot, as a blueprint fills it, keeping their places to each other', () => {
+      const machines = [
+        { className: 'Build_SmelterMk1_C', position: { x: 10000, y: 20000, z: 900 }, yaw: 0 },
+        { className: 'Build_SmelterMk1_C', position: { x: 12000, y: 20000, z: 900 }, yaw: 0 },
+      ];
+
+      // Around them: x from 10000 to 13000, y from 19900 to 20100; the plot's middle is (2400, 2400).
+      expect(placedMachines(machines, footprints, plot).map((machine) => machine.position)).toEqual(
+        [
+          { x: 900, y: 2400, z: 900 },
+          { x: 2900, y: 2400, z: 900 },
+        ],
+      );
+    });
+
+    it('count their footprints turned the way they face', () => {
+      // Turned a quarter, the footprint runs along y: from 0 to 1000 there, its middle 500 past its position.
+      const machines = [
+        { className: 'Build_SmelterMk1_C', position: { x: 0, y: 0, z: 0 }, yaw: 90 },
+      ];
+
+      const [placed] = placedMachines(machines, footprints, plot);
+
+      expect(placed.position.x).toBeCloseTo(2400);
+      expect(placed.position.y).toBeCloseTo(1900);
+      expect(placed.yaw).toBe(90);
+    });
+  });
+
+  describe('the smart splitters and priority mergers of supply lines', () => {
+    const name = (item: string) => ({ Desc_OreIron_C: 'Iron Ore' })[item] ?? item;
+    const belt = {
+      corners: [
+        { x: 0, y: 0 },
+        { x: 800, y: 0 },
+        { x: 800, y: 1600 },
+      ],
+      heights: [2, 6],
+      levels: [1, 3],
+      item: 'Desc_OreIron_C',
+      perMinute: 300,
+      pipe: false,
+      injection: false,
+      overflow: false,
+    };
+
+    it('puts a priority merger where a top-up belt ends', () => {
+      expect(lineJoints([{ ...belt, injection: true }], name)).toEqual([
+        {
+          kind: 'merger',
+          at: { x: 800, y: 1600 },
+          height: null,
+          level: 3,
+          tooltip: '<b>Priority merger</b><br>Iron Ore · 300/min · into a priority merger',
+        },
+      ]);
+    });
+
+    it("puts a smart splitter where a belt carrying a top-up's overflow on starts", () => {
+      expect(lineJoints([{ ...belt, overflow: true }], name)).toEqual([
+        {
+          kind: 'splitter',
+          at: { x: 0, y: 0 },
+          height: null,
+          level: 1,
+          tooltip: '<b>Smart splitter</b><br>the overflow of Iron Ore runs on: 300/min',
+        },
+      ]);
+    });
+
+    it('puts both on an overflow that tops up the next merger', () => {
+      expect(
+        lineJoints([{ ...belt, injection: true, overflow: true }], name).map((joint) => joint.kind),
+      ).toEqual(['splitter', 'merger']);
+    });
+
+    it("puts them on the floor, at the belt's height, where the belts join there", () => {
+      const joints = lineJoints(
+        [{ ...belt, injection: true, overflow: true, startsOnBelt: true, endsOnBelt: true }],
+        name,
+      );
+
+      expect(joints.map((joint) => [joint.kind, joint.height])).toEqual([
+        ['splitter', 2],
+        ['merger', 6],
+      ]);
+    });
+
+    it('puts neither on a belt along a line', () => {
+      expect(lineJoints([belt], name)).toEqual([]);
+    });
+  });
+
+  describe('the existing belts outside the area that routed belts join', () => {
+    const factories = new Set(['smelters']);
+    const miner = 'Persistent_Level:PersistentLevel.Build_MinerMk2_C_2147339296';
+    const names = {
+      item: (item: string) => ({ Desc_Stone_C: 'Limestone' })[item] ?? item,
+      building: (className: string) => ({ Build_MinerMk2_C: 'Miner Mk.2' })[className] ?? className,
+    };
+    // From the miner far west to where it comes in at the area's edge, x = 0; the floor ends 10 m inside it.
+    const way = {
+      spotId: miner,
+      points: [
+        { x: -5000, y: 0 },
+        { x: 0, y: 0 },
+      ],
+    };
+    const belt = {
+      from: miner,
+      to: 'smelters',
+      leavesFloor: true,
+      corners: [
+        { x: 1000, y: 0 },
+        { x: 3000, y: 0 },
+      ],
+      levels: [2],
+      item: 'Desc_Stone_C',
+      perMinute: 600,
+      pipe: false,
+      injection: false,
+    };
+
+    it('come into the area where the belts joining them leave the floor, across the strip off the floor', () => {
+      expect(joinedWays([way], [belt], factories, names)).toEqual([
+        {
+          points: way.points,
+          factory: 'smelters',
+          entry: { x: 0, y: 0 },
+          links: [
+            [
+              { x: 1000, y: 0 },
+              { x: 0, y: 0 },
+            ],
+          ],
+          tooltip: '<b>Existing belt</b> from Miner Mk.2<br>Limestone · 600/min',
+          levels: [2],
+        },
+      ]);
+    });
+
+    it("are reached across the strip off the floor at right angles: across it, then along the area's edge", () => {
+      const beside = { ...belt, corners: [{ x: 1000, y: 800 }, ...belt.corners.slice(1)] };
+
+      expect(joinedWays([way], [beside], factories, names)[0].links).toEqual([
+        [
+          { x: 1000, y: 800 },
+          { x: 0, y: 800 },
+          { x: 0, y: 0 },
+        ],
+      ]);
+    });
+
+    it('name how many buildings merge onto them', () => {
+      const merged = `${miner}+2`;
+
+      expect(
+        joinedWays([{ ...way, spotId: merged }], [{ ...belt, from: merged }], factories, names)[0]
+          .tooltip,
+      ).toBe('<b>Existing belt</b> from Miner Mk.2 and 2 more<br>Limestone · 600/min');
+    });
+
+    it('leave out a way no routed belt joins', () => {
+      expect(joinedWays([way], [{ ...belt, leavesFloor: false }], factories, names)).toEqual([]);
+    });
+  });
+
+  describe('a piece of a belt in 3D for the levels picked', () => {
+    it('is drawn as it is with every level', () => {
+      expect(levelShown(null, [3], [3, 6])).toBe('full');
+    });
+
+    it('is drawn as it is on a level picked', () => {
+      expect(levelShown(new Set([3]), [3], [3, 6])).toBe('full');
+    });
+
+    it('is faded on a level not picked, when its belt runs on one picked too: it shows how the belt connects', () => {
+      expect(levelShown(new Set([3]), [6], [3, 6])).toBe('faded');
+    });
+
+    it('is hidden when its belt runs on no level picked', () => {
+      expect(levelShown(new Set([1]), [3], [3, 6])).toBe('hidden');
+    });
+  });
+
+  describe('the factories shown in 3D for the levels picked', () => {
+    const belts = [
+      { from: 'smelters', to: 'plates', levels: [0, 1] },
+      { from: 'miner', to: 'smelters', levels: [2] },
+      { from: 'wire', to: 'cable', levels: [0] },
+    ];
+
+    it('are every one with every level picked', () => {
+      expect(shownFactories(null, belts)).toBeNull();
+    });
+
+    it('are those a belt on a picked level comes from or goes to', () => {
+      expect([...shownFactories(new Set([1]), belts)!].sort()).toEqual(['plates', 'smelters']);
+    });
+
+    it('are none with no level picked', () => {
+      expect(shownFactories(new Set(), belts)!.size).toBe(0);
     });
   });
 
@@ -175,7 +459,16 @@ describe('optimal arrangement', () => {
   it('tells what a belt carries and its level when pointed at', () => {
     const name = () => 'Iron Ingot';
     expect(
-      beltTooltip({ item: 'Desc_IronIngot_C', perMinute: 12.5, pipe: false, levels: [1, 1] }, name),
+      beltTooltip(
+        {
+          item: 'Desc_IronIngot_C',
+          perMinute: 12.5,
+          pipe: false,
+          injection: false,
+          levels: [1, 1],
+        },
+        name,
+      ),
     ).toBe('Iron Ingot · 12.5/min · level 1');
   });
 
@@ -201,6 +494,22 @@ describe('optimal arrangement', () => {
       expect(beltStretches3d(belt, middle, 32).map((stretch) => stretch.level)).toEqual([
         0, 0, 0, 1, 1,
       ]);
+    });
+
+    it('puts a lift down to the ground at a station on the level of its belt there', () => {
+      const belt = {
+        from: 'station',
+        to: 'smelters',
+        corners: [at(0, 0), at(40, 0)],
+        heights: [14],
+        levels: [7],
+        lifts: [],
+      };
+
+      // Down to the station, along at 7, up into the smelters.
+      expect(
+        beltStretches3d(belt, middle, 32, new Set(['smelters'])).map((stretch) => stretch.level),
+      ).toEqual([7, 7, 7]);
     });
 
     it('is on the floor for a run from before levels', () => {

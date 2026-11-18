@@ -42,13 +42,11 @@ internal static class InternalArrangementEndpoints
             return TypedResults.Conflict();
         }
 
-        (ArrangementProblem problem, ArrangementGrid grid, IReadOnlyDictionary<string, GridRectangle> spots, IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> loads) =
-            await ArrangementProblems.MakeAsync(db, run, snapshot.Value.Document, content, cancellationToken);
-
-        string json = WorldArrangement.ToDocument(problem, run.Seconds, run.Settings.Floor, spots, loads).ToJson();
+        MadeArrangement made = await ArrangementProblems.MakeAsync(db, run, snapshot.Value.Document, content, cancellationToken);
+        string json = made.ToDocument(run.Seconds, run.Settings.Floor).ToJson();
         run.Problem = json;
-        run.GridOriginX = grid.OriginX;
-        run.GridOriginY = grid.OriginY;
+        run.GridOriginX = made.Grid.OriginX;
+        run.GridOriginY = made.Grid.OriginY;
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.Text(json, "application/json");
     }

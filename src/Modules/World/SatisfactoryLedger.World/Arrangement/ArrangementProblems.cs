@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.World.Contracts.Analysis;
-using SatisfactoryLedger.World.Contracts.Arrangement;
 using SatisfactoryLedger.World.Domain.Arrangement;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
@@ -12,11 +11,7 @@ namespace SatisfactoryLedger.World.Arrangement;
 internal static class ArrangementProblems
 {
     /// <summary>The run's whole problem, its links weighed by the analysis: what the analysis service solves.</summary>
-    public static async Task<(
-        ArrangementProblem Problem,
-        ArrangementGrid Grid,
-        IReadOnlyDictionary<string, GridRectangle> Spots,
-        IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> Loads)> MakeAsync(
+    public static async Task<MadeArrangement> MakeAsync(
         WorldDbContext db, StoredArrangement run, SnapshotDocument snapshot, string analysis, CancellationToken cancellationToken)
     {
         return WorldArrangement.Of(snapshot, AnalysisDocument.FromJson(analysis), await FactoriesAsync(db, run, cancellationToken), run.Settings);

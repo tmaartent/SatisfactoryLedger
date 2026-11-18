@@ -35,13 +35,7 @@ internal static class WorldArrangement
         ["Build_TrainDockingStation_C", "Build_TrainDockingStationLiquid_C", "Build_TruckStation_C", "Build_DroneStation_C"],
         StringComparer.Ordinal);
 
-    /// <returns>The problem; its grid; where the spots stand, in squares; and per link what each of its belts and pipes
-    /// carries, in the order the router numbers them.</returns>
-    public static (
-        ArrangementProblem Problem,
-        ArrangementGrid Grid,
-        IReadOnlyDictionary<string, GridRectangle> Spots,
-        IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> Loads) Of(
+    public static MadeArrangement Of(
         SnapshotDocument snapshot, AnalysisDocument analysis, IReadOnlyList<StoredFactory> factories, ArrangementSettings settings) =>
         Make(snapshot, analysis, factories, settings);
 
@@ -53,11 +47,7 @@ internal static class WorldArrangement
         Make(snapshot, analysis: null, factories, settings).Problem;
 
     /// <param name="analysis">The flows that make the links; none without it.</param>
-    private static (
-        ArrangementProblem Problem,
-        ArrangementGrid Grid,
-        IReadOnlyDictionary<string, GridRectangle> Spots,
-        IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> Loads) Make(
+    private static MadeArrangement Make(
         SnapshotDocument snapshot, AnalysisDocument? analysis, IReadOnlyList<StoredFactory> factories, ArrangementSettings settings)
     {
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
@@ -92,6 +82,50 @@ internal static class WorldArrangement
         }
 
         HashSet<string> chosen = [.. traced.Where(entry => Inside(entry.Outline, area)).Select(entry => entry.Factory.Id.ToString())];
+
+        // Where the existing belts from buildings wholly outside the area come into it (decided 2026-11-18): followed from
+        // the building to the machines of the factories it supplies (or that send to it), not any arranged factory's: a
+        // freight platform unloads onto belts of every item (2026-11-18: rubber was followed round the outside to
+        // another factory). Of buildings merged onto one belt, the one with the shortest way outside.
+        Dictionary<string, HashSet<string>> machinesOf = traced
+            .Where(entry => chosen.Contains(entry.Factory.Id.ToString()))
+            .ToDictionary(entry => entry.Factory.Id.ToString(), entry => entry.Members.Machines.Select(machine => machine.Id).ToHashSet(StringComparer.Ordinal));
+        HashSet<string> arrangedMachines = [.. machinesOf.Values.SelectMany(machines => machines)];
+        Dictionary<string, HashSet<string>> feeds = new(StringComparer.Ordinal);
+        void Feeds(string building, string factory)
+        {
+            (feeds.TryGetValue(building, out HashSet<string>? found) ? found : feeds[building] = new(StringComparer.Ordinal)).Add(factory);
+        }
+
+        Dictionary<string, SpotEntry> entries = new(StringComparer.Ordinal);
+        ILookup<string, string> pipes = snapshot.PipeNeighbours();
+        void Enter(string id, IEnumerable<string> standing, List<(double X, double Y)> outline)
+        {
+            // Only for a building wholly outside: one on the area's edge is reached where it stands, as one inside.
+            if (entries.ContainsKey(id) || Touches(outline, area))
+            {
+                return;
+            }
+
+            ExistingWay? shortest = null;
+            foreach (string building in standing)
+            {
+                HashSet<string> targets = [.. (feeds.GetValueOrDefault(building) ?? []).SelectMany(factory => machinesOf.GetValueOrDefault(factory) ?? [])];
+                if (ExistingWays.Into(world, buildables, pipes, building, targets.Count > 0 ? targets : arrangedMachines, area) is { } way
+                    && (shortest is null || Length(way.Outside) < Length(shortest.Outside)))
+                {
+                    shortest = way;
+                }
+            }
+
+            if (shortest is not null)
+            {
+                GridRectangle at = grid.SquaresTouching([(shortest.Entry.X, shortest.Entry.Y)], settings.Floor);
+
+                // A few squares round where it comes in, so the belts of a station can leave side by side.
+                entries[id] = new SpotEntry(new GridRectangle(at.X - 2, at.Y - 2, at.Width + 4, at.Depth + 4), shortest.Outside);
+            }
+        }
         List<ArrangedFactory> arranged = [];
         Dictionary<string, FixedPlace> fixedPlaces = new(StringComparer.Ordinal);
         // Per link between factories and item, what it carries: rounded to belts only once it's all added up.
@@ -102,23 +136,28 @@ internal static class WorldArrangement
         // can reach one station over several lines (2026-11-18: four Manufacturers' 2.5 Singularity Cells a minute to a
         // drone port were four belts).
         Dictionary<(string From, string To, string Item), double> spotRates = [];
+        List<(double X, double Y)> OutlineOf(IEnumerable<string> standing) => [.. standing
+            .Select(buildables.GetValueOrDefault)
+            .OfType<BuildableDocument>()
+            .SelectMany(building => Outline(building, footprints))];
         void AddSpot(string id, IEnumerable<string> standing, string from, string to, string item, double perMinute)
         {
-            List<(double X, double Y)> outline = [.. standing
-                .Select(buildables.GetValueOrDefault)
-                .OfType<BuildableDocument>()
-                .SelectMany(building => Outline(building, footprints))];
+            List<(double X, double Y)> outline = OutlineOf(standing);
             if (outline.Count == 0 || perMinute <= 0)
             {
                 return;
             }
 
             spots.TryAdd(id, grid.SquaresTouching(outline, floor));
+            Enter(id, standing, outline);
 
             // A station or drone port blocks its plots below; a node doesn't.
             fixedPlaces.TryAdd(id, new FixedPlace(id, grid.PlotsTouching(outline), Blocks: false));
             spotRates[(from, to, item)] = spotRates.GetValueOrDefault((from, to, item)) + perMinute;
         }
+
+        // What the arranged factories send to stations and drone ports, per station and item: for the supply lines.
+        List<(string From, Supply Station, string Item)> stationRates = [];
 
         // Per arranged factory and item, the extractors, stations and drone ports that feed it: merged onto belts afterwards.
         Dictionary<(string To, string Item), List<Supply>> supplies = [];
@@ -145,6 +184,7 @@ internal static class WorldArrangement
                     {
                         List<Supply> feeding = supplies.TryGetValue((to, input.Item), out List<Supply>? found) ? found : supplies[(to, input.Item)] = [];
                         feeding.Add(new Supply(building, position.X, position.Y, source.PerMinute));
+                        Feeds(building, to);
                     }
 
                     string? from = source is { Kind: InputSourceKind.Factory, FactoryId: { } other } && other != factory.Id ? other.ToString() : null;
@@ -189,6 +229,12 @@ internal static class WorldArrangement
                         station.Sum(output => output.PerMinute)));
             foreach (IGrouping<ItemId, Supply> served in sent)
             {
+                stationRates.AddRange(served.Select(station => (from, station, served.Key.Id)));
+                foreach (Supply station in served)
+                {
+                    Feeds(station.Id, from);
+                }
+
                 foreach (IReadOnlyList<Supply> merged in SupplyBelts.Merge(served, fluids.Contains(served.Key) ? pipe : belt))
                 {
                     string id = merged.Count == 1 ? merged[0].Id : $"{from}>{merged[0].Id}+{merged.Count - 1}";
@@ -233,6 +279,72 @@ internal static class WorldArrangement
             return made;
         }
 
+        IReadOnlyList<ItemSupplyDocument>? lines = settings.SupplyLines ? SuppliesOf() : null;
+
+        // Supply lines (decided 2026-11-18, BR-S): per item, everything that brings it and everything that takes it, on
+        // the floor. The extractors, stations and drone ports bringing an item merge onto belts as before, but whichever
+        // factories they feed; a factory brings what it sends to the others, and a station takes what it's sent.
+        List<ItemSupplyDocument> SuppliesOf()
+        {
+            Dictionary<string, Dictionary<string, double>> sources = [];
+            Dictionary<string, Dictionary<string, double>> consumers = [];
+            void Add(Dictionary<string, Dictionary<string, double>> into, string item, string id, double perMinute)
+            {
+                Dictionary<string, double> ends = into.TryGetValue(item, out Dictionary<string, double>? found) ? found : into[item] = new(StringComparer.Ordinal);
+                ends[id] = ends.GetValueOrDefault(id) + perMinute;
+            }
+
+            foreach (IGrouping<string, KeyValuePair<(string To, string Item), List<Supply>>> item in supplies.GroupBy(supply => supply.Key.Item))
+            {
+                IEnumerable<Supply> buildings = item
+                    .SelectMany(supply => supply.Value)
+                    .GroupBy(supply => supply.Id)
+                    .Select(building => building.First() with { PerMinute = building.Sum(supply => supply.PerMinute) });
+                foreach (IReadOnlyList<Supply> merged in SupplyBelts.Merge(buildings, fluids.Contains(ItemId.Of(item.Key)) ? pipe : belt))
+                {
+                    string id = merged.Count == 1 ? merged[0].Id : $"{merged[0].Id}+{merged.Count - 1}";
+                    List<(double X, double Y)> outline = OutlineOf(merged.Select(supply => supply.Id));
+                    if (outline.Count > 0)
+                    {
+                        spots.TryAdd(id, grid.SquaresTouching(outline, floor));
+                        Enter(id, merged.Select(supply => supply.Id), outline);
+                        Add(sources, item.Key, id, merged.Sum(supply => supply.PerMinute));
+                    }
+                }
+
+                foreach (KeyValuePair<(string To, string Item), List<Supply>> feeding in item)
+                {
+                    Add(consumers, item.Key, feeding.Key.To, feeding.Value.Sum(supply => supply.PerMinute));
+                }
+            }
+
+            foreach (KeyValuePair<(string From, string To, string Item), double> rate in factoryRates.Where(rate => chosen.Contains(rate.Key.From) && chosen.Contains(rate.Key.To)))
+            {
+                Add(sources, rate.Key.Item, rate.Key.From, rate.Value);
+                Add(consumers, rate.Key.Item, rate.Key.To, rate.Value);
+            }
+
+            foreach ((string from, Supply station, string item) in stationRates)
+            {
+                List<(double X, double Y)> outline = OutlineOf([station.Id]);
+                if (outline.Count > 0)
+                {
+                    spots.TryAdd(station.Id, grid.SquaresTouching(outline, floor));
+                    Enter(station.Id, [station.Id], outline);
+                    Add(sources, item, from, station.PerMinute);
+                    Add(consumers, item, station.Id, station.PerMinute);
+                }
+            }
+
+            static List<SupplyEndDocument> Ends(Dictionary<string, Dictionary<string, double>> of, string item) =>
+                [.. of.GetValueOrDefault(item, []).OrderBy(end => end.Key, StringComparer.Ordinal).Select(end => new SupplyEndDocument(end.Key, end.Value))];
+            return [.. sources.Keys.Union(consumers.Keys).Order(StringComparer.Ordinal).Select(item =>
+            {
+                bool fluid = fluids.Contains(ItemId.Of(item));
+                return new ItemSupplyDocument(item, fluid, fluid ? pipe : belt, Ends(sources, item), Ends(consumers, item));
+            })];
+        }
+
         // The roads come with the plots: no gap besides them.
         var problem = new ArrangementProblem(
             arranged,
@@ -242,7 +354,7 @@ internal static class WorldArrangement
             GapX: 0,
             GapY: 0,
             settings.Together);
-        return (problem, grid, spots, loads);
+        return new MadeArrangement(problem, grid, spots, loads, lines, entries);
 
         // A node's extractor, or a station or drone port: what a belt may go down to at its spot.
         bool IsSpot(string id) => world.Find(BuildableId.Of(id)) is Provider || IsStation(id);
@@ -257,29 +369,17 @@ internal static class WorldArrangement
         return x >= area.X0 && x <= area.X1 && y >= area.Y0 && y <= area.Y1;
     }
 
+    /// <summary>How long a way is, seen from above, in centimetres.</summary>
+    private static double Length(IReadOnlyList<WorldPoint> way) =>
+        way.Zip(way.Skip(1), (a, b) => Math.Abs(b.X - a.X) + Math.Abs(b.Y - a.Y)).Sum();
+
+    /// <summary>Whether the rectangle around an outline reaches into an area at all.</summary>
+    private static bool Touches(List<(double X, double Y)> outline, WorldRectangle area) =>
+        outline.Min(point => point.X) <= area.X1 && outline.Max(point => point.X) >= area.X0
+        && outline.Min(point => point.Y) <= area.Y1 && outline.Max(point => point.Y) >= area.Y0;
+
     private static WorldRectangle Around(List<(double X, double Y)> points) =>
         new(points.Min(point => point.X), points.Min(point => point.Y), points.Max(point => point.X), points.Max(point => point.Y));
-
-    /// <summary>The problem as the analysis service receives it, with how long the solver may take and the floor to route belts on.</summary>
-    public static ArrangementProblemDocument ToDocument(
-        ArrangementProblem problem,
-        int seconds,
-        BeltFloor floor,
-        IReadOnlyDictionary<string, GridRectangle> spots,
-        IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> loads) => new(
-        [.. problem.Factories.Select(factory => new ArrangedFactoryDocument(factory.Id, Document(factory.Now)))],
-        [.. problem.Fixed.Select(place => new FixedPlaceDocument(place.Id, Document(place.Space), place.Blocks))],
-        [.. problem.Links.Select(link => new ArrangementLinkDocument(
-            link.From, link.To, link.Belts, link.WeightPercent, link.Pipes, loads.GetValueOrDefault((link.From, link.To))))],
-        Document(problem.Area),
-        problem.GapX,
-        problem.GapY,
-        problem.Together,
-        seconds,
-        new BeltFloorDocument(floor.SquaresPerPlotX, floor.SquaresPerPlotY, floor.RoadSquaresX, floor.RoadSquaresY, floor.Levels),
-        [.. spots.Select(spot => new SpotDocument(spot.Key, Document(spot.Value)))]);
-
-    private static GridRectangleDocument Document(GridRectangle rectangle) => new(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Depth);
 
     /// <summary>
     /// The points that outline a buildable seen from above, in centimetres: a belt's or pipe's curve, the corners of

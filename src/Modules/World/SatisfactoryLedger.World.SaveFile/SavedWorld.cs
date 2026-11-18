@@ -14,4 +14,10 @@ public sealed record SavedWorld(
 {
     /// <summary>What the dimensional depot holds, per item class name (BR-A7). Empty when the world has no depot.</summary>
     public IReadOnlyDictionary<string, decimal> DepotStock { get; init; } = new Dictionary<string, decimal>();
+
+    /// <summary>
+    /// Which pipes, junctions, pumps and buffers touch, without a direction (decided 2026-11-18): the model joins them into
+    /// one network (BR-A6), and these say which way a pipe runs, to follow it piece by piece.
+    /// </summary>
+    public IReadOnlyList<(BuildableId A, BuildableId B)> PipeLinks { get; init; } = [];
 }

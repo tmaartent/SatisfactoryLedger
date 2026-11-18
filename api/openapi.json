@@ -1116,6 +1116,42 @@
           }
         }
       }
+    },
+    "/api/v1/world/arrangements/{id}/machines": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "The machines of a run's arranged factories as they stand now, with their footprints: to draw them moved with their factories",
+        "description": "Empty until the run's problem is made. Read from the run's snapshot, so asked once per run rather than with every look at it.",
+        "operationId": "GetArrangementMachines",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArrangementMachinesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1293,6 +1329,35 @@
           }
         }
       },
+      "ArrangedMachineResponse": {
+        "required": [
+          "factoryId",
+          "id",
+          "className",
+          "position",
+          "yaw"
+        ],
+        "type": "object",
+        "properties": {
+          "factoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionDocument"
+          },
+          "yaw": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "ArrangementLinkDocument": {
         "required": [
           "from",
@@ -1332,6 +1397,27 @@
           }
         }
       },
+      "ArrangementMachinesResponse": {
+        "required": [
+          "machines",
+          "footprints"
+        ],
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArrangedMachineResponse"
+            }
+          },
+          "footprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FootprintDocument"
+            }
+          }
+        }
+      },
       "ArrangementQuality": {
         "enum": [
           "optimal",
@@ -1351,6 +1437,7 @@
           "together",
           "spotWeight",
           "ceilingMetres",
+          "supplyLines",
           "seconds"
         ],
         "type": "object",
@@ -1423,6 +1510,12 @@
             ],
             "format": "double"
           },
+          "supplyLines": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
           "seconds": {
             "type": [
               "null",
@@ -1439,7 +1532,8 @@
           "fixed",
           "links",
           "belts",
-          "unrouted"
+          "unrouted",
+          "ways"
         ],
         "type": "object",
         "properties": {
@@ -1475,6 +1569,12 @@
             "items": {
               "$ref": "#/components/schemas/ArrangementLinkDocument"
             }
+          },
+          "ways": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExistingWayResponse"
+            }
           }
         }
       },
@@ -1499,6 +1599,7 @@
           "together",
           "spotWeight",
           "ceilingMetres",
+          "supplyLines",
           "seconds",
           "status",
           "requestedAt",
@@ -1568,6 +1669,9 @@
           "ceilingMetres": {
             "type": "number",
             "format": "double"
+          },
+          "supplyLines": {
+            "type": "boolean"
           },
           "seconds": {
             "type": "integer",
@@ -1664,6 +1768,14 @@
           },
           "pipe": {
             "type": "boolean"
+          },
+          "injection": {
+            "type": "boolean",
+            "default": false
+          },
+          "overflow": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -1895,6 +2007,24 @@
             ],
             "items": {
               "type": "string"
+            }
+          }
+        }
+      },
+      "ExistingWayResponse": {
+        "required": [
+          "spotId",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "spotId": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldPoint"
             }
           }
         }
@@ -3245,7 +3375,11 @@
           "lifts",
           "levels",
           "item",
-          "perMinute"
+          "perMinute",
+          "injection",
+          "overflow",
+          "startsOnBelt",
+          "endsOnBelt"
         ],
         "type": "object",
         "properties": {
@@ -3299,6 +3433,18 @@
               "number"
             ],
             "format": "double"
+          },
+          "injection": {
+            "type": "boolean"
+          },
+          "overflow": {
+            "type": "boolean"
+          },
+          "startsOnBelt": {
+            "type": "boolean"
+          },
+          "endsOnBelt": {
+            "type": "boolean"
           }
         }
       },

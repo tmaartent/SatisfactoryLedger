@@ -35,6 +35,11 @@ internal static class ArrangementEndpoints
             .WithName("GetArrangement")
             .WithSummary("One run: its factories now and where it would place them, the fixed places, and the links");
 
+        world.MapGet("/arrangements/{id:guid}/machines", MachinesAsync)
+            .WithName("GetArrangementMachines")
+            .WithSummary("The machines of a run's arranged factories as they stand now, with their footprints: to draw them moved with their factories")
+            .WithDescription("Empty until the run's problem is made. Read from the run's snapshot, so asked once per run rather than with every look at it.");
+
         world.MapDelete("/arrangements/{id:guid}", DeleteAsync)
             .WithName("DeleteArrangement")
             .WithSummary("Delete a run, ready or still being computed: a proposal that comes back for it later is dropped");
@@ -138,6 +143,7 @@ internal static class ArrangementEndpoints
             Together = together,
             SpotWeight = spotWeight,
             CeilingMetres = ceiling,
+            SupplyLines = request.SupplyLines ?? false,
             Exclusions = exclusions,
             Seconds = seconds,
             Status = ArrangementRunStatus.Pending,
@@ -181,6 +187,33 @@ internal static class ArrangementEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<Results<Ok<ArrangementMachinesResponse>, NotFound>> MachinesAsync(Guid id, WorldDbContext db, CancellationToken cancellationToken)
+    {
+        StoredArrangement? run = await db.Arrangements.AsNoTracking().SingleOrDefaultAsync(arrangement => arrangement.Id == id, cancellationToken);
+        if (run is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        var snapshot = run.Problem is null ? null : await db.LoadSnapshotAsync(run.SnapshotId, cancellationToken);
+        if (run.Problem is not { } problemJson || snapshot is not { Document: var document })
+        {
+            return TypedResults.Ok(new ArrangementMachinesResponse([], []));
+        }
+
+        List<Guid> ids = [.. ArrangementProblemDocument.FromJson(problemJson).Factories.Select(factory => Guid.Parse(factory.Id))];
+        List<Factories.StoredFactory> factories = await db.Factories.AsNoTracking().Where(factory => ids.Contains(factory.Id)).ToListAsync(cancellationToken);
+        Dictionary<string, BuildableDocument> buildables = document.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
+        List<ArrangedMachineResponse> machines = [.. factories
+            .SelectMany(factory => Factories.MachineMatch.In(document, factory.Machines).Ids
+                .Select(machine => buildables.GetValueOrDefault(machine.Id))
+                .OfType<BuildableDocument>()
+                .Where(machine => machine.Position is not null)
+                .Select(machine => new ArrangedMachineResponse(factory.Id, machine.Id, machine.ClassName, machine.Position!, machine.Yaw ?? 0)))];
+        HashSet<string> classes = [.. machines.Select(machine => machine.ClassName)];
+        return TypedResults.Ok(new ArrangementMachinesResponse(machines, [.. (document.Footprints ?? []).Where(footprint => classes.Contains(footprint.Id))]));
+    }
+
     private static async Task<Results<Ok<ArrangementResponse>, NotFound>> GetAsync(Guid id, WorldDbContext db, CancellationToken cancellationToken)
     {
         StoredArrangement? run = await db.Arrangements.AsNoTracking().SingleOrDefaultAsync(arrangement => arrangement.Id == id, cancellationToken);
@@ -191,7 +224,7 @@ internal static class ArrangementEndpoints
 
         if (run.Problem is not { } problemJson || run.Grid is not { } grid)
         {
-            return TypedResults.Ok(new ArrangementResponse(ArrangementSummary.From(run), [], [], [], [], []));
+            return TypedResults.Ok(new ArrangementResponse(ArrangementSummary.From(run), [], [], [], [], [], []));
         }
 
         ArrangementProblemDocument problem = ArrangementProblemDocument.FromJson(problemJson);
@@ -203,7 +236,8 @@ internal static class ArrangementEndpoints
             .Where(factory => ids.Contains(factory.Id))
             .ToDictionaryAsync(factory => factory.Id, factory => factory.Name, cancellationToken);
 
-        // What a belt carries: its link's load at its number among the link's belts, or among its pipes.
+        // What a belt carries: as the analysis service says, or in runs from before it did, its link's load at its number
+        // among the link's belts, or among its pipes.
         Dictionary<(string From, string To), ArrangementLinkDocument> links = [];
         foreach (ArrangementLinkDocument link in problem.Links)
         {
@@ -224,7 +258,7 @@ internal static class ArrangementEndpoints
             ],
             [.. problem.Fixed.Select(place => new FixedPlaceResponse(place.Id, grid.WorldOf(place.Space), place.Blocks))],
             problem.Links,
-            [.. (proposal?.Belts ?? []).Select(belt => (Belt: belt, Load: LoadOf(belt))).Select(carried => new RoutedBeltResponse(
+            [.. (proposal?.Belts ?? []).Select(belt => (Belt: belt, Load: belt.Load ?? LoadOf(belt))).Select(carried => new RoutedBeltResponse(
                 carried.Belt.From,
                 carried.Belt.To,
                 [.. carried.Belt.Corners.Select(corner => grid.WorldOf(corner, floor))],
@@ -234,7 +268,14 @@ internal static class ArrangementEndpoints
                 [.. (carried.Belt.Lifts ?? []).Select(lift => grid.WorldOf(lift, floor))],
                 carried.Belt.Levels ?? [],
                 carried.Load?.Item,
-                carried.Load?.PerMinute))],
-            proposal?.Unrouted ?? []));
+                carried.Load?.PerMinute,
+                carried.Load?.Injection ?? false,
+                carried.Load?.Overflow ?? false,
+                carried.Belt.StartsOnBelt,
+                carried.Belt.EndsOnBelt))],
+            proposal?.Unrouted ?? [],
+            [.. (problem.Spots ?? [])
+                .Where(spot => spot.Way is { Count: > 0 })
+                .Select(spot => new ExistingWayResponse(spot.Id, [.. spot.Way!.Select(point => new WorldPoint(point.X, point.Y))]))]));
     }
 }

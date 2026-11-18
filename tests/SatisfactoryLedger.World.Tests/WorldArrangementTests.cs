@@ -34,16 +34,19 @@ public class WorldArrangementTests
 
     private static (ArrangementProblem Problem, ArrangementGrid Grid) Arranged(WorldRectangle? area, WorldRectangle[] exclusions, params StoredFactory[] factories)
     {
-        (ArrangementProblem problem, ArrangementGrid grid, _, _) = Made(area, exclusions, factories);
-        return (problem, grid);
+        MadeArrangement made = Made(area, exclusions, factories);
+        return (made.Problem, made.Grid);
     }
 
-    private static (ArrangementProblem Problem, ArrangementGrid Grid, IReadOnlyDictionary<string, GridRectangle> Spots, IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> Loads) Made(WorldRectangle? area, WorldRectangle[] exclusions, params StoredFactory[] factories) =>
+    private static MadeArrangement Made(WorldRectangle? area, WorldRectangle[] exclusions, params StoredFactory[] factories) =>
+        Made(area, exclusions, supplyLines: false, factories);
+
+    private static MadeArrangement Made(WorldRectangle? area, WorldRectangle[] exclusions, bool supplyLines, params StoredFactory[] factories) =>
         WorldArrangement.Of(
             Document,
             TestWorldAnalysis,
             factories,
-            new ArrangementSettings(area, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, exclusions));
+            new ArrangementSettings(area, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, exclusions, supplyLines));
 
     [Fact]
     public void Every_factory_takes_one_plot_where_its_machines_stand_however_far_they_spread()
@@ -76,7 +79,7 @@ public class WorldArrangementTests
     [Fact]
     public void Ore_from_a_miner_is_a_link_at_the_weight_of_nodes_and_stations_from_where_the_miner_stands()
     {
-        (ArrangementProblem problem, _, IReadOnlyDictionary<string, GridRectangle> spots, _) = Made(null, [], Smelting);
+        (ArrangementProblem problem, _, IReadOnlyDictionary<string, GridRectangle> spots, _, _, _) = Made(null, [], Smelting);
 
         Assert.Contains(new ArrangementLink(Miner, Smelting.Id.ToString(), Belts: 1, WeightPercent: 50), problem.Links);
         Assert.Contains(problem.Fixed, place => place.Id == Miner && !place.Blocks);
@@ -95,15 +98,98 @@ public class WorldArrangementTests
     [Fact]
     public void Each_belt_of_a_link_carries_its_item_at_its_rate()
     {
-        (_, _, _, IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> loads) = Made(null, [], Smelting, Plates);
+        IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> loads = Made(null, [], Smelting, Plates).Loads;
 
         Assert.Equal([new BeltLoadDocument("Desc_IronIngot_C", 12.5, Pipe: false)], loads[(Smelting.Id.ToString(), Plates.Id.ToString())]);
     }
 
     [Fact]
+    public void With_supply_lines_each_item_goes_with_what_brings_it_and_what_takes_it()
+    {
+        MadeArrangement made = Made(null, [], supplyLines: true, Smelting, Plates);
+
+        ItemSupplyDocument ingots = Assert.Single(made.Supplies!, supply => supply.Item == "Desc_IronIngot_C");
+        Assert.Equal([new SupplyEndDocument(Smelting.Id.ToString(), 12.5)], ingots.Sources);
+        Assert.Equal([new SupplyEndDocument(Plates.Id.ToString(), 12.5)], ingots.Consumers);
+        Assert.Equal((false, 1200.0), (ingots.Pipe, ingots.Capacity));
+    }
+
+    [Fact]
+    public void With_supply_lines_the_extractors_of_an_item_bring_it_from_their_spots()
+    {
+        MadeArrangement made = Made(null, [], supplyLines: true, Smelting);
+
+        ItemSupplyDocument ore = Assert.Single(made.Supplies!, supply => supply.Item == "Desc_OreIron_C");
+        SupplyEndDocument miner = Assert.Single(ore.Sources);
+        Assert.True(made.Spots.ContainsKey(miner.Id));
+        Assert.Equal([Smelting.Id.ToString()], ore.Consumers.Select(consumer => consumer.Id));
+        Assert.Equal(miner.PerMinute, ore.Consumers.Sum(consumer => consumer.PerMinute), 6);
+    }
+
+    [Fact]
+    public void Without_supply_lines_the_links_are_routed()
+    {
+        Assert.Null(Made(null, [], Smelting, Plates).Supplies);
+    }
+
+    [Fact]
+    public void A_miner_outside_the_area_is_reached_where_its_existing_belt_comes_into_the_area()
+    {
+        // An area from halfway between the miner and smelter A on, away from the miner: the miner is outside it.
+        (PositionDocument miner, PositionDocument smelter) = (PositionOf(Miner), PositionOf(SmelterA));
+        (double dx, double dy) = (smelter.X - miner.X, smelter.Y - miner.Y);
+        WorldRectangle area = Math.Abs(dx) >= Math.Abs(dy)
+            ? Span((miner.X + smelter.X) / 2, Math.Sign(dx) * 5000, smelter.Y - 5000, smelter.Y + 5000, alongX: true)
+            : Span((miner.Y + smelter.Y) / 2, Math.Sign(dy) * 5000, smelter.X - 5000, smelter.X + 5000, alongX: false);
+
+        MadeArrangement made = Made(area, [], Smelting);
+
+        SpotEntry entry = Assert.Single(made.Entries).Value;
+
+        // From where the miner's belt starts, by its output.
+        BuildableDocument belt = Document.Buildables.Single(buildable => Document.Connections.Any(connection => connection.From == Miner && connection.To == buildable.Id));
+        Assert.Equal(new WorldPoint(belt.Curve![0].Location.X, belt.Curve[0].Location.Y), entry.Way[0]);
+        Assert.True(Math.Abs(dx) >= Math.Abs(dy)
+            ? Math.Abs(entry.Way[^1].X - ((miner.X + smelter.X) / 2)) < 1
+            : Math.Abs(entry.Way[^1].Y - ((miner.Y + smelter.Y) / 2)) < 1, $"{entry.Way[^1]} isn't on the area's edge");
+
+        static WorldRectangle Span(double from, double reach, double low, double high, bool alongX) =>
+            alongX
+                ? new WorldRectangle(Math.Min(from, from + reach), low, Math.Max(from, from + reach), high)
+                : new WorldRectangle(low, Math.Min(from, from + reach), high, Math.Max(from, from + reach));
+    }
+
+    [Fact]
+    public void A_miner_on_the_areas_edge_is_reached_where_it_stands_not_along_its_existing_belt()
+    {
+        // The area's edge runs through the miner, a metre past the middle of the ground it covers, away from smelter A
+        // (2026-11-18: a train station on the edge was taken for one outside, and its belt drawn along the save's belts
+        // round the outside). The miner as big as the game's: 6 metres across, from 5 behind it to 9 in front.
+        BuildableDocument miner = Document.Buildables.Single(buildable => buildable.Id == Miner);
+        PositionDocument smelter = PositionOf(SmelterA);
+        double turn = (miner.Yaw ?? 0) * Math.PI / 180;
+        double[] xs = [.. new[] { (-300.0, -500.0), (300.0, -500.0), (300.0, 900.0), (-300.0, 900.0) }
+            .Select(corner => miner.Position!.X + (corner.Item1 * Math.Cos(turn)) - (corner.Item2 * Math.Sin(turn)))];
+        double middle = (xs.Min() + xs.Max()) / 2;
+        WorldRectangle area = smelter.X >= middle
+            ? new WorldRectangle(middle + 100, smelter.Y - 50000, smelter.X + 50000, smelter.Y + 50000)
+            : new WorldRectangle(smelter.X - 50000, smelter.Y - 50000, middle - 100, smelter.Y + 50000);
+        SnapshotDocument withFootprint = Document with { Footprints = [new FootprintDocument("Build_MinerMk1_C", -300, -500, 300, 900)] };
+
+        MadeArrangement made = WorldArrangement.Of(
+            withFootprint,
+            TestWorldAnalysis,
+            [Smelting],
+            new ArrangementSettings(area, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, []));
+
+        Assert.True(made.Spots.ContainsKey(Miner));
+        Assert.False(made.Entries.ContainsKey(Miner));
+    }
+
+    [Fact]
     public void Where_things_stand_is_the_problem_without_its_links()
     {
-        (ArrangementProblem whole, _, _, _) = Made(null, [], Smelting, Plates);
+        ArrangementProblem whole = Made(null, [], Smelting, Plates).Problem;
 
         ArrangementProblem placing = WorldArrangement.Placing(
             Document, [Smelting, Plates], new ArrangementSettings(null, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, []));

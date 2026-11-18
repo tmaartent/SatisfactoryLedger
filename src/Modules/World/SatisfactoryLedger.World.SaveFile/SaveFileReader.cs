@@ -152,6 +152,7 @@ public static class SaveFileReader
             [.. unsupported.OrderBy(entry => entry.Key, StringComparer.Ordinal).Select(entry => new UnsupportedBuildables(entry.Key, entry.Value))])
         {
             DepotStock = DepotStockOf(byPath.Values),
+            PipeLinks = wiring.PipeLinks,
         };
     }
 

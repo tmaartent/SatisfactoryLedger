@@ -1,21 +1,35 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSliderModule } from '@angular/material/slider';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
+import { ArrangementMachinesResponse } from '../../api/models/arrangement-machines-response';
 import { ArrangementResponse } from '../../api/models/arrangement-response';
 import { BeltFloor3d } from './belt-floor-3d';
 
 export interface BeltFloor3dDialogData {
   arrangement: ArrangementResponse;
   colourOf: (factoryId: string) => string | undefined;
+  /** The factories' machines, to draw on their plots; null until they're fetched. */
+  machines: ArrangementMachinesResponse | null;
 }
 
-/** The belt floor of a run in 3D, over the page. */
+/**
+ * The belt floor of a run in 3D, over the page; on the right, the levels to show, one by one (decided 2026-11-18): only
+ * their lines, and the factories those connect.
+ */
 @Component({
   selector: 'app-belt-floor-3d-dialog',
-  imports: [MatButtonModule, MatDialogModule, MatIconModule, MatSliderModule, BeltFloor3d],
+  imports: [
+    MatButtonModule,
+    MatCheckboxModule,
+    MatDialogModule,
+    MatIconModule,
+    MatSlideToggleModule,
+    BeltFloor3d,
+  ],
   template: `
     <div class="header">
       <h2 mat-dialog-title>The belt floor in 3D</h2>
@@ -25,38 +39,43 @@ export interface BeltFloor3dDialogData {
     </div>
     <p class="muted">
       Each belt and pipe at its height: a ramp where it turns 2 m up or down, a lift where it turns
-      4 m or more; the factories as slabs at the ceiling. Drag to turn, scroll to zoom.
+      4 m or more; the factories on their plots at the ceiling, with their machines. Drag to turn,
+      scroll to zoom.
     </p>
-    @if (highest() > 0) {
-      <label class="levels">
-        <span>{{ upTo() === null ? 'All levels' : 'Up to level ' + upTo() }}</span>
-        <mat-slider min="0" [max]="highest()" step="1" discrete showTickMarks>
-          <input
-            matSliderThumb
-            [value]="upTo() ?? highest()"
-            (valueChange)="upTo.set($event)"
-            aria-label="Up to level"
-          />
-        </mat-slider>
-        <button
-          mat-stroked-button
-          type="button"
-          [disabled]="upTo() === null"
-          (click)="upTo.set(null)"
-        >
-          All levels
-        </button>
-        <span class="muted"
-          >level 0 on the floor; below the chosen level faded, as built; above it hidden</span
-        >
-      </label>
-    }
-    <app-belt-floor-3d
-      class="floor"
-      [arrangement]="data.arrangement"
-      [colourOf]="data.colourOf"
-      [upTo]="upTo()"
-    />
+    <div class="body">
+      <app-belt-floor-3d
+        class="floor"
+        [arrangement]="data.arrangement"
+        [colourOf]="data.colourOf"
+        [levels]="levels()"
+        [machines]="data.machines"
+        [showMachines]="showMachines()"
+      />
+      <aside class="panel">
+        @if (data.machines?.machines?.length) {
+          <mat-slide-toggle [checked]="showMachines()" (change)="showMachines.set($event.checked)"
+            >Machines</mat-slide-toggle
+          >
+        }
+        <h3>Levels</h3>
+        <div class="buttons">
+          <button mat-stroked-button type="button" (click)="picked.set(all())">All</button>
+          <button mat-stroked-button type="button" (click)="picked.set([])">None</button>
+        </div>
+        @for (level of all(); track level) {
+          <mat-checkbox
+            [checked]="picked().includes(level)"
+            (change)="toggle(level, $event.checked)"
+          >
+            Level {{ level }}{{ level === 0 ? ' (floor)' : '' }}
+          </mat-checkbox>
+        }
+        <p class="muted hint">
+          A line with a run on a level ticked shows whole: its runs there in full, the rest faded,
+          with its splitters and mergers and the factories it connects.
+        </p>
+      </aside>
+    </div>
   `,
   styles: `
     :host {
@@ -75,29 +94,57 @@ export interface BeltFloor3dDialogData {
       margin: 0 0 8px 24px;
       color: var(--mat-sys-on-surface-variant);
     }
-    .levels {
+    .body {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 0 0 8px 24px;
-    }
-    .levels mat-slider {
-      width: 240px;
+      flex: 1;
+      min-height: 0;
+      gap: 16px;
     }
     .floor {
       flex: 1;
-      min-height: 0;
+      min-width: 0;
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      width: 180px;
+      overflow-y: auto;
+    }
+    .panel h3 {
+      margin: 16px 0 8px;
+    }
+    .buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .hint {
+      margin: 8px 0 0;
     }
   `,
 })
 export class BeltFloor3dDialog {
   protected readonly data = inject<BeltFloor3dDialogData>(MAT_DIALOG_DATA);
 
-  /** The highest level any belt or pipe runs on. */
-  protected readonly highest = computed(() =>
-    Math.max(0, ...this.data.arrangement.belts.flatMap((belt) => belt.levels)),
+  /** Every level a belt or pipe runs on, from the floor up. */
+  protected readonly all = computed(() =>
+    [...new Set(this.data.arrangement.belts.flatMap((belt) => belt.levels))].sort((a, b) => a - b),
   );
 
-  /** The highest level shown; null for all. */
-  protected readonly upTo = signal<number | null>(null);
+  /** The levels ticked; every one at first. */
+  protected readonly picked = signal<number[]>(this.all());
+
+  /** The levels shown: null when every one is ticked, so every factory shows too. */
+  protected readonly levels = computed(() =>
+    this.all().every((level) => this.picked().includes(level)) ? null : new Set(this.picked()),
+  );
+
+  /** Whether the factories' machines show; only the flat slabs when not. */
+  protected readonly showMachines = signal(true);
+
+  protected toggle(level: number, on: boolean): void {
+    this.picked.update((picked) =>
+      on ? [...picked, level] : picked.filter((other) => other !== level),
+    );
+  }
 }
