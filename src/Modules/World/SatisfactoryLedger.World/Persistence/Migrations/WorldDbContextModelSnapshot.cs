@@ -64,6 +64,116 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                     b.ToTable("snapshot_analyses", "world");
                 });
 
+            modelBuilder.Entity("SatisfactoryLedger.World.Arrangement.StoredArrangement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("AreaX0")
+                        .HasColumnType("double precision")
+                        .HasColumnName("area_x0");
+
+                    b.Property<double?>("AreaX1")
+                        .HasColumnType("double precision")
+                        .HasColumnName("area_x1");
+
+                    b.Property<double?>("AreaY0")
+                        .HasColumnType("double precision")
+                        .HasColumnName("area_y0");
+
+                    b.Property<double?>("AreaY1")
+                        .HasColumnType("double precision")
+                        .HasColumnName("area_y1");
+
+                    b.Property<DateTimeOffset?>("ComputedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("computed_at");
+
+                    b.Property<TimeSpan?>("Duration")
+                        .HasColumnType("interval")
+                        .HasColumnName("duration");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text")
+                        .HasColumnName("error");
+
+                    b.Property<string>("Exclusions")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("exclusions");
+
+                    b.Property<double?>("GridOriginX")
+                        .HasColumnType("double precision")
+                        .HasColumnName("grid_origin_x");
+
+                    b.Property<double?>("GridOriginY")
+                        .HasColumnType("double precision")
+                        .HasColumnName("grid_origin_y");
+
+                    b.Property<double>("PlotDepthMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("plot_depth_metres");
+
+                    b.Property<double>("PlotWidthMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("plot_width_metres");
+
+                    b.Property<string>("Problem")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("problem");
+
+                    b.Property<string>("Proposal")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("proposal");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<double>("RoadXMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("road_x_metres");
+
+                    b.Property<double>("RoadYMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("road_y_metres");
+
+                    b.Property<int>("Seconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("seconds");
+
+                    b.Property<Guid>("SnapshotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("snapshot_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Together")
+                        .HasColumnType("integer")
+                        .HasColumnName("together");
+
+                    b.Property<string>("World")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("world");
+
+                    b.HasKey("Id")
+                        .HasName("pk_arrangements");
+
+                    b.HasIndex("SnapshotId")
+                        .HasDatabaseName("ix_arrangements_snapshot_id");
+
+                    b.HasIndex("World")
+                        .HasDatabaseName("ix_arrangements_world");
+
+                    b.ToTable("arrangements", "world");
+                });
+
             modelBuilder.Entity("SatisfactoryLedger.World.Factories.StoredFactory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -202,6 +312,16 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_snapshot_analyses_snapshots_snapshot_id");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.World.Arrangement.StoredArrangement", b =>
+                {
+                    b.HasOne("SatisfactoryLedger.World.Persistence.StoredSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("SnapshotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_arrangements_snapshots_snapshot_id");
                 });
 #pragma warning restore 612, 618
         }

@@ -6,6 +6,9 @@ public static class AnalysisMessaging
     /// <summary>The RabbitMQ queue World publishes <see cref="SnapshotImported"/> to, and the analysis service listens on.</summary>
     public const string SnapshotsToAnalyseQueue = "world.snapshots-to-analyse";
 
+    /// <summary>The RabbitMQ queue World publishes arrangement requests to, and the analysis service listens on.</summary>
+    public const string ArrangementsToComputeQueue = "world.arrangements-to-compute";
+
     /// <summary>The connection string name of RabbitMQ, as the AppHost gives it.</summary>
     public const string RabbitMqConnectionName = "rabbitmq";
 

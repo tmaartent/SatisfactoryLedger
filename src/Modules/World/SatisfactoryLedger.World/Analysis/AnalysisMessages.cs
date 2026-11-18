@@ -1,5 +1,6 @@
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Contracts.Analysis;
+using SatisfactoryLedger.World.Contracts.Arrangement;
 
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
@@ -27,6 +28,7 @@ internal static class AnalysisMessages
         options.UseEntityFrameworkCoreTransactions();
         options.UseRabbitMqUsingNamedConnection(AnalysisMessaging.RabbitMqConnectionName).AutoProvision();
         options.PublishMessage<SnapshotImported>().ToRabbitQueue(AnalysisMessaging.SnapshotsToAnalyseQueue).UseDurableOutbox();
+        options.PublishMessage<ArrangementRequested>().ToRabbitQueue(AnalysisMessaging.ArrangementsToComputeQueue).UseDurableOutbox();
         return options;
     }
 }

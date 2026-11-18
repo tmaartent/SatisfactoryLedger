@@ -19,6 +19,8 @@ internal sealed class WorldDbContext(DbContextOptions<WorldDbContext> options) :
 
     public DbSet<StoredAnalysis> Analyses => Set<StoredAnalysis>();
 
+    public DbSet<Arrangement.StoredArrangement> Arrangements => Set<Arrangement.StoredArrangement>();
+
     /// <summary>The PostgreSQL settings, shared by the app and the design-time factory used by `dotnet ef`.</summary>
     public static DbContextOptionsBuilder Configure(DbContextOptionsBuilder options, string? connectionString)
     {

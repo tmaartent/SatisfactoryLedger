@@ -1,0 +1,24 @@
+using System.Text.Json;
+
+using SatisfactoryLedger.World.Contracts.Analysis;
+
+namespace SatisfactoryLedger.World.Contracts.Arrangement;
+
+/// <summary>A computed arrangement, as the analysis service sends it back.</summary>
+/// <param name="Places">Per factory id, its proposed place on the grid.</param>
+/// <param name="Cost">What the proposed layout costs: per link, belts times cells between the centres.</param>
+/// <param name="CostNow">What the layout as built costs.</param>
+/// <param name="Duration">How long the solver took.</param>
+public sealed record ArrangementProposalDocument(
+    IReadOnlyDictionary<string, GridRectangleDocument> Places,
+    double Cost,
+    double CostNow,
+    ArrangementQuality Quality,
+    TimeSpan Duration)
+{
+    public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
+
+    public static ArrangementProposalDocument FromJson(string json) =>
+        JsonSerializer.Deserialize<ArrangementProposalDocument>(json, SimulationJson.Options)
+        ?? throw new JsonException("An arrangement proposal document can't be empty");
+}

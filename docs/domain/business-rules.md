@@ -68,6 +68,12 @@ How the World's analysis computes what flows where. A **steady state**: everythi
 
 ---
 
+## Optimal arrangement (decided 2026-11-12)
+
+| Rule | Description |
+|---|---|
+| **BR-O1** | **Where the factories in an area would best stand**, so the belt work to their inputs is least. A **proposal** only: nothing changes on the factories, and the save has no terrain. **The area** is a rectangle the player draws on the map; the factories whose machines' middle is inside it are arranged, and stay inside it. It's divided into **plots in rows and columns**, of a configurable size along x and along y, with **roads** of a configurable width between them, given in **foundations** of 8 by 8 metres (6 by 6 plots with roads of 4 when not chosen, as the player builds). **A factory** takes as many whole plots as its machines and generators need (their footprints; not its belts and pipes), moved, never turned; no two factories share a plot. **What stays where it is**: every other factory, train and truck station and drone port, which keep the plots they touch; and the **exclusions**, rectangles the player draws inside the area where no factory may stand (such as where trains come in), whose plots are kept free. **The cost** of a layout: per input **from another factory** (as the input table finds them, BR-A19) touching a factory being arranged, the **belts it needs** (its rate over the top belt's or pipe's capacity, rounded up, per item) times the **distance along the plots** between the centres. **Kept together:** the solver adds the width plus the depth, in plots, of the rectangle around the arranged factories, times a configurable weight (2 by default, 0 not at all), so a factory isn't pulled off to the area's edge by distant inputs; this isn't part of the cost shown. The least of the two first; among equal ones, the least moving. **Every run is kept**, per world, with its area and settings. *(Decided 2026-11-12; plots and the drawn area replaced a free grid of cells with gaps the same day, after the first runs. Inputs from resource nodes and stations counted at first, nodes without blocking; as a first step only inputs from factories count, so related factories end up close, decided the same day.)* |
+
 ## Blueprint Design
 
 | ID | Rule |

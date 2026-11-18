@@ -1,0 +1,157 @@
+<div class="page-header">
+  <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"
+    ><mat-icon>arrow_back</mat-icon></a
+  >
+  <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · optimal arrangement</h1>
+</div>
+
+<p class="muted intro">
+  Draw an area on the map: the factories inside it are placed on plots in rows and columns, so the
+  belt work to their inputs from other factories is least. Everything else stays where it is: other
+  factories and stations keep their plots. Draw <em>Keep out</em> rectangles where no factory may
+  stand, such as where trains come in; picking a run starts a new one from its area, exclusions and
+  settings. A proposal only: the save has no terrain, so check where it puts things.
+</p>
+
+<form class="settings" (ngSubmit)="request()">
+  <button
+    mat-stroked-button
+    type="button"
+    (click)="draw('area')"
+    [class.active]="drawing() === 'area'"
+    [attr.aria-pressed]="drawing() === 'area'"
+  >
+    <mat-icon>crop_free</mat-icon> {{ area() ? 'Draw again' : 'Draw the area' }}
+  </button>
+  <button
+    mat-stroked-button
+    type="button"
+    (click)="draw('exclusion')"
+    [disabled]="!area()"
+    [class.active]="drawing() === 'exclusion'"
+    [attr.aria-pressed]="drawing() === 'exclusion'"
+  >
+    <mat-icon>block</mat-icon> Keep out{{
+      exclusions().length > 0 ? ' (' + exclusions().length + ')' : ''
+    }}
+  </button>
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Plot east-west (foundations)</mat-label>
+    <input matInput type="number" min="1" name="plotWidth" [(ngModel)]="plotWidth" />
+  </mat-form-field>
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Plot north-south (foundations)</mat-label>
+    <input matInput type="number" min="1" name="plotDepth" [(ngModel)]="plotDepth" />
+  </mat-form-field>
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Road east-west (foundations)</mat-label>
+    <input matInput type="number" min="0" name="roadX" [(ngModel)]="roadX" />
+  </mat-form-field>
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Road north-south (foundations)</mat-label>
+    <input matInput type="number" min="0" name="roadY" [(ngModel)]="roadY" />
+  </mat-form-field>
+  <mat-form-field
+    subscriptSizing="dynamic"
+    matTooltip="The belt work one plot of spread costs: higher keeps the factories closer together, 0 not at all"
+  >
+    <mat-label>Keep together</mat-label>
+    <input matInput type="number" min="0" name="together" [(ngModel)]="together" />
+  </mat-form-field>
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>Solver time (s)</mat-label>
+    <input matInput type="number" min="1" max="600" name="seconds" [(ngModel)]="seconds" />
+  </mat-form-field>
+  <button mat-flat-button type="submit" [disabled]="!area() || requesting()">
+    <mat-icon>auto_fix_high</mat-icon> Arrange
+  </button>
+  @if (requestError(); as message) {
+    <span class="error">{{ message }}</span>
+  }
+</form>
+
+@if (runs.value(); as list) {
+  @if (list.length > 0) {
+    <table class="runs">
+      <thead>
+        <tr>
+          <th>Requested</th>
+          <th class="number">Plot (foundations)</th>
+          <th class="number">Roads E-W · N-S</th>
+          <th class="number">Keep together</th>
+          <th class="number">Belt work now → proposed</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (run of list; track run.id) {
+          <tr [class.selected]="run.id === selected()" (click)="selected.set(run.id)">
+            <td>{{ run.requestedAt | date: 'medium' }}</td>
+            <td class="number">
+              {{ foundations(run.plotWidthMetres) | number: '1.0-1' }} ×
+              {{ foundations(run.plotDepthMetres) | number: '1.0-1' }}
+            </td>
+            <td class="number">
+              {{ foundations(run.roadXMetres) | number: '1.0-1' }} ·
+              {{ foundations(run.roadYMetres) | number: '1.0-1' }}
+            </td>
+            <td class="number">{{ run.together }}</td>
+            <td class="number">
+              @if (run.costNow !== null && run.cost !== null) {
+                {{ run.costNow | number: '1.0-0' }} → {{ run.cost | number: '1.0-0' }}
+                <b>{{ saving(run.costNow, run.cost) }}</b>
+              }
+            </td>
+            <td>{{ statusOf(run) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p class="muted">
+      No runs yet: draw an area, choose the plots and press Arrange. A run takes about the solver
+      time, plus half a minute.
+    </p>
+  }
+}
+
+@if (arrangement.isLoading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+<div class="layout">
+  <div class="map-frame">
+    <div #map class="map" [class.drawing]="drawing()"></div>
+    @if (drawing() === 'area') {
+      <div class="drawing-hint">Drag a rectangle around the factories to arrange</div>
+    } @else if (drawing() === 'exclusion') {
+      <div class="drawing-hint">Drag a rectangle where no factory may stand</div>
+    }
+  </div>
+  @if (moves().length > 0) {
+    <aside class="side">
+      <mat-slide-toggle [checked]="showNow()" (change)="showNow.set($event.checked)"
+        >Where they stand now</mat-slide-toggle
+      >
+      <p class="muted">
+        Pick factories to see where they stand, their move and their links. Pointing at one shows
+        its links.
+      </p>
+      <ul class="factories">
+        @for (move of moves(); track move.factoryId) {
+          <li>
+            <button
+              type="button"
+              [class.picked]="focused().has(move.factoryId)"
+              (click)="toggleFocus(move.factoryId)"
+            >
+              <span>{{ move.name }}</span>
+              <span class="muted">{{
+                move.metres > 0 ? (move.metres | number: '1.0-0') + ' m' : 'stays'
+              }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    </aside>
+  }
+</div>
