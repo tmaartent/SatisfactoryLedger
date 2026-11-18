@@ -87,6 +87,10 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("area_y1");
 
+                    b.Property<double>("CeilingMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("ceiling_metres");
+
                     b.Property<DateTimeOffset?>("ComputedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("computed_at");
@@ -147,6 +151,10 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                     b.Property<Guid>("SnapshotId")
                         .HasColumnType("uuid")
                         .HasColumnName("snapshot_id");
+
+                    b.Property<double>("SpotWeight")
+                        .HasColumnType("double precision")
+                        .HasColumnName("spot_weight");
 
                     b.Property<string>("Status")
                         .IsRequired()

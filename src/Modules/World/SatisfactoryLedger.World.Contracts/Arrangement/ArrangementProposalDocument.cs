@@ -9,12 +9,18 @@ namespace SatisfactoryLedger.World.Contracts.Arrangement;
 /// <param name="Cost">What the proposed layout costs: per link, belts times cells between the centres.</param>
 /// <param name="CostNow">What the layout as built costs.</param>
 /// <param name="Duration">How long the solver took.</param>
+/// <param name="Belts">The belts between the placed factories, routed on the floor below them; null without a floor.</param>
+/// <param name="Unrouted">Per link, the belts that couldn't be routed without crossing.</param>
+/// <param name="TallestStack">The most belts stacked on one square.</param>
 public sealed record ArrangementProposalDocument(
     IReadOnlyDictionary<string, GridRectangleDocument> Places,
     double Cost,
     double CostNow,
     ArrangementQuality Quality,
-    TimeSpan Duration)
+    TimeSpan Duration,
+    IReadOnlyList<RoutedBeltDocument>? Belts = null,
+    IReadOnlyList<ArrangementLinkDocument>? Unrouted = null,
+    int? TallestStack = null)
 {
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 

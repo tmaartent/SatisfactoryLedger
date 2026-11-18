@@ -6,13 +6,15 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.World.Contracts.Arrangement;
+using SatisfactoryLedger.World.Domain.Arrangement;
 using SatisfactoryLedger.World.Persistence;
+using SatisfactoryLedger.World.Snapshots;
 
 using Wolverine.EntityFrameworkCore;
 
 namespace SatisfactoryLedger.World.Arrangement;
 
-/// <summary>The optimal arrangement (decided 2026-11-12): request a run, list a world's runs, read one.</summary>
+/// <summary>The optimal arrangement (decided 2026-11-12): request a run, list a world's runs, read one, delete one.</summary>
 internal static class ArrangementEndpoints
 {
     public const string AnalysisNotReadyCode = "World.AnalysisNotReady";
@@ -22,7 +24,7 @@ internal static class ArrangementEndpoints
         world.MapPost("/snapshots/{id:guid}/arrangements", RequestAsync)
             .WithName("RequestArrangement")
             .WithSummary("Ask where the factories in an area would best stand, on plots in rows and columns, so the belt work between them and their inputs is least")
-            .WithDescription("Computed by the analysis service in the background from the snapshot, its factories and its analysis: 202 with the run, pending until it's ready. Every run is kept.")
+            .WithDescription("Computed by the analysis service in the background from the snapshot, its factories and its analysis: 202 with the run, pending until it's ready. Every run is kept until it's deleted.")
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         world.MapGet("/arrangements", ListAsync)
@@ -32,6 +34,10 @@ internal static class ArrangementEndpoints
         world.MapGet("/arrangements/{id:guid}", GetAsync)
             .WithName("GetArrangement")
             .WithSummary("One run: its factories now and where it would place them, the fixed places, and the links");
+
+        world.MapDelete("/arrangements/{id:guid}", DeleteAsync)
+            .WithName("DeleteArrangement")
+            .WithSummary("Delete a run, ready or still being computed: a proposal that comes back for it later is dropped");
 
         return world;
     }
@@ -46,6 +52,12 @@ internal static class ArrangementEndpoints
         double roadX = request.RoadXMetres ?? 32;
         double roadY = request.RoadYMetres ?? 32;
         int together = request.Together ?? 2;
+
+        // Half a belt between factories: factories close to each other first, then to what feeds them (decided 2026-11-18).
+        double spotWeight = request.SpotWeight ?? 0.5;
+
+        // 8 foundations of 4 metres high: a stack of 16 belts on stackable poles 2 metres apart.
+        double ceiling = request.CeilingMetres ?? 32;
         List<WorldRectangle> exclusions = [.. request.Exclusions ?? []];
         int seconds = request.Seconds ?? 60;
         Dictionary<string, string[]> errors = [];
@@ -62,6 +74,16 @@ internal static class ArrangementEndpoints
         if (together < 0)
         {
             errors["together"] = ["Keeping together can't be weighed below 0."];
+        }
+
+        if (spotWeight < 0)
+        {
+            errors["spotWeight"] = ["Belts to nodes and stations can't be weighed below 0."];
+        }
+
+        if (ceiling < 2)
+        {
+            errors["ceiling"] = ["The belt floor needs a ceiling of at least 2 metres, for one belt."];
         }
 
         if (request.Area is { } drawn && (drawn.X1 <= drawn.X0 || drawn.Y1 <= drawn.Y0))
@@ -85,8 +107,7 @@ internal static class ArrangementEndpoints
         }
 
         WorldDbContext db = outbox.DbContext;
-        string? world = await db.Snapshots.AsNoTracking().Where(snapshot => snapshot.Id == id).Select(snapshot => snapshot.SessionName).SingleOrDefaultAsync(cancellationToken);
-        if (world is null)
+        if (await db.LoadSnapshotAsync(id, cancellationToken) is not (string world, SnapshotDocument snapshot))
         {
             return TypedResults.NotFound();
         }
@@ -115,11 +136,21 @@ internal static class ArrangementEndpoints
             RoadXMetres = roadX,
             RoadYMetres = roadY,
             Together = together,
+            SpotWeight = spotWeight,
+            CeilingMetres = ceiling,
             Exclusions = exclusions,
             Seconds = seconds,
             Status = ArrangementRunStatus.Pending,
             RequestedAt = clock.GetUtcNow(),
         };
+
+        // Refused at once when the factories can't fit: fewer free plots than factories (2026-11-18: roads of 42
+        // foundations by mistake left 18 plots for 48 factories, and the run came back with none found, a minute later).
+        ArrangementProblem problem = await ArrangementProblems.PlacingAsync(db, run, snapshot, cancellationToken);
+        if (!problem.HasRoom)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["area"] = [ArrangementProblems.NoRoom(problem)] });
+        }
 
         // The run and the message to the analysis service in one transaction (the transactional outbox, ADR-0018).
         db.Arrangements.Add(run);
@@ -137,6 +168,19 @@ internal static class ArrangementEndpoints
         return TypedResults.Ok(runs.Select(ArrangementSummary.From).ToList());
     }
 
+    private static async Task<Results<NoContent, NotFound>> DeleteAsync(Guid id, WorldDbContext db, CancellationToken cancellationToken)
+    {
+        StoredArrangement? run = await db.Arrangements.FindAsync([id], cancellationToken);
+        if (run is null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        db.Arrangements.Remove(run);
+        await db.SaveChangesAsync(cancellationToken);
+        return TypedResults.NoContent();
+    }
+
     private static async Task<Results<Ok<ArrangementResponse>, NotFound>> GetAsync(Guid id, WorldDbContext db, CancellationToken cancellationToken)
     {
         StoredArrangement? run = await db.Arrangements.AsNoTracking().SingleOrDefaultAsync(arrangement => arrangement.Id == id, cancellationToken);
@@ -147,17 +191,27 @@ internal static class ArrangementEndpoints
 
         if (run.Problem is not { } problemJson || run.Grid is not { } grid)
         {
-            return TypedResults.Ok(new ArrangementResponse(ArrangementSummary.From(run), [], [], []));
+            return TypedResults.Ok(new ArrangementResponse(ArrangementSummary.From(run), [], [], [], [], []));
         }
 
         ArrangementProblemDocument problem = ArrangementProblemDocument.FromJson(problemJson);
-        IReadOnlyDictionary<string, GridRectangleDocument> places = run.Proposal is { } proposal
-            ? ArrangementProposalDocument.FromJson(proposal).Places
-            : new Dictionary<string, GridRectangleDocument>();
+        ArrangementProposalDocument? proposal = run.Proposal is { } proposalJson ? ArrangementProposalDocument.FromJson(proposalJson) : null;
+        IReadOnlyDictionary<string, GridRectangleDocument> places = proposal?.Places ?? new Dictionary<string, GridRectangleDocument>();
+        BeltFloor floor = run.Settings.Floor;
         List<Guid> ids = [.. problem.Factories.Select(factory => Guid.Parse(factory.Id))];
         Dictionary<Guid, string> names = await db.Factories.AsNoTracking()
             .Where(factory => ids.Contains(factory.Id))
             .ToDictionaryAsync(factory => factory.Id, factory => factory.Name, cancellationToken);
+
+        // What a belt carries: its link's load at its number among the link's belts, or among its pipes.
+        Dictionary<(string From, string To), ArrangementLinkDocument> links = [];
+        foreach (ArrangementLinkDocument link in problem.Links)
+        {
+            links.TryAdd((link.From, link.To), link);
+        }
+
+        BeltLoadDocument? LoadOf(RoutedBeltDocument belt) =>
+            links.GetValueOrDefault((belt.From, belt.To))?.Loads?.Where(load => load.Pipe == belt.Pipe).ElementAtOrDefault(belt.Index);
 
         return TypedResults.Ok(new ArrangementResponse(
             ArrangementSummary.From(run),
@@ -169,6 +223,18 @@ internal static class ArrangementEndpoints
                     places.TryGetValue(factory.Id, out GridRectangleDocument? place) ? grid.WorldOf(place) : null)),
             ],
             [.. problem.Fixed.Select(place => new FixedPlaceResponse(place.Id, grid.WorldOf(place.Space), place.Blocks))],
-            problem.Links));
+            problem.Links,
+            [.. (proposal?.Belts ?? []).Select(belt => (Belt: belt, Load: LoadOf(belt))).Select(carried => new RoutedBeltResponse(
+                carried.Belt.From,
+                carried.Belt.To,
+                [.. carried.Belt.Corners.Select(corner => grid.WorldOf(corner, floor))],
+                carried.Belt.LeavesFloor,
+                carried.Belt.Pipe,
+                [.. (carried.Belt.Levels ?? []).Select(BeltFloor.HeightOf)],
+                [.. (carried.Belt.Lifts ?? []).Select(lift => grid.WorldOf(lift, floor))],
+                carried.Belt.Levels ?? [],
+                carried.Load?.Item,
+                carried.Load?.PerMinute))],
+            proposal?.Unrouted ?? []));
     }
 }

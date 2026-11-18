@@ -1,4 +1,5 @@
 using SatisfactoryLedger.World.Arrangement;
+using SatisfactoryLedger.World.Contracts.Arrangement;
 using SatisfactoryLedger.World.Domain.Arrangement;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Snapshots;
@@ -31,25 +32,32 @@ public class WorldArrangementTests
     private static (ArrangementProblem Problem, ArrangementGrid Grid) Arranged(WorldRectangle? area, params StoredFactory[] factories) =>
         Arranged(area, [], factories);
 
-    private static (ArrangementProblem Problem, ArrangementGrid Grid) Arranged(WorldRectangle? area, WorldRectangle[] exclusions, params StoredFactory[] factories) =>
+    private static (ArrangementProblem Problem, ArrangementGrid Grid) Arranged(WorldRectangle? area, WorldRectangle[] exclusions, params StoredFactory[] factories)
+    {
+        (ArrangementProblem problem, ArrangementGrid grid, _, _) = Made(area, exclusions, factories);
+        return (problem, grid);
+    }
+
+    private static (ArrangementProblem Problem, ArrangementGrid Grid, IReadOnlyDictionary<string, GridRectangle> Spots, IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> Loads) Made(WorldRectangle? area, WorldRectangle[] exclusions, params StoredFactory[] factories) =>
         WorldArrangement.Of(
             Document,
             TestWorldAnalysis,
             factories,
-            new ArrangementSettings(area, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, exclusions));
+            new ArrangementSettings(area, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, exclusions));
 
     [Fact]
-    public void A_factory_takes_the_whole_plots_around_its_machines()
+    public void Every_factory_takes_one_plot_where_its_machines_stand_however_far_they_spread()
     {
+        // Plots of 16 metres: constructor C stands 21 metres from smelter A, yet the factory takes one plot (decided 2026-11-18).
         StoredFactory ironPlates = Factory("Iron plates", SmelterA, SmelterB, ConstructorC);
         (ArrangementProblem problem, ArrangementGrid grid) = Arranged(null, ironPlates);
 
-        GridRectangle plots = Assert.Single(problem.Factories).Now;
-        foreach (string machine in new[] { SmelterA, SmelterB, ConstructorC })
-        {
-            (double x, double y) = grid.CellOf(PositionOf(machine).X, PositionOf(machine).Y);
-            Assert.True(x >= plots.X && x <= plots.X + plots.Width && y >= plots.Y && y <= plots.Y + plots.Depth, $"{machine} at ({x}, {y}) outside {plots}");
-        }
+        GridRectangle plot = Assert.Single(problem.Factories).Now;
+        (double x, double y) = grid.CellOf(
+            new[] { SmelterA, SmelterB, ConstructorC }.Average(machine => PositionOf(machine).X),
+            new[] { SmelterA, SmelterB, ConstructorC }.Average(machine => PositionOf(machine).Y));
+        Assert.Equal((1, 1), (plot.Width, plot.Depth));
+        Assert.True(Math.Abs(x - (plot.X + 0.5)) <= 1 && Math.Abs(y - (plot.Y + 0.5)) <= 1, $"middle ({x}, {y}) far from {plot}");
     }
 
     [Fact]
@@ -66,12 +74,13 @@ public class WorldArrangementTests
     }
 
     [Fact]
-    public void Ore_from_a_miner_is_no_link_only_inputs_from_factories_count()
+    public void Ore_from_a_miner_is_a_link_at_the_weight_of_nodes_and_stations_from_where_the_miner_stands()
     {
-        (ArrangementProblem problem, _) = Arranged(null, Smelting, Plates);
+        (ArrangementProblem problem, _, IReadOnlyDictionary<string, GridRectangle> spots, _) = Made(null, [], Smelting);
 
-        Assert.DoesNotContain(problem.Links, link => link.From == Miner);
-        Assert.DoesNotContain(problem.Fixed, place => place.Id == Miner);
+        Assert.Contains(new ArrangementLink(Miner, Smelting.Id.ToString(), Belts: 1, WeightPercent: 50), problem.Links);
+        Assert.Contains(problem.Fixed, place => place.Id == Miner && !place.Blocks);
+        Assert.True(spots.ContainsKey(Miner));
     }
 
     [Fact]
@@ -81,6 +90,27 @@ public class WorldArrangementTests
 
         // 12.5 ingots a minute fit on one belt.
         Assert.Contains(new ArrangementLink(Smelting.Id.ToString(), Plates.Id.ToString(), Belts: 1), problem.Links);
+    }
+
+    [Fact]
+    public void Each_belt_of_a_link_carries_its_item_at_its_rate()
+    {
+        (_, _, _, IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> loads) = Made(null, [], Smelting, Plates);
+
+        Assert.Equal([new BeltLoadDocument("Desc_IronIngot_C", 12.5, Pipe: false)], loads[(Smelting.Id.ToString(), Plates.Id.ToString())]);
+    }
+
+    [Fact]
+    public void Where_things_stand_is_the_problem_without_its_links()
+    {
+        (ArrangementProblem whole, _, _, _) = Made(null, [], Smelting, Plates);
+
+        ArrangementProblem placing = WorldArrangement.Placing(
+            Document, [Smelting, Plates], new ArrangementSettings(null, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, []));
+
+        Assert.Equal(whole.Factories, placing.Factories);
+        Assert.Equal(whole.Fixed.Where(place => place.Blocks), placing.Fixed.Where(place => place.Blocks));
+        Assert.Equal((whole.Area, 0), (placing.Area, placing.Links.Count));
     }
 
     [Fact]

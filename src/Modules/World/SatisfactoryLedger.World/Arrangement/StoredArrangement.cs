@@ -1,7 +1,7 @@
 namespace SatisfactoryLedger.World.Arrangement;
 
 /// <summary>
-/// A run of the optimal arrangement, as stored (decided 2026-11-12): every run is kept, per world, with its settings,
+/// A run of the optimal arrangement, as stored (decided 2026-11-12): every run is kept until it's deleted, per world, with its settings,
 /// the problem it solved and the proposal that came back. Computed by the analysis service (the ADR-0018 pattern).
 /// </summary>
 internal sealed class StoredArrangement
@@ -33,6 +33,12 @@ internal sealed class StoredArrangement
 
     /// <summary>How strongly the arranged factories are kept together (BR-O1); 0 in runs from before it existed.</summary>
     public required int Together { get; init; }
+
+    /// <summary>How much belts to nodes, stations and drone ports count in placing (BR-O1); 0 in runs from before it existed.</summary>
+    public required double SpotWeight { get; init; }
+
+    /// <summary>How high the belt floor below the factories is (BR-O2); 32 in runs from before it existed.</summary>
+    public required double CeilingMetres { get; init; }
 
     /// <summary>Where no factory may stand, in the game's centimetres; none in runs from before they existed.</summary>
     public List<WorldRectangle> Exclusions { get; init; } = [];
@@ -66,7 +72,7 @@ internal sealed class StoredArrangement
     /// <summary>The area drawn, or null for everything built.</summary>
     public WorldRectangle? Area => AreaX0 is { } x0 && AreaY0 is { } y0 && AreaX1 is { } x1 && AreaY1 is { } y1 ? new WorldRectangle(x0, y0, x1, y1) : null;
 
-    public ArrangementSettings Settings => new(Area, PlotWidthMetres, PlotDepthMetres, RoadXMetres, RoadYMetres, Together, Exclusions);
+    public ArrangementSettings Settings => new(Area, PlotWidthMetres, PlotDepthMetres, RoadXMetres, RoadYMetres, Together, SpotWeight, CeilingMetres, Exclusions);
 
     /// <summary>The plots its problem was made on; null until it's made.</summary>
     public ArrangementGrid? Grid => GridOriginX is { } x && GridOriginY is { } y ? ArrangementGrid.Of(x, y, Settings) : null;

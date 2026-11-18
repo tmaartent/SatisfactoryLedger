@@ -9,6 +9,10 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// not given.</param>
 /// <param name="Together">How strongly the arranged factories are kept together, in belt work per plot of spread; 2 when
 /// not given, 0 not at all.</param>
+/// <param name="SpotWeight">How much belts to nodes, stations and drone ports count in placing against a belt between
+/// factories; 0.5 when not given, 0 not at all.</param>
+/// <param name="CeilingMetres">How high the floor below the factories is, where their belts are routed; 32 (8
+/// foundations of 4 metres) when not given.</param>
 /// <param name="Seconds">How long the solver may take; 60 when not given.</param>
 internal sealed record ArrangementRequest(
-    WorldRectangle? Area, double? PlotWidthMetres, double? PlotDepthMetres, double? RoadXMetres, double? RoadYMetres, IReadOnlyList<WorldRectangle>? Exclusions, int? Together, int? Seconds);
+    WorldRectangle? Area, double? PlotWidthMetres, double? PlotDepthMetres, double? RoadXMetres, double? RoadYMetres, IReadOnlyList<WorldRectangle>? Exclusions, int? Together, double? SpotWeight, double? CeilingMetres, int? Seconds);

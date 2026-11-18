@@ -6,35 +6,16 @@
 </div>
 
 <p class="muted intro">
-  Draw an area on the map: the factories inside it are placed on plots in rows and columns, so the
-  belt work to their inputs from other factories is least. Everything else stays where it is: other
-  factories and stations keep their plots. Draw <em>Keep out</em> rectangles where no factory may
-  stand, such as where trains come in; picking a run starts a new one from its area, exclusions and
-  settings. A proposal only: the save has no terrain, so check where it puts things.
+  Draw an area on the map: the factories inside it are placed on plots in rows and columns, one plot
+  each, so the belt work to their inputs is least: from other factories, and at a lighter weight
+  from nodes, stations and drone ports. Their belts and pipes are then routed on a floor below.
+  Everything else stays where it is: other factories and stations keep their plots. Draw
+  <em>Keep out</em> rectangles where no factory may stand, such as where trains come in; picking a
+  run starts a new one from its area, exclusions and settings; <em>Reset</em> clears them to draw
+  anew. A proposal only: the save has no terrain, so check where it puts things.
 </p>
 
 <form class="settings" (ngSubmit)="request()">
-  <button
-    mat-stroked-button
-    type="button"
-    (click)="draw('area')"
-    [class.active]="drawing() === 'area'"
-    [attr.aria-pressed]="drawing() === 'area'"
-  >
-    <mat-icon>crop_free</mat-icon> {{ area() ? 'Draw again' : 'Draw the area' }}
-  </button>
-  <button
-    mat-stroked-button
-    type="button"
-    (click)="draw('exclusion')"
-    [disabled]="!area()"
-    [class.active]="drawing() === 'exclusion'"
-    [attr.aria-pressed]="drawing() === 'exclusion'"
-  >
-    <mat-icon>block</mat-icon> Keep out{{
-      exclusions().length > 0 ? ' (' + exclusions().length + ')' : ''
-    }}
-  </button>
   <mat-form-field subscriptSizing="dynamic">
     <mat-label>Plot east-west (foundations)</mat-label>
     <input matInput type="number" min="1" name="plotWidth" [(ngModel)]="plotWidth" />
@@ -58,6 +39,20 @@
     <mat-label>Keep together</mat-label>
     <input matInput type="number" min="0" name="together" [(ngModel)]="together" />
   </mat-form-field>
+  <mat-form-field
+    subscriptSizing="dynamic"
+    matTooltip="How much a belt to a node, station or drone port counts in placing, against a belt between factories: 1 as much, 0 not at all"
+  >
+    <mat-label>Nodes &amp; stations weigh</mat-label>
+    <input matInput type="number" min="0" step="0.1" name="spotWeight" [(ngModel)]="spotWeight" />
+  </mat-form-field>
+  <mat-form-field
+    subscriptSizing="dynamic"
+    matTooltip="How high the floor below the factories is, where their belts run: a stack holds a belt per 2 metres"
+  >
+    <mat-label>Belt floor (foundations high)</mat-label>
+    <input matInput type="number" min="1" name="ceiling" [(ngModel)]="ceiling" />
+  </mat-form-field>
   <mat-form-field subscriptSizing="dynamic">
     <mat-label>Solver time (s)</mat-label>
     <input matInput type="number" min="1" max="600" name="seconds" [(ngModel)]="seconds" />
@@ -79,8 +74,11 @@
           <th class="number">Plot (foundations)</th>
           <th class="number">Roads E-W · N-S</th>
           <th class="number">Keep together</th>
+          <th class="number">Nodes &amp; stations</th>
           <th class="number">Belt work now → proposed</th>
+          <th class="number">Belts routed</th>
           <th>Status</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -96,13 +94,33 @@
               {{ foundations(run.roadYMetres) | number: '1.0-1' }}
             </td>
             <td class="number">{{ run.together }}</td>
+            <td class="number">{{ run.spotWeight }}</td>
             <td class="number">
               @if (run.costNow !== null && run.cost !== null) {
                 {{ run.costNow | number: '1.0-0' }} → {{ run.cost | number: '1.0-0' }}
                 <b>{{ saving(run.costNow, run.cost) }}</b>
               }
             </td>
+            <td class="number">
+              @if (run.beltMetres !== null) {
+                {{ run.beltMetres | number: '1.0-0' }} m · stacks up to {{ run.tallestStack }}
+                @if (run.unroutedBelts) {
+                  <span class="error">· {{ run.unroutedBelts }} not routed</span>
+                }
+              }
+            </td>
             <td>{{ statusOf(run) }}</td>
+            <td>
+              <button
+                mat-icon-button
+                type="button"
+                aria-label="Delete this run"
+                matTooltip="Delete this run"
+                (click)="$event.stopPropagation(); delete(run)"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
           </tr>
         }
       </tbody>
@@ -118,6 +136,40 @@
 @if (arrangement.isLoading()) {
   <mat-progress-bar mode="indeterminate" />
 }
+<div class="map-tools">
+  @if (area()) {
+    <button mat-stroked-button type="button" (click)="reset()">
+      <mat-icon>restart_alt</mat-icon> Reset
+    </button>
+  } @else {
+    <button
+      mat-stroked-button
+      type="button"
+      (click)="draw('area')"
+      [class.active]="drawing() === 'area'"
+      [attr.aria-pressed]="drawing() === 'area'"
+    >
+      <mat-icon>crop_free</mat-icon> Draw the area
+    </button>
+  }
+  <button
+    mat-stroked-button
+    type="button"
+    (click)="draw('exclusion')"
+    [disabled]="!area()"
+    [class.active]="drawing() === 'exclusion'"
+    [attr.aria-pressed]="drawing() === 'exclusion'"
+  >
+    <mat-icon>block</mat-icon> Keep out{{
+      exclusions().length > 0 ? ' (' + exclusions().length + ')' : ''
+    }}
+  </button>
+  @if ((arrangement.value()?.belts?.length ?? 0) > 0) {
+    <button mat-stroked-button type="button" (click)="open3d()">
+      <mat-icon>view_in_ar</mat-icon> Belt floor in 3D
+    </button>
+  }
+</div>
 <div class="layout">
   <div class="map-frame">
     <div #map class="map" [class.drawing]="drawing()"></div>
@@ -132,6 +184,19 @@
       <mat-slide-toggle [checked]="showNow()" (change)="showNow.set($event.checked)"
         >Where they stand now</mat-slide-toggle
       >
+      @if ((arrangement.value()?.belts?.length ?? 0) > 0) {
+        <mat-slide-toggle [checked]="showBelts()" (change)="showBelts.set($event.checked)"
+          >Belts and pipes (dashed) on the floor below</mat-slide-toggle
+        >
+      }
+      @if (arrangement.value()?.unrouted; as unrouted) {
+        @if (unrouted.length > 0) {
+          <p class="error">
+            {{ unrouted.length }} {{ unrouted.length === 1 ? 'link' : 'links' }} couldn't be routed
+            without crossing: their belts or pipes are missing.
+          </p>
+        }
+      }
       <p class="muted">
         Pick factories to see where they stand, their move and their links. Pointing at one shows
         its links.

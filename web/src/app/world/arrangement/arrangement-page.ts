@@ -36,10 +36,20 @@ import { ArrangementResponse } from '../../api/models/arrangement-response';
 import { ArrangementSummary } from '../../api/models/arrangement-summary';
 import { WorldRectangle } from '../../api/models/world-rectangle';
 import { problemMessage } from '../../shared/problem';
-import { factoryColour, machineOwners } from '../area/factory-outlines';
+import { TracedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
+import { ArrangementDeletion } from './arrangement-deletion';
+import { BeltFloor3dDialog, BeltFloor3dDialogData } from './belt-floor-3d-dialog';
+import { CatalogNames } from '../../shared/catalog-names';
+import { MatDialog } from '@angular/material/dialog';
 import { toMapPoint } from '../map/map-model';
 import {
   areaBetween,
+  beltEnds,
+  beltLine,
+  beltTooltip,
+  factoryTooltip,
+  ceilingHeights,
+  ceilingMetres,
   foundations,
   mapBounds,
   metres,
@@ -104,6 +114,10 @@ export class ArrangementPage {
   protected readonly roadY = signal(4);
   /** How strongly the factories are kept together: the belt work one plot of spread costs (BR-O1). */
   protected readonly together = signal(2);
+  /** How much belts to nodes, stations and drone ports count in placing, against a belt between factories (BR-O1). */
+  protected readonly spotWeight = signal(0.5);
+  /** The ceiling of the belt floor below the factories, in foundation heights of 4 metres (BR-O2). */
+  protected readonly ceiling = signal(8);
   protected readonly seconds = signal(60);
   /** The area drawn to arrange, in the game's centimetres. */
   protected readonly area = signal<WorldRectangle | null>(null);
@@ -114,6 +128,28 @@ export class ArrangementPage {
 
   protected draw(kind: 'area' | 'exclusion'): void {
     this.drawing.update((drawing) => (drawing === kind ? null : kind));
+  }
+
+  /** Back to the start: no area, no exclusions, no run shown; the settings stay. */
+  protected reset(): void {
+    this.drawing.set(null);
+    this.selected.set(null);
+    this.area.set(null);
+    this.exclusions.set([]);
+  }
+
+  /** The shown run's belt floor in 3D, over the page. */
+  protected open3d(): void {
+    const arrangement = this.arrangement.value();
+    if (!arrangement) return;
+    const data: BeltFloor3dDialogData = { arrangement, colourOf: this.colourOf() };
+    this.dialog.open(BeltFloor3dDialog, { data, width: '95vw', maxWidth: '95vw', height: '90vh' });
+  }
+
+  /** Deletes a run after asking; the list shows the newest left. */
+  protected async delete(run: ArrangementSummary): Promise<void> {
+    const requested = new Date(run.requestedAt).toLocaleString();
+    if (await this.deletion.confirmAndDelete({ id: run.id, requested })) this.runs.reload();
   }
   protected readonly requesting = signal(false);
   protected readonly requestError = signal<string | null>(null);
@@ -164,6 +200,16 @@ export class ArrangementPage {
 
   /** Whether to show where the arranged factories stand now (their machines, and the rectangle around them). */
   protected readonly showNow = signal(false);
+  /** Whether to show the belts routed on the floor below the factories. */
+  protected readonly showBelts = signal(true);
+  private readonly names = inject(CatalogNames);
+  private readonly dialog = inject(MatDialog);
+  private readonly deletion = inject(ArrangementDeletion);
+  /** A factory's colour, as the map draws it. */
+  protected readonly colourOf = computed(() => {
+    const traces = this.factories.value() ?? [];
+    return (factoryId: string) => factoryColour(traces, factoryId);
+  });
   /** The factories picked in the side bar: their place now, their move and their links show. */
   protected readonly focused = signal<ReadonlySet<string>>(new Set());
 
@@ -197,6 +243,7 @@ export class ArrangementPage {
   private readonly worldLayer = L.layerGroup();
   private readonly runLayer = L.layerGroup();
   private readonly linkLayer = L.layerGroup();
+  private readonly beltLayer = L.layerGroup();
   private readonly focusLayer = L.layerGroup();
   private readonly areaLayer = L.layerGroup();
   private fitted = false;
@@ -214,6 +261,7 @@ export class ArrangementPage {
       for (const layer of [
         this.worldLayer,
         this.runLayer,
+        this.beltLayer,
         this.focusLayer,
         this.linkLayer,
         this.areaLayer,
@@ -242,6 +290,8 @@ export class ArrangementPage {
       this.roadX.set(foundations(run.roadXMetres));
       this.roadY.set(foundations(run.roadYMetres));
       this.together.set(run.together);
+      this.spotWeight.set(run.spotWeight);
+      this.ceiling.set(ceilingHeights(run.ceilingMetres));
       this.seconds.set(run.seconds);
     });
     effect(() => (this.drawing() ? this.map?.dragging.disable() : this.map?.dragging.enable()));
@@ -274,6 +324,8 @@ export class ArrangementPage {
           roadXMetres: metres(this.roadX()),
           roadYMetres: metres(this.roadY()),
           together: this.together(),
+          spotWeight: this.spotWeight(),
+          ceilingMetres: ceilingMetres(this.ceiling()),
           seconds: this.seconds(),
         },
       });
@@ -293,7 +345,7 @@ export class ArrangementPage {
       ? 'Optimal'
       : run.quality === 'feasible'
         ? 'Best found in time'
-        : 'None found';
+        : 'No layout found: nothing placed';
   }
 
   /** While drawing, a drag draws the area to arrange, or an exclusion inside it. */
@@ -405,6 +457,7 @@ export class ArrangementPage {
     const [showNow, focused] = [this.showNow(), this.focused()];
     if (!this.map) return;
     this.runLayer.clearLayers();
+    this.beltLayer.clearLayers();
     this.focusLayer.clearLayers();
     this.linkLayer.clearLayers();
     if (!arrangement || arrangement.factories.length === 0) return;
@@ -419,6 +472,8 @@ export class ArrangementPage {
       }).addTo(this.runLayer);
     }
 
+    if (this.showBelts()) this.drawBelts(arrangement, traces, focused);
+
     const centres = this.centres(arrangement);
     for (const factory of arrangement.factories) {
       if (!factory.proposed) continue;
@@ -432,7 +487,7 @@ export class ArrangementPage {
         fillColor: colour,
         fillOpacity: 0.45,
       })
-        .bindTooltip(`<b>${name}</b><br>${metres > 0 ? `moves ${metres} m` : 'stays'}`)
+        .bindTooltip(factoryTooltip(name, metres))
         .on('mouseover', () => this.drawLinks(arrangement, factory.factoryId, centres))
         .on('mouseout', () => this.linkLayer.clearLayers())
         .on('click', () => this.toggleFocus(factory.factoryId))
@@ -471,6 +526,63 @@ export class ArrangementPage {
           interactive: false,
         }).addTo(layer);
       if (picked) this.drawLinks(arrangement, factory.factoryId, centres, this.focusLayer);
+    }
+  }
+
+  /**
+   * The belts routed on the floor below (BR-O2): a thin line each, in the colour of the factory it serves, with a dot at
+   * each lift; at a node's extractor, station or drone port the dot is dark. Where a belt leaves the floor for one outside
+   * the area, an amber ring. Belts on one square are stacked, so their lines lie on each other. With factories picked,
+   * their belts stand out.
+   */
+  private drawBelts(
+    arrangement: ArrangementResponse,
+    traces: readonly TracedFactory[],
+    focused: ReadonlySet<string>,
+  ): void {
+    const factories = new Set(arrangement.factories.map((factory) => factory.factoryId));
+    for (const belt of arrangement.belts) {
+      const picked = focused.has(belt.from) || focused.has(belt.to);
+      const dimmed = focused.size > 0 && !picked;
+      const ends = beltEnds(belt, factories);
+      const colour = factoryColour(traces, ends.factory) ?? '#e0e0e0';
+      const line = beltLine(belt.corners);
+      L.polyline(line, {
+        color: colour,
+        weight: picked ? 3 : 1.5,
+        opacity: dimmed ? 0.25 : 0.9,
+        // A pipe dashed, a belt solid.
+        dashArray: belt.pipe ? '6 4' : undefined,
+        interactive: false,
+      }).addTo(this.beltLayer);
+      // What it carries, on a wider line that can't be seen, so a thin belt is easy to point at.
+      L.polyline(line, { opacity: 0, weight: 10 })
+        .bindTooltip(() => beltTooltip(belt, (item) => this.names.item(item)), {
+          sticky: true,
+        })
+        .addTo(this.beltLayer);
+      const spot =
+        ends.spot === 'start' ? line[0] : ends.spot === 'end' ? line[line.length - 1] : null;
+      for (const lift of [line[0], line[line.length - 1]]) {
+        const atSpot = lift === spot;
+        L.circleMarker(lift, {
+          radius: picked ? 3 : 2,
+          weight: 1,
+          color: '#212121',
+          fillColor: atSpot ? '#37474f' : colour,
+          fillOpacity: dimmed ? 0.25 : 1,
+          interactive: false,
+        }).addTo(this.beltLayer);
+        if (atSpot && belt.leavesFloor)
+          L.circleMarker(lift, {
+            radius: 6,
+            weight: 2,
+            color: '#ffb300',
+            fill: false,
+            opacity: dimmed ? 0.25 : 1,
+            interactive: false,
+          }).addTo(this.beltLayer);
+      }
     }
   }
 

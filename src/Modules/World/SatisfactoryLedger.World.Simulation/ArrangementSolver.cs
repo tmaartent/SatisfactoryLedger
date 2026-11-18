@@ -11,7 +11,8 @@ namespace SatisfactoryLedger.World.Simulation;
 /// <item>No two take the same space: every factory, and every fixed place that blocks (a station, a drone port; not a
 /// node, which factories may stand over), is a rectangle widened by the gaps, and none of them overlap
 /// (<c>NoOverlap2D</c>). Blocking places that overlap each other are merged into one first.</item>
-/// <item>Objective: per link, the belts it needs times the distance along the grid between the centres, plus, to keep
+/// <item>Objective: per link, the belts it needs times the distance along the grid between the centres at the link's
+/// weight (in percent), plus, to keep
 /// them together, the width and depth of the rectangle around all factories times its weight; then, to break ties, how
 /// far the factories move, so one that saves nothing by moving stays.</item>
 /// </list>
@@ -69,15 +70,15 @@ public static class ArrangementSolver
         }
 
         List<LinearExpr> belts = [];
-        foreach (ArrangementLink link in problem.Links.Where(link => link.Belts > 0))
+        foreach (ArrangementLink link in problem.Links.Where(link => link.BeltsAndPipes > 0))
         {
             (LinearExpr fromX, LinearExpr fromY) = doubleCentres[link.From];
             (LinearExpr toX, LinearExpr toY) = doubleCentres[link.To];
-            belts.Add(link.Belts * (Absolute(model, fromX - toX, 2 * Span(area)) + Absolute(model, fromY - toY, 2 * Span(area))));
+            belts.Add(link.BeltsAndPipes * link.WeightPercent * (Absolute(model, fromX - toX, 2 * Span(area)) + Absolute(model, fromY - toY, 2 * Span(area))));
         }
 
-        // The belts are in doubled distances, so the spread is doubled too.
-        LinearExpr spread = 2L * problem.Together * (right - left + top - bottom);
+        // The belts are in doubled distances and in percent, so the spread is too.
+        LinearExpr spread = 200L * problem.Together * (right - left + top - bottom);
 
         // Belt work first: one cell of it outweighs every factory moving across the whole area.
         long movesAtMost = (2L * Span(area) * problem.Factories.Count) + 1;
@@ -90,8 +91,8 @@ public static class ArrangementSolver
         CpSolverStatus status = solver.Solve(model);
         if (status is not (CpSolverStatus.Optimal or CpSolverStatus.Feasible))
         {
-            Dictionary<string, GridRectangle> now = problem.Factories.ToDictionary(factory => factory.Id, factory => factory.Now);
-            return new ArrangementProposal(now, problem.CostNow, problem.CostNow, ArrangementStatus.NotFound);
+            // No layout: nothing is placed, not even where it stands now, which would look like a proposal.
+            return new ArrangementProposal(new Dictionary<string, GridRectangle>(), problem.CostNow, problem.CostNow, ArrangementStatus.NotFound);
         }
 
         Dictionary<string, GridRectangle> places = problem.Factories.ToDictionary(

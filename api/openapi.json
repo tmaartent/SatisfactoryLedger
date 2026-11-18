@@ -963,7 +963,7 @@
           "World"
         ],
         "summary": "Ask where the factories in an area would best stand, on plots in rows and columns, so the belt work between them and their inputs is least",
-        "description": "Computed by the analysis service in the background from the snapshot, its factories and its analysis: 202 with the run, pending until it's ready. Every run is kept.",
+        "description": "Computed by the analysis service in the background from the snapshot, its factories and its analysis: 202 with the run, pending until it's ready. Every run is kept until it's deleted.",
         "operationId": "RequestArrangement",
         "parameters": [
           {
@@ -1084,6 +1084,32 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Delete a run, ready or still being computed: a proposal that comes back for it later is dropped",
+        "operationId": "DeleteArrangement",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           },
           "404": {
             "description": "Not Found"
@@ -1284,6 +1310,25 @@
           "belts": {
             "type": "integer",
             "format": "int32"
+          },
+          "weightPercent": {
+            "type": "integer",
+            "format": "int32",
+            "default": 100
+          },
+          "pipes": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "loads": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BeltLoadDocument"
+            }
           }
         }
       },
@@ -1304,6 +1349,8 @@
           "roadYMetres",
           "exclusions",
           "together",
+          "spotWeight",
+          "ceilingMetres",
           "seconds"
         ],
         "type": "object",
@@ -1362,6 +1409,20 @@
             ],
             "format": "int32"
           },
+          "spotWeight": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "ceilingMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "seconds": {
             "type": [
               "null",
@@ -1376,7 +1437,9 @@
           "summary",
           "factories",
           "fixed",
-          "links"
+          "links",
+          "belts",
+          "unrouted"
         ],
         "type": "object",
         "properties": {
@@ -1396,6 +1459,18 @@
             }
           },
           "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArrangementLinkDocument"
+            }
+          },
+          "belts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutedBeltResponse"
+            }
+          },
+          "unrouted": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ArrangementLinkDocument"
@@ -1422,6 +1497,8 @@
           "roadXMetres",
           "roadYMetres",
           "together",
+          "spotWeight",
+          "ceilingMetres",
           "seconds",
           "status",
           "requestedAt",
@@ -1430,7 +1507,10 @@
           "error",
           "costNow",
           "cost",
-          "quality"
+          "quality",
+          "beltMetres",
+          "tallestStack",
+          "unroutedBelts"
         ],
         "type": "object",
         "properties": {
@@ -1480,6 +1560,14 @@
           "together": {
             "type": "integer",
             "format": "int32"
+          },
+          "spotWeight": {
+            "type": "number",
+            "format": "double"
+          },
+          "ceilingMetres": {
+            "type": "number",
+            "format": "double"
           },
           "seconds": {
             "type": "integer",
@@ -1535,6 +1623,47 @@
                 "$ref": "#/components/schemas/ArrangementQuality"
               }
             ]
+          },
+          "beltMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "tallestStack": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "unroutedBelts": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BeltLoadDocument": {
+        "required": [
+          "item",
+          "perMinute",
+          "pipe"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "perMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "pipe": {
+            "type": "boolean"
           }
         }
       },
@@ -3105,6 +3234,74 @@
           }
         }
       },
+      "RoutedBeltResponse": {
+        "required": [
+          "from",
+          "to",
+          "corners",
+          "leavesFloor",
+          "pipe",
+          "heights",
+          "lifts",
+          "levels",
+          "item",
+          "perMinute"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "corners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldPoint"
+            }
+          },
+          "leavesFloor": {
+            "type": "boolean"
+          },
+          "pipe": {
+            "type": "boolean"
+          },
+          "heights": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "lifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldPoint"
+            }
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "item": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "perMinute": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "SnapshotCounts": {
         "required": [
           "machines",
@@ -3491,6 +3688,23 @@
             "items": {
               "$ref": "#/components/schemas/FootprintDocument"
             }
+          }
+        }
+      },
+      "WorldPoint": {
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "format": "double"
+          },
+          "y": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

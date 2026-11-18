@@ -14,7 +14,7 @@ The owner wants a proposal for where the world's factories would best stand, so 
   1. `POST /snapshots/{id}/arrangements` stores a pending run and publishes `ArrangementRequested` through the transactional outbox, to the queue `world.arrangements-to-compute`.
   2. The service fetches the problem from `GET /internal/world/arrangements/{id}/problem`; World makes it from the snapshot, its world's factories and the snapshot's analysis, and keeps it with the grid it was made on.
   3. The service solves it and sends the proposal back (`PUT …/proposal`, or `…/failure`).
-- **Storage:** every run is kept (the owner chose), in `world.arrangements`: settings, status, the problem and the proposal as jsonb. A run goes with its snapshot.
+- **Storage:** every run is kept (the owner chose) until the player deletes it (added 2026-11-18; a proposal that comes back for a deleted run gets a 404, which the service already takes as gone), in `world.arrangements`: settings, status, the problem and the proposal as jsonb. A run goes with its snapshot.
 - **The service's limits, raised for this job:** Wolverine cancels a handler after 60 seconds by default (`DefaultExecutionTimeout`), and the service defaults give every HTTP client a standard resilience handler with a 10-second attempt timeout. An arrangement takes its solver's time plus half a minute to fetch the problem, so the service's handler timeout is 15 minutes, and its World client's handler is replaced (`RemoveAllResilienceHandlers`, marked for evaluation, EXTEXP0001) with one of 2-minute attempts and 5 minutes in all.
 
 ## Alternatives considered

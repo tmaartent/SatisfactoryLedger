@@ -28,24 +28,35 @@ internal sealed record ArrangementGrid(double OriginX, double OriginY, double Pi
         OriginX + ((plots.X + plots.Width) * PitchX) - RoadX,
         OriginY + ((plots.Y + plots.Depth) * PitchY) - RoadY);
 
+    /// <summary>The middle of a square of the belt floor laid over these plots, in centimetres.</summary>
+    public WorldPoint WorldOf(FloorSquareDocument square, BeltFloor floor) => new(
+        OriginX + ((square.X + 0.5) * PitchX / floor.SquaresPerPlotX),
+        OriginY + ((square.Y + 0.5) * PitchY / floor.SquaresPerPlotY));
+
     /// <summary>How many plots fit in a stretch of the world, with the roads between them.</summary>
     public (int Width, int Depth) PlotsIn(double width, double depth) =>
         (Math.Max(1, (int)Math.Floor((width + RoadX) / PitchX)), Math.Max(1, (int)Math.Floor((depth + RoadY) / PitchY)));
 
-    /// <summary>The plots that take a stretch of the world: as many as its size needs, with the roads between them inside.</summary>
-    public (int Width, int Depth) PlotsFor(double width, double depth) =>
-        (Math.Max(1, (int)Math.Ceiling((width + RoadX) / PitchX)), Math.Max(1, (int)Math.Ceiling((depth + RoadY) / PitchY)));
-
     /// <summary>
-    /// The plots a factory takes: as many as its outline needs, centred on where it stands, so it can move to any plots
-    /// of that size.
+    /// The plot a factory takes: one, whatever its machines' footprints add up to, where their middle is (decided
+    /// 2026-11-18: every factory is built to fit a plot, on several floors where it needs more).
     /// </summary>
-    public GridRectangle PlotsFor(IReadOnlyCollection<(double X, double Y)> outline)
+    public GridRectangle PlotOf(IReadOnlyCollection<(double X, double Y)> outline)
     {
         (double minX, double minY, double maxX, double maxY) = Bounds(outline);
-        (int width, int depth) = PlotsFor(maxX - minX, maxY - minY);
-        (double centreX, double centreY) = CellOf((minX + maxX) / 2, (minY + maxY) / 2);
-        return new GridRectangle((int)Math.Round(centreX - (width / 2.0)), (int)Math.Round(centreY - (depth / 2.0)), width, depth);
+        (double x, double y) = CellOf((minX + maxX) / 2, (minY + maxY) / 2);
+        return new GridRectangle((int)Math.Floor(x), (int)Math.Floor(y), 1, 1);
+    }
+
+    /// <summary>The squares of the belt floor laid over these plots that something reaches into.</summary>
+    public GridRectangle SquaresTouching(IReadOnlyCollection<(double X, double Y)> outline, BeltFloor floor)
+    {
+        (double minX, double minY, double maxX, double maxY) = Bounds(outline);
+        (double sizeX, double sizeY) = (PitchX / floor.SquaresPerPlotX, PitchY / floor.SquaresPerPlotY);
+        int x = (int)Math.Floor((minX - OriginX) / sizeX);
+        int y = (int)Math.Floor((minY - OriginY) / sizeY);
+        return new GridRectangle(
+            x, y, Math.Max(1, (int)Math.Ceiling((maxX - OriginX) / sizeX) - x), Math.Max(1, (int)Math.Ceiling((maxY - OriginY) / sizeY) - y));
     }
 
     /// <summary>The plots something that stays touches: every plot it reaches into.</summary>

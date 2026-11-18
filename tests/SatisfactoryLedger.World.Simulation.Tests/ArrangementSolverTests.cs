@@ -31,6 +31,36 @@ public class ArrangementSolverTests
     }
 
     [Fact]
+    public void Pipes_draw_factories_together_as_belts_do()
+    {
+        ArrangementProposal proposal = Solve(
+            [new ArrangedFactory("water", new GridRectangle(0, 0, 4, 2)), new ArrangedFactory("refinery", new GridRectangle(50, 50, 2, 2))],
+            [],
+            [new ArrangementLink("water", "refinery", Belts: 0, Pipes: 2)]);
+
+        Assert.Equal((ArrangementStatus.Optimal, 6.0), (proposal.Status, proposal.Cost));
+    }
+
+    [Fact]
+    public void Without_a_layout_nothing_is_placed()
+    {
+        // Two factories, one plot.
+        ArrangementProposal proposal = ArrangementSolver.Solve(
+            new ArrangementProblem(
+                [new ArrangedFactory("smelting", new GridRectangle(0, 0, 1, 1)), new ArrangedFactory("plates", new GridRectangle(0, 0, 1, 1))],
+                [],
+                [new ArrangementLink("smelting", "plates", 1)],
+                new GridRectangle(0, 0, 1, 1),
+                GapX: 0,
+                GapY: 0,
+                Together: 0),
+            TimeSpan.FromSeconds(5));
+
+        Assert.Equal(ArrangementStatus.NotFound, proposal.Status);
+        Assert.Empty(proposal.Places);
+    }
+
+    [Fact]
     public void Factories_never_overlap_and_keep_their_gaps()
     {
         ArrangementProposal proposal = Solve(
@@ -74,6 +104,23 @@ public class ArrangementSolverTests
             [new ArrangementLink("node", "smelting", 1)]);
 
         Assert.Equal(0, proposal.Cost);
+    }
+
+    [Fact]
+    public void A_lightly_weighed_node_draws_a_factory_less_than_the_factory_it_feeds()
+    {
+        GridRectangle plates = new(50, 0, 2, 2);
+        GridRectangle node = new(0, 50, 2, 2);
+
+        ArrangementProposal proposal = Solve(
+            [new ArrangedFactory("smelting", new GridRectangle(25, 25, 2, 2))],
+            [new FixedPlace("plates", plates, Blocks: true), new FixedPlace("node", node, Blocks: false)],
+            [new ArrangementLink("smelting", "plates", 1), new ArrangementLink("node", "smelting", 1, WeightPercent: 50)]);
+
+        GridRectangle smelting = proposal.Places["smelting"];
+        static long Apart(GridRectangle a, GridRectangle b) =>
+            Math.Abs(a.DoubleCentreX - b.DoubleCentreX) + Math.Abs(a.DoubleCentreY - b.DoubleCentreY);
+        Assert.True(Apart(smelting, plates) < Apart(smelting, node), $"{smelting}");
     }
 
     [Fact]

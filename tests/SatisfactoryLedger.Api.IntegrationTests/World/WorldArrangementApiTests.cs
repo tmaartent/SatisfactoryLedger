@@ -64,6 +64,47 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
     }
 
     [Fact]
+    public async Task The_belts_between_the_arranged_factories_are_routed_on_the_floor_below_them()
+    {
+        ArrangementSummary requested = (await (await RequestAsync(new { plotWidthMetres = 16, plotDepthMetres = 16, roadXMetres = 8, roadYMetres = 8, ceilingMetres = 12, seconds = 5 }))
+            .Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+
+        Arrangement ready = await ReadyAsync(requested.Id);
+
+        HashSet<string> arranged = [.. ready.Factories.Select(factory => factory.FactoryId.ToString())];
+        int belts = ready.Links.Where(link => arranged.Contains(link.From) && arranged.Contains(link.To)).Sum(link => link.Belts);
+        Assert.Equal(12, ready.Summary.CeilingMetres);
+        Assert.Equal((belts, 0), (ready.Belts.Count(belt => arranged.Contains(belt.From) && arranged.Contains(belt.To)), ready.Summary.UnroutedBelts));
+
+        // Smelting's ore comes up from its miner's spot.
+        Assert.Contains(ready.Belts, belt => !arranged.Contains(belt.From) && arranged.Contains(belt.To));
+        Assert.All(ready.Belts, belt => Assert.True(belt.Corners.Length >= 2));
+
+        // Its level on each straight run, from 0 on the floor.
+        Assert.All(ready.Belts, belt => Assert.Equal(belt.Corners.Length - 1, belt.Levels.Length));
+
+        // Each says what it carries.
+        Assert.All(ready.Belts, belt => Assert.True(belt.Item is not null && belt.PerMinute > 0, $"{belt.From} → {belt.To} carries {belt.Item} at {belt.PerMinute}"));
+        Assert.True(ready.Summary.BeltMetres > 0, $"{ready.Summary.BeltMetres} metres of belt");
+    }
+
+    [Fact]
+    public async Task Belts_to_nodes_and_stations_cannot_weigh_below_nothing()
+    {
+        HttpResponseMessage response = await RequestAsync(new { spotWeight = -1 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_ceiling_must_leave_room_for_a_belt()
+    {
+        HttpResponseMessage response = await RequestAsync(new { ceilingMetres = 1 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Every_run_is_kept_for_its_world()
     {
         ArrangementSummary first = (await (await RequestAsync(new { seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
@@ -72,7 +113,40 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
         ArrangementSummary[] runs = await _client.GetAsync<ArrangementSummary[]>("/api/v1/world/arrangements?world=Development");
 
         Assert.Equal([second.Id, first.Id], runs.Select(run => run.Id));
-        Assert.Equal((48.0, 2, 40.0, 0), (first.PlotWidthMetres, first.Together, second.PlotWidthMetres, second.Together));
+        Assert.Equal((48.0, 2, 32.0, 40.0, 0), (first.PlotWidthMetres, first.Together, first.CeilingMetres, second.PlotWidthMetres, second.Together));
+    }
+
+    [Fact]
+    public async Task A_run_can_be_deleted_even_while_it_is_computed()
+    {
+        ArrangementSummary kept = (await (await RequestAsync(new { seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+        ArrangementSummary deleted = (await (await RequestAsync(new { seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+
+        HttpResponseMessage response = await _client.DeleteAsync($"/api/v1/world/arrangements/{deleted.Id}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal([kept.Id], (await _client.GetAsync<ArrangementSummary[]>("/api/v1/world/arrangements?world=Development")).Select(run => run.Id));
+        Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync(new Uri($"/api/v1/world/arrangements/{deleted.Id}", UriKind.Relative), TestContext.Current.CancellationToken)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_run_without_a_free_plot_for_every_factory_is_refused_with_the_reason()
+    {
+        // Plots of 100 km: the area holds one, and the freight platform takes it; two factories.
+        HttpResponseMessage response = await RequestAsync(new { plotWidthMetres = 100_000, plotDepthMetres = 100_000 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        string problem = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("2 factories but 0 free plots", problem, StringComparison.Ordinal);
+        Assert.Empty(await _client.GetAsync<ArrangementSummary[]>("/api/v1/world/arrangements?world=Development"));
+    }
+
+    [Fact]
+    public async Task Deleting_an_unknown_run_is_not_found()
+    {
+        HttpResponseMessage response = await _client.DeleteAsync($"/api/v1/world/arrangements/{Guid.NewGuid()}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

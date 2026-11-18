@@ -42,14 +42,10 @@ internal static class InternalArrangementEndpoints
             return TypedResults.Conflict();
         }
 
-        List<Factories.StoredFactory> factories = await db.Factories.AsNoTracking()
-            .Where(factory => factory.World == run.World)
-            .OrderBy(factory => factory.Id)
-            .ToListAsync(cancellationToken);
-        (ArrangementProblem problem, ArrangementGrid grid) = WorldArrangement.Of(
-            snapshot.Value.Document, AnalysisDocument.FromJson(content), factories, run.Settings);
+        (ArrangementProblem problem, ArrangementGrid grid, IReadOnlyDictionary<string, GridRectangle> spots, IReadOnlyDictionary<(string From, string To), IReadOnlyList<BeltLoadDocument>> loads) =
+            await ArrangementProblems.MakeAsync(db, run, snapshot.Value.Document, content, cancellationToken);
 
-        string json = WorldArrangement.ToDocument(problem, run.Seconds).ToJson();
+        string json = WorldArrangement.ToDocument(problem, run.Seconds, run.Settings.Floor, spots, loads).ToJson();
         run.Problem = json;
         run.GridOriginX = grid.OriginX;
         run.GridOriginY = grid.OriginY;
