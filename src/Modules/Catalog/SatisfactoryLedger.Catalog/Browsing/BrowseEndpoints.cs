@@ -68,7 +68,7 @@ internal static class BrowseEndpoints
 
         List<ItemResponse> response = await items
             .OrderBy(item => item.Name)
-            .Select(item => new ItemResponse(item.Id.Id, item.Name, item.ItemForm, item.IsRawResource, item.IsInGame))
+            .Select(item => new ItemResponse(item.Id.Id, item.Name, item.ItemForm, item.IsRawResource, item.IsInGame, item.FluidColour))
             .ToListAsync(cancellationToken);
 
         return TypedResults.Ok(response);

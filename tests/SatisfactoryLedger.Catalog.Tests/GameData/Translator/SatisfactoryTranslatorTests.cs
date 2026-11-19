@@ -180,6 +180,26 @@ public class SatisfactoryTranslatorTests
         Assert.True(water.IsRawResource);
     }
 
+    // The game writes a fluid's colour as "(B=212,G=176,R=122,A=0)": blue, green, red, in that order.
+    [Fact]
+    public async Task Water_from_the_game_file_has_the_colour_the_game_gives_it()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Item water = Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == "Desc_Water_C");
+        Assert.Equal("#7ab0d4", water.FluidColour);
+    }
+
+    // Every solid has a white fluid colour in the Docs file; it means none.
+    [Fact]
+    public async Task An_ore_from_the_game_file_has_no_fluid_colour()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Item ironOre = Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == "Desc_OreIron_C");
+        Assert.Null(ironOre.FluidColour);
+    }
+
     [Fact]
     public async Task Transport_tiers_from_the_game_file_have_their_in_game_capacities()
     {

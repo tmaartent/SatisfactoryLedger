@@ -2798,7 +2798,8 @@
           "name",
           "form",
           "isRawResource",
-          "inGame"
+          "inGame",
+          "fluidColour"
         ],
         "type": "object",
         "properties": {
@@ -2816,6 +2817,12 @@
           },
           "inGame": {
             "type": "boolean"
+          },
+          "fluidColour": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
