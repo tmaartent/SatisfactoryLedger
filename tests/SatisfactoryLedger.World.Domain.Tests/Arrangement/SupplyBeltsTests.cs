@@ -41,6 +41,26 @@ public class SupplyBeltsTests
         Assert.Contains(["b"], belts);
     }
 
+    // 2026-11-19: a Caterium miner outside the area merged with a source far away; the belt started in the rectangle
+    // around both, where neither stands.
+    [Fact]
+    public void Extractors_that_do_not_stand_together_keep_belts_of_their_own_though_one_could_carry_both()
+    {
+        IReadOnlyList<IReadOnlyList<string>> belts = Merged(
+            1200, new Supply("a", 0, 0, 300), new Supply("b", 100_000, 0, 300));
+
+        Assert.Equal([["a"], ["b"]], belts);
+    }
+
+    [Fact]
+    public void Extractors_within_50_metres_of_the_first_on_a_belt_stand_together()
+    {
+        IReadOnlyList<IReadOnlyList<string>> belts = Merged(
+            1200, new Supply("a", 0, 0, 300), new Supply("b", 3000, 2000, 300), new Supply("c", 3000, 2001, 300));
+
+        Assert.Equal([["a", "b"], ["c"]], belts);
+    }
+
     [Fact]
     public void What_an_item_needs_more_than_one_belt_for_fills_them_one_after_the_other()
     {

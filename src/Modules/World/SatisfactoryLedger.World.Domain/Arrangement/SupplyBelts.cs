@@ -7,8 +7,14 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 public static class SupplyBelts
 {
     /// <summary>
-    /// The extractors on each belt: a belt starts with the biggest left, then takes the nearest to it that still fit,
-    /// so extractors that stand together share one.
+    /// How far from the first on a belt another may stand to share it, in centimetres along x and y (decided 2026-11-19):
+    /// 50 metres. Buildings further apart keep belts of their own, so each belt starts where its buildings stand.
+    /// </summary>
+    private const double TogetherCentimetres = 5000;
+
+    /// <summary>
+    /// The extractors on each belt: a belt starts with the biggest left, then takes the nearest to it that still fit
+    /// and stand together with it (within 50 metres), so only extractors that stand together share one.
     /// </summary>
     public static IReadOnlyList<IReadOnlyList<Supply>> Merge(IEnumerable<Supply> supplies, double capacity)
     {
@@ -21,7 +27,8 @@ public static class SupplyBelts
             left.RemoveAt(0);
             List<Supply> belt = [first];
             double carried = first.PerMinute;
-            foreach (Supply next in left.OrderBy(supply => Math.Abs(supply.X - first.X) + Math.Abs(supply.Y - first.Y)).ToList())
+            double Distance(Supply supply) => Math.Abs(supply.X - first.X) + Math.Abs(supply.Y - first.Y);
+            foreach (Supply next in left.Where(supply => Distance(supply) <= TogetherCentimetres).OrderBy(Distance).ToList())
             {
                 if (carried + next.PerMinute <= capacity)
                 {
