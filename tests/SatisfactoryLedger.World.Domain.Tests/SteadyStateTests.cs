@@ -156,6 +156,49 @@ public class SteadyStateTests
     }
 
     [Fact]
+    public void A_full_belt_is_no_bottleneck_when_what_it_cant_take_goes_another_way()
+    {
+        // As on the owner's plastic line: "any" to a full belt, the overflow elsewhere. The miner delivers all it has.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 120).Belt("in").SmartSplitter("split", Rule(0, SortRuleKind.Any), Rule(1, SortRuleKind.Overflow))
+            .Belt("mk1", capacity: 60).Sink("sink").Belt("overflow").Sink("elsewhere")
+            .Connect("miner", "in", "split").ConnectPort("split", 0, "mk1").Connect("mk1", "sink")
+            .ConnectPort("split", 1, "overflow").Connect("overflow", "elsewhere")
+            .Run();
+
+        Assert.Equal(60, result.Flow(Id("mk1"), Id("sink"), Ore), Precision);
+        Assert.Empty(result.Bottlenecks);
+    }
+
+    [Fact]
+    public void Belts_that_a_miner_fills_exactly_are_no_bottleneck()
+    {
+        // As the owner's copper miner: 1200 a minute over belts that together take 1200. What's left when the
+        // simulation settles is noise, not ore held back.
+        FlowResult result = new TestFlow()
+            .Provider("miner", Ore, 120).Splitter("split").Belt("left", capacity: 60).Belt("right", capacity: 60).Sink("sink")
+            .Connect("miner", "split", "left", "sink").Connect("split", "right", "sink")
+            .Run();
+
+        Assert.Empty(result.Bottlenecks);
+    }
+
+    [Fact]
+    public void A_belt_offers_on_no_more_than_it_can_carry_so_a_split_and_merged_line_is_not_counted_twice()
+    {
+        // 1200 split over two belts of 600 and merged again: each half was offered nearly all 1200, and the merger added them up.
+        FlowResult result = new TestFlow()
+            .Provider("station", Ore, 1200).Splitter("split").Belt("left", capacity: 600).Belt("right", capacity: 600)
+            .Merger("merge").Belt("out", capacity: 600).Sink("sink")
+            .Connect("station", "split", "left", "merge", "out", "sink").Connect("split", "right", "merge")
+            .Run();
+
+        Bottleneck bottleneck = Assert.Single(result.Bottlenecks);
+        Assert.Equal(Id("out"), bottleneck.Conduit);
+        Assert.Equal(600, bottleneck.OfferedMore, Precision);
+    }
+
+    [Fact]
     public void An_output_belt_too_slow_for_its_machine_is_a_bottleneck_and_the_machine_is_output_blocked()
     {
         // A smelter making 120 ingots a minute onto a Mk.1 belt (60).

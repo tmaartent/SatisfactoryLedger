@@ -656,7 +656,10 @@ internal sealed class Solver
                 case FlowSplitter { Rules.Count: > 0 } sorting:
                     SendSorted(node, sorting, Supplied(node), Offered(node));
                     break;
-                case FlowConduit or FlowSplitter or FlowMerger:
+                case FlowConduit conduit:
+                    Send(node, Supplied(node), AtMost(Offered(node), conduit.Capacity));
+                    break;
+                case FlowSplitter or FlowMerger:
                     Send(node, Supplied(node), Offered(node));
                     break;
                 case FlowMachine machine:
@@ -695,6 +698,19 @@ internal sealed class Solver
         Dictionary<ItemId, double> offering =
             asked.ToDictionary(entry => entry.Key, entry => offer * entry.Value / weight);
         Send(node, sending, offering);
+    }
+
+    /// <summary>
+    /// BR-A12: a belt, lift or pipe offers on no more than it can carry, each item in proportion. Otherwise a line split
+    /// and merged again counts what's offered twice, since each half is offered nearly all of it, and every
+    /// balancer stage doubles it.
+    /// </summary>
+    private static Dictionary<ItemId, double> AtMost(Dictionary<ItemId, double> offer, double capacity)
+    {
+        double total = Total(offer);
+        return total <= capacity
+            ? offer
+            : offer.ToDictionary(entry => entry.Key, entry => entry.Value * capacity / total);
     }
 
     /// <summary>What a connection can carry at most: the capacity of the belt or pipe it leads to; else what it takes, if limited.</summary>
@@ -958,13 +974,42 @@ internal sealed class Solver
             bool fedBySaturated = _in[node].Any(edge =>
                 _network.Nodes[_network.Edges[edge].From] is FlowConduit upstream &&
                 Saturated(_network.Edges[edge].From, upstream));
-            if (flowing >= conduit.Capacity - SteadyState.Tolerance && offered - flowing > SteadyState.Tolerance && !fedBySaturated)
+            if (flowing >= conduit.Capacity - SteadyState.Tolerance && offered - flowing > SteadyState.Tolerance && !fedBySaturated &&
+                HoldsBack(node))
             {
                 bottlenecks.Add(new Bottleneck(conduit.Id, conduit.Capacity, flowing, offered - flowing));
             }
         }
 
         return bottlenecks;
+    }
+
+    /// <summary>
+    /// BR-A12: whether something upstream of a full belt, lift or pipe is held back: a provider delivering less than
+    /// 99.9% of what it offers (less is noise, as for a machine, BR-A11), or an output-blocked machine. Found through belts, splitters and mergers only. What the belt can't take
+    /// that goes another way holds nothing back (decided 2026-11-19). A station's rate isn't known, so it never counts.
+    /// </summary>
+    private bool HoldsBack(int node)
+    {
+        HashSet<int> seen = [node];
+        Queue<int> next = new([node]);
+        while (next.TryDequeue(out int current))
+        {
+            foreach (int from in _in[current].Select(edge => _network.Edges[edge].From).Where(seen.Add))
+            {
+                switch (_network.Nodes[from])
+                {
+                    case FlowProvider provider when _out[from].Sum(edge => Total(_flow[edge])) < provider.Offer * SteadyState.RunningFrom:
+                    case FlowMachine machine when _machines.TryGetValue(machine.Id, out MachineState? state) && state.Limit == MachineLimit.OutputBlocked:
+                        return true;
+                    case FlowConduit or FlowSplitter or FlowMerger:
+                        next.Enqueue(from);
+                        break;
+                }
+            }
+        }
+
+        return false;
     }
 
     private bool Saturated(int node, FlowConduit conduit) =>
