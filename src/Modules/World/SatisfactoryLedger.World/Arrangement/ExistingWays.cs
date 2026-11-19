@@ -132,7 +132,8 @@ internal static class ExistingWays
     private static double Apart(WorldPoint? a, WorldPoint? b) => a is null || b is null ? 0 : Distance(a, b);
 
     /// <summary>
-    /// A way's buildings as points seen from above: a belt's curve, each turned to run on from the point before, or else
+    /// A way's buildings as points seen from above: a belt's curve, sampled along its tangents as the game lays it (not
+    /// straight from point to point: 2026-11-19, drawn as zigzags), each turned to run on from the point before, or else
     /// where a building stands. One without a place is left out. It starts where the building's first belt does, by its
     /// output, rather than at the building's middle (2026-11-18: a short diagonal from each freight platform's middle);
     /// the middle only turns that belt the right way round, or starts the way when the belt has no curve.
@@ -145,7 +146,7 @@ internal static class ExistingWays
         foreach ((BuildableDocument building, int index) in buildings.Select((building, index) => (building, index)))
         {
             List<WorldPoint> along = building.Curve is { Count: > 0 } curve
-                ? [.. curve.Select(point => new WorldPoint(point.Location.X, point.Location.Y))]
+                ? Sampled(curve)
                 : building.Position is { } position ? [new WorldPoint(position.X, position.Y)] : [];
             if ((points.Count > 0 ? points[^1] : before) is { } last && along.Count > 1 && Distance(last, along[^1]) < Distance(last, along[0]))
             {
@@ -159,6 +160,34 @@ internal static class ExistingWays
             }
 
             points.AddRange(along);
+        }
+
+        return points;
+    }
+
+    /// <summary>Points per stretch of a belt between two of its points, as the map draws it.</summary>
+    private const int StepsPerStretch = 6;
+
+    /// <summary>
+    /// A belt's curve seen from above: a cubic Hermite spline from each point to the next, leaving along the one's leave
+    /// tangent and arriving along the other's arrive tangent, as the game lays it and the map draws it.
+    /// </summary>
+    private static List<WorldPoint> Sampled(IReadOnlyList<CurvePointDocument> curve)
+    {
+        List<WorldPoint> points = [new WorldPoint(curve[0].Location.X, curve[0].Location.Y)];
+        for (int i = 0; i + 1 < curve.Count; i++)
+        {
+            (PositionDocument from, PositionDocument to) = (curve[i].Location, curve[i + 1].Location);
+            (PositionDocument leave, PositionDocument arrive) = (curve[i].LeaveTangent, curve[i + 1].ArriveTangent);
+            for (int step = 1; step <= StepsPerStretch; step++)
+            {
+                double t = (double)step / StepsPerStretch;
+                (double h00, double h10, double h01, double h11) =
+                    ((2 * t * t * t) - (3 * t * t) + 1, (t * t * t) - (2 * t * t) + t, (-2 * t * t * t) + (3 * t * t), (t * t * t) - (t * t));
+                points.Add(new WorldPoint(
+                    (h00 * from.X) + (h10 * leave.X) + (h01 * to.X) + (h11 * arrive.X),
+                    (h00 * from.Y) + (h10 * leave.Y) + (h01 * to.Y) + (h11 * arrive.Y)));
+            }
         }
 
         return points;

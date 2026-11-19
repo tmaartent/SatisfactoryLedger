@@ -89,6 +89,44 @@ public class ExistingWaysTests
     }
 
     [Fact]
+    public void A_belt_is_followed_along_its_curve_not_straight_from_point_to_point()
+    {
+        // A belt bends from heading east at (0, 0) to heading north at (10 m, 10 m); the smelter is north of it. In the
+        // game it curves along the tangents; from point to point it would cut the corner (2026-11-19: existing belts
+        // drawn as zigzags).
+        static BuildableId Saved(string name) => BuildableId.Of(Id(name));
+        static SavedPosition At(double x, double y) => new(x, y, 0);
+        var bend = new SavedLogistics(Saved("bend"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt)
+        {
+            Position = At(500, 500),
+            Curve = [new SavedCurvePoint(At(0, 0), At(2000, 0), At(2000, 0)), new SavedCurvePoint(At(1000, 1000), At(0, 2000), At(0, 2000))],
+        };
+        var saved = new SavedWorld(
+            new SaveInfo("A bend", 517554, new DateTime(2026, 11, 19, 0, 0, 0, DateTimeKind.Utc)),
+            [
+                new SavedProvider(Saved("miner"), "Build_MinerMk1_C", null, ClockSpeed.Percent(100), "Desc_OreIron_C") { Position = At(0, -500) },
+                bend,
+                new SavedMachine(Saved("smelter"), "Build_SmelterMk1_C", null, ClockSpeed.Percent(100), 1) { Position = At(1000, 3000) },
+            ],
+            [new Connection(Saved("miner"), Saved("bend")), new Connection(Saved("bend"), Saved("smelter"))],
+            []);
+        SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
+
+        ExistingWay? way = ExistingWays.Into(
+            snapshot.ToWorldGraph(),
+            snapshot.Buildables.ToDictionary(buildable => buildable.Id),
+            snapshot.PipeNeighbours(),
+            Id("miner"),
+            new HashSet<string> { Id("smelter") },
+            new WorldRectangle(500, 1500, 1500, 4000));
+
+        // Halfway along the bend: (7.5 m, 2.5 m) on the curve, not (5 m, 5 m) on the straight line.
+        Assert.NotNull(way);
+        Assert.Contains(new WorldPoint(750, 250), way.Outside);
+        Assert.DoesNotContain(way.Outside, point => point == new WorldPoint(500, 500));
+    }
+
+    [Fact]
     public void A_pipe_is_followed_piece_by_piece_through_its_network()
     {
         // pump → a → b → c → refinery, east along y = 0, every 10 m. The model joins the pipes into one network, so only
