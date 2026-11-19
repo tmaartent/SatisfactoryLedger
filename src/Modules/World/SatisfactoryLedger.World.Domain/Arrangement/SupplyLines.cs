@@ -7,7 +7,8 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 /// source (an injection, BR-S4), the line's own flow first.
 /// <list type="bullet">
 /// <item>A line starts at the largest source left, and runs to the consumer nearest to where it is, one after the
-/// other.</item>
+/// other. Past a consumer it runs on from a splitter under it (a manifold, BR-S3; decided 2026-11-19): the leg after
+/// leaves the leg into it.</item>
 /// <item>It carries no more than the consumers left take: never more than its capacity (BR-S1).</item>
 /// <item>Before a consumer it can't feed, it's topped up from the source nearest that consumer, as full as the belt
 /// and what's still needed allow, so the consumers after are fed too; then the next nearest, as long as it's short.
@@ -83,10 +84,17 @@ public static class SupplyLines
             Draw(start, flow);
             string at = start.Id;
             bool overflow = start.Feeder is not null;
+
+            // Past a factory the line runs on from a splitter under it, on the leg into it (decided 2026-11-19, BR-S3).
+            Leg? into = null;
             while (flow > Nothing && Nearest(consumers.Where(start.MayFeed), at, consumer => consumer.Id) is { } next)
             {
-                var line = new Leg(at, next.Id, flow, Injection: false, overflow, Before: null) { Off = overflow ? start.Feeder : null };
+                var line = new Leg(at, next.Id, flow, Injection: false, overflow, Before: null) { Off = into ?? (overflow ? start.Feeder : null) };
                 legs.Add(line);
+                if (line.From != line.To)
+                {
+                    into = line;
+                }
 
                 // Fed straight from the splitter, its own factory takes no belt: the next one leaving it is the overflow.
                 overflow &= at == next.Id;

@@ -18,7 +18,7 @@ public class SupplyLinesTests
         SupplyLines.Plan(new ItemSupply("Desc_OreIron_C", pipe, capacity, sources, consumers), ends);
 
     [Fact]
-    public void A_line_runs_past_the_factories_and_a_priority_merger_tops_it_up_before_the_one_it_cannot_feed()
+    public void A_line_runs_past_the_factories_on_from_a_splitter_under_each_and_a_priority_merger_tops_it_up_before_the_one_it_cannot_feed()
     {
         // The owner's example: miners of 1200; factories taking 500, 400 and 600 in a row; more miners by the third.
         IReadOnlyList<SupplyLeg> legs = Plan(
@@ -31,8 +31,8 @@ public class SupplyLinesTests
         Assert.Equal(
             [
                 new SupplyLeg("miners", "first", "Desc_OreIron_C", Pipe: false, 1200, Injection: false),
-                new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: false, 700, Injection: false),
-                new SupplyLeg("second", "third", "Desc_OreIron_C", Pipe: false, 300, Injection: false),
+                new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: false, 700, Injection: false, Off: 0),
+                new SupplyLeg("second", "third", "Desc_OreIron_C", Pipe: false, 300, Injection: false, Off: 1),
                 new SupplyLeg("more", "third", "Desc_OreIron_C", Pipe: false, 300, Injection: true, Onto: 2),
             ],
             legs);
@@ -94,9 +94,9 @@ public class SupplyLinesTests
         Assert.Equal(
             [
                 new SupplyLeg("miners", "first", "Desc_OreIron_C", Pipe: false, 1200, Injection: false),
-                new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: false, 900, Injection: false),
+                new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: false, 900, Injection: false, Off: 0),
                 new SupplyLeg("more", "second", "Desc_OreIron_C", Pipe: false, 600, Injection: true, Onto: 1),
-                new SupplyLeg("second", "third", "Desc_OreIron_C", Pipe: false, 200, Injection: false),
+                new SupplyLeg("second", "third", "Desc_OreIron_C", Pipe: false, 200, Injection: false, Off: 1),
                 new SupplyLeg("second", "third", "Desc_OreIron_C", Pipe: false, 300, Injection: true, Overflow: true, Onto: 3, Off: 2),
             ],
             legs);
@@ -122,6 +122,26 @@ public class SupplyLinesTests
                 new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: false, 300, Injection: false, Overflow: true, Off: 1),
             ],
             legs);
+    }
+
+    [Fact]
+    public void A_line_from_an_overflow_runs_on_past_its_first_factory_from_a_plain_splitter()
+    {
+        // The overflow starts a line at the smart splitter; past the second it runs on from a splitter under it, as any
+        // line does: not an overflow any more.
+        IReadOnlyList<SupplyLeg> legs = Plan(
+            1200,
+            pipe: false,
+            [new SupplyEnd("miners", 1100), new SupplyEnd("more", 1000)],
+            [new SupplyEnd("first", 1500), new SupplyEnd("second", 300), new SupplyEnd("third", 200)],
+            Row(("miners", 0), ("first", 10), ("more", 12), ("second", 40), ("third", 50)));
+
+        Assert.Equal(
+            [
+                new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: false, 500, Injection: false, Overflow: true, Off: 1),
+                new SupplyLeg("second", "third", "Desc_OreIron_C", Pipe: false, 200, Injection: false, Off: 2),
+            ],
+            legs.Skip(2));
     }
 
     [Fact]
@@ -164,7 +184,7 @@ public class SupplyLinesTests
         Assert.Equal(
             [
                 new SupplyLeg("extractors", "first", "Desc_OreIron_C", Pipe: true, 300, Injection: false),
-                new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: true, 100, Injection: false),
+                new SupplyLeg("first", "second", "Desc_OreIron_C", Pipe: true, 100, Injection: false, Off: 0),
                 new SupplyLeg("more", "second", "Desc_OreIron_C", Pipe: true, 200, Injection: false),
             ],
             legs);

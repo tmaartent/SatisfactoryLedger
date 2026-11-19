@@ -369,6 +369,10 @@ public class BeltRouterTests
     private static SupplyLeg Leg(string from, string to, bool injection = false, int? onto = null, int? off = null) =>
         new(from, to, "Desc_OreIron_C", Pipe: false, 300, injection, Overflow: off is not null, onto, off);
 
+    /// <summary>A leg of a line running on past a factory, from a splitter on the leg into it.</summary>
+    private static SupplyLeg RunOn(string from, string to, int off) =>
+        new(from, to, "Desc_OreIron_C", Pipe: false, 300, Injection: false, Overflow: false, Off: off);
+
     private static BeltRouting RouteLines(GridRectangle area, Dictionary<string, GridRectangle> places, params SupplyLeg[] legs) =>
         BeltRouter.RouteLines(new BeltFloor(1, 1, 0, 0, 16), area, places, legs, new Dictionary<string, GridRectangle>());
 
@@ -460,6 +464,47 @@ public class BeltRouterTests
         Assert.Empty(routing.Unrouted);
         Assert.True(overflow.StartsOnBelt);
         Assert.Contains(overflow.Corners[0], Squares(topUp)[1..^1]);
+    }
+
+    [Fact]
+    public void A_line_runs_on_past_a_factory_from_a_splitter_on_the_floor_not_from_the_factory()
+    {
+        // The line runs east to the smelters; the plates are fed after them, south of the line (decided 2026-11-19).
+        BeltRouting routing = RouteLines(
+            new GridRectangle(0, 0, 10, 5),
+            new() { ["miners"] = new(0, 2, 1, 1), ["smelters"] = new(9, 2, 1, 1), ["plates"] = new(6, 0, 1, 1) },
+            Leg("miners", "smelters"),
+            RunOn("smelters", "plates", off: 0));
+
+        RoutedBelt line = routing.Belts.Single(belt => belt.From == "miners");
+        RoutedBelt runOn = routing.Belts.Single(belt => belt.To == "plates");
+        Assert.Empty(routing.Unrouted);
+        Assert.True(runOn.StartsOnBelt);
+        Assert.Contains(runOn.Corners[0], Squares(line)[1..^1]);
+        Assert.Equal(new FloorSquare(9, 2), line.Corners[^1]);
+    }
+
+    [Fact]
+    public void A_line_runs_on_from_its_splitter_only_after_its_priority_merger()
+    {
+        // The plates, fed after the smelters, stand south by the line's start; the top-up joins near its end. Split off
+        // before the merger, the plates would miss what the top-up brings: the splitter comes after it, and the top-up is
+        // laid first, though its way is longer (decided 2026-11-19).
+        BeltRouting routing = RouteLines(
+            new GridRectangle(0, 0, 13, 12),
+            new() { ["miners"] = new(0, 2, 1, 1), ["smelters"] = new(12, 2, 1, 1), ["more"] = new(10, 11, 1, 1), ["plates"] = new(4, 0, 1, 1) },
+            Leg("miners", "smelters"),
+            Leg("more", "smelters", injection: true, onto: 0),
+            RunOn("smelters", "plates", off: 0));
+
+        RoutedBelt line = routing.Belts.Single(belt => belt.From == "miners");
+        RoutedBelt topUp = routing.Belts.Single(belt => belt.From == "more");
+        RoutedBelt runOn = routing.Belts.Single(belt => belt.To == "plates");
+        List<FloorSquare> along = Squares(line);
+        Assert.Empty(routing.Unrouted);
+        Assert.True(topUp.EndsOnBelt);
+        Assert.True(runOn.StartsOnBelt);
+        Assert.True(along.IndexOf(runOn.Corners[0]) > along.IndexOf(topUp.Corners[^1]));
     }
 
     [Fact]

@@ -59,7 +59,8 @@ public static class BeltRouter
 
     /// <summary>
     /// The legs of supply lines (decided 2026-11-18): each a belt of its own, numbered as the legs are. A top-up ends on the
-    /// line's belt before the factory, at a priority merger; an overflow starts on the top-up's belt, at a smart splitter.
+    /// line's belt before the factory, at a priority merger; an overflow starts on the top-up's belt, at a smart splitter;
+    /// a line running on past a factory starts on the leg into it, at a splitter after its mergers (decided 2026-11-19).
     /// Each takes a square of the other belt, but its ends, where that belt is alone, and joins it at its level from a side
     /// it doesn't use; the square is then taken whole, as a lift's. Where none fits, it goes to the factory as before.
     /// </summary>
@@ -103,11 +104,16 @@ public static class BeltRouter
             ends.TryAdd(id, entries?.GetValueOrDefault(id) is { } entry ? empty.EdgeAt(OnBoard(entry)) : empty.EndAt(OnBoard(spot)));
         }
 
-        // A belt that joins another is laid after it: lines, then their top-ups, then the overflows off those.
+        // A belt that joins another is laid after it: lines, then their top-ups, then the overflows off those. One leaving
+        // a belt at a splitter is laid after the top-ups onto that belt too, so it can leave after their mergers.
+        IEnumerable<int> Before(int job) =>
+            new[] { jobs[job].Onto, jobs[job].Off }.OfType<int>()
+                .Concat(jobs[job].Off is int off ? Enumerable.Range(0, job).Where(other => jobs[other].Onto == off) : [])
+                .Where(other => other < job);
         int[] depth = new int[jobs.Count];
         for (int job = 0; job < jobs.Count; job++)
         {
-            depth[job] = new[] { jobs[job].Onto, jobs[job].Off }.OfType<int>().Where(other => other < job).Select(other => depth[other] + 1).DefaultIfEmpty(0).Max();
+            depth[job] = Before(job).Select(other => depth[other] + 1).DefaultIfEmpty(0).Max();
         }
 
         List<int> routable = [.. Enumerable.Range(0, jobs.Count)
@@ -120,7 +126,7 @@ public static class BeltRouter
         // over, it's tried again, laid right after what it joins (decided 2026-11-18).
         int[] fellBack = new int[jobs.Count];
         HashSet<int> routableJobs = [.. routable];
-        IEnumerable<int> Joined(int job) => new[] { jobs[job].Onto, jobs[job].Off }.OfType<int>().Where(other => other < job && routableJobs.Contains(other));
+        IEnumerable<int> Joined(int job) => Before(job).Where(routableJobs.Contains);
         BeltRouting? best = null;
         int bestFallbacks = 0;
         for (int attempt = 0; attempt < Tries; attempt++)
@@ -128,6 +134,9 @@ public static class BeltRouter
             var board = new Board(squares.Width, squares.Depth, floor.Levels);
             List<RoutedBelt> belts = [];
             Dictionary<int, (List<int> Squares, List<int> Levels)> laid = [];
+
+            // Where each top-up laid ends: on the belt it joins, at the square of its merger; null where it fell back.
+            Dictionary<int, int?> merged = [];
             List<int> unrouted = [];
             List<int> fallbacks = [];
 
@@ -160,6 +169,15 @@ public static class BeltRouter
             }
 
             order.AddRange(routable.OrderBy(job => depth[job]).ThenByDescending(job => failed[job]).Where(job => !placed.Contains(job)));
+
+            // A splitter leaves a belt after the mergers onto it, so what they bring runs on too; none where a merger fell
+            // back to the factory, since what it brings then only reaches the factory: the belt leaves from there.
+            End? SplitterOn(int off, (List<int> Squares, List<int> Levels) belt)
+            {
+                List<int?> mergers = [.. merged.Where(top => jobs[top.Key].Onto == off).Select(top => top.Value)];
+                return mergers.Contains(null) ? null : board.JointsOn(belt, after: mergers.Select(square => belt.Squares.IndexOf(square!.Value)).DefaultIfEmpty(0).Max());
+            }
+
             foreach (int index in order)
             {
                 Job job = jobs[index];
@@ -170,7 +188,7 @@ public static class BeltRouter
                 }
 
                 (End from, End to) = (ends[job.Link.From], ends[job.Link.To]);
-                End? splitter = job.Off is int off && laid.TryGetValue(off, out var top) ? board.JointsOn(top) : null;
+                End? splitter = job.Off is int off && laid.TryGetValue(off, out var top) ? SplitterOn(off, top) : null;
                 End? merger = job.Onto is int onto && laid.TryGetValue(onto, out var under) ? board.JointsOn(under) : null;
                 (List<int> Squares, List<int> Levels)? way = board.Find(splitter ?? from, merger ?? to, job.Pipe);
                 if (way is null && (splitter ?? merger) is not null)
@@ -187,6 +205,11 @@ public static class BeltRouter
                 }
 
                 laid[index] = found;
+                if (job.Onto is not null)
+                {
+                    merged[index] = merger is null ? null : found.Squares[^1];
+                }
+
                 if ((job.Onto is not null && merger is null) || (job.Off is not null && splitter is null))
                 {
                     fallbacks.Add(index);
@@ -360,12 +383,13 @@ file sealed class Board(int width, int depth, int levels)
     /// or crowded belts had no room, and the join fell back to the factory): the search takes the nearest. Null when
     /// there's none.
     /// </summary>
-    public End? JointsOn((List<int> Squares, List<int> Levels) belt)
+    /// <param name="after">Only squares after this one along the belt, by its place on it: after a merger onto it.</param>
+    public End? JointsOn((List<int> Squares, List<int> Levels) belt, int after = 0)
     {
         (List<int> squares, List<int> crossings) = belt;
         Dictionary<int, Joint> joints = [];
         int last = squares.Count - 1;
-        for (int i = last - 1; i >= 1; i--)
+        for (int i = last - 1; i >= Math.Max(1, after + 1); i--)
         {
             int square = squares[i];
             if (stacked[square] != 1 || crossings[i - 1] != crossings[i])
