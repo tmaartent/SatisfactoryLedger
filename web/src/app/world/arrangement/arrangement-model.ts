@@ -224,6 +224,81 @@ function spotName(spotId: string, building: (className: string) => string): stri
   return `${className ? building(className) : spotId}${more ? ` and ${more} more` : ''}`;
 }
 
+/** A miner red; an extractor blue while the catalog has no colour for its fluid (before an import that brings them). */
+const minerColour = '#e53935';
+const extractorColour = '#1e88e5';
+
+/** The catalog's names, with what extractors take and fluids' colours: what a mark at a node needs. */
+interface NodeNames {
+  item: (item: string) => string;
+  building: (className: string) => string;
+  extractorForm: (className: string) => 'solid' | 'fluid' | null;
+  fluidColour: (item: string) => string | null;
+}
+
+/**
+ * What marks a node's building (asked 2026-11-19): a miner, red, or an extractor of a fluid or gas, in its colour in the
+ * game, with what it is and what the belts from it carry when pointed at. Null at a station or drone port.
+ */
+function nodeMark(
+  spotId: string,
+  belts: readonly Pick<RoutedBeltResponse, 'item' | 'perMinute' | 'pipe' | 'injection'>[],
+  names: NodeNames,
+): { kind: 'miner' | 'extractor'; colour: string; tooltip: string } | null {
+  const className = /(Build_\w+?_C)_\d+/.exec(spotId)?.[1];
+  const form = className ? names.extractorForm(className) : null;
+  if (form === null) return null;
+  const item = belts.find((belt) => belt.item)?.item;
+  const carried = [
+    ...new Set(belts.map((belt) => carries(belt, names.item)).filter((text) => text !== null)),
+  ];
+  return {
+    kind: form === 'solid' ? 'miner' : 'extractor',
+    colour:
+      form === 'solid' ? minerColour : ((item ? names.fluidColour(item) : null) ?? extractorColour),
+    tooltip: [`<b>${spotName(spotId, names.building)}</b>`, ...carried].join('<br>'),
+  };
+}
+
+/**
+ * What marks a routed belt's end at a miner or an extractor in the area, and at which end. Null for a belt between
+ * factories, at a station or drone port, which keep their dark dot, and for a belt that leaves the floor to join the
+ * existing belt from its building outside the area: its end is on the floor's edge, and the building is marked at the
+ * start of that belt (`wayMark`).
+ */
+export function spotMark(
+  belt: Pick<RoutedBeltResponse, 'from' | 'to' | 'item' | 'perMinute' | 'pipe' | 'injection'> &
+    Partial<Pick<RoutedBeltResponse, 'leavesFloor'>>,
+  factories: ReadonlySet<string>,
+  names: NodeNames,
+): { kind: 'miner' | 'extractor'; end: 'start' | 'end'; colour: string; tooltip: string } | null {
+  const { spot } = beltEnds(belt, factories);
+  if (spot === null || belt.leavesFloor) return null;
+  const mark = nodeMark(spot === 'start' ? belt.from : belt.to, [belt], names);
+  return mark && { ...mark, end: spot };
+}
+
+/**
+ * What marks the miner or extractor outside the area at the start of an existing belt the routed ones join (asked
+ * 2026-11-19), saying what those routed belts carry. Null at a station or drone port, and for a belt no routed belt joins.
+ */
+export function wayMark(
+  way: { spotId: string; points: WorldPoint[] },
+  belts: readonly Pick<
+    RoutedBeltResponse,
+    'from' | 'to' | 'leavesFloor' | 'item' | 'perMinute' | 'pipe' | 'injection'
+  >[],
+  names: NodeNames,
+): { kind: 'miner' | 'extractor'; at: WorldPoint; colour: string; tooltip: string } | null {
+  const joining = belts.filter(
+    (belt) => belt.leavesFloor && (belt.from === way.spotId || belt.to === way.spotId),
+  );
+  const at = way.points[0];
+  if (joining.length === 0 || !at) return null;
+  const mark = nodeMark(way.spotId, joining, names);
+  return mark && { kind: mark.kind, at, colour: mark.colour, tooltip: mark.tooltip };
+}
+
 /**
  * How a piece of a belt shows in 3D for the levels picked (decided 2026-11-18): a run, a lift, a splitter or merger on
  * it, or the existing belt outside it joins. A belt with a run on a level picked shows whole, so it's seen how it

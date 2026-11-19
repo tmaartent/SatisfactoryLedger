@@ -63,6 +63,8 @@ import {
   relatedFactories,
   saving,
   jointColours,
+  spotMark,
+  wayMark,
   standsOut,
   toggled,
   SolverTime,
@@ -574,6 +576,8 @@ export class ArrangementPage {
     const spotNames = {
       item: (item: string) => this.names.item(item),
       building: (name: string) => this.names.building(name),
+      extractorForm: (name: string) => this.names.extractorForm(name),
+      fluidColour: (item: string) => this.names.fluidColour(item),
     };
     for (const belt of arrangement.belts) {
       const picked = focused.has(belt.from) || focused.has(belt.to);
@@ -602,16 +606,29 @@ export class ArrangementPage {
         ...(belt.startsOnBelt ? [] : [line[0]]),
         ...(belt.endsOnBelt ? [] : [line[line.length - 1]]),
       ];
+      const mark = spotMark(belt, factories, spotNames);
       for (const lift of lifts) {
         const atSpot = lift === spot;
-        L.circleMarker(lift, {
-          radius: picked ? 3 : 2,
-          weight: 1,
-          color: '#212121',
-          fillColor: atSpot ? '#37474f' : colour,
-          fillOpacity: dimmed ? 0.25 : 1,
-          interactive: false,
-        }).addTo(this.beltLayer);
+        if (atSpot && mark)
+          L.circleMarker(lift, {
+            radius: picked ? 6 : 5,
+            weight: 1.5,
+            color: '#fafafa',
+            opacity: dimmed ? 0.25 : 1,
+            fillColor: mark.colour,
+            fillOpacity: dimmed ? 0.25 : 1,
+          })
+            .bindTooltip(mark.tooltip)
+            .addTo(this.beltLayer);
+        else
+          L.circleMarker(lift, {
+            radius: picked ? 3 : 2,
+            weight: 1,
+            color: '#212121',
+            fillColor: atSpot ? '#37474f' : colour,
+            fillOpacity: dimmed ? 0.25 : 1,
+            interactive: false,
+          }).addTo(this.beltLayer);
         if (
           atSpot &&
           belt.leavesFloor &&
@@ -630,7 +647,8 @@ export class ArrangementPage {
 
     // Outside the area, the existing belts the routed ones join where they come into the area (decided 2026-11-18):
     // dotted, in the colour of the factory they serve, from the building to a yellow circle on the area's edge. The
-    // routed belts run on across the strip of the area off the floor to it, at right angles.
+    // routed belts run on across the strip of the area off the floor to it, at right angles. At a miner or extractor,
+    // its circle, as inside the area (asked 2026-11-19).
     for (const spot of arrangement.ways)
       for (const way of joinedWays([spot], arrangement.belts, factories, spotNames)) {
         const colour = factoryColour(traces, way.factory) ?? '#e0e0e0';
@@ -665,6 +683,18 @@ export class ArrangementPage {
           opacity: dimmed ? 0.25 : 1,
           interactive: false,
         }).addTo(this.beltLayer);
+        const mark = wayMark(spot, arrangement.belts, spotNames);
+        if (mark)
+          L.circleMarker(toMapPoint({ ...mark.at, z: 0 }), {
+            radius: 5,
+            weight: 1.5,
+            color: '#fafafa',
+            opacity: dimmed ? 0.25 : 1,
+            fillColor: mark.colour,
+            fillOpacity: dimmed ? 0.25 : 1,
+          })
+            .bindTooltip(mark.tooltip)
+            .addTo(this.beltLayer);
       }
 
     // Where supply lines are topped up (decided 2026-11-18): a priority merger, an orange square, where a top-up belt

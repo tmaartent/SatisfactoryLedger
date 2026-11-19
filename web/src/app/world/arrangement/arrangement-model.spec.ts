@@ -22,6 +22,8 @@ import {
   levelShown,
   solverTime,
   solverTimeOf,
+  spotMark,
+  wayMark,
   relatedFactories,
   standsOut,
   toggled,
@@ -296,6 +298,137 @@ describe('optimal arrangement', () => {
       expect(placed.position.x).toBeCloseTo(2400);
       expect(placed.position.y).toBeCloseTo(1900);
       expect(placed.yaw).toBe(90);
+    });
+  });
+
+  describe('where a line starts at a miner or an extractor', () => {
+    const factories = new Set(['f']);
+    const names = {
+      item: (item: string) =>
+        ({ Desc_OreCopper_C: 'Copper Ore', Desc_Water_C: 'Water' })[item] ?? item,
+      building: (className: string) =>
+        ({ Build_MinerMk3_C: 'Miner Mk.3', Build_WaterPump_C: 'Water Extractor' })[className] ??
+        className,
+      extractorForm: (className: string) =>
+        ({ Build_MinerMk3_C: 'solid' as const, Build_WaterPump_C: 'fluid' as const })[className] ??
+        null,
+      fluidColour: (item: string) => (item === 'Desc_Water_C' ? '#7ab0d4' : null),
+    };
+    const fromMiner = {
+      from: 'Persistent_Level:PersistentLevel.Build_MinerMk3_C_2147327191+2',
+      to: 'f',
+      item: 'Desc_OreCopper_C',
+      perMinute: 1074,
+      pipe: false,
+      injection: false,
+    };
+
+    it('marks a miner red, saying what it is and what it sends', () => {
+      expect(spotMark(fromMiner, factories, names)).toEqual({
+        kind: 'miner',
+        end: 'start',
+        colour: '#e53935',
+        tooltip: '<b>Miner Mk.3 and 2 more</b><br>Copper Ore · 1074/min',
+      });
+    });
+
+    it('marks an extractor in the colour of the fluid it pumps', () => {
+      const fromPump = {
+        ...fromMiner,
+        from: 'Persistent_Level:PersistentLevel.Build_WaterPump_C_2147000000',
+        item: 'Desc_Water_C',
+        perMinute: 120,
+        pipe: true,
+      };
+      expect(spotMark(fromPump, factories, names)).toMatchObject({
+        kind: 'extractor',
+        colour: '#7ab0d4',
+      });
+    });
+
+    it('marks an extractor blue while the catalog has no colour for its fluid', () => {
+      const fromPump = {
+        ...fromMiner,
+        from: 'Persistent_Level:PersistentLevel.Build_WaterPump_C_2147000000',
+        item: 'Desc_LiquidOil_C',
+        pipe: true,
+      };
+      expect(spotMark(fromPump, factories, names)?.colour).toBe('#1e88e5');
+    });
+
+    it('marks nothing at a station or drone port', () => {
+      const fromStation = {
+        ...fromMiner,
+        from: 'Persistent_Level:PersistentLevel.Build_TrainDockingStation_C_2147000001',
+      };
+      expect(spotMark(fromStation, factories, names)).toBeNull();
+    });
+
+    it('marks nothing where the belt leaves the floor to join the belt from the miner outside the area', () => {
+      expect(spotMark({ ...fromMiner, leavesFloor: true }, factories, names)).toBeNull();
+    });
+
+    it('marks nothing on a belt between two factories', () => {
+      expect(spotMark({ ...fromMiner, from: 'g' }, new Set(['f', 'g']), names)).toBeNull();
+    });
+  });
+
+  describe('where an existing belt outside the area starts at a miner or an extractor', () => {
+    const names = {
+      item: (item: string) => ({ Desc_Stone_C: 'Limestone', Desc_Water_C: 'Water' })[item] ?? item,
+      building: (className: string) =>
+        ({ Build_MinerMk2_C: 'Miner Mk.2', Build_WaterPump_C: 'Water Extractor' })[className] ??
+        className,
+      extractorForm: (className: string) =>
+        ({ Build_MinerMk2_C: 'solid' as const, Build_WaterPump_C: 'fluid' as const })[className] ??
+        null,
+      fluidColour: (item: string) => (item === 'Desc_Water_C' ? '#7ab0d4' : null),
+    };
+    const miner = 'Persistent_Level:PersistentLevel.Build_MinerMk2_C_2147339296';
+    const way = {
+      spotId: miner,
+      points: [
+        { x: -5000, y: 0 },
+        { x: 0, y: 0 },
+      ],
+    };
+    const belt = {
+      from: miner,
+      to: 'smelters',
+      leavesFloor: true,
+      item: 'Desc_Stone_C',
+      perMinute: 600,
+      pipe: false,
+      injection: false,
+    };
+
+    it('marks the miner red at the start of its belt, saying what the routed belts take from it', () => {
+      expect(wayMark(way, [belt], names)).toEqual({
+        kind: 'miner',
+        at: { x: -5000, y: 0 },
+        colour: '#e53935',
+        tooltip: '<b>Miner Mk.2</b><br>Limestone · 600/min',
+      });
+    });
+
+    it('marks an extractor in the colour of its fluid', () => {
+      const pump = 'Persistent_Level:PersistentLevel.Build_WaterPump_C_2147000000';
+      expect(
+        wayMark(
+          { ...way, spotId: pump },
+          [{ ...belt, from: pump, item: 'Desc_Water_C', pipe: true }],
+          names,
+        )?.colour,
+      ).toBe('#7ab0d4');
+    });
+
+    it('marks nothing at a station', () => {
+      const station = 'Persistent_Level:PersistentLevel.Build_TrainDockingStation_C_2147000001';
+      expect(wayMark({ ...way, spotId: station }, [{ ...belt, from: station }], names)).toBeNull();
+    });
+
+    it('marks nothing where no routed belt joins it', () => {
+      expect(wayMark(way, [{ ...belt, leavesFloor: false }], names)).toBeNull();
     });
   });
 

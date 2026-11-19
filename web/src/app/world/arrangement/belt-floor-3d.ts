@@ -18,6 +18,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ArrangedMachineResponse } from '../../api/models/arranged-machine-response';
 import { ArrangementMachinesResponse } from '../../api/models/arrangement-machines-response';
 import { ArrangementResponse } from '../../api/models/arrangement-response';
+import { WorldPoint } from '../../api/models/world-point';
 import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
 import { boxGeometry } from '../area/box-geometry';
@@ -35,6 +36,8 @@ import {
   relatedFactories,
   standsOut,
   jointColours,
+  spotMark,
+  wayMark,
 } from './arrangement-model';
 
 /** A belt as a flat band, in metres; a pipe round and a little wider, as in the game. */
@@ -297,6 +300,8 @@ export class BeltFloor3d {
     const spotNames = {
       item: (item: string) => this.names.item(item),
       building: (name: string) => this.names.building(name),
+      extractorForm: (name: string) => this.names.extractorForm(name),
+      fluidColour: (item: string) => this.names.fluidColour(item),
     };
     for (const spot of arrangement.ways ?? [])
       for (const way of joinedWays([spot], arrangement.belts, arranged, spotNames)) {
@@ -318,6 +323,15 @@ export class BeltFloor3d {
         line.userData['ends'] = [way.factory];
         this.levelled(line, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
         this.content.add(line);
+
+        // At a miner or extractor, its drum, as inside the area (asked 2026-11-19).
+        const mark = wayMark(spot, arrangement.belts, spotNames);
+        if (mark) {
+          const drum = this.drum(mark, middle);
+          drum.userData['ends'] = [way.factory];
+          this.levelled(drum, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
+          this.content.add(drum);
+        }
       }
 
     // The supply lines' smart splitters and priority mergers (decided 2026-11-18): on the belt, where it joins another
@@ -342,6 +356,22 @@ export class BeltFloor3d {
         this.levelled(cube, [joint.level], belt.levels);
         this.content.add(cube);
       }
+
+    // Where a line starts at a miner or an extractor (asked 2026-11-19): a drum on the ground at the foot of its lift, a
+    // miner red, an extractor in the colour of its fluid; lit from within, as the splitters and mergers.
+    for (const belt of arrangement.belts) {
+      const mark = spotMark(belt, arranged, spotNames);
+      if (!mark) continue;
+      const [at, level] =
+        mark.end === 'start'
+          ? [belt.corners[0], belt.levels[0]]
+          : [belt.corners[belt.corners.length - 1], belt.levels[belt.levels.length - 1]];
+      if (!at) continue;
+      const drum = this.drum({ ...mark, at }, middle);
+      drum.userData['ends'] = [belt.from, belt.to];
+      this.levelled(drum, [level ?? 0], belt.levels);
+      this.content.add(drum);
+    }
 
     // The belts and pipes, in the colour of the factory they serve: each straight stretch a piece of its own, a flat
     // box for a belt and a cylinder for a pipe, with a joint at every corner; one mesh per belt and level, so pointing
@@ -482,6 +512,24 @@ export class BeltFloor3d {
    * A straight stretch of belt or pipe from one point to the next: a belt as a flat box, level across; a pipe as a
    * cylinder. None between two points that are the same.
    */
+  /**
+   * A miner's or extractor's drum on the ground, lit from within, saying what it is when pointed at; found before the
+   * plots, as a belt.
+   */
+  private drum(
+    mark: { at: WorldPoint; colour: string; tooltip: string },
+    middle: { x: number; y: number },
+  ): THREE.Mesh {
+    const drum = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.5, 2.5, 1.5, 16),
+      new THREE.MeshBasicMaterial({ color: mark.colour }),
+    );
+    drum.position.set((mark.at.x - middle.x) / 100, 0.75, (mark.at.y - middle.y) / 100);
+    drum.userData['tooltip'] = mark.tooltip;
+    drum.userData['belt'] = true;
+    return drum;
+  }
+
   private stretch(
     from: THREE.Vector3,
     to: THREE.Vector3,
