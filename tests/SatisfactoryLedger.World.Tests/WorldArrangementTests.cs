@@ -187,6 +187,33 @@ public class WorldArrangementTests
     }
 
     [Fact]
+    public void A_miner_on_the_areas_edge_but_off_the_belt_floor_is_reached_along_its_existing_belt()
+    {
+        // 2026-11-19: a miner straddled the area's east edge, past the last whole plot, so off the belt floor; its belt
+        // left the floor 280 metres from it, and nothing showed the rest. Here the area's far edge runs through the
+        // miner's middle, and the floor (20 plots of 16 metres with roads of 8) stops 15 metres short of it.
+        (PositionDocument miner, PositionDocument smelter) = (PositionOf(Miner), PositionOf(SmelterA));
+        bool alongX = miner.X - smelter.X >= miner.Y - smelter.Y;
+        (double far, double near) = alongX ? (miner.X, smelter.X) : (miner.Y, smelter.Y);
+        Assert.True(far - near > 2000, "the test needs the miner beyond smelter A along x or y");
+        double start = far - (20 * 2400) - 1500;
+        WorldRectangle area = alongX
+            ? new WorldRectangle(start, smelter.Y - 50000, far, smelter.Y + 50000)
+            : new WorldRectangle(smelter.X - 50000, start, smelter.X + 50000, far);
+        SnapshotDocument withFootprint = Document with { Footprints = [new FootprintDocument("Build_MinerMk1_C", -300, -500, 300, 900)] };
+
+        MadeArrangement made = WorldArrangement.Of(
+            withFootprint,
+            TestWorldAnalysis,
+            [Smelting],
+            new ArrangementSettings(area, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, []));
+
+        // It comes in where the existing belt reaches the floor's edge, 15 metres inside the area's.
+        SpotEntry entry = made.Entries[Miner];
+        Assert.Equal(far - 1500, alongX ? entry.Way[^1].X : entry.Way[^1].Y, 0);
+    }
+
+    [Fact]
     public void Where_things_stand_is_the_problem_without_its_links()
     {
         ArrangementProblem whole = Made(null, [], Smelting, Plates).Problem;

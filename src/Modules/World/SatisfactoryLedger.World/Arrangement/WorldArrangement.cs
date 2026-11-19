@@ -56,6 +56,9 @@ internal static class WorldArrangement
         ArrangementGrid grid = ArrangementGrid.Of(area.X0, area.Y0, settings);
         (int plotsX, int plotsY) = grid.PlotsIn(area.X1 - area.X0, area.Y1 - area.Y0);
 
+        // The belt floor: the whole plots from the area's corner, with their roads. The area can reach past it.
+        var floorArea = new WorldRectangle(area.X0, area.Y0, area.X0 + (plotsX * grid.PitchX), area.Y0 + (plotsY * grid.PitchY));
+
         WorldGraph world = snapshot.ToWorldGraph();
         HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         (double belt, double pipe) = TopCapacities(snapshot);
@@ -101,17 +104,22 @@ internal static class WorldArrangement
         ILookup<string, string> pipes = snapshot.PipeNeighbours();
         void Enter(string id, IEnumerable<string> standing, List<(double X, double Y)> outline)
         {
-            // Only for a building wholly outside: one on the area's edge is reached where it stands, as one inside.
-            if (entries.ContainsKey(id) || Touches(outline, area))
+            // Only for a building off the belt floor: one on it is reached where it stands. One wholly outside the area
+            // comes in where its belt crosses the area's edge; one on the area's edge but off the floor, where its belt
+            // reaches the floor's (2026-11-19: such a miner's belt left the floor 280 metres from it, nothing showing
+            // the rest).
+            if (entries.ContainsKey(id) || Touches(outline, floorArea))
             {
                 return;
             }
+
+            WorldRectangle crossing = Touches(outline, area) ? floorArea : area;
 
             ExistingWay? shortest = null;
             foreach (string building in standing)
             {
                 HashSet<string> targets = [.. (feeds.GetValueOrDefault(building) ?? []).SelectMany(factory => machinesOf.GetValueOrDefault(factory) ?? [])];
-                if (ExistingWays.Into(world, buildables, pipes, building, targets.Count > 0 ? targets : arrangedMachines, area) is { } way
+                if (ExistingWays.Into(world, buildables, pipes, building, targets.Count > 0 ? targets : arrangedMachines, crossing) is { } way
                     && (shortest is null || Length(way.Outside) < Length(shortest.Outside)))
                 {
                     shortest = way;
