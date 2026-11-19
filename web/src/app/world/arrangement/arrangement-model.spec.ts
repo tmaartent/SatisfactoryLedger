@@ -20,6 +20,11 @@ import {
   saving,
   shownFactories,
   levelShown,
+  solverTime,
+  solverTimeOf,
+  relatedFactories,
+  standsOut,
+  toggled,
 } from './arrangement-model';
 
 describe('optimal arrangement', () => {
@@ -59,6 +64,44 @@ describe('optimal arrangement', () => {
 
   it('gives the ceiling of the belt floor in foundation heights of 4 metres', () => {
     expect([ceilingMetres(8), ceilingHeights(32)]).toEqual([32, 8]);
+  });
+
+  it('takes the factories picked and those that feed them as related, not those they feed; none with none picked', () => {
+    const links = [
+      { from: 'a', to: 'b' },
+      { from: 'c', to: 'a' },
+      { from: 'b', to: 'd' },
+    ];
+    expect([...relatedFactories(new Set(['a']), links)!].sort()).toEqual(['a', 'c']);
+    expect(relatedFactories(new Set(), links)).toBeNull();
+  });
+
+  it('picks a factory not picked, and unpicks one picked', () => {
+    expect([...toggled(new Set(['a']), 'b')]).toEqual(['a', 'b']);
+    expect([...toggled(new Set(['a', 'b']), 'a')]).toEqual(['b']);
+  });
+
+  it('lets a belt stand out when one of its ends is picked, or nothing is', () => {
+    expect([
+      standsOut(new Set(['a']), ['a', 'b']),
+      standsOut(new Set(['a']), ['b', 'c']),
+      standsOut(new Set(), ['b', 'c']),
+    ]).toEqual([true, false, true]);
+  });
+
+  it('gives the solver a quarter of a minute, a minute or ten minutes', () => {
+    expect([solverTime('fast'), solverTime('balanced'), solverTime('thorough')]).toEqual([
+      15, 60, 600,
+    ]);
+  });
+
+  it("takes a run's own solver time as the longest of the three it reaches", () => {
+    expect([solverTimeOf(30), solverTimeOf(60), solverTimeOf(300), solverTimeOf(600)]).toEqual([
+      'fast',
+      'balanced',
+      'balanced',
+      'thorough',
+    ]);
   });
 
   it('draws a routed belt through its corners, as the map places buildings', () => {
@@ -256,7 +299,7 @@ describe('optimal arrangement', () => {
     });
   });
 
-  describe('the smart splitters and priority mergers of supply lines', () => {
+  describe('the splitters and priority mergers of supply lines', () => {
     const name = (item: string) => ({ Desc_OreIron_C: 'Iron Ore' })[item] ?? item;
     const belt = {
       corners: [
@@ -288,7 +331,7 @@ describe('optimal arrangement', () => {
     it("puts a smart splitter where a belt carrying a top-up's overflow on starts", () => {
       expect(lineJoints([{ ...belt, overflow: true }], name)).toEqual([
         {
-          kind: 'splitter',
+          kind: 'smart-splitter',
           at: { x: 0, y: 0 },
           height: null,
           level: 1,
@@ -300,7 +343,7 @@ describe('optimal arrangement', () => {
     it('puts both on an overflow that tops up the next merger', () => {
       expect(
         lineJoints([{ ...belt, injection: true, overflow: true }], name).map((joint) => joint.kind),
-      ).toEqual(['splitter', 'merger']);
+      ).toEqual(['smart-splitter', 'merger']);
     });
 
     it("puts them on the floor, at the belt's height, where the belts join there", () => {
@@ -310,12 +353,24 @@ describe('optimal arrangement', () => {
       );
 
       expect(joints.map((joint) => [joint.kind, joint.height])).toEqual([
-        ['splitter', 2],
+        ['smart-splitter', 2],
         ['merger', 6],
       ]);
     });
 
-    it('puts neither on a belt along a line', () => {
+    it('puts a splitter on the floor where a line runs on past a factory', () => {
+      expect(lineJoints([{ ...belt, startsOnBelt: true }], name)).toEqual([
+        {
+          kind: 'splitter',
+          at: { x: 0, y: 0 },
+          height: 2,
+          level: 1,
+          tooltip: '<b>Splitter</b><br>the line of Iron Ore runs on: 300/min',
+        },
+      ]);
+    });
+
+    it('puts none on a belt along a line that runs on from the factory', () => {
       expect(lineJoints([belt], name)).toEqual([]);
     });
   });

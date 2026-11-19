@@ -15,7 +15,7 @@
   anew. A proposal only: the save has no terrain, so check where it puts things.
 </p>
 
-<form class="settings" (ngSubmit)="request()">
+<form id="settings" class="settings" (ngSubmit)="request()">
   <mat-form-field subscriptSizing="dynamic">
     <mat-label>Plot east-west (foundations)</mat-label>
     <input matInput type="number" min="1" name="plotWidth" [(ngModel)]="plotWidth" />
@@ -34,20 +34,6 @@
   </mat-form-field>
   <mat-form-field
     subscriptSizing="dynamic"
-    matTooltip="The belt work one plot of spread costs: higher keeps the factories closer together, 0 not at all"
-  >
-    <mat-label>Keep together</mat-label>
-    <input matInput type="number" min="0" name="together" [(ngModel)]="together" />
-  </mat-form-field>
-  <mat-form-field
-    subscriptSizing="dynamic"
-    matTooltip="How much a belt to a node, station or drone port counts in placing, against a belt between factories: 1 as much, 0 not at all"
-  >
-    <mat-label>Nodes &amp; stations weigh</mat-label>
-    <input matInput type="number" min="0" step="0.1" name="spotWeight" [(ngModel)]="spotWeight" />
-  </mat-form-field>
-  <mat-form-field
-    subscriptSizing="dynamic"
     matTooltip="How high the floor below the factories is, where their belts run: a stack holds a belt per 2 metres"
   >
     <mat-label>Belt floor (foundations high)</mat-label>
@@ -59,16 +45,20 @@
     matTooltip="Route what brings an item as one line past the factories that take it, topped up by priority mergers where it runs short, instead of a belt from each source to each factory. Placing stays the same."
     >Supply lines</mat-slide-toggle
   >
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>Solver time (s)</mat-label>
-    <input matInput type="number" min="1" max="600" name="seconds" [(ngModel)]="seconds" />
-  </mat-form-field>
-  <button mat-flat-button type="submit" [disabled]="!area() || requesting()">
-    <mat-icon>auto_fix_high</mat-icon> Arrange
-  </button>
-  @if (requestError(); as message) {
-    <span class="error">{{ message }}</span>
-  }
+  <mat-button-toggle-group
+    name="solverTime"
+    aria-label="Solver time"
+    hideSingleSelectionIndicator
+    [(ngModel)]="solverTime"
+  >
+    <mat-button-toggle value="fast" matTooltip="15 seconds: to try settings"
+      >Fast</mat-button-toggle
+    >
+    <mat-button-toggle value="balanced" matTooltip="1 minute">Balanced</mat-button-toggle>
+    <mat-button-toggle value="thorough" matTooltip="10 minutes: for the layout to build"
+      >Thorough</mat-button-toggle
+    >
+  </mat-button-toggle-group>
 </form>
 
 @if (runs.value(); as list) {
@@ -79,9 +69,8 @@
           <th>Requested</th>
           <th class="number">Plot (foundations)</th>
           <th class="number">Roads E-W · N-S</th>
-          <th class="number">Keep together</th>
-          <th class="number">Nodes &amp; stations</th>
           <th class="number">Belt work now → proposed</th>
+          <th>Supply lines</th>
           <th class="number">Belts routed</th>
           <th>Status</th>
           <th></th>
@@ -99,20 +88,16 @@
               {{ foundations(run.roadXMetres) | number: '1.0-1' }} ·
               {{ foundations(run.roadYMetres) | number: '1.0-1' }}
             </td>
-            <td class="number">{{ run.together }}</td>
-            <td class="number">{{ run.spotWeight }}</td>
             <td class="number">
               @if (run.costNow !== null && run.cost !== null) {
                 {{ run.costNow | number: '1.0-0' }} → {{ run.cost | number: '1.0-0' }}
                 <b>{{ saving(run.costNow, run.cost) }}</b>
               }
             </td>
+            <td>{{ run.supplyLines ? 'yes' : 'no' }}</td>
             <td class="number">
               @if (run.beltMetres !== null) {
                 {{ run.beltMetres | number: '1.0-0' }} m · stacks up to {{ run.tallestStack }}
-                @if (run.supplyLines) {
-                  · supply lines
-                }
                 @if (run.unroutedBelts) {
                   <span class="error">· {{ run.unroutedBelts }} not routed</span>
                 }
@@ -142,10 +127,16 @@
   }
 }
 
-@if (arrangement.isLoading()) {
-  <mat-progress-bar mode="indeterminate" />
-}
+<!-- A slot of its own, so the map doesn't jump when the bar comes and goes. -->
+<div class="progress">
+  @if (busy()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+</div>
 <div class="map-tools">
+  <button mat-flat-button type="submit" form="settings" [disabled]="!area() || requesting()">
+    <mat-icon>auto_fix_high</mat-icon> Arrange
+  </button>
   @if (area()) {
     <button mat-stroked-button type="button" (click)="reset()">
       <mat-icon>restart_alt</mat-icon> Reset
@@ -178,6 +169,9 @@
       <mat-icon>view_in_ar</mat-icon> Belt floor in 3D
     </button>
   }
+  @if (requestError(); as message) {
+    <span class="error">{{ message }}</span>
+  }
 </div>
 <div class="layout">
   <div class="map-frame">
@@ -207,8 +201,7 @@
         }
       }
       <p class="muted">
-        Pick factories to see where they stand, their move and their links. Pointing at one shows
-        its links.
+        Pick factories to see their belts and the factories that feed them; the rest fades.
       </p>
       <ul class="factories">
         @for (move of moves(); track move.factoryId) {

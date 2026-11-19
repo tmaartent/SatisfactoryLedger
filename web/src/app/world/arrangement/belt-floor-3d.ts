@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
   untracked,
   viewChild,
@@ -31,6 +32,9 @@ import {
   placedMachines,
   shownFactories,
   movedMetres,
+  relatedFactories,
+  standsOut,
+  jointColours,
 } from './arrangement-model';
 
 /** A belt as a flat band, in metres; a pipe round and a little wider, as in the game. */
@@ -102,6 +106,15 @@ export class BeltFloor3d {
   /** Whether the factories' machines show on their slabs; only the flat slabs when not. */
   readonly showMachines = input(true);
 
+  /**
+   * The factories picked, as on the map: the factories that don't feed one fade, and the belts that don't start or end
+   * at one; none picked, nothing fades.
+   */
+  readonly focused = input<ReadonlySet<string>>(new Set());
+
+  /** A factory clicked (not dragged across), to pick or unpick. */
+  readonly picked = output<string>();
+
   /** What the pointer is on, and where: shown beside it. */
   protected readonly tip = signal<{ html: string; x: number; y: number } | null>(null);
 
@@ -132,12 +145,13 @@ export class BeltFloor3d {
       if (this.renderer) this.draw(arrangement, colourOf, machines);
     });
     effect(() => {
-      const [arrangement, levels, machines] = [
+      const [arrangement, levels, machines, focused] = [
         this.arrangement(),
         this.levels(),
         this.showMachines(),
+        this.focused(),
       ];
-      if (this.renderer) this.show(arrangement, levels, machines);
+      if (this.renderer) this.show(arrangement, levels, machines, focused);
     });
   }
 
@@ -162,6 +176,15 @@ export class BeltFloor3d {
     resize();
     this.renderer.domElement.addEventListener('pointermove', (event) => this.point(event));
     this.renderer.domElement.addEventListener('pointerleave', () => this.tip.set(null));
+    // A click picks the factory under it; a drag turns the view and picks nothing.
+    let down: { x: number; y: number } | null = null;
+    this.renderer.domElement.addEventListener('pointerdown', (event) => {
+      down = { x: event.clientX, y: event.clientY };
+    });
+    this.renderer.domElement.addEventListener('pointerup', (event) => {
+      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 4) this.pick(event);
+      down = null;
+    });
     this.renderer.setAnimationLoop(() => {
       this.controls!.update();
       this.renderer!.render(this.scene, this.camera!);
@@ -178,7 +201,10 @@ export class BeltFloor3d {
   }
 
   private clear(): void {
-    this.content.traverse((object) => (object as THREE.Mesh).geometry?.dispose());
+    this.content.traverse((object) => {
+      (object as THREE.Mesh).geometry?.dispose();
+      (object.userData['faded'] as THREE.Material | undefined)?.dispose();
+    });
     this.content.clear();
   }
 
@@ -225,6 +251,7 @@ export class BeltFloor3d {
         ((plot.y0 + plot.y1) / 2 - middle.y) / 100,
       );
       slab.userData['factory'] = factory.factoryId;
+      this.fadable(slab);
       this.content.add(slab);
     }
 
@@ -260,18 +287,19 @@ export class BeltFloor3d {
       );
       mesh.userData['machines'] = true;
       mesh.userData['factory'] = factory.factoryId;
+      this.fadable(mesh);
       this.content.add(mesh);
     }
 
     // Outside the area, the existing belts the routed ones join where they leave the floor (decided 2026-11-18): thin
     // lines on the ground, in the colour of the factory they serve.
     const arranged = new Set(arrangement.factories.map((factory) => factory.factoryId));
-    const names = {
+    const spotNames = {
       item: (item: string) => this.names.item(item),
       building: (name: string) => this.names.building(name),
     };
     for (const spot of arrangement.ways ?? [])
-      for (const way of joinedWays([spot], arrangement.belts, arranged, names)) {
+      for (const way of joinedWays([spot], arrangement.belts, arranged, spotNames)) {
         const line = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints(
             [...way.points, ...way.links.flatMap((link) => [...[...link].reverse(), ...link])].map(
@@ -287,6 +315,7 @@ export class BeltFloor3d {
         // What it is when pointed at, as on the map; found before the plots, as a belt.
         line.userData['tooltip'] = way.tooltip;
         line.userData['belt'] = true;
+        line.userData['ends'] = [way.factory];
         this.levelled(line, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
         this.content.add(line);
       }
@@ -296,7 +325,7 @@ export class BeltFloor3d {
     // splitter blue; lit from within, so they stand out in any light.
     for (const belt of arrangement.belts)
       for (const joint of lineJoints([belt], (item) => this.names.item(item))) {
-        const colour = joint.kind === 'merger' ? '#ff9800' : '#29b6f6';
+        const colour = jointColours[joint.kind];
         const cube = new THREE.Mesh(
           new THREE.BoxGeometry(2.5, 2, 2.5),
           new THREE.MeshBasicMaterial({ color: colour }),
@@ -309,6 +338,7 @@ export class BeltFloor3d {
         // Pointing finds it before the slab above, as it does a belt.
         cube.userData['tooltip'] = joint.tooltip;
         cube.userData['belt'] = true;
+        cube.userData['ends'] = [belt.from, belt.to];
         this.levelled(cube, [joint.level], belt.levels);
         this.content.add(cube);
       }
@@ -337,56 +367,91 @@ export class BeltFloor3d {
         geometries.forEach((geometry) => geometry.dispose());
         mesh.userData['tooltip'] = beltTooltip(belt, (item) => this.names.item(item));
         mesh.userData['belt'] = true;
+        mesh.userData['ends'] = [belt.from, belt.to];
         this.levelled(mesh, [level], belt.levels);
         this.content.add(mesh);
       }
     }
 
     this.frame();
-    this.show(arrangement, untracked(this.levels), untracked(this.showMachines));
+    this.show(
+      arrangement,
+      untracked(this.levels),
+      untracked(this.showMachines),
+      untracked(this.focused),
+    );
   }
 
   /**
    * What shows for the levels picked: the belts, pipes, splitters, mergers and existing belts outside on them; the
-   * factories those connect (every one with every level); and the machines on them, unless they're switched off.
+   * factories those connect (every one with every level); and the machines on them, unless they're switched off. With
+   * factories picked, what doesn't feed them fades, as on the map.
    */
   private show(
     arrangement: ArrangementResponse,
     levels: ReadonlySet<number> | null,
     machines: boolean,
+    focused: ReadonlySet<string>,
   ): void {
     const factories = shownFactories(levels, arrangement.belts);
+    const related = relatedFactories(focused, arrangement.links);
     for (const object of this.content.children) {
-      const { own, belt, factory, full, faded } = object.userData as {
+      const { own, belt, ends, factory, full, faded } = object.userData as {
         own?: number[];
         belt?: number[];
+        ends?: string[];
         factory?: string;
         full?: THREE.Material;
         faded?: THREE.Material;
       };
+      let fade = false;
       if (own && belt) {
         const shown = levelShown(levels, own, belt);
         object.visible = shown !== 'hidden';
-        (object as THREE.Mesh).material = shown === 'faded' ? faded! : full!;
+        fade = shown === 'faded';
       }
-      if (factory)
+      if (ends && !standsOut(focused, ends)) fade = true;
+      if (factory) {
         object.visible =
           (factories === null || factories.has(factory)) &&
           (machines || !object.userData['machines']);
+        if (related !== null && !related.has(factory)) fade = true;
+      }
+      if (full && faded) (object as THREE.Mesh).material = fade ? faded : full;
     }
   }
 
-  /**
-   * A piece of a belt that shows with the levels picked: the levels it's on, those its belt runs on, and how it's drawn
-   * as it is and faded.
-   */
+  /** A piece of a belt that shows with the levels picked: the levels it's on, and those its belt runs on. */
   private levelled(object: THREE.Mesh | THREE.Line, own: number[], belt: number[]): void {
+    Object.assign(object.userData, { own, belt });
+    this.fadable(object);
+  }
+
+  /** Something that can fade, for the levels or the factories picked: how it's drawn as it is, and faded. */
+  private fadable(object: THREE.Mesh | THREE.Line): void {
     const full = object.material as THREE.Material;
     const faded = full.clone();
     faded.transparent = true;
     faded.opacity = full.opacity * 0.2;
     faded.depthWrite = false;
-    Object.assign(object.userData, { own, belt, full, faded });
+    Object.assign(object.userData, { full, faded });
+  }
+
+  /** The factory under a click, picked or unpicked: its slab or its machines, not a belt in front of it. */
+  private pick(event: PointerEvent): void {
+    const canvas = this.renderer!.domElement;
+    const rect = canvas.getBoundingClientRect();
+    this.pointer.setFromCamera(
+      new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+      ),
+      this.camera!,
+    );
+    const hit = this.pointer
+      .intersectObjects(this.content.children, false)
+      .find((candidate) => candidate.object.visible && candidate.object.userData['factory']);
+    if (hit) this.picked.emit(hit.object.userData['factory'] as string);
   }
 
   /**

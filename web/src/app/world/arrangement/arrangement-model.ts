@@ -90,6 +90,28 @@ export function ceilingHeights(metres: number): number {
   return metres / foundationHeightMetres;
 }
 
+/**
+ * How long the solver may look for a better layout. It stops at the time, with the best layout it found then, unless it
+ * proves one the best first.
+ */
+export type SolverTime = 'fast' | 'balanced' | 'thorough';
+
+const solverSeconds: Record<SolverTime, number> = { fast: 15, balanced: 60, thorough: 600 };
+
+/** The seconds the solver gets: a quarter of a minute to try settings, a minute, or ten (the most the server allows). */
+export function solverTime(time: SolverTime): number {
+  return solverSeconds[time];
+}
+
+/** A run's seconds as the longest of the three it reaches, for runs asked for in seconds. */
+export function solverTimeOf(seconds: number): SolverTime {
+  return seconds >= solverSeconds.thorough
+    ? 'thorough'
+    : seconds >= solverSeconds.balanced
+      ? 'balanced'
+      : 'fast';
+}
+
 /** A routed belt on the map: through its corners, straight from one to the next. */
 export function beltLine(corners: readonly WorldPoint[]): [number, number][] {
   return corners.map((corner) => toMapPoint({ x: corner.x, y: corner.y, z: 0 }));
@@ -235,6 +257,34 @@ export function shownFactories(
   );
 }
 
+/** The factories picked, with one picked or unpicked. */
+export function toggled(focused: ReadonlySet<string>, factoryId: string): ReadonlySet<string> {
+  const next = new Set(focused);
+  if (!next.delete(factoryId)) next.add(factoryId);
+  return next;
+}
+
+/** Whether a belt (by its ends) or a factory stands out: when nothing is picked, or one of them is. */
+export function standsOut(focused: ReadonlySet<string>, ends: readonly string[]): boolean {
+  return focused.size === 0 || ends.some((end) => focused.has(end));
+}
+
+/**
+ * The factories that stand out with some picked: those picked and those that feed them, by a link whether its belts were
+ * routed or not; not those they feed. Null with none picked, when every factory does.
+ */
+export function relatedFactories(
+  focused: ReadonlySet<string>,
+  links: readonly { from: string; to: string }[],
+): Set<string> | null {
+  if (focused.size === 0) return null;
+  const related = new Set(focused);
+  for (const link of links) {
+    if (focused.has(link.to)) related.add(link.from);
+  }
+  return related;
+}
+
 /** How long a ramp of 2 metres is along its belt: half a foundation. */
 const rampMetres = 4;
 
@@ -317,9 +367,10 @@ export function carries(
 }
 
 /**
- * A smart splitter or a priority merger of a supply line on the belt floor (decided 2026-11-18), on the map and in 3D:
- * where a belt carrying a top-up's overflow on starts, at its smart splitter, and where a top-up belt ends, at its
- * priority merger; with what it says when pointed at. On the floor, at the belt's height in metres, where the belt joins
+ * A splitter or a priority merger of a supply line on the belt floor (decided 2026-11-18), on the map and in 3D: where a
+ * belt carrying a top-up's overflow on starts, at its smart splitter; where a line runs on past a factory, at a splitter
+ * on the floor (decided 2026-11-19); and where a top-up belt ends, at its priority merger; with what it says when pointed
+ * at. On the floor, at the belt's height in metres, where the belt joins
  * another there; else null, up in the factory, where the belts go up into it.
  */
 export function lineJoints(
@@ -330,7 +381,7 @@ export function lineJoints(
     Partial<Pick<RoutedBeltResponse, 'startsOnBelt' | 'endsOnBelt'>>)[],
   name: (item: string) => string,
 ): {
-  kind: 'splitter' | 'merger';
+  kind: 'smart-splitter' | 'splitter' | 'merger';
   at: WorldPoint;
   height: number | null;
   level: number;
@@ -344,14 +395,24 @@ export function lineJoints(
       ...(belt.overflow
         ? [
             {
-              kind: 'splitter' as const,
+              kind: 'smart-splitter' as const,
               at: first,
               height: belt.startsOnBelt ? (belt.heights[0] ?? 0) : null,
               level: belt.levels[0] ?? 0,
               tooltip: `<b>Smart splitter</b><br>the overflow of ${what} runs on${belt.perMinute != null ? `: ${perMinute(belt.perMinute)}` : ''}`,
             },
           ]
-        : []),
+        : belt.startsOnBelt
+          ? [
+              {
+                kind: 'splitter' as const,
+                at: first,
+                height: belt.heights[0] ?? 0,
+                level: belt.levels[0] ?? 0,
+                tooltip: `<b>Splitter</b><br>the line of ${what} runs on${belt.perMinute != null ? `: ${perMinute(belt.perMinute)}` : ''}`,
+              },
+            ]
+          : []),
       ...(belt.injection
         ? [
             {
@@ -366,6 +427,13 @@ export function lineJoints(
     ];
   });
 }
+
+/** A supply line's priority merger orange, smart splitter blue, splitter white: on the map and in 3D. */
+export const jointColours = {
+  merger: '#ff9800',
+  'smart-splitter': '#29b6f6',
+  splitter: '#eceff1',
+} as const;
 
 /** What a proposed factory says when pointed at, on the map and in 3D: its name, and how far it moves. */
 export function factoryTooltip(name: string, metres: number): string {

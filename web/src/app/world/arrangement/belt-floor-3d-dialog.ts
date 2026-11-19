@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, WritableSignal, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -7,6 +7,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { ArrangementMachinesResponse } from '../../api/models/arrangement-machines-response';
 import { ArrangementResponse } from '../../api/models/arrangement-response';
+import { toggled } from './arrangement-model';
 import { BeltFloor3d } from './belt-floor-3d';
 
 export interface BeltFloor3dDialogData {
@@ -14,6 +15,8 @@ export interface BeltFloor3dDialogData {
   colourOf: (factoryId: string) => string | undefined;
   /** The factories' machines, to draw on their plots; null until they're fetched. */
   machines: ArrangementMachinesResponse | null;
+  /** The factories picked, shared with the map: picking one here picks it there too. */
+  focused: WritableSignal<ReadonlySet<string>>;
 }
 
 /**
@@ -40,7 +43,7 @@ export interface BeltFloor3dDialogData {
     <p class="muted">
       Each belt and pipe at its height: a ramp where it turns 2 m up or down, a lift where it turns
       4 m or more; the factories on their plots at the ceiling, with their machines. Drag to turn,
-      scroll to zoom.
+      scroll to zoom; click factories to pick them: what doesn't feed them fades.
     </p>
     <div class="body">
       <app-belt-floor-3d
@@ -50,12 +53,19 @@ export interface BeltFloor3dDialogData {
         [levels]="levels()"
         [machines]="data.machines"
         [showMachines]="showMachines()"
+        [focused]="data.focused()"
+        (picked)="data.focused.set(toggled(data.focused(), $event))"
       />
       <aside class="panel">
         @if (data.machines?.machines?.length) {
           <mat-slide-toggle [checked]="showMachines()" (change)="showMachines.set($event.checked)"
             >Machines</mat-slide-toggle
           >
+        }
+        @if (data.focused().size > 0) {
+          <button mat-stroked-button type="button" (click)="data.focused.set(emptyPicks)">
+            Unpick factories
+          </button>
         }
         <h3>Levels</h3>
         <div class="buttons">
@@ -110,6 +120,9 @@ export interface BeltFloor3dDialogData {
       width: 180px;
       overflow-y: auto;
     }
+    .panel > button {
+      margin-top: 12px;
+    }
     .panel h3 {
       margin: 16px 0 8px;
     }
@@ -141,6 +154,9 @@ export class BeltFloor3dDialog {
 
   /** Whether the factories' machines show; only the flat slabs when not. */
   protected readonly showMachines = signal(true);
+
+  protected readonly toggled = toggled;
+  protected readonly emptyPicks: ReadonlySet<string> = new Set();
 
   protected toggle(level: number, on: boolean): void {
     this.picked.update((picked) =>
