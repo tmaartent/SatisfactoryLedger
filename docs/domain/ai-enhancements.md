@@ -57,7 +57,9 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 
 **Skills:** chunking (an ADR, a recipe and a code file each split differently), embeddings, hybrid search (keywords and vectors), reranking, citations, retrieval evals (was the right chunk found?).
 
-**What it would take:** **pgvector** in the PostgreSQL the app already runs, an embedding model, and retrieval questions added to the eval set.
+**What it would take:**
+- **pgvector** in the PostgreSQL the app already runs, an embedding model, and retrieval questions added to the eval set.
+- A choice of where the pipeline lives. **LangChain** (or LlamaIndex) in the Python project of idea 6 gives ready-made loaders, splitters, retrievers and rerankers. In .NET, **Semantic Kernel** plays that role on top of `IChatClient`. Building it once in each and comparing them on the retrieval evals is a lesson in itself: how much the framework does for you, and how much it hides.
 
 ## 5. Plain language to a plan
 *Raised 2026-11-08.*
@@ -86,8 +88,9 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 **What it would take:**
 - A Python project in the repo, for example `ml/`, outside the .NET solution. Aspire can run Python apps, so it can still start with the AppHost.
 - Serving the adapter so `IChatClient` can call it: Ollama after converting to GGUF, or a small OpenAI-compatible server.
+- **LangChain**, with **LangGraph** for the agent loop, on the Python side: the local model and Claude behind the same interface, and the MCP tools of idea 1 as the agent's tools. That makes the comparison with Claude a swap of one line, not of the code around it.
 - A GPU, or a rented one for the training runs.
-- Pinned versions of `transformers`, `peft`, `trl` and `bitsandbytes`, checked against their installed versions before use (as for every library here).
+- Pinned versions of `transformers`, `peft`, `trl`, `bitsandbytes` and `langchain`, checked against their installed versions before use (as for every library here).
 
 ## 7. Observability and safety, alongside everything
 *Raised 2026-11-08.*
