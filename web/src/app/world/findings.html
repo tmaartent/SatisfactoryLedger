@@ -1,26 +1,5 @@
 @let f = findings();
-<div class="summary">
-  <mat-card appearance="outlined"><mat-card-content><div class="figure">{{ f.summary.machines }}</div>machines</mat-card-content></mat-card>
-  <mat-card appearance="outlined" class="good"><mat-card-content><div class="figure">{{ f.summary.running }}</div>at 100%</mat-card-content></mat-card>
-  <mat-card appearance="outlined" class="bad"><mat-card-content><div class="figure">{{ f.summary.starved }}</div>starved</mat-card-content></mat-card>
-  <mat-card appearance="outlined" class="bad"><mat-card-content><div class="figure">{{ f.summary.outputBlocked }}</div>output blocked</mat-card-content></mat-card>
-  <mat-card appearance="outlined"><mat-card-content><div class="figure">{{ f.summary.noRecipe }}</div>without a recipe</mat-card-content></mat-card>
-</div>
-@if (f.generatorSummary.generators > 0) {
-  <div class="summary">
-    <mat-card appearance="outlined"><mat-card-content><div class="figure">{{ f.generatorSummary.generators }}</div>generators</mat-card-content></mat-card>
-    <mat-card appearance="outlined" class="good"><mat-card-content><div class="figure">{{ f.generatorSummary.running }}</div>at 100%</mat-card-content></mat-card>
-    <mat-card appearance="outlined" class="bad"><mat-card-content><div class="figure">{{ f.generatorSummary.starved }}</div>starved</mat-card-content></mat-card>
-    <mat-card appearance="outlined" class="bad"><mat-card-content><div class="figure">{{ f.generatorSummary.outputBlocked }}</div>output blocked</mat-card-content></mat-card>
-    <mat-card appearance="outlined"><mat-card-content><div class="figure">{{ f.generatorSummary.fuelUnknown }}</div>fuel unknown</mat-card-content></mat-card>
-  </div>
-}
-@if (!f.settled) {
-  <p class="warning">
-    <mat-icon>warning</mat-icon> Part of the network didn't settle: findings marked
-    <mat-icon inline matTooltip="Approximate">blur_on</mat-icon> are approximate.
-  </p>
-}
+<app-findings-summary [findings]="f" />
 
 <mat-tab-group animationDuration="0">
   <mat-tab [label]="'Machines (' + f.machines.length + ')'">

@@ -33,6 +33,17 @@
     </mat-card-actions>
   </mat-card>
 
+  <mat-card appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>The game's map</mat-card-title>
+      <mat-card-subtitle>The map art the map tool writes with --map-art (ADR-0020): the picture under the world map</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-actions>
+      <input #mapArtFile class="map-art" type="file" accept=".json" hidden (change)="importMapArt(mapArtFile.files); mapArtFile.value = ''" />
+      <button mat-flat-button (click)="mapArtFile.click()" [disabled]="importing()"><mat-icon>upload_file</mat-icon> Import</button>
+    </mat-card-actions>
+  </mat-card>
+
   @if (importCounts().length > 0) {
     <mat-card appearance="outlined">
       <mat-card-header><mat-card-title>Imported</mat-card-title></mat-card-header>

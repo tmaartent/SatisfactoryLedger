@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { buildingStyle, describeContents, escapeHtml, footprintShapes, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
+import { buildingStyle, describeContents, mapArtExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -149,16 +149,6 @@ describe('map model', () => {
     expect(describeContents({ Desc_Water_C: 12.3456 }, name)).toBe('Water × 12.35');
   });
 
-  it('takes what a belt carries most of as its main item', () => {
-    expect(mainItem({ Desc_IronIngot_C: 2, Desc_OreIron_C: 7 })).toBe('Desc_OreIron_C');
-    expect(mainItem({})).toBeNull();
-  });
-
-  it('gives an item the same colour every time, and ore and ingots different ones', () => {
-    expect(itemColour('Desc_OreIron_C')).toBe(itemColour('Desc_OreIron_C'));
-    expect(itemColour('Desc_OreIron_C')).not.toBe(itemColour('Desc_IronIngot_C'));
-  });
-
   describe('finding a buildable to zoom to', () => {
     const building = (id: string, x: number, y: number) => ({ id, className: 'X', position: { x, y, z: 0 }, yaw: 0, contents: null });
     const world = {
@@ -196,6 +186,35 @@ describe('map model', () => {
 
     it('finds nothing for a buildable the map does not have', () => {
       expect(locate(world, 'unknown')).toBeNull();
+    });
+  });
+
+  describe("the game's map picture under the map", () => {
+    const art = {
+      gameVersion: '1.2',
+      x0: -1000,
+      y0: -500,
+      x1: 1000,
+      y1: 500,
+      tiles: [{ column: 1, row: 0, x0: 0, y0: -500, x1: 1000, y1: 500, url: '/api/v1/catalog/map-art/tiles/1/0' }],
+    };
+
+    it("lays each tile over its part of the world, in metres with north up", () => {
+      expect(mapArtTiles(art)).toEqual([
+        { url: '/api/v1/catalog/map-art/tiles/1/0', bounds: [[5, 0], [-5, 10]] },
+      ]);
+    });
+
+    it('lays nothing without map art', () => {
+      expect(mapArtTiles(null)).toEqual([]);
+    });
+
+    it('covers the rectangle of the world it shows, as the corners the map can be held to', () => {
+      expect(mapArtExtent(art)).toEqual([[5, -10], [-5, 10]]);
+    });
+
+    it('holds the map to nothing without map art', () => {
+      expect(mapArtExtent(null)).toBeNull();
     });
   });
 });

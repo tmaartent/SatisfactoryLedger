@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, resource, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, output, resource, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -22,16 +22,19 @@ import { previewFactory } from '../../api/fn/world/preview-factory';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { GeneratorFinding } from '../../api/models/generator-finding';
 import { MachineFinding } from '../../api/models/machine-finding';
+import { MapConveyor } from '../../api/models/map-conveyor';
 import { CatalogNames } from '../../shared/catalog-names';
 import { percent, perMinute, Position, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { LimitFacts, limitText } from '../limit-text';
 import { conveyorColours, describeContents, statusColours, statusLabels, MachineStatus } from '../map/map-model';
 import { boxGeometry } from './box-geometry';
+import { sceneBackground } from './scene-background';
 import { Area, areaAround, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
 import { FactoryDeletion } from '../factory-deletion';
 import { blockedMachines, factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
+import { pieceAt, pieceStarts } from './merged-pieces';
 import { boxSelect, rectBetween, ScreenPoint, ScreenRect, toggle } from './selection';
 
 /** A building in the area, with what the panel shows about it. */
@@ -58,7 +61,8 @@ function choosable(building: AreaBuilding | null | undefined): building is AreaB
 
 /**
  * An area of a snapshot in 3D (ADR-0024): every building inside a rectangle drawn on the map, as its clearance boxes,
- * with belts and pipes along their curves. Machines are coloured by the analysis; a click shows what one is and holds.
+ * with belts, pipes and lifts along their curves. Machines are coloured by the analysis; a click shows what a building or
+ * a belt is and holds.
  * While defining a factory, a click adds or takes out a machine, and a box dragged with shift or alt adds or takes out
  * every machine inside it (BR-W2).
  */
@@ -81,6 +85,17 @@ export class AreaPage {
   readonly x1 = input<string>();
   readonly y1 = input<string>();
   readonly factory = input<string>();
+  /** Shown inside a factory's page (asked 2026-11-19): no title or way back of its own; the page says what changed. */
+  readonly embedded = input(false);
+  /** A factory saved here, new or edited: its id. */
+  readonly saved = output<string>();
+
+  /** What the machines' colours mean: how they run (BR-A11). */
+  protected readonly statusLegend = (['none', 'starved', 'outputBlocked', 'noRecipe'] as MachineStatus[]).map((status) => ({
+    status,
+    label: statusLabels[status],
+    colour: statusColours[status],
+  }));
 
   protected readonly area = computed<Area>(() => {
     const factoryId = this.factory();
@@ -141,6 +156,13 @@ export class AreaPage {
     const building = this.selected();
     return building ? this.findings().get(building.id) : undefined;
   });
+  /** The belt, pipe or lift looked at (asked 2026-11-20); a building and a belt aren't looked at both at once. */
+  protected readonly selectedConveyor = signal<MapConveyor | null>(null);
+  private readonly bottlenecks = computed(() => new Map((this.analysis.value()?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck])));
+  protected readonly selectedBottleneck = computed(() => {
+    const conveyor = this.selectedConveyor();
+    return conveyor ? this.bottlenecks().get(conveyor.id) : undefined;
+  });
   /** The building that glows: the one looked at, except while defining, where a click only turns a machine blue or back. */
   private readonly glowing = computed(() => (this.defining() ? null : (this.selected()?.id ?? null)));
   /** While defining, the machine or generator clicked, to name in the panel; any other building isn't named. */
@@ -160,15 +182,18 @@ export class AreaPage {
   });
   protected readonly cutOff = signal<number | null>(null);
 
-  /** Defining a factory: the machines chosen so far, by id, and what to call it. */
-  protected readonly defining = signal(false);
+  /**
+   * Defining a factory: the machines chosen so far, by id, and what to call it. Public, with saving and stopping: a
+   * factory's page edits its factory from its own header (asked 2026-11-19).
+   */
+  readonly defining = signal(false);
   /** The factory being edited; null when a new one is defined. */
   protected readonly editing = signal<string | null>(null);
   protected readonly chosen = signal<ReadonlySet<string>>(new Set());
-  protected readonly factoryName = signal('');
+  readonly factoryName = signal('');
   protected readonly saving = signal(false);
-  protected readonly saveError = signal<string | null>(null);
-  protected readonly canSave = computed(() => this.chosen().size > 0 && this.factoryName().trim() !== '' && !this.saving());
+  readonly saveError = signal<string | null>(null);
+  readonly canSave = computed(() => this.chosen().size > 0 && this.factoryName().trim() !== '' && !this.saving());
 
   /** The chosen machines once the choosing pauses: the preview follows them (part 2b(2)). */
   private readonly settled = signal<readonly string[]>([]);
@@ -179,6 +204,8 @@ export class AreaPage {
   });
   private readonly owned = computed(() => new Set(this.preview.value()?.logistics ?? []));
   private readonly previewLayer = new THREE.Group();
+  /** The belt, pipe or lift looked at, drawn again over itself, glowing. */
+  private readonly selectionLayer = new THREE.Group();
   /** The box being dragged, on screen, while shift or alt is held. */
   protected readonly dragBox = signal<ScreenRect | null>(null);
 
@@ -200,6 +227,7 @@ export class AreaPage {
   constructor() {
     this.scene.add(this.content);
     this.scene.add(this.previewLayer);
+    this.scene.add(this.selectionLayer);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
     const sun = new THREE.DirectionalLight(0xffffff, 1.6);
     sun.position.set(60, 140, 90);
@@ -220,6 +248,7 @@ export class AreaPage {
       onCleanup(() => clearTimeout(timer));
     });
     effect(() => this.drawPreview());
+    effect(() => this.drawSelectedConveyor());
   }
 
   protected startDefining(): void {
@@ -229,7 +258,7 @@ export class AreaPage {
   }
 
   /** Edits a factory as a new one is defined: its machines chosen, its name filled in. */
-  protected startEditing(factory: OutlinedFactory): void {
+  protected startEditing(factory: Pick<OutlinedFactory, 'factoryId' | 'name'>): void {
     const machines = this.factories.value()?.find((trace) => trace.factoryId === factory.factoryId)?.machines ?? [];
     this.editing.set(factory.factoryId);
     this.chosen.set(new Set(machines.map((machine) => machine.id)));
@@ -239,6 +268,12 @@ export class AreaPage {
     this.defining.set(true);
   }
 
+  /** Edits a factory by its id, once its machines are known: the factory's page asks this from its Edit button. */
+  edit(factoryId: string): void {
+    const trace = this.factories.value()?.find((candidate) => candidate.factoryId === factoryId);
+    if (trace) this.startEditing({ factoryId, name: trace.name });
+  }
+
   /** After asking; then the factories again, without it. */
   protected async deleteFactory(factory: OutlinedFactory): Promise<void> {
     if (!(await this.factoryDeletion.confirmAndDelete(factory))) return;
@@ -246,7 +281,7 @@ export class AreaPage {
     this.factories.reload();
   }
 
-  protected stopDefining(): void {
+  stopDefining(): void {
     this.defining.set(false);
     this.editing.set(null);
     this.chosen.set(new Set());
@@ -256,7 +291,7 @@ export class AreaPage {
   }
 
   /** Stores the factory, new or edited, in the snapshot's world, then opens its page. */
-  protected async save(): Promise<void> {
+  async save(): Promise<void> {
     const snapshot = this.snapshot.value();
     if (!snapshot || !this.canSave()) return;
     this.saving.set(true);
@@ -268,6 +303,10 @@ export class AreaPage {
       const factory = editing
         ? await this.api.invoke(editFactory, { id: editing, body: { name, machines } })
         : await this.api.invoke(defineFactory, { body: { world: snapshot.sessionName, name, machines } });
+      this.saved.emit(factory.id);
+      // On the factory's own page this changes nothing; stop defining, and show its machines as they are now.
+      this.stopDefining();
+      this.factories.reload();
       await this.router.navigate(['/snapshots', this.id(), 'factories', factory.id]);
     } catch (error) {
       this.saveError.set(problemMessage(error));
@@ -298,7 +337,8 @@ export class AreaPage {
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 20000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.screenSpacePanning = true;
-    this.scene.background = new THREE.Color(getComputedStyle(stage).getPropertyValue('--scene').trim() || '#1b1f24');
+    // The stage's own background, as the browser worked it out: the site's colours, never white (asked 2026-11-20).
+    this.scene.background = new THREE.Color(sceneBackground(getComputedStyle(stage).backgroundColor));
 
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = stage;
@@ -377,22 +417,24 @@ export class AreaPage {
       this.content.add(mesh);
     }
 
-    // Belts and pipes, merged per kind and per metre of their lowest point: thousands of meshes would slow a big area
-    // down, and one mesh per kind couldn't follow the height cut-off.
-    const tubes = new Map<string, THREE.BufferGeometry[]>();
+    // Belts, pipes and lifts, merged per kind and per metre of their lowest point: thousands of meshes would slow a big
+    // area down, and one mesh per kind couldn't follow the height cut-off. Each mesh keeps which belt lies where in it,
+    // so a click can find the belt it hit.
+    const tubes = new Map<string, { conveyors: MapConveyor[]; geometries: THREE.BufferGeometry[] }>();
     for (const conveyor of world.conveyors) {
       if (conveyor.curve.length < 2 || !curveInArea(conveyor.curve, area)) continue;
-      const sampled = sampleCurve3d(conveyor.curve);
-      const base = Math.floor(Math.min(...sampled.map((p) => p.z)) / 100);
-      const points = sampled.map(at);
-      const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), Math.max(2, points.length), conveyor.kind === 'pipe' ? 0.45 : 0.3, 5, false);
+      const base = Math.floor(Math.min(...sampleCurve3d(conveyor.curve).map((p) => p.z)) / 100);
       const key = `${conveyor.kind}:${base}`;
-      tubes.set(key, [...(tubes.get(key) ?? []), tube]);
+      const group = tubes.get(key) ?? { conveyors: [], geometries: [] };
+      group.conveyors.push(conveyor);
+      group.geometries.push(this.tube(conveyor, at, 0));
+      tubes.set(key, group);
     }
-    for (const [key, geometries] of tubes) {
+    for (const [key, { conveyors, geometries }] of tubes) {
       const [kind, base] = key.split(':') as ['belt' | 'pipe', string];
       const mesh = new THREE.Mesh(mergeGeometries(geometries), this.material(conveyorColours[kind], true));
-      mesh.userData = { z: Number(base) };
+      const starts = pieceStarts(geometries.map((geometry) => geometry.index!.count / 3));
+      mesh.userData = { z: Number(base), conveyors, starts };
       this.content.add(mesh);
     }
 
@@ -425,8 +467,7 @@ export class AreaPage {
     const tubes: THREE.BufferGeometry[] = [];
     for (const conveyor of world.conveyors) {
       if (!owned.has(conveyor.id) || conveyor.curve.length < 2 || !curveInArea(conveyor.curve, area)) continue;
-      const points = sampleCurve3d(conveyor.curve).map(at);
-      tubes.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), Math.max(2, points.length), conveyor.kind === 'pipe' ? 0.55 : 0.4, 5, false));
+      tubes.push(this.tube(conveyor, at, 0.1));
     }
     if (tubes.length > 0) this.previewLayer.add(new THREE.Mesh(mergeGeometries(tubes), this.ownedMaterial));
 
@@ -445,6 +486,26 @@ export class AreaPage {
         this.previewLayer.add(marker);
       }
     }
+  }
+
+  /** The belt, pipe or lift looked at, a little thicker and glowing; nothing while defining, as with a building. */
+  private drawSelectedConveyor(): void {
+    const conveyor = this.selectedConveyor();
+    const defining = this.defining();
+    this.selectionLayer.traverse((object) => (object as THREE.Mesh).geometry?.dispose());
+    this.selectionLayer.clear();
+    if (!conveyor || defining || conveyor.curve.length < 2) return;
+    const area = this.area();
+    const middle = { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
+    const at = (p: Position) => new THREE.Vector3(...toScene(p, middle));
+    this.selectionLayer.add(new THREE.Mesh(this.tube(conveyor, at, 0.15), this.highlightTubeMaterial));
+  }
+
+  /** A belt, pipe or lift as a tube along its curve; thicker by the extra metres, to be drawn over itself. */
+  private tube(conveyor: MapConveyor, at: (p: Position) => THREE.Vector3, extra: number): THREE.TubeGeometry {
+    const points = sampleCurve3d(conveyor.curve).map(at);
+    const radius = (conveyor.kind === 'pipe' ? 0.45 : 0.3) + extra;
+    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), Math.max(2, points.length), radius, 5, false);
   }
 
   /**
@@ -472,8 +533,8 @@ export class AreaPage {
   }
 
   /**
-   * A click without a drag selects the building under the pointer; a click on nothing clears the selection. While
-   * defining a factory, a click on a machine or generator also adds it or takes it out.
+   * A click without a drag selects the building, belt, pipe or lift under the pointer; a click on nothing clears the
+   * selection. While defining a factory, a click on a machine or generator also adds it or takes it out.
    */
   private listenForClicks(canvas: HTMLCanvasElement): void {
     let down = { x: 0, y: 0 };
@@ -483,9 +544,13 @@ export class AreaPage {
       if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > 4) return;
       const rect = canvas.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1), this.camera!);
-      const hit = ray.intersectObjects(this.content.children.filter((o) => o.visible && o.userData['building']), false)[0];
-      const building = hit ? (hit.object.userData['building'] as AreaBuilding) : null;
+      const shown = this.content.children.filter((o) => o.visible && (o.userData['building'] || o.userData['conveyors']));
+      // The ray passes through what the cut-off clips away: a belt counts only where it's still drawn.
+      const hit = ray.intersectObjects(shown, false).find((h) => !h.object.userData['conveyors'] || h.point.y <= this.clip.constant);
+      const building = (hit?.object.userData['building'] as AreaBuilding | undefined) ?? null;
+      const conveyors = hit?.object.userData['conveyors'] as MapConveyor[] | undefined;
       this.selected.set(building);
+      this.selectedConveyor.set(conveyors && hit?.faceIndex != null ? conveyors[pieceAt(hit.object.userData['starts'], hit.faceIndex)] : null);
       if (this.defining() && choosable(building) && !this.blocked().has(building.id)) this.chosen.update((chosen) => toggle(chosen, building.id));
     });
   }
@@ -553,6 +618,7 @@ export class AreaPage {
 
   /** The building looked at glows a little, so it can be found again after turning the view; chosen machines are blue. */
   private readonly highlightMaterial = new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffd54f', emissiveIntensity: 0.6, side: THREE.DoubleSide });
+  private readonly highlightTubeMaterial = new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffd54f', emissiveIntensity: 0.6, side: THREE.DoubleSide, clippingPlanes: [this.clip] });
   private readonly chosenMaterial = new THREE.MeshLambertMaterial({ color: '#42a5f5', emissive: '#1565c0', emissiveIntensity: 0.5, side: THREE.DoubleSide });
   /** The preview: what the factory would own in teal, its outputs green and its inputs orange. */
   private readonly ownedMaterial = new THREE.MeshLambertMaterial({ color: '#26a69a', emissive: '#00695c', emissiveIntensity: 0.5, side: THREE.DoubleSide, clippingPlanes: [this.clip] });

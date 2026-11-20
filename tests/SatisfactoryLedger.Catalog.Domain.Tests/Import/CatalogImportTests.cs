@@ -192,6 +192,17 @@ public class CatalogImportTests
         Assert.Equal(["BP_ResourceNode1"], import.NoLongerInGame);
     }
 
+    [Fact]
+    public void An_import_of_the_map_art_records_its_game_version_and_changes_no_entries()
+    {
+        var import = CatalogImport.RecordMapArt(CatalogImportId.New(), " 1.2 ", ImportedAt);
+
+        Assert.Equal(CatalogImportSource.MapArt, import.Source);
+        Assert.Equal("1.2", import.GameVersion);
+        Assert.Equal(new ImportCounts(0, 0, 0), import.ResourceNodes);
+        Assert.Empty(import.NoLongerInGame);
+    }
+
     private static CatalogImport RecordImport(
         string gameVersion,
         CatalogEntryChanges<Item>? items = null,

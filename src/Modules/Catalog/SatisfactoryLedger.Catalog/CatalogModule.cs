@@ -29,6 +29,7 @@ public static class CatalogModule
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ImportCatalogHandler>();
         builder.Services.AddScoped<ImportResourceNodesHandler>();
+        builder.Services.AddScoped<ImportMapArtHandler>();
 
         // What other modules may ask, through Catalog.Contracts.
         builder.Services.AddScoped<ICatalogQueries, CatalogQueries>();
@@ -41,7 +42,8 @@ public static class CatalogModule
         endpoints.MapGroup("/api/v1/catalog")
             .WithTags("Catalog")
             .MapImportEndpoints()
-            .MapBrowseEndpoints();
+            .MapBrowseEndpoints()
+            .MapMapArtEndpoints();
 
         return endpoints;
     }

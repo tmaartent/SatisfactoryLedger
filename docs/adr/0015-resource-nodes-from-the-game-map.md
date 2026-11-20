@@ -39,3 +39,7 @@ Covered first: the nodes miners and oil extractors stand on (`BP_ResourceNode_C`
 - **CUE4Parse's dependency must be safe to build:** with warnings as errors, NuGet's vulnerability warning fails the build. `Microsoft.Bcl.Memory` gets pinned to a fixed version in `Directory.Packages.props` (transitive pinning is already on).
 - **The type-map workaround is our own code.** If CUE4Parse learns to read the game's type map, or the game's generator changes, the workaround can go. The tool should fail clearly when it can't load the type map, not produce a partial table.
 - **The version label is still typed in by hand,** as with the Docs file. Checking it against the build number in a save is possible later.
+
+*Amended 2026-11-20 ([log 53](../guide/log/53-the-games-map-under-the-map.md)):* **the tool also writes the map art** when asked (`--map-art map-art.json`), the game's map picture under the world map (ADR-0020). The Catalog imports it through its own endpoint, as it does the node table.
+- Decoding the picture (DXT1) takes `AssetRipper.TextureDecoder` 2.6.3 (MIT), writing it as JPEG `SkiaSharp` 4.157.0 (MIT), both in the tool only. Not `CUE4Parse-Conversion`, the obvious choice next to CUE4Parse: it pins `SixLabors.ImageSharp` to exactly 3.1.12, which has four high-severity advisories fixed only in 3.2.0, so the build refused it, and overriding an exact pin would be guessing at compatibility.
+- The tool refuses a map texture that isn't DXT1 rather than write a wrong picture.

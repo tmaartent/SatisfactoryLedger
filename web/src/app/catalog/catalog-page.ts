@@ -17,13 +17,14 @@ import { getRecipes } from '../api/fn/catalog/get-recipes';
 import { getResourceNodes } from '../api/fn/catalog/get-resource-nodes';
 import { getTransportTiers } from '../api/fn/catalog/get-transport-tiers';
 import { importCatalog } from '../api/fn/catalog/import-catalog';
+import { importMapArt } from '../api/fn/catalog/import-map-art';
 import { importResourceNodes } from '../api/fn/catalog/import-resource-nodes';
 import { ImportResponse } from '../api/models/import-response';
 import { CatalogNames } from '../shared/catalog-names';
 import { perMinute, positionInMetres } from '../shared/display';
 import { problemMessage } from '../shared/problem';
 
-/** The game data (ADR-0005) and the resource nodes (ADR-0015): their imports, and what's in them. */
+/** The game data (ADR-0005), the resource nodes (ADR-0015) and the map art (ADR-0020): their imports, and what's in them. */
 @Component({
   selector: 'app-catalog-page',
   imports: [
@@ -97,6 +98,12 @@ export class CatalogPage {
   protected async importNodes(files: FileList | null): Promise<void> {
     const file = files?.item(0);
     if (file) await this.run(() => this.api.invoke(importResourceNodes, { body: { file } }));
+  }
+
+  /** The game's map picture: it replaces the one before, and shows under the world map from then on. */
+  protected async importMapArt(files: FileList | null): Promise<void> {
+    const file = files?.item(0);
+    if (file) await this.run(() => this.api.invoke(importMapArt, { body: { file } }));
   }
 
   private async run(importing: () => Promise<ImportResponse>): Promise<void> {

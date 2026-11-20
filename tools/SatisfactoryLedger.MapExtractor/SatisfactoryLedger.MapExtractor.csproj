@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="CUE4Parse" />
+    <PackageReference Include="AssetRipper.TextureDecoder" />
+    <PackageReference Include="SkiaSharp" />
   </ItemGroup>
 
   <ItemGroup>

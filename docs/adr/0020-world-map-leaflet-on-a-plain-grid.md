@@ -15,7 +15,7 @@ Every finding has a position, but tables don't show where things are, or how far
   - every building as the ground it covers, turned the way it faces (its **footprint**), not as a dot;
   - the resource nodes no provider stands on;
   - one factory highlighted, picked from the traced factories.
-- **A plain grid behind it,** one line per kilometre, coordinates in metres. Nothing from the game's art.
+- **A plain grid behind it,** one line per kilometre, coordinates in metres. Nothing from the game's art (*amended 2026-11-20:* the game's map picture lies under it, from your own install; see the end).
 - **A map endpoint:** `GET /api/v1/world/snapshots/{id}/map` returns the snapshot's machines and providers with their positions, and each provider's resource, node and purity. It also returns the belts and pipes with their curves, as the game stores them.
   - How a machine runs isn't in it: the page takes that from the findings. So the map shows the machines while the analysis is pending, grey until it's ready.
 - **Leaflet 1.9** draws it with its flat coordinate system (`CRS.Simple`), on a canvas for thousands of markers.
@@ -47,3 +47,10 @@ Every finding has a position, but tables don't show where things are, or how far
   - The map shows it in tooltips, and colours belts by their main item on request.
   - Snapshot version 6; older snapshots have none.
 - Leaflet 1.9 is CommonJS, so it's allowed in `angular.json` (`allowedCommonJsDependencies`).
+
+*Amended 2026-11-20 ([log 53](../guide/log/53-the-games-map-under-the-map.md)):* **the game's own map picture lies under the map** (asked 2026-11-20), the "local-only image" this ADR left for later.
+- **From your own install, never from the internet or the repository.** The map tool reads it (ADR-0015, amended the same day): the textures `Map_column-row` (2 by 2, 4096 pixels each, DXT1) and where the game's capture actor saw them from, so the placement is the game's, not typed in. In 1.2 that's a square 750,000 cm wide around (50,301.832, 0). Checked by drawing all 577 resource nodes on it: every one lands on land.
+- **Imported into the Catalog** (decided 2026-11-20), as the resource nodes are: `POST /api/v1/catalog/map-art-imports`, stored in PostgreSQL as JPEG (about 10 MB), one at a time, an import replacing the one before. `GET /api/v1/catalog/map-art` says where each tile lies; `GET /api/v1/catalog/map-art/tiles/{column}/{row}` serves it, cached for a day. Only JPEG and PNG are taken in, since a tile is served back as the type the file says.
+- **The map draws the tiles first**, so everything else lies over them, with or without a snapshot. Without map art (404) it's the plain grid, as before. The grid stays over the picture.
+- **The picture is Coffee Stain's art.** `map-art.json` is in `.gitignore`; tests use made-up tiles of a few bytes.
+- **Alternatives:** exporting it by hand with FModel (a manual step per game update, and the placement calibrated by hand), or a community site's tiles (someone else's server, terms and updates, online only).

@@ -22,6 +22,7 @@ import { WorldPoint } from '../../api/models/world-point';
 import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
 import { boxGeometry } from '../area/box-geometry';
+import { sceneBackground } from '../area/scene-background';
 import { CatalogNames } from '../../shared/catalog-names';
 import {
   beltStretches3d,
@@ -166,8 +167,9 @@ export class BeltFloor3d {
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 50000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.screenSpacePanning = true;
+    // The stage's own background, as the browser worked it out: the site's colours, never white (asked 2026-11-20).
     this.scene.background = new THREE.Color(
-      getComputedStyle(stage).getPropertyValue('--scene').trim() || '#1b1f24',
+      sceneBackground(getComputedStyle(stage).backgroundColor),
     );
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = stage;

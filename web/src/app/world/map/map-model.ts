@@ -21,6 +21,26 @@ export function toMapPoint(position: Position): [number, number] {
   return [-position.y / 100, position.x / 100];
 }
 
+/**
+ * The game's map picture under the map (ADR-0020): each tile with the corners of its part of the world, as map points.
+ * The API gives them in centimetres; the map has metres, north up. Nothing without map art.
+ */
+export function mapArtTiles(
+  art: { tiles: { x0: number; y0: number; x1: number; y1: number; url: string }[] } | null | undefined,
+): { url: string; bounds: [[number, number], [number, number]] }[] {
+  return (art?.tiles ?? []).map((tile) => ({
+    url: tile.url,
+    bounds: [toMapPoint({ x: tile.x0, y: tile.y0, z: 0 }), toMapPoint({ x: tile.x1, y: tile.y1, z: 0 })],
+  }));
+}
+
+/** The corners of the world the map picture shows, as map points: the map is held to it (asked 2026-11-20). */
+export function mapArtExtent(
+  art: { x0: number; y0: number; x1: number; y1: number } | null | undefined,
+): [[number, number], [number, number]] | null {
+  return art ? [toMapPoint({ x: art.x0, y: art.y0, z: 0 }), toMapPoint({ x: art.x1, y: art.y1, z: 0 })] : null;
+}
+
 /** A point on the map (latitude and longitude in metres) as a game position at height 0: the opposite of toMapPoint. */
 export function fromMapPoint(lat: number, lng: number): Position {
   return { x: Math.round(lng * 100), y: Math.round(-lat * 100), z: 0 };
@@ -129,25 +149,6 @@ export function describeContents(contents: Contents | null | undefined, name: (i
   if (!contents) return '';
   const entries = Object.entries(contents).sort(([, a], [, b]) => b - a);
   return entries.length === 0 ? 'empty' : entries.map(([item, count]) => `${name(item)} × ${Number(count.toFixed(2))}`).join(', ');
-}
-
-/** What a belt carries most of; null when it carries nothing. */
-export function mainItem(contents: Contents | null | undefined): string | null {
-  const entries = Object.entries(contents ?? {});
-  return entries.length === 0 ? null : entries.reduce((most, entry) => (entry[1] > most[1] ? entry : most))[0];
-}
-
-/** Distinct colours on the dark theme, for "Colour belts by what they carry". */
-const ItemPalette = [
-  '#e57373', '#64b5f6', '#81c784', '#ffb74d', '#ba68c8', '#4dd0e1', '#fff176', '#f06292',
-  '#a1887f', '#90a4ae', '#aed581', '#7986cb', '#ff8a65', '#4db6ac', '#dce775', '#9575cd',
-];
-
-/** The same colour for an item every time, from its class name. */
-export function itemColour(item: string): string {
-  let hash = 0;
-  for (const character of item) hash = (hash * 31 + character.charCodeAt(0)) | 0;
-  return ItemPalette[Math.abs(hash) % ItemPalette.length];
 }
 
 /** Belts grey, pipes teal; a bottleneck red and thicker (BR-A12). */

@@ -1,15 +1,16 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, linkedSignal, resource, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
+import { HttpErrorResponse } from '@angular/common/http';
+
+import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { analyseSnapshot } from '../../api/fn/world/analyse-snapshot';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
@@ -31,10 +32,10 @@ import {
   footprintShapes,
   freeNodes,
   fromMapPoint,
-  itemColour,
   locate,
+  mapArtExtent,
+  mapArtTiles,
   machineStatuses,
-  mainItem,
   purityColours,
   sampleCurve,
   statusColours,
@@ -42,25 +43,28 @@ import {
   toMapPoint,
 } from './map-model';
 import { LimitFacts, limitText } from '../limit-text';
+import { SnapshotsSidebar } from '../snapshots-sidebar';
 
 /** Every kilometre a grid line, over the whole game world (about −3.3 to 4.3 km east, −3.8 to 3.8 km north). */
 const GridStep = 1000;
 const GridExtent = { from: -5000, to: 5000 };
+/** How far out the map zooms without the map picture: the whole grid. */
+const MinZoom = -4;
 
 /**
  * The world map of a snapshot: its machines by how they run, its belts and pipes as built with the bottlenecks red,
  * its providers, the resource nodes still free, and a factory highlighted. A plain grid in metres behind it (ADR-0020).
+ * Where the site starts, with no snapshot loaded: only the resource nodes (asked 2026-11-19).
  */
 @Component({
   selector: 'app-map-page',
   imports: [
     FormsModule,
     RouterLink,
+    SnapshotsSidebar,
     MatButtonModule,
-    MatFormFieldModule,
     MatIconModule,
     MatProgressBarModule,
-    MatSelectModule,
     MatSlideToggleModule,
   ],
   templateUrl: './map-page.html',
@@ -71,36 +75,50 @@ export class MapPage {
   private readonly names = inject(CatalogNames);
   private readonly router = inject(Router);
 
-  /** From the route: /snapshots/:id/map. */
-  readonly id = input.required<string>();
+  /** From the route: /snapshots/:id/map; none at /snapshots, where the site starts with no snapshot loaded. */
+  readonly id = input<string>();
+  /** The snapshot's id, for its requests; with none they don't run. */
+  private readonly snapshotParams = computed(() => {
+    const id = this.id();
+    return id ? { id } : undefined;
+  });
   /** From the query, ?focus=<buildable id>: the buildable a finding links to. The map zooms to it and rings it. */
   readonly focus = input<string>();
 
   protected readonly snapshot = resource({
-    params: () => ({ id: this.id() }),
+    params: () => this.snapshotParams(),
     loader: ({ params }) => this.api.invoke(getSnapshot, params),
   });
   protected readonly world = resource({
-    params: () => ({ id: this.id() }),
+    params: () => this.snapshotParams(),
     loader: ({ params }) => this.api.invoke(getWorldMap, params),
   });
   /** The machines' status: the map shows them grey until the analysis is ready, then colours them. */
   protected readonly analysis = resource({
-    params: () => ({ id: this.id() }),
+    params: () => this.snapshotParams(),
     loader: ({ params, abortSignal }) => whenAnalysed(() => this.api.invoke$Response(analyseSnapshot, params), abortSignal),
   });
   protected readonly nodes = resource({ loader: () => this.api.invoke(getResourceNodes) });
+  /** The game's map picture under everything (ADR-0020); none until it's imported, when the API answers 404. */
+  protected readonly mapArt = resource({
+    loader: async () => {
+      try {
+        return await this.api.invoke(getMapArt);
+      } catch (error) {
+        if (error instanceof HttpErrorResponse && error.status === 404) return null;
+        throw error;
+      }
+    },
+  });
   protected readonly factories = resource({
-    params: () => ({ id: this.id() }),
+    params: () => this.snapshotParams(),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
   });
 
-  /** ?factory=…: the factory highlighted when the map opens; the list can choose another. */
+  /** ?factory=…: the factory highlighted when the map opens; the list beside the map can pick another. */
   readonly factory = input<string>();
   protected readonly factoryId = linkedSignal(() => this.factory() ?? null);
   protected readonly showFreeNodes = signal(true);
-  /** Colour belts by what they carry most of, instead of grey (pipes stay teal, bottlenecks red). */
-  protected readonly colourByItem = signal(false);
   protected readonly pointer = signal<string>('');
   /** Drawing a rectangle to open in 3D: the map stops panning, and a drag draws instead. */
   protected readonly drawing = signal(false);
@@ -139,17 +157,6 @@ export class MapPage {
   }));
   protected readonly problem = problemMessage;
 
-  /** The items on the belts, most belts first, with their colour: the legend while belts are coloured by item. */
-  protected readonly beltItems = computed(() => {
-    const belts = new Map<string, number>();
-    for (const conveyor of this.world.value()?.conveyors ?? []) {
-      const item = mainItem(conveyor.contents);
-      if (conveyor.kind === 'belt' && item) belts.set(item, (belts.get(item) ?? 0) + 1);
-    }
-    return [...belts.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .map(([item]) => ({ item, name: this.names.item(item), colour: itemColour(item) }));
-  });
 
   private readonly container = viewChild.required<ElementRef<HTMLElement>>('map');
   private map?: L.Map;
@@ -158,6 +165,7 @@ export class MapPage {
   private readonly providerLayer = L.layerGroup();
   private readonly otherLayer = L.layerGroup();
   private readonly nodeLayer = L.layerGroup();
+  private readonly artLayer = L.layerGroup();
   private readonly focusLayer = L.layerGroup();
   /** Every drawn buildable's shape, by id: to open the tooltip of the one in focus. */
   private readonly shapes = new Map<string, L.Path>();
@@ -173,6 +181,7 @@ export class MapPage {
     effect(() => this.drawProviders());
     effect(() => this.drawOthers());
     effect(() => this.drawFreeNodes());
+    effect(() => this.drawMapArt());
     effect(() => this.fitToFactory());
     // Last, so the shapes it opens a tooltip on are drawn.
     effect(() => this.focusOnBuildable());
@@ -182,11 +191,16 @@ export class MapPage {
     this.map = L.map(this.container().nativeElement, {
       crs: L.CRS.Simple,
       preferCanvas: true,
-      minZoom: -4,
+      minZoom: MinZoom,
       maxZoom: 3,
       zoomSnap: 0.25,
+      // Held to the map picture, once there is one: it stops at its edges instead of giving way a little.
+      maxBoundsViscosity: 1,
       attributionControl: false,
     });
+    this.map.on('resize', () => this.holdToMapArt());
+    // The map picture first, so everything else lies over it.
+    this.artLayer.addTo(this.map);
     this.gridLayer().addTo(this.map);
     this.nodeLayer.addTo(this.map);
     this.otherLayer.addTo(this.map);
@@ -194,18 +208,6 @@ export class MapPage {
     this.providerLayer.addTo(this.map);
     this.machineLayer.addTo(this.map);
     this.focusLayer.addTo(this.map);
-    L.control
-      .layers(
-        undefined,
-        {
-          Machines: this.machineLayer,
-          'Belts and pipes': this.conveyorLayer,
-          Providers: this.providerLayer,
-          'Splitters, lifts, storage, consumers': this.otherLayer,
-        },
-        { collapsed: false, position: 'topright' },
-      )
-      .addTo(this.map);
     this.map.setView([0, 0], -3);
     this.listenForArea(this.map);
     this.map.on('mousemove', (event: L.LeafletMouseEvent) =>
@@ -216,7 +218,43 @@ export class MapPage {
     this.drawProviders();
     this.drawOthers();
     this.drawFreeNodes();
+    this.drawMapArt();
     this.focusOnBuildable();
+  }
+
+  /** The game's map picture, a tile at a time over its part of the world; not clickable, so it never takes a click. */
+  private drawMapArt(): void {
+    const art = this.mapArt.hasValue() ? this.mapArt.value() : null;
+    if (!this.map) return;
+
+    this.artLayer.clearLayers();
+    for (const tile of mapArtTiles(art)) L.imageOverlay(tile.url, tile.bounds, { interactive: false }).addTo(this.artLayer);
+    this.holdToMapArt();
+  }
+
+  /**
+   * With the map picture, the map zooms out no further than the whole picture and moves no further than its edges: past
+   * them is only the grid (asked 2026-11-20). Without one, the whole world's grid can be seen, as before.
+   */
+  private holdToMapArt(): void {
+    if (!this.map) return;
+    const extent = mapArtExtent(this.mapArt.hasValue() ? this.mapArt.value() : null);
+    if (!extent) {
+      this.map.setMaxBounds();
+      this.map.setMinZoom(MinZoom);
+      return;
+    }
+    const size = this.map.getSize();
+    // Not laid out yet: the zoom that fits it is known once the map has a size, and a resize asks again.
+    if (size.x === 0 || size.y === 0) return;
+    const bounds = L.latLngBounds(extent);
+    this.map.setMinZoom(this.map.getBoundsZoom(bounds));
+    this.map.setMaxBounds(bounds);
+  }
+
+  /** A factory picked in the list beside the map is highlighted; picked again, none is (asked 2026-11-19). */
+  protected toggleFactory(factoryId: string): void {
+    this.factoryId.update((highlighted) => (highlighted === factoryId ? null : factoryId));
   }
 
   protected toggleDrawing(): void {
@@ -319,24 +357,16 @@ export class MapPage {
   private drawConveyors(): void {
     const conveyors = this.world.value()?.conveyors ?? [];
     const bottlenecks = this.bottlenecks();
-    const byItem = this.colourByItem();
     if (!this.map) return;
 
     this.conveyorLayer.clearLayers();
     for (const conveyor of conveyors) {
       const bottleneck = bottlenecks.get(conveyor.id);
-      const item = conveyor.kind === 'belt' ? mainItem(conveyor.contents) : null;
-      const colour = bottleneck
-        ? conveyorColours.bottleneck
-        : byItem && conveyor.kind === 'belt'
-          ? item
-            ? itemColour(item)
-            : '#455a64'
-          : conveyorColours[conveyor.kind];
+      const colour = bottleneck ? conveyorColours.bottleneck : conveyorColours[conveyor.kind];
       const line = L.polyline(sampleCurve(conveyor.curve), {
         color: colour,
-        weight: bottleneck ? 4 : conveyor.kind === 'pipe' ? 2.5 : byItem && item ? 2.5 : 1.5,
-        opacity: bottleneck || (byItem && item) ? 1 : 0.6,
+        weight: bottleneck ? 4 : conveyor.kind === 'pipe' ? 2.5 : 1.5,
+        opacity: bottleneck ? 1 : 0.6,
       });
       const carries = this.contents(conveyor.contents);
       line.bindTooltip(
@@ -451,6 +481,11 @@ export class MapPage {
     if (!this.map) return;
 
     this.nodeLayer.clearLayers();
+    // With no snapshot, nothing else to zoom to: the nodes, the first time.
+    if (!this.id() && !this.fitted && free.length > 0) {
+      this.map.fitBounds(L.latLngBounds(free.map((node) => toMapPoint(node.position))), { padding: [24, 24] });
+      this.fitted = true;
+    }
     for (const node of free) {
       L.circleMarker(toMapPoint(node.position), {
         radius: 5,
@@ -459,7 +494,7 @@ export class MapPage {
         dashArray: '3 3',
         fill: false,
       })
-        .bindTooltip(`Free ${node.purity} node · ${this.names.item(node.resource)}<br>${positionInMetres(node.position)}`)
+        .bindTooltip(`${this.id() ? `Free ${node.purity}` : node.purity.charAt(0).toUpperCase() + node.purity.slice(1)} node · ${this.names.item(node.resource)}<br>${positionInMetres(node.position)}`)
         .addTo(this.nodeLayer);
     }
   }

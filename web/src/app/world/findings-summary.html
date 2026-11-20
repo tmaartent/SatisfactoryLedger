@@ -1,0 +1,72 @@
+<div class="summary">
+  <mat-card appearance="outlined"
+    ><mat-card-content
+      ><div class="figure">{{ findings().summary.machines }}</div>
+      machines</mat-card-content
+    ></mat-card
+  >
+  <mat-card appearance="outlined" class="good"
+    ><mat-card-content
+      ><div class="figure">{{ findings().summary.running }}</div>
+      at 100%</mat-card-content
+    ></mat-card
+  >
+  <mat-card appearance="outlined" class="bad"
+    ><mat-card-content
+      ><div class="figure">{{ findings().summary.starved }}</div>
+      starved</mat-card-content
+    ></mat-card
+  >
+  <mat-card appearance="outlined" class="bad"
+    ><mat-card-content
+      ><div class="figure">{{ findings().summary.outputBlocked }}</div>
+      output blocked</mat-card-content
+    ></mat-card
+  >
+  <mat-card appearance="outlined"
+    ><mat-card-content
+      ><div class="figure">{{ findings().summary.noRecipe }}</div>
+      without a recipe</mat-card-content
+    ></mat-card
+  >
+</div>
+@if (findings().generatorSummary.generators > 0) {
+  <div class="summary">
+    <mat-card appearance="outlined"
+      ><mat-card-content
+        ><div class="figure">{{ findings().generatorSummary.generators }}</div>
+        generators</mat-card-content
+      ></mat-card
+    >
+    <mat-card appearance="outlined" class="good"
+      ><mat-card-content
+        ><div class="figure">{{ findings().generatorSummary.running }}</div>
+        at 100%</mat-card-content
+      ></mat-card
+    >
+    <mat-card appearance="outlined" class="bad"
+      ><mat-card-content
+        ><div class="figure">{{ findings().generatorSummary.starved }}</div>
+        starved</mat-card-content
+      ></mat-card
+    >
+    <mat-card appearance="outlined" class="bad"
+      ><mat-card-content
+        ><div class="figure">{{ findings().generatorSummary.outputBlocked }}</div>
+        output blocked</mat-card-content
+      ></mat-card
+    >
+    <mat-card appearance="outlined"
+      ><mat-card-content
+        ><div class="figure">{{ findings().generatorSummary.fuelUnknown }}</div>
+        fuel unknown</mat-card-content
+      ></mat-card
+    >
+  </div>
+}
+@if (!findings().settled) {
+  <p class="warning">
+    <mat-icon>warning</mat-icon> Part of the network didn't settle: findings marked
+    <mat-icon inline matTooltip="Approximate">blur_on</mat-icon> are approximate.
+  </p>
+}
