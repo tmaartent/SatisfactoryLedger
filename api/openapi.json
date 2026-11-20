@@ -132,6 +132,63 @@
         }
       }
     },
+    "/api/v1/catalog/map-art-imports": {
+      "post": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Import the game's map picture the map tool writes (map-art.json, ADR-0020)",
+        "description": "Replaces the map art whole. The game version comes from the file. A file that isn't map art changes nothing.",
+        "operationId": "ImportMapArt",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/catalog/imports/{id}": {
       "get": {
         "tags": [
@@ -344,6 +401,64 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/map-art": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "The game's map picture: the rectangle of the world it covers, and its tiles (404 before an import)",
+        "operationId": "GetMapArt",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapArtResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/map-art/tiles/{column}/{row}": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "One tile of the map picture, as the image it is",
+        "operationId": "GetMapArtTile",
+        "parameters": [
+          {
+            "name": "column",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "row",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -1861,7 +1976,8 @@
       "CatalogImportSource": {
         "enum": [
           "docsFile",
-          "resourceNodeTable"
+          "resourceNodeTable",
+          "mapArt"
         ]
       },
       "ConnectionSummary": {
@@ -2935,6 +3051,85 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "MapArtResponse": {
+        "required": [
+          "gameVersion",
+          "x0",
+          "y0",
+          "x1",
+          "y1",
+          "tiles"
+        ],
+        "type": "object",
+        "properties": {
+          "gameVersion": {
+            "type": "string"
+          },
+          "x0": {
+            "type": "number",
+            "format": "double"
+          },
+          "y0": {
+            "type": "number",
+            "format": "double"
+          },
+          "x1": {
+            "type": "number",
+            "format": "double"
+          },
+          "y1": {
+            "type": "number",
+            "format": "double"
+          },
+          "tiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapArtTileResponse"
+            }
+          }
+        }
+      },
+      "MapArtTileResponse": {
+        "required": [
+          "column",
+          "row",
+          "x0",
+          "y0",
+          "x1",
+          "y1",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "column": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "row": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "x0": {
+            "type": "number",
+            "format": "double"
+          },
+          "y0": {
+            "type": "number",
+            "format": "double"
+          },
+          "x1": {
+            "type": "number",
+            "format": "double"
+          },
+          "y1": {
+            "type": "number",
+            "format": "double"
+          },
+          "url": {
+            "type": "string"
           }
         }
       },

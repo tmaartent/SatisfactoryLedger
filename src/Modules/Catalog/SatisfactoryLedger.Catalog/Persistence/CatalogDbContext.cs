@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Domain.GameObjects;
 using SatisfactoryLedger.Catalog.Domain.Import;
+using SatisfactoryLedger.Catalog.Domain.Map;
 
 namespace SatisfactoryLedger.Catalog.Persistence;
 
@@ -35,6 +36,9 @@ internal sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> option
     public DbSet<Buildable> Buildables => Set<Buildable>();
 
     public DbSet<ResourceNode> ResourceNodes => Set<ResourceNode>();
+
+    /// <summary>The game's map picture (ADR-0020): one at a time.</summary>
+    public DbSet<MapArt> MapArts => Set<MapArt>();
 
     public DbSet<CatalogImport> Imports => Set<CatalogImport>();
 

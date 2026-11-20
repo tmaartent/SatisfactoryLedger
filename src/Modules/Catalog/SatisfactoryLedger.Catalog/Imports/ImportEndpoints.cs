@@ -18,6 +18,7 @@ internal static class ImportEndpoints
 {
     public const string InvalidDocsFileCode = "Catalog.InvalidDocsFile";
     public const string InvalidResourceNodeTableCode = "Catalog.InvalidResourceNodeTable";
+    public const string InvalidMapArtCode = "Catalog.InvalidMapArt";
 
     public static RouteGroupBuilder MapImportEndpoints(this RouteGroupBuilder catalog)
     {
@@ -34,6 +35,13 @@ internal static class ImportEndpoints
             .WithName("ImportResourceNodes")
             .WithSummary("Import the node table the map tool writes (resource-nodes.json, ADR-0015)")
             .WithDescription("Adds new nodes, updates existing ones and marks nodes missing from the table as no longer in the game. The game version comes from the table.")
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .DisableAntiforgery();
+
+        catalog.MapPost("/map-art-imports", ImportMapArtAsync)
+            .WithName("ImportMapArt")
+            .WithSummary("Import the game's map picture the map tool writes (map-art.json, ADR-0020)")
+            .WithDescription("Replaces the map art whole. The game version comes from the file. A file that isn't map art changes nothing.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .DisableAntiforgery();
 
@@ -108,6 +116,34 @@ internal static class ImportEndpoints
                 detail: e.Message,
                 statusCode: StatusCodes.Status422UnprocessableEntity,
                 extensions: new Dictionary<string, object?> { ["code"] = InvalidResourceNodeTableCode });
+        }
+    }
+
+    private static async Task<Results<Created<ImportResponse>, ValidationProblem, ProblemHttpResult>> ImportMapArtAsync(
+        IFormFile? file, ImportMapArtHandler handler, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["file"] = ["Upload the map art the map tool writes (map-art.json)."]
+            });
+        }
+
+        try
+        {
+            await using Stream art = file.OpenReadStream();
+            CatalogImport import = await handler.HandleAsync(new ImportMapArtCommand(art), cancellationToken);
+
+            return TypedResults.Created($"/api/v1/catalog/imports/{import.Id.Id}", ImportResponse.From(import));
+        }
+        catch (InvalidMapArtException e)
+        {
+            return TypedResults.Problem(
+                title: "The file is not map art the catalog can import",
+                detail: e.Message,
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                extensions: new Dictionary<string, object?> { ["code"] = InvalidMapArtCode });
         }
     }
 

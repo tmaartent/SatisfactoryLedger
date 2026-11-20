@@ -691,6 +691,83 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
 
                     b.ToTable("imports", "catalog");
                 });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Map.MapArt", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("GameVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("game_version");
+
+                    b.Property<double>("Height")
+                        .HasColumnType("double precision")
+                        .HasColumnName("height");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("double precision")
+                        .HasColumnName("width");
+
+                    b.Property<double>("X0")
+                        .HasColumnType("double precision")
+                        .HasColumnName("x0");
+
+                    b.Property<double>("Y0")
+                        .HasColumnType("double precision")
+                        .HasColumnName("y0");
+
+                    b.HasKey("Id")
+                        .HasName("pk_map_art");
+
+                    b.ToTable("map_art", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Map.MapArt", b =>
+                {
+                    b.OwnsMany("SatisfactoryLedger.Catalog.Domain.Map.MapArtTile", "Tiles", b1 =>
+                        {
+                            b1.Property<int>("MapArtId")
+                                .HasColumnType("integer")
+                                .HasColumnName("map_art_id");
+
+                            b1.Property<int>("Column")
+                                .HasColumnType("integer")
+                                .HasColumnName("column");
+
+                            b1.Property<int>("Row")
+                                .HasColumnType("integer")
+                                .HasColumnName("row");
+
+                            b1.Property<string>("ContentType")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("content_type");
+
+                            b1.Property<byte[]>("Image")
+                                .IsRequired()
+                                .HasColumnType("bytea")
+                                .HasColumnName("image");
+
+                            b1.HasKey("MapArtId", "Column", "Row")
+                                .HasName("pk_map_art_tiles");
+
+                            b1.ToTable("map_art_tiles", "catalog");
+
+                            b1.WithOwner()
+                                .HasForeignKey("MapArtId")
+                                .HasConstraintName("fk_map_art_tiles_map_art_map_art_id");
+                        });
+
+                    b.Navigation("Tiles");
+                });
 #pragma warning restore 612, 618
         }
     }

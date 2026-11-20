@@ -75,6 +75,14 @@ public sealed class CatalogImport
         };
     }
 
+    /// <summary>An import of the map art: it replaces the map art whole and changes no entries (ADR-0020).</summary>
+    public static CatalogImport RecordMapArt(CatalogImportId id, string gameVersion, DateTimeOffset importedAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameVersion);
+
+        return new CatalogImport(id, CatalogImportSource.MapArt, gameVersion.Trim(), importedAt);
+    }
+
     public CatalogImportId Id { get; }
 
     public CatalogImportSource Source { get; }
