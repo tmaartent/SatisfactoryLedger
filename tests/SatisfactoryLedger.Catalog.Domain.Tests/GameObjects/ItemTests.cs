@@ -39,4 +39,14 @@ public class ItemTests
 
         Assert.Equal(200, stored.StackSize);
     }
+
+    [Fact]
+    public void A_fluid_from_a_newer_game_file_takes_its_colour()
+    {
+        Item stored = Item.Create(ItemId.Of("Desc_Water_C"), "Water", ItemForm.Fluid, true);
+
+        stored.UpdateFromGame(Item.Create(ItemId.Of("Desc_Water_C"), "Water", ItemForm.Fluid, true, fluidColour: "#7ab0d4"));
+
+        Assert.Equal("#7ab0d4", stored.FluidColour);
+    }
 }

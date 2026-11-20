@@ -28,7 +28,7 @@ import {
   conveyorColours,
   describeContents,
   escapeHtml,
-  footprintCorners,
+  footprintShapes,
   freeNodes,
   fromMapPoint,
   itemColour,
@@ -250,13 +250,16 @@ export class MapPage {
   }
 
   /**
-   * A building as the ground it covers, turned the way it faces (ADR-0020); a dot when its class has no footprint, as a
-   * lift, or when the snapshot is older than its footprints.
+   * A building as the ground it covers, each of its boxes seen from above, turned the way it faces (ADR-0020); a dot
+   * when its class has no footprint, as a lift, or when the snapshot is older than its footprints.
    */
   private shape(position: PositionDocument, yaw: number, className: string, style: L.PathOptions, dot = 4): L.Path {
     const footprint = this.footprints().get(className);
     return footprint
-      ? L.polygon(footprintCorners(position, yaw, footprint), style)
+      ? L.polygon(
+          footprintShapes({ className, position, yaw }, this.footprints()).map((ring) => [ring]),
+          { ...style, fillRule: 'nonzero' },
+        )
       : L.circleMarker(toMapPoint(position), { ...style, radius: dot });
   }
 

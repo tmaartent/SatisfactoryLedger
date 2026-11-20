@@ -23,6 +23,10 @@ internal class ItemDto
     [JsonPropertyName("mForm")]
     public string Form { get; set; } = string.Empty;
 
+    /// <summary>"(B=212,G=176,R=122,A=0)": blue, green, red and alpha, 0 to 255. White for a solid.</summary>
+    [JsonPropertyName("mFluidColor")]
+    public string FluidColor { get; set; } = string.Empty;
+
     [JsonPropertyName("mResourceSinkPoints")]
     public string ResourceSinkPoints { get; set; } = string.Empty;
 

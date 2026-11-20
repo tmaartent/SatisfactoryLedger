@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { buildingStyle, describeContents, escapeHtml, footprintCorners, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
+import { buildingStyle, describeContents, escapeHtml, footprintShapes, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -82,26 +82,53 @@ describe('map model', () => {
 
   const constructor: FootprintDocument = { id: 'Build_ConstructorMk1_C', minX: -400, minY: -500, maxX: 400, maxY: 500 };
   const origin = { x: 0, y: 0, z: 0 };
-  // The extent of corners on the map, in metres: [south, north] and [west, east].
-  const extent = (corners: [number, number][]) => ({
+  const shapes = (position: { x: number; y: number; z: number }, yaw: number, footprint: FootprintDocument) =>
+    footprintShapes({ className: footprint.id, position, yaw }, new Map([[footprint.id, footprint]]));
+  // The extent of a building's shapes on the map, in metres: [south, north] and [west, east].
+  const extent = (rings: [number, number][][]) => extentOf(rings.flat());
+  const extentOf = (corners: [number, number][]) => ({
     lat: [Math.min(...corners.map((c) => c[0])), Math.max(...corners.map((c) => c[0]))].map((v) => Math.round(v * 100) / 100),
     lng: [Math.min(...corners.map((c) => c[1])), Math.max(...corners.map((c) => c[1]))].map((v) => Math.round(v * 100) / 100),
   });
 
   it("draws an unturned constructor's footprint 8 m along x and 10 m along y", () => {
-    expect(extent(footprintCorners(origin, 0, constructor))).toEqual({ lat: [-5, 5], lng: [-4, 4] });
+    expect(extent(shapes(origin, 0, constructor))).toEqual({ lat: [-5, 5], lng: [-4, 4] });
   });
 
   it('turns a footprint with its building', () => {
     // A quarter turn: its 10 m now run along x, its 8 m along y.
-    expect(extent(footprintCorners(origin, 90, constructor))).toEqual({ lat: [-4, 4], lng: [-5, 5] });
+    expect(extent(shapes(origin, 90, constructor))).toEqual({ lat: [-4, 4], lng: [-5, 5] });
   });
 
   it('keeps a footprint that sticks out to one side where it is', () => {
     // A miner covers y −5 to 9 m in its own coordinates; the game's y grows southwards, the map's latitude upwards.
     const miner: FootprintDocument = { id: 'Build_MinerMk1_C', minX: -300, minY: -500, maxX: 300, maxY: 900 };
 
-    expect(extent(footprintCorners({ x: 1000, y: 0, z: 0 }, 0, miner))).toEqual({ lat: [-9, 5], lng: [7, 13] });
+    expect(extent(shapes({ x: 1000, y: 0, z: 0 }, 0, miner))).toEqual({ lat: [-9, 5], lng: [7, 13] });
+  });
+
+  it('draws each of a building\'s boxes as seen from above, not the rectangle around them', () => {
+    // A cross of two boxes: 20 by 4 metres along x, and along y.
+    const box = { minZ: 0, maxZ: 400, rotationX: 0, rotationY: 0, rotationZ: 0, rotationW: 1, offsetX: 0, offsetY: 0, offsetZ: 0 };
+    const cross: FootprintDocument = {
+      id: 'Build_Cross_C', minX: -1000, minY: -1000, maxX: 1000, maxY: 1000,
+      volumes: [{ ...box, minX: -1000, maxX: 1000, minY: -200, maxY: 200 }, { ...box, minX: -200, maxX: 200, minY: -1000, maxY: 1000 }],
+    };
+
+    expect(shapes(origin, 0, cross).map(extentOf)).toEqual([
+      { lat: [-2, 2], lng: [-10, 10] },
+      { lat: [-10, 10], lng: [-2, 2] },
+    ]);
+  });
+
+  it('draws a box tilted up as the ground it covers', () => {
+    // 10 m long, 2 m wide and 2 m high, tilted a quarter around its y axis: from above it's 2 by 2 metres.
+    const tilted: FootprintDocument = {
+      id: 'Build_Tilted_C', minX: -500, minY: -100, maxX: 500, maxY: 100,
+      volumes: [{ minX: -500, maxX: 500, minY: -100, maxY: 100, minZ: -100, maxZ: 100, rotationX: 0, rotationY: Math.SQRT1_2, rotationZ: 0, rotationW: Math.SQRT1_2, offsetX: 0, offsetY: 0, offsetZ: 0 }],
+    };
+
+    expect(extent(shapes(origin, 0, tilted))).toEqual({ lat: [-1, 1], lng: [-1, 1] });
   });
 
   const name = (id: string) => id.replace('Desc_', '').replace('_C', '');

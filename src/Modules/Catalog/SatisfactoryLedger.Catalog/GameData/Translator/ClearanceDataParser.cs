@@ -33,13 +33,19 @@ internal static partial class ClearanceDataParser
             }
 
             (double dx, double dy) = translation.Success ? (Number(translation, "x"), Number(translation, "y")) : (0, 0);
-            double yaw = rotation.Success ? Yaw(Number(rotation, "x"), Number(rotation, "y"), Number(rotation, "z"), Number(rotation, "w")) : 0;
+            (double X, double Y, double Z, double W) turn = rotation.Success
+                ? (Number(rotation, "x"), Number(rotation, "y"), Number(rotation, "z"), Number(rotation, "w"))
+                : (0, 0, 0, 1);
 
-            // The four corners, turned and moved, and the box around them.
+            // The eight corners, turned in 3D and moved, and the box around them seen from above: a box tilted up (the
+            // Particle Accelerator's arch) is shorter seen from above than its length (fixed 2026-11-18).
             (double X, double Y)[] corners =
             [
-                .. new[] { (Number(min, "x"), Number(min, "y")), (Number(max, "x"), Number(min, "y")), (Number(max, "x"), Number(max, "y")), (Number(min, "x"), Number(max, "y")) }
-                    .Select(corner => (X: (corner.Item1 * Math.Cos(yaw)) - (corner.Item2 * Math.Sin(yaw)) + dx, Y: (corner.Item1 * Math.Sin(yaw)) + (corner.Item2 * Math.Cos(yaw)) + dy))
+                .. from x in new[] { Number(min, "x"), Number(max, "x") }
+                   from y in new[] { Number(min, "y"), Number(max, "y") }
+                   from z in new[] { Number(min, "z"), Number(max, "z") }
+                   let turned = Turn(turn, (x, y, z))
+                   select (turned.X + dx, turned.Y + dy),
             ];
 
             boxes.Add(new ClearanceBox(
@@ -85,7 +91,13 @@ internal static partial class ClearanceDataParser
         }
     }
 
-    private static double Yaw(double x, double y, double z, double w) => Math.Atan2(2 * ((w * z) + (x * y)), 1 - (2 * ((y * y) + (z * z))));
+    /// <summary>Turns a point by a quaternion: v + 2w(q × v) + 2q × (q × v).</summary>
+    private static (double X, double Y, double Z) Turn((double X, double Y, double Z, double W) q, (double X, double Y, double Z) v)
+    {
+        (double X, double Y, double Z) c = ((q.Y * v.Z) - (q.Z * v.Y), (q.Z * v.X) - (q.X * v.Z), (q.X * v.Y) - (q.Y * v.X));
+        (double X, double Y, double Z) cc = ((q.Y * c.Z) - (q.Z * c.Y), (q.Z * c.X) - (q.X * c.Z), (q.X * c.Y) - (q.Y * c.X));
+        return (v.X + (2 * q.W * c.X) + (2 * cc.X), v.Y + (2 * q.W * c.Y) + (2 * cc.Y), v.Z + (2 * q.W * c.Z) + (2 * cc.Z));
+    }
 
     /// <summary>A number as the file writes it ("0.965926"), without the trailing zeros a decimal would keep.</summary>
     private static decimal Exact(Match match, string group) =>

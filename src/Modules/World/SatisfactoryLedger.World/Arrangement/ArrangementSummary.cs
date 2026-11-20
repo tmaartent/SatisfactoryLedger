@@ -1,0 +1,63 @@
+using SatisfactoryLedger.World.Contracts.Arrangement;
+using SatisfactoryLedger.World.Domain.Arrangement;
+
+namespace SatisfactoryLedger.World.Arrangement;
+
+/// <summary>A run of the optimal arrangement: its settings, where it stands, and once ready what it saves.</summary>
+/// <param name="CostNow">The belt work of the layout as built: per link, belts times cells between the centres.</param>
+/// <param name="Cost">The belt work of the proposed layout.</param>
+/// <param name="BeltMetres">How long the routed belts and pipes are together, lifts not counted; null without routed belts.</param>
+/// <param name="TallestStack">The most belts stacked on one square of the belt floor.</param>
+/// <param name="SupplyLines">Whether its belts were routed as supply lines.</param>
+/// <param name="UnroutedBelts">How many belts and pipes couldn't be routed without crossing.</param>
+internal sealed record ArrangementSummary(
+    Guid Id,
+    Guid SnapshotId,
+    string World,
+    WorldRectangle? Area,
+    IReadOnlyList<WorldRectangle> Exclusions,
+    double PlotWidthMetres,
+    double PlotDepthMetres,
+    double RoadXMetres,
+    double RoadYMetres,
+    int Together,
+    double SpotWeight,
+    double CeilingMetres,
+    bool SupplyLines,
+    int Seconds,
+    ArrangementRunStatus Status,
+    DateTimeOffset RequestedAt,
+    DateTimeOffset? ComputedAt,
+    TimeSpan? Duration,
+    string? Error,
+    double? CostNow,
+    double? Cost,
+    ArrangementQuality? Quality,
+    double? BeltMetres,
+    int? TallestStack,
+    int? UnroutedBelts)
+{
+    public static ArrangementSummary From(StoredArrangement run)
+    {
+        ArrangementProposalDocument? proposal = run.Proposal is { } json ? ArrangementProposalDocument.FromJson(json) : null;
+        return new ArrangementSummary(
+            run.Id, run.SnapshotId, run.World, run.Area, run.Exclusions, run.PlotWidthMetres, run.PlotDepthMetres, run.RoadXMetres, run.RoadYMetres, run.Together, run.SpotWeight, run.CeilingMetres, run.SupplyLines, run.Seconds,
+            run.Status, run.RequestedAt, run.ComputedAt, run.Duration, run.Error, proposal?.CostNow, proposal?.Cost, proposal?.Quality,
+            MetresOf(run, proposal), proposal?.TallestStack, proposal?.Unrouted?.Sum(link => link.Belts + link.Pipes));
+    }
+
+    private static double? MetresOf(StoredArrangement run, ArrangementProposalDocument? proposal)
+    {
+        if (proposal?.Belts is not { } belts || run.Grid is not { } grid)
+        {
+            return null;
+        }
+
+        BeltFloor floor = run.Settings.Floor;
+        double centimetres = belts.Sum(belt => belt.Corners
+            .Select(corner => grid.WorldOf(corner, floor))
+            .Zip(belt.Corners.Skip(1).Select(corner => grid.WorldOf(corner, floor)), (a, b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y))
+            .Sum());
+        return centimetres / 100;
+    }
+}

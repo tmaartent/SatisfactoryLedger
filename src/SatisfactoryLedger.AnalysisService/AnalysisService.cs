@@ -17,18 +17,36 @@ public static class AnalysisService
         {
             // "https+http://": service discovery tries HTTPS first, then HTTP.
             client.BaseAddress = new Uri($"https+http://{AnalysisMessaging.ApiServiceName}");
-            client.Timeout = TimeSpan.FromMinutes(2);
+            client.Timeout = TimeSpan.FromMinutes(5);
+        });
+
+        // World takes half a minute to make an arrangement's problem on a big world: past the standard handler's
+        // 10-second attempt, which the service defaults give every client. This client gets the same handler with room.
+        // RemoveAllResilienceHandlers is marked for evaluation (EXTEXP0001); it's the documented way to replace the defaults.
+#pragma warning disable EXTEXP0001
+        world.RemoveAllResilienceHandlers().AddStandardResilienceHandler(options =>
+#pragma warning restore EXTEXP0001
+        {
+            options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+            // The circuit breaker samples at least twice an attempt's time.
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(4);
         });
         configureWorld?.Invoke(world);
 
         builder.UseWolverine(options =>
         {
             options.ServiceName = "analysis";
+            // A handler is cancelled after 60 seconds by default. An arrangement takes its solver's time (up to 10
+            // minutes) plus half a minute for World to make the problem: room for the longest.
+            options.DefaultExecutionTimeout = TimeSpan.FromMinutes(15);
             options.UseRabbitMqUsingNamedConnection(AnalysisMessaging.RabbitMqConnectionName).AutoProvision();
             // Inline: a message is handled as it arrives, and RabbitMQ gets its ack only after the handler is done. A
             // crash during a simulation leaves it on the queue. (Buffered would take it into memory first.) Inline
             // also means one snapshot at a time: a big world's simulation takes all of a core for seconds.
             options.ListenToRabbitQueue(AnalysisMessaging.SnapshotsToAnalyseQueue).ProcessInline();
+            // Arrangements on a queue of their own, one at a time: a run takes up to its solver's time limit on all cores.
+            options.ListenToRabbitQueue(AnalysisMessaging.ArrangementsToComputeQueue).ProcessInline();
             options.Discovery.IncludeAssembly(typeof(AnalysisService).Assembly);
             // A typed HttpClient is made by a factory, so Wolverine's generated handler code can't build it inline:
             // allow looking it up in the container, for this type only.

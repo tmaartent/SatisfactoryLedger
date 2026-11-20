@@ -2,6 +2,7 @@
 
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
+import { buildingBoxes, fromAbove } from '../area/area-model';
 import { MachineFinding } from '../../api/models/machine-finding';
 import { MachineLimit } from '../../api/models/machine-limit';
 import { MapProvider } from '../../api/models/map-provider';
@@ -26,19 +27,14 @@ export function fromMapPoint(lat: number, lng: number): Position {
 }
 
 /**
- * The four corners of a building's footprint on the map: its rectangle, in its own coordinates, turned by its yaw and
- * moved to where it stands (ADR-0020).
+ * A building as the ground it covers, as shapes on the map: each of its boxes seen from above, turned the way it faces
+ * and moved to where it stands (ADR-0020). A Quantum Encoder is its cross of boxes, not the rectangle around them.
  */
-export function footprintCorners(position: Position, yaw: number, footprint: FootprintDocument): [number, number][] {
-  const turn = (yaw * Math.PI) / 180;
-  const [cos, sin] = [Math.cos(turn), Math.sin(turn)];
-  const corners: [number, number][] = [
-    [footprint.minX, footprint.minY],
-    [footprint.maxX, footprint.minY],
-    [footprint.maxX, footprint.maxY],
-    [footprint.minX, footprint.maxY],
-  ];
-  return corners.map(([x, y]) => toMapPoint({ x: position.x + x * cos - y * sin, y: position.y + x * sin + y * cos, z: 0 }));
+export function footprintShapes(
+  building: { className: string; position: Position; yaw: number },
+  footprints: ReadonlyMap<string, FootprintDocument>,
+): [number, number][][] {
+  return buildingBoxes(building, footprints).map((box) => fromAbove(box).map(toMapPoint));
 }
 
 /** Points per bent stretch of a belt: enough for a smooth curve at the closest zoom. */

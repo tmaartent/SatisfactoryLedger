@@ -23,7 +23,8 @@ internal class SatisfactoryTranslator
                     itemDto.DisplayName,
                     itemForm,
                     dto is ResourceItemGroupDto,
-                    StackSizeOf(itemDto.StackSize)
+                    StackSizeOf(itemDto.StackSize),
+                    itemDto.IsFluid ? ColourOf(itemDto.FluidColor) : null
                 );
             })
         ));
@@ -219,6 +220,21 @@ internal class SatisfactoryTranslator
         "SS_HUGE" => 500,
         _ => 0,
     };
+
+    /// <summary>
+    /// A fluid's colour as "#rrggbb", from the Docs file's "(B=212,G=176,R=122,A=0)": the channels by name, so their
+    /// order doesn't matter. Alpha is left out. Null when it can't be read.
+    /// </summary>
+    private static string? ColourOf(string colour)
+    {
+        Dictionary<string, int> channels = colour.Trim('(', ')').Split(',')
+            .Select(part => part.Split('='))
+            .Where(pair => pair.Length == 2 && int.TryParse(pair[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
+            .ToDictionary(pair => pair[0].Trim(), pair => int.Parse(pair[1], CultureInfo.InvariantCulture));
+        return channels.TryGetValue("R", out int r) && channels.TryGetValue("G", out int g) && channels.TryGetValue("B", out int b)
+            ? string.Create(CultureInfo.InvariantCulture, $"#{r:x2}{g:x2}{b:x2}")
+            : null;
+    }
 
     /// <summary>
     /// BR-A7: every building with an inventory, and what it holds. A storage container, freight platform, drone port,

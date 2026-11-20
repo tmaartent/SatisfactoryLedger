@@ -90,6 +90,25 @@ export function buildingBoxes(
 }
 
 /**
+ * A box seen from above: the ground it covers, as the outline round its corners (a convex polygon, going round one
+ * way), at height 0.
+ */
+export function fromAbove(box: Box): Position[] {
+  // Andrew's monotone chain over the corners' x and y.
+  const points = [...box].sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o: Position, a: Position, b: Position) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const half = (sorted: Position[]) => {
+    const hull: Position[] = [];
+    for (const p of sorted) {
+      while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 1e-9) hull.pop();
+      hull.push(p);
+    }
+    return hull.slice(0, -1);
+  };
+  return [...half(points), ...half([...points].reverse())].map((p) => ({ x: p.x, y: p.y, z: 0 }));
+}
+
+/**
  * A game position in a three.js scene: metres, around the area's middle. The game has x east, y south and z up, and is
  * left-handed; three.js wants y up and is right-handed. Swapping y and z does both, and keeps north at the top when
  * looking down.

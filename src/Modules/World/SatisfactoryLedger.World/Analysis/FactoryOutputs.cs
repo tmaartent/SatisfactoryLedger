@@ -40,18 +40,17 @@ internal static class FactoryOutputs
             BuildableId start = output.Outside ?? output.Inside;
             foreach (ItemId item in output.Items)
             {
-                double amount = leaving.GetValueOrDefault(item.Id);
-                now[item.Id] = now.GetValueOrDefault(item.Id) + amount;
+                now[item.Id] = now.GetValueOrDefault(item.Id) + leaving.GetValueOrDefault(item.Id);
                 startsOf.TryAdd(item.Id, []);
                 startsOf[item.Id].Add(start);
-
-                Dictionary<(OutputDestinationKind, StoredFactory?, string?), double> to = destinations.TryGetValue(item.Id, out var found) ? found : destinations[item.Id] = [];
-                foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(world, start, item, amount, id => FlowInto(id, item)))
-                {
-                    var key = Destination(end);
-                    to[key] = to.GetValueOrDefault(key) + perMinute;
-                }
             }
+        }
+
+        foreach ((BuildableId end, ItemId item, double perMinute) in Ends(world, members, analysis))
+        {
+            Dictionary<(OutputDestinationKind, StoredFactory?, string?), double> to = destinations.TryGetValue(item.Id, out var found) ? found : destinations[item.Id] = [];
+            var key = Destination(end);
+            to[key] = to.GetValueOrDefault(key) + perMinute;
         }
 
         // Only what leaves: a product its own machines take all of, such as gas unpacked for its blenders, isn't output.
@@ -96,7 +95,7 @@ internal static class FactoryOutputs
                 List<BuildableId> starts = startsOf.GetValueOrDefault(item) ?? [];
                 ItemId id = ItemId.Of(item);
                 double need = OutputDestinations.ReceiversNeed(world, starts, id).ToDouble();
-                double get = OutputDestinations.ReceiversGet(world, starts, id, receiver => FlowInto(receiver, id));
+                double get = OutputDestinations.ReceiversGet(world, starts, id, receiver => FlowInto(world, analysis, states, receiver, id));
 
                 // What this factory brings its receivers: what reaches a machine or generator, of a factory or none.
                 double brings = to.Where(entry => entry.Key.Kind is OutputDestinationKind.Factory or OutputDestinationKind.NoFactory).Sum(entry => entry.Value);
@@ -117,25 +116,6 @@ internal static class FactoryOutputs
             })
         ];
 
-        // What flows into a buildable, of one item: the stored flow into a belt, pipe or container; for a machine or a
-        // generator, which the analysis doesn't keep flows into, what it takes at the rate it runs.
-        double FlowInto(BuildableId id, ItemId item)
-        {
-            if (analysis.Into.TryGetValue(id.Id, out IReadOnlyDictionary<string, double>? flows))
-            {
-                return flows.GetValueOrDefault(item.Id);
-            }
-
-            double utilisation = states.GetValueOrDefault(id.Id)?.Utilisation ?? 0;
-            return utilisation * (world.Find(id) switch
-            {
-                Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
-                Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
-                Consumer { Generation: { } generation } when generation.Supplemental == item => generation.SupplementalNeeded.ToDouble(),
-                _ => 0,
-            });
-        }
-
         (OutputDestinationKind, StoredFactory?, string?) Destination(BuildableId end) => world.Find(end) switch
         {
             Machine or Consumer { IsGenerator: true } when owners.TryGetValue(end, out StoredFactory? owner) => (OutputDestinationKind.Factory, owner, null),
@@ -148,6 +128,49 @@ internal static class FactoryOutputs
         };
 
         string? ClassOf(BuildableId id) => buildables.GetValueOrDefault(id.Id)?.ClassName;
+    }
+
+    /// <summary>
+    /// What leaves a factory over its outputs, per building at the end of its lines and item, per minute (BR-A18): a
+    /// machine of another factory, a sink, a station.
+    /// </summary>
+    internal static IEnumerable<(BuildableId End, ItemId Item, double PerMinute)> Ends(WorldGraph world, FactoryMembers members, AnalysisDocument analysis)
+    {
+        Dictionary<string, MachineStateDocument> states = analysis.Machines.ToDictionary(state => state.Id, StringComparer.Ordinal);
+        foreach (FactoryConnection output in members.Outputs)
+        {
+            IReadOnlyDictionary<string, double> leaving = Over(output, world, analysis);
+            BuildableId start = output.Outside ?? output.Inside;
+            foreach (ItemId item in output.Items)
+            {
+                foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(
+                    world, start, item, leaving.GetValueOrDefault(item.Id), id => FlowInto(world, analysis, states, id, item)))
+                {
+                    yield return (end, item, perMinute);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// What flows into a buildable, of one item: the stored flow into a belt, pipe or container; for a machine or a
+    /// generator, which the analysis doesn't keep flows into, what it takes at the rate it runs.
+    /// </summary>
+    private static double FlowInto(WorldGraph world, AnalysisDocument analysis, Dictionary<string, MachineStateDocument> states, BuildableId id, ItemId item)
+    {
+        if (analysis.Into.TryGetValue(id.Id, out IReadOnlyDictionary<string, double>? flows))
+        {
+            return flows.GetValueOrDefault(item.Id);
+        }
+
+        double utilisation = states.GetValueOrDefault(id.Id)?.Utilisation ?? 0;
+        return utilisation * (world.Find(id) switch
+        {
+            Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
+            Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
+            Consumer { Generation: { } generation } when generation.Supplemental == item => generation.SupplementalNeeded.ToDouble(),
+            _ => 0,
+        });
     }
 
     /// <summary>What one of its machines makes at 100%: a machine its recipe's products, a generator its waste (BR-A8).</summary>

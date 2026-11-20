@@ -956,6 +956,202 @@
           }
         }
       }
+    },
+    "/api/v1/world/snapshots/{id}/arrangements": {
+      "post": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Ask where the factories in an area would best stand, on plots in rows and columns, so the belt work between them and their inputs is least",
+        "description": "Computed by the analysis service in the background from the snapshot, its factories and its analysis: 202 with the run, pending until it's ready. Every run is kept until it's deleted.",
+        "operationId": "RequestArrangement",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArrangementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArrangementSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/arrangements": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "The runs of the optimal arrangement for a world, newest first: ?world=<session name>",
+        "operationId": "GetArrangements",
+        "parameters": [
+          {
+            "name": "world",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArrangementSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/arrangements/{id}": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "One run: its factories now and where it would place them, the fixed places, and the links",
+        "operationId": "GetArrangement",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArrangementResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Delete a run, ready or still being computed: a proposal that comes back for it later is dropped",
+        "operationId": "DeleteArrangement",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/world/arrangements/{id}/machines": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "The machines of a run's arranged factories as they stand now, with their footprints: to draw them moved with their factories",
+        "description": "Empty until the run's problem is made. Read from the run's snapshot, so asked once per run rather than with every look at it.",
+        "operationId": "GetArrangementMachines",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArrangementMachinesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1096,6 +1292,490 @@
           },
           "example": {
             "type": "string"
+          }
+        }
+      },
+      "ArrangedFactoryResponse": {
+        "required": [
+          "factoryId",
+          "name",
+          "now",
+          "proposed"
+        ],
+        "type": "object",
+        "properties": {
+          "factoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "now": {
+            "$ref": "#/components/schemas/WorldRectangle"
+          },
+          "proposed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorldRectangle"
+              }
+            ]
+          }
+        }
+      },
+      "ArrangedMachineResponse": {
+        "required": [
+          "factoryId",
+          "id",
+          "className",
+          "position",
+          "yaw"
+        ],
+        "type": "object",
+        "properties": {
+          "factoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string"
+          },
+          "className": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/PositionDocument"
+          },
+          "yaw": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ArrangementLinkDocument": {
+        "required": [
+          "from",
+          "to",
+          "belts"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "belts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weightPercent": {
+            "type": "integer",
+            "format": "int32",
+            "default": 100
+          },
+          "pipes": {
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "loads": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BeltLoadDocument"
+            }
+          }
+        }
+      },
+      "ArrangementMachinesResponse": {
+        "required": [
+          "machines",
+          "footprints"
+        ],
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArrangedMachineResponse"
+            }
+          },
+          "footprints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FootprintDocument"
+            }
+          }
+        }
+      },
+      "ArrangementQuality": {
+        "enum": [
+          "optimal",
+          "feasible",
+          "notFound",
+          null
+        ]
+      },
+      "ArrangementRequest": {
+        "required": [
+          "area",
+          "plotWidthMetres",
+          "plotDepthMetres",
+          "roadXMetres",
+          "roadYMetres",
+          "exclusions",
+          "together",
+          "spotWeight",
+          "ceilingMetres",
+          "supplyLines",
+          "seconds"
+        ],
+        "type": "object",
+        "properties": {
+          "area": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorldRectangle"
+              }
+            ]
+          },
+          "plotWidthMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "plotDepthMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "roadXMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "roadYMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "exclusions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WorldRectangle"
+            }
+          },
+          "together": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "spotWeight": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "ceilingMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "supplyLines": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "seconds": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ArrangementResponse": {
+        "required": [
+          "summary",
+          "factories",
+          "fixed",
+          "links",
+          "belts",
+          "unrouted",
+          "ways"
+        ],
+        "type": "object",
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/ArrangementSummary"
+          },
+          "factories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArrangedFactoryResponse"
+            }
+          },
+          "fixed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FixedPlaceResponse"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArrangementLinkDocument"
+            }
+          },
+          "belts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutedBeltResponse"
+            }
+          },
+          "unrouted": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArrangementLinkDocument"
+            }
+          },
+          "ways": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExistingWayResponse"
+            }
+          }
+        }
+      },
+      "ArrangementRunStatus": {
+        "enum": [
+          "pending",
+          "ready",
+          "failed"
+        ]
+      },
+      "ArrangementSummary": {
+        "required": [
+          "id",
+          "snapshotId",
+          "world",
+          "area",
+          "exclusions",
+          "plotWidthMetres",
+          "plotDepthMetres",
+          "roadXMetres",
+          "roadYMetres",
+          "together",
+          "spotWeight",
+          "ceilingMetres",
+          "supplyLines",
+          "seconds",
+          "status",
+          "requestedAt",
+          "computedAt",
+          "duration",
+          "error",
+          "costNow",
+          "cost",
+          "quality",
+          "beltMetres",
+          "tallestStack",
+          "unroutedBelts"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "world": {
+            "type": "string"
+          },
+          "area": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorldRectangle"
+              }
+            ]
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldRectangle"
+            }
+          },
+          "plotWidthMetres": {
+            "type": "number",
+            "format": "double"
+          },
+          "plotDepthMetres": {
+            "type": "number",
+            "format": "double"
+          },
+          "roadXMetres": {
+            "type": "number",
+            "format": "double"
+          },
+          "roadYMetres": {
+            "type": "number",
+            "format": "double"
+          },
+          "together": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "spotWeight": {
+            "type": "number",
+            "format": "double"
+          },
+          "ceilingMetres": {
+            "type": "number",
+            "format": "double"
+          },
+          "supplyLines": {
+            "type": "boolean"
+          },
+          "seconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ArrangementRunStatus"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "computedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "costNow": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "cost": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "quality": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ArrangementQuality"
+              }
+            ]
+          },
+          "beltMetres": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "tallestStack": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "unroutedBelts": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BeltLoadDocument": {
+        "required": [
+          "item",
+          "perMinute",
+          "pipe"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "perMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "pipe": {
+            "type": "boolean"
+          },
+          "injection": {
+            "type": "boolean",
+            "default": false
+          },
+          "overflow": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -1327,6 +2007,24 @@
             ],
             "items": {
               "type": "string"
+            }
+          }
+        }
+      },
+      "ExistingWayResponse": {
+        "required": [
+          "spotId",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "spotId": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldPoint"
             }
           }
         }
@@ -1695,6 +2393,25 @@
             "items": {
               "$ref": "#/components/schemas/BuildableReference"
             }
+          }
+        }
+      },
+      "FixedPlaceResponse": {
+        "required": [
+          "id",
+          "space",
+          "blocks"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "space": {
+            "$ref": "#/components/schemas/WorldRectangle"
+          },
+          "blocks": {
+            "type": "boolean"
           }
         }
       },
@@ -2081,7 +2798,8 @@
           "name",
           "form",
           "isRawResource",
-          "inGame"
+          "inGame",
+          "fluidColour"
         ],
         "type": "object",
         "properties": {
@@ -2099,6 +2817,12 @@
           },
           "inGame": {
             "type": "boolean"
+          },
+          "fluidColour": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2647,6 +3371,90 @@
           }
         }
       },
+      "RoutedBeltResponse": {
+        "required": [
+          "from",
+          "to",
+          "corners",
+          "leavesFloor",
+          "pipe",
+          "heights",
+          "lifts",
+          "levels",
+          "item",
+          "perMinute",
+          "injection",
+          "overflow",
+          "startsOnBelt",
+          "endsOnBelt"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "corners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldPoint"
+            }
+          },
+          "leavesFloor": {
+            "type": "boolean"
+          },
+          "pipe": {
+            "type": "boolean"
+          },
+          "heights": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "lifts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldPoint"
+            }
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "item": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "perMinute": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "injection": {
+            "type": "boolean"
+          },
+          "overflow": {
+            "type": "boolean"
+          },
+          "startsOnBelt": {
+            "type": "boolean"
+          },
+          "endsOnBelt": {
+            "type": "boolean"
+          }
+        }
+      },
       "SnapshotCounts": {
         "required": [
           "machines",
@@ -3033,6 +3841,50 @@
             "items": {
               "$ref": "#/components/schemas/FootprintDocument"
             }
+          }
+        }
+      },
+      "WorldPoint": {
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "format": "double"
+          },
+          "y": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "WorldRectangle": {
+        "required": [
+          "x0",
+          "y0",
+          "x1",
+          "y1"
+        ],
+        "type": "object",
+        "properties": {
+          "x0": {
+            "type": "number",
+            "format": "double"
+          },
+          "y0": {
+            "type": "number",
+            "format": "double"
+          },
+          "x1": {
+            "type": "number",
+            "format": "double"
+          },
+          "y1": {
+            "type": "number",
+            "format": "double"
           }
         }
       }

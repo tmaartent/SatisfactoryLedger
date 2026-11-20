@@ -269,6 +269,11 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("id");
 
+                    b.Property<string>("FluidColour")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("fluid_colour");
+
                     b.Property<bool>("IsInGame")
                         .HasColumnType("boolean")
                         .HasColumnName("is_in_game");

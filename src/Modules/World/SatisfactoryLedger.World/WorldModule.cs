@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 using SatisfactoryLedger.World.Analysis;
+using SatisfactoryLedger.World.Arrangement;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Map;
 using SatisfactoryLedger.World.Persistence;
@@ -50,12 +51,14 @@ public static class WorldModule
             .MapSnapshotEndpoints()
             .MapFactoryEndpoints()
             .MapAnalysisEndpoints()
-            .MapWorldMapEndpoints();
+            .MapWorldMapEndpoints()
+            .MapArrangementEndpoints();
 
         // For the analysis service only (ADR-0018): not part of the public API or its OpenAPI document.
         endpoints.MapGroup("/internal/world")
             .ExcludeFromDescription()
-            .MapInternalAnalysisEndpoints();
+            .MapInternalAnalysisEndpoints()
+            .MapInternalArrangementEndpoints();
 
         return endpoints;
     }

@@ -40,9 +40,12 @@ public sealed record AnalysisDocument(
     /// Version 12: a machine the save shows with room for its next batch is never output blocked (BR-A7).
     /// Version 13: an empty station whose neighbours hold nothing carries what's on its belts (BR-A9); a machine short of
     /// an input offered in full names the one that arrives least (BR-A11).
+    /// Version 14: a belt, lift or pipe offers on no more than it can carry, so a balancer no longer multiplies what a
+    /// bottleneck is offered (BR-A12).
+    /// Version 15: a full belt, lift or pipe is only a bottleneck when it holds something back (BR-A12).
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 13;
+    public const int CurrentVersion = 15;
 
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 

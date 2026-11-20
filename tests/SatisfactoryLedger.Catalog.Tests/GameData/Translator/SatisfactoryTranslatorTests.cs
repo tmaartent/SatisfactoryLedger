@@ -180,6 +180,26 @@ public class SatisfactoryTranslatorTests
         Assert.True(water.IsRawResource);
     }
 
+    // The game writes a fluid's colour as "(B=212,G=176,R=122,A=0)": blue, green, red, in that order.
+    [Fact]
+    public async Task Water_from_the_game_file_has_the_colour_the_game_gives_it()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Item water = Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == "Desc_Water_C");
+        Assert.Equal("#7ab0d4", water.FluidColour);
+    }
+
+    // Every solid has a white fluid colour in the Docs file; it means none.
+    [Fact]
+    public async Task An_ore_from_the_game_file_has_no_fluid_colour()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Item ironOre = Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == "Desc_OreIron_C");
+        Assert.Null(ironOre.FluidColour);
+    }
+
     [Fact]
     public async Task Transport_tiers_from_the_game_file_have_their_in_game_capacities()
     {
@@ -332,6 +352,16 @@ public class SatisfactoryTranslatorTests
         Assert.Equal(new ClearanceVolume(900, 300, 0, 1900, 1300, 800, 0, 0, 0, 1, 0, 0, 0), collider.Volumes[0]);
         // The first box of its arch: turned around the y axis, and moved up and along.
         Assert.Equal(new ClearanceVolume(100, 100, 0, 500, 400, 1200, 0, -0.258819m, 0, 0.965926m, 1150, 450, 1600), collider.Volumes[1]);
+    }
+
+    [Fact]
+    public async Task A_particle_accelerators_tilted_arch_counts_tilted_seen_from_above_37_by_27_metres()
+    {
+        // Its arch's boxes are turned around the y axis, up to a quarter: seen from above they're shorter than their
+        // length (2026-11-18: counted flat, the accelerator covered 53 metres and overflowed its plot).
+        Footprint collider = await FootprintOfAsync("Build_HadronCollider_C");
+
+        Assert.Equal((-1800m, -1400m, 1900m, 1300m), (collider.MinX, collider.MinY, collider.MaxX, collider.MaxY));
     }
 
     [Fact]
