@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'snapshots' },
-  { path: 'snapshots', title: 'Snapshots', loadComponent: () => import('./world/snapshots-page').then((m) => m.SnapshotsPage) },
+  { path: 'snapshots', title: 'World', loadComponent: () => import('./world/map/map-page').then((m) => m.MapPage) },
   { path: 'snapshots/:id', title: 'Snapshot', loadComponent: () => import('./world/snapshot-page').then((m) => m.SnapshotPage) },
   { path: 'snapshots/:id/map', title: 'Map', loadComponent: () => import('./world/map/map-page').then((m) => m.MapPage) },
   { path: 'snapshots/:id/area', title: '3D', loadComponent: () => import('./world/area/area-page').then((m) => m.AreaPage) },

@@ -131,25 +131,6 @@ export function describeContents(contents: Contents | null | undefined, name: (i
   return entries.length === 0 ? 'empty' : entries.map(([item, count]) => `${name(item)} × ${Number(count.toFixed(2))}`).join(', ');
 }
 
-/** What a belt carries most of; null when it carries nothing. */
-export function mainItem(contents: Contents | null | undefined): string | null {
-  const entries = Object.entries(contents ?? {});
-  return entries.length === 0 ? null : entries.reduce((most, entry) => (entry[1] > most[1] ? entry : most))[0];
-}
-
-/** Distinct colours on the dark theme, for "Colour belts by what they carry". */
-const ItemPalette = [
-  '#e57373', '#64b5f6', '#81c784', '#ffb74d', '#ba68c8', '#4dd0e1', '#fff176', '#f06292',
-  '#a1887f', '#90a4ae', '#aed581', '#7986cb', '#ff8a65', '#4db6ac', '#dce775', '#9575cd',
-];
-
-/** The same colour for an item every time, from its class name. */
-export function itemColour(item: string): string {
-  let hash = 0;
-  for (const character of item) hash = (hash * 31 + character.charCodeAt(0)) | 0;
-  return ItemPalette[Math.abs(hash) % ItemPalette.length];
-}
-
 /** Belts grey, pipes teal; a bottleneck red and thicker (BR-A12). */
 export const conveyorColours = { belt: '#90a4ae', pipe: '#4dd0e1', bottleneck: '#ef5350' };
 

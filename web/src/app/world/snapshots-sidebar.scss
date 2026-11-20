@@ -1,0 +1,47 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.import {
+  width: 100%;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.snapshots {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+
+  &.current {
+    background: var(--mat-sys-secondary-container);
+  }
+}
+
+.snapshot {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  text-decoration: none;
+
+  &.current {
+    font-weight: 500;
+    color: var(--mat-sys-on-secondary-container);
+  }
+}

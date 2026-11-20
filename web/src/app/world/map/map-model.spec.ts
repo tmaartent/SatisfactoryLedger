@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { buildingStyle, describeContents, escapeHtml, footprintShapes, freeNodes, fromMapPoint, itemColour, locate, machineStatuses, mainItem, sampleCurve, toMapPoint } from './map-model';
+import { buildingStyle, describeContents, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -147,16 +147,6 @@ describe('map model', () => {
 
   it('shows fluids in cubic metres, rounded', () => {
     expect(describeContents({ Desc_Water_C: 12.3456 }, name)).toBe('Water × 12.35');
-  });
-
-  it('takes what a belt carries most of as its main item', () => {
-    expect(mainItem({ Desc_IronIngot_C: 2, Desc_OreIron_C: 7 })).toBe('Desc_OreIron_C');
-    expect(mainItem({})).toBeNull();
-  });
-
-  it('gives an item the same colour every time, and ore and ingots different ones', () => {
-    expect(itemColour('Desc_OreIron_C')).toBe(itemColour('Desc_OreIron_C'));
-    expect(itemColour('Desc_OreIron_C')).not.toBe(itemColour('Desc_IronIngot_C'));
   });
 
   describe('finding a buildable to zoom to', () => {

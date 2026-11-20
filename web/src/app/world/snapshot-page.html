@@ -1,9 +1,9 @@
 @if (snapshot.error(); as error) {
   <p class="muted">The snapshot couldn't be loaded: {{ problem(error) }}</p>
-  <a mat-button routerLink="/snapshots"><mat-icon>arrow_back</mat-icon> Snapshots</a>
+  <a mat-button routerLink="/snapshots"><mat-icon>arrow_back</mat-icon> World</a>
 } @else if (snapshot.value(); as s) {
   <div class="page-header">
-    <a mat-icon-button routerLink="/snapshots" aria-label="Snapshots"><mat-icon>arrow_back</mat-icon></a>
+    <a mat-icon-button [routerLink]="['/snapshots', s.id, 'map']" aria-label="Map"><mat-icon>arrow_back</mat-icon></a>
     <h1>{{ s.sessionName }}</h1>
     <span class="muted">saved {{ s.savedAt | date: 'medium' }} · build {{ s.gameBuild }}</span>
     <span class="spacer"></span>

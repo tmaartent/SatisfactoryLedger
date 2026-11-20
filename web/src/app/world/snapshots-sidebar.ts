@@ -1,48 +1,53 @@
 import { DatePipe } from '@angular/common';
-import { Component, effect, inject, resource, signal } from '@angular/core';
+import { Component, inject, input, resource, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 
 import { Api } from '../api/api';
 import { getSnapshots } from '../api/fn/world/get-snapshots';
 import { importSave } from '../api/fn/world/import-save';
 import { SnapshotSummaryResponse } from '../api/models/snapshot-summary-response';
-import { AnalysisStatusChip } from '../shared/analysis-status-chip';
 import { problemMessage } from '../shared/problem';
 import { SnapshotDeletion } from './snapshot-deletion';
 
-/** Every imported snapshot, newest first, and the import of a new save. */
+/**
+ * Beside the map (asked 2026-11-19): the import of a new save, and every snapshot by its world's name, newest first,
+ * linking to its map, with a delete button.
+ */
 @Component({
-  selector: 'app-snapshots-page',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, AnalysisStatusChip],
-  templateUrl: './snapshots-page.html',
+  selector: 'app-snapshots-sidebar',
+  imports: [
+    DatePipe,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressBarModule,
+    MatTooltipModule,
+  ],
+  templateUrl: './snapshots-sidebar.html',
+  styleUrl: './snapshots-sidebar.scss',
 })
-export class SnapshotsPage {
+export class SnapshotsSidebar {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly deletion = inject(SnapshotDeletion);
 
+  /** The snapshot whose map is shown; none on the world's start, before there is one. */
+  readonly current = input<string>();
+
   protected readonly snapshots = resource({ loader: () => this.api.invoke(getSnapshots) });
   protected readonly importing = signal(false);
-  protected readonly columns = ['sessionName', 'savedAt', 'machines', 'logistics', 'analysis', 'actions'];
 
-  constructor() {
-    // While an analysis is pending, ask again every two seconds.
-    effect((onCleanup) => {
-      if (!this.snapshots.value()?.some((snapshot) => snapshot.analysis === 'pending')) return;
-      const timer = setTimeout(() => this.snapshots.reload(), 2000);
-      onCleanup(() => clearTimeout(timer));
-    });
-  }
-
-  /** Deletes a snapshot and its analysis, after asking. The world's factories stay (BR-W2). */
+  /** Deletes a snapshot after asking; when it's the one shown, back to the map with no snapshot loaded. */
   protected async delete(snapshot: SnapshotSummaryResponse): Promise<void> {
-    if (await this.deletion.confirmAndDelete(snapshot)) this.snapshots.reload();
+    if (!(await this.deletion.confirmAndDelete(snapshot))) return;
+    if (snapshot.id === this.current()) await this.router.navigate(['/snapshots']);
+    this.snapshots.reload();
   }
 
   protected async import(files: FileList | null): Promise<void> {
@@ -51,7 +56,8 @@ export class SnapshotsPage {
     this.importing.set(true);
     try {
       const snapshot = await this.api.invoke(importSave, { body: { file } });
-      await this.router.navigate(['/snapshots', snapshot.id]);
+      this.snapshots.reload();
+      await this.router.navigate(['/snapshots', snapshot.id, 'map']);
     } catch (error) {
       this.snackBar.open(`The save couldn't be imported: ${problemMessage(error)}`, 'Close');
     } finally {

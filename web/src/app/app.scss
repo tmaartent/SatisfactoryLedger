@@ -18,8 +18,7 @@ nav .active {
   background: var(--mat-sys-secondary-container);
 }
 
+// The whole width of the window (asked 2026-11-19): the map is the main view.
 main {
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 24px 16px;
 }

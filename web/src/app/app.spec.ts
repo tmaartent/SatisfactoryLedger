@@ -4,12 +4,12 @@ import { provideRouter } from '@angular/router';
 import { App } from './app';
 
 describe('App', () => {
-  it('offers the snapshots and the catalog', async () => {
+  it('offers the world and the catalog', async () => {
     TestBed.configureTestingModule({ imports: [App], providers: [provideRouter([])] });
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
 
     const links = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('nav a')).map((a) => a.textContent?.trim());
-    expect(links).toEqual(['Snapshots', 'Catalog']);
+    expect(links).toEqual(['World', 'Catalog']);
   });
 });
