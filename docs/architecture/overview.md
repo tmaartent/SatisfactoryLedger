@@ -34,6 +34,8 @@ flowchart LR
     browser[Angular SPA<br/>web/]
     api[ASP.NET Core API<br/>SatisfactoryLedger.Api<br/>modular monolith]
     analysis[Analysis service<br/>SatisfactoryLedger.AnalysisService<br/>stateless, ADR-0018]
+    mcp[MCP server<br/>SatisfactoryLedger.Mcp<br/>read-only tools, ADR-0029]
+    model[MCP client<br/>e.g. Claude Code]
     db[(PostgreSQL<br/>one schema per module<br/>+ Wolverine's outbox)]
     mq[[RabbitMQ]]
     apphost[Aspire AppHost<br/>local orchestration +<br/>dashboard / OpenTelemetry]
@@ -43,14 +45,18 @@ flowchart LR
     api -- "SnapshotImported<br/>(transactional outbox)" --> mq
     mq -- "SnapshotImported" --> analysis
     analysis -- "GET flow network,<br/>PUT analysis<br/>(/internal/world)" --> api
+    model -- "MCP over HTTP<br/>/mcp" --> mcp
+    mcp -- "GET /api/v1" --> api
     apphost -. starts and wires .-> browser
     apphost -. starts and wires .-> api
     apphost -. starts and wires .-> analysis
+    apphost -. starts and wires .-> mcp
     apphost -. starts .-> db
     apphost -. starts .-> mq
 ```
 
 - **Two deployable backends.** The API host composes all modules in-process. The **analysis service** runs a snapshot's flow simulation when the API says it was imported (ADR-0018). It owns no data: it fetches the flow network over HTTP and sends the analysis back.
+- **The MCP server** (ADR-0029) gives a model tools to investigate a world. It's a client of the public API, like the web app, and only reads.
 - **Messages stay small.** RabbitMQ carries only `SnapshotImported { SnapshotId }`; the documents (megabytes on a big world) go over HTTP (the *claim check* pattern). The API publishes through Wolverine's transactional outbox, so a snapshot and its message are stored together.
 - **One database, a schema per module.** A module never reads another module's tables. This is the cheapest boundary to enforce now and the most expensive to fix later.
 - The **TypeScript API client is generated** from the OpenAPI document (ADR-0006), so the frontend can't drift from the contract.
