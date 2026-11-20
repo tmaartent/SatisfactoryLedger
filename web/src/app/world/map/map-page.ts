@@ -8,6 +8,9 @@ import { Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
+import { HttpErrorResponse } from '@angular/common/http';
+
+import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { analyseSnapshot } from '../../api/fn/world/analyse-snapshot';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
@@ -30,6 +33,7 @@ import {
   freeNodes,
   fromMapPoint,
   locate,
+  mapArtTiles,
   machineStatuses,
   purityColours,
   sampleCurve,
@@ -92,6 +96,17 @@ export class MapPage {
     loader: ({ params, abortSignal }) => whenAnalysed(() => this.api.invoke$Response(analyseSnapshot, params), abortSignal),
   });
   protected readonly nodes = resource({ loader: () => this.api.invoke(getResourceNodes) });
+  /** The game's map picture under everything (ADR-0020); none until it's imported, when the API answers 404. */
+  protected readonly mapArt = resource({
+    loader: async () => {
+      try {
+        return await this.api.invoke(getMapArt);
+      } catch (error) {
+        if (error instanceof HttpErrorResponse && error.status === 404) return null;
+        throw error;
+      }
+    },
+  });
   protected readonly factories = resource({
     params: () => this.snapshotParams(),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
@@ -147,6 +162,7 @@ export class MapPage {
   private readonly providerLayer = L.layerGroup();
   private readonly otherLayer = L.layerGroup();
   private readonly nodeLayer = L.layerGroup();
+  private readonly artLayer = L.layerGroup();
   private readonly focusLayer = L.layerGroup();
   /** Every drawn buildable's shape, by id: to open the tooltip of the one in focus. */
   private readonly shapes = new Map<string, L.Path>();
@@ -162,6 +178,7 @@ export class MapPage {
     effect(() => this.drawProviders());
     effect(() => this.drawOthers());
     effect(() => this.drawFreeNodes());
+    effect(() => this.drawMapArt());
     effect(() => this.fitToFactory());
     // Last, so the shapes it opens a tooltip on are drawn.
     effect(() => this.focusOnBuildable());
@@ -176,6 +193,8 @@ export class MapPage {
       zoomSnap: 0.25,
       attributionControl: false,
     });
+    // The map picture first, so everything else lies over it.
+    this.artLayer.addTo(this.map);
     this.gridLayer().addTo(this.map);
     this.nodeLayer.addTo(this.map);
     this.otherLayer.addTo(this.map);
@@ -193,7 +212,17 @@ export class MapPage {
     this.drawProviders();
     this.drawOthers();
     this.drawFreeNodes();
+    this.drawMapArt();
     this.focusOnBuildable();
+  }
+
+  /** The game's map picture, a tile at a time over its part of the world; not clickable, so it never takes a click. */
+  private drawMapArt(): void {
+    const tiles = mapArtTiles(this.mapArt.hasValue() ? this.mapArt.value() : null);
+    if (!this.map) return;
+
+    this.artLayer.clearLayers();
+    for (const tile of tiles) L.imageOverlay(tile.url, tile.bounds, { interactive: false }).addTo(this.artLayer);
   }
 
   /** A factory picked in the list beside the map is highlighted; picked again, none is (asked 2026-11-19). */

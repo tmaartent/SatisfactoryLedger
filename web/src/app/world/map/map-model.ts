@@ -21,6 +21,19 @@ export function toMapPoint(position: Position): [number, number] {
   return [-position.y / 100, position.x / 100];
 }
 
+/**
+ * The game's map picture under the map (ADR-0020): each tile with the corners of its part of the world, as map points.
+ * The API gives them in centimetres; the map has metres, north up. Nothing without map art.
+ */
+export function mapArtTiles(
+  art: { tiles: { x0: number; y0: number; x1: number; y1: number; url: string }[] } | null | undefined,
+): { url: string; bounds: [[number, number], [number, number]] }[] {
+  return (art?.tiles ?? []).map((tile) => ({
+    url: tile.url,
+    bounds: [toMapPoint({ x: tile.x0, y: tile.y0, z: 0 }), toMapPoint({ x: tile.x1, y: tile.y1, z: 0 })],
+  }));
+}
+
 /** A point on the map (latitude and longitude in metres) as a game position at height 0: the opposite of toMapPoint. */
 export function fromMapPoint(lat: number, lng: number): Position {
   return { x: Math.round(lng * 100), y: Math.round(-lat * 100), z: 0 };

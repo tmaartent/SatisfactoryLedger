@@ -1,7 +1,9 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { Api } from '../../api/api';
+import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { getSnapshots } from '../../api/fn/world/get-snapshots';
@@ -30,7 +32,7 @@ beforeEach(() => {
   );
 });
 
-async function render(id?: string) {
+async function render(id?: string, mapArt: unknown = null) {
   const answers = new Map<unknown, unknown>([
     [
       getResourceNodes,
@@ -47,7 +49,14 @@ async function render(id?: string) {
     ],
   ]);
   const api = {
-    invoke: vi.fn((fn: unknown) => Promise.resolve(answers.get(fn) ?? [])),
+    invoke: vi.fn((fn: unknown) =>
+      fn === getMapArt
+        ? mapArt
+          ? Promise.resolve(mapArt)
+          : // Before the map art is imported, the API has none.
+            Promise.reject(new HttpErrorResponse({ status: 404 }))
+        : Promise.resolve(answers.get(fn) ?? []),
+    ),
     // The analysis, ready: nothing in it that the list needs.
     invoke$Response: vi.fn(() =>
       Promise.resolve({ status: 200, body: { machines: [], generators: [], bottlenecks: [] } }),
@@ -82,7 +91,9 @@ describe('the world map with no snapshot loaded', () => {
       expect.arrayContaining([getResourceNodes, getSnapshots]),
     );
     expect(
-      api.invoke.mock.calls.every(([fn]) => fn === getResourceNodes || fn === getSnapshots),
+      api.invoke.mock.calls.every(
+        ([fn]) => fn === getResourceNodes || fn === getSnapshots || fn === getMapArt,
+      ),
     ).toBe(true);
     expect(api.invoke$Response).not.toHaveBeenCalled();
   });
@@ -136,5 +147,61 @@ describe('the world map of a snapshot', () => {
     expect(element.textContent).not.toContain('Colour belts by what they carry');
     expect(element.querySelector('.leaflet-control-layers')).toBeNull();
     expect(element.querySelector('mat-select')).toBeNull();
+  });
+});
+
+describe("the game's map picture under the world map", () => {
+  const art = {
+    gameVersion: '1.2',
+    x0: -1000,
+    y0: -500,
+    x1: 1000,
+    y1: 500,
+    tiles: [
+      {
+        column: 0,
+        row: 0,
+        x0: -1000,
+        y0: -500,
+        x1: 0,
+        y1: 500,
+        url: '/api/v1/catalog/map-art/tiles/0/0',
+      },
+      {
+        column: 1,
+        row: 0,
+        x0: 0,
+        y0: -500,
+        x1: 1000,
+        y1: 500,
+        url: '/api/v1/catalog/map-art/tiles/1/0',
+      },
+    ],
+  };
+  const images = (element: HTMLElement) =>
+    [...element.querySelectorAll('img.leaflet-image-layer')].map((image) =>
+      image.getAttribute('src'),
+    );
+
+  it('lays each tile of the map art under the map, also with no snapshot loaded', async () => {
+    const { element } = await render(undefined, art);
+
+    expect(images(element)).toEqual([
+      '/api/v1/catalog/map-art/tiles/0/0',
+      '/api/v1/catalog/map-art/tiles/1/0',
+    ]);
+  });
+
+  it("lays it under a snapshot's map too", async () => {
+    const { element } = await render('snapshot-1', art);
+
+    expect(images(element)).toHaveLength(2);
+  });
+
+  it('shows the map without a picture before the map art is imported', async () => {
+    const { element } = await render();
+
+    expect(images(element)).toEqual([]);
+    expect(element.textContent).not.toContain("couldn't be loaded");
   });
 });

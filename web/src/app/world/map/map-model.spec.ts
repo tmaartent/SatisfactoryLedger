@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { buildingStyle, describeContents, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { buildingStyle, describeContents, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -186,6 +186,27 @@ describe('map model', () => {
 
     it('finds nothing for a buildable the map does not have', () => {
       expect(locate(world, 'unknown')).toBeNull();
+    });
+  });
+
+  describe("the game's map picture under the map", () => {
+    const art = {
+      gameVersion: '1.2',
+      x0: -1000,
+      y0: -500,
+      x1: 1000,
+      y1: 500,
+      tiles: [{ column: 1, row: 0, x0: 0, y0: -500, x1: 1000, y1: 500, url: '/api/v1/catalog/map-art/tiles/1/0' }],
+    };
+
+    it("lays each tile over its part of the world, in metres with north up", () => {
+      expect(mapArtTiles(art)).toEqual([
+        { url: '/api/v1/catalog/map-art/tiles/1/0', bounds: [[5, 0], [-5, 10]] },
+      ]);
+    });
+
+    it('lays nothing without map art', () => {
+      expect(mapArtTiles(null)).toEqual([]);
     });
   });
 });
