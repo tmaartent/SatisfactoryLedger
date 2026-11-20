@@ -22,6 +22,12 @@ builder.AddProject<Projects.SatisfactoryLedger_AnalysisService>("analysis")
     .WaitFor(rabbitmq)
     .WaitFor(api);
 
+// The MCP server (AI enhancement 1): a model investigates a world through it, at http://localhost:5280/mcp. It reads
+// the API by service discovery, as any client would, and only reads.
+builder.AddProject<Projects.SatisfactoryLedger_Mcp>("mcp")
+    .WithReference(api)
+    .WaitFor(api);
+
 // The Angular dev server (ADR-0019). Its proxy sends /api to the API, whose address WithReference passes on as
 // services__api__https__0. "start" first generates the API client from api/openapi.json.
 builder.AddJavaScriptApp("web", "../../web", "start")

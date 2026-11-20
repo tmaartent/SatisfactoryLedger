@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SatisfactoryLedger.Api\SatisfactoryLedger.Api.csproj" />
     <ProjectReference Include="..\SatisfactoryLedger.AnalysisService\SatisfactoryLedger.AnalysisService.csproj" />
+    <ProjectReference Include="..\SatisfactoryLedger.Mcp\SatisfactoryLedger.Mcp.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

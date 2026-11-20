@@ -16,14 +16,16 @@
          it pins SixLabors.ImageSharp to 3.1.12, which has high-severity advisories fixed only in 3.2.0. -->
     <PackageVersion Include="AssetRipper.TextureDecoder" Version="2.6.3" />
     <PackageVersion Include="SkiaSharp" Version="4.157.0" />
+    <!-- The MCP server (AI enhancement 1): the Model Context Protocol over HTTP, from its official C# SDK. -->
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
     <PackageVersion Include="Google.OrTools" Version="9.15.6755" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
     <!-- Only for one type per file (SA1402, SA1649); every other StyleCop rule is off in .editorconfig. The 1.1 release predates records. -->
     <PackageVersion Include="StyleCop.Analyzers" Version="1.3.177-beta" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
-    <!-- Not used directly: pins CUE4Parse's dependency (9.0.0) past GHSA-73j8-2gch-69rq, fixed in 9.0.14. -->
-    <PackageVersion Include="Microsoft.Bcl.Memory" Version="9.0.14" />
+    <!-- Not used directly: pins CUE4Parse's dependency (9.0.0) past GHSA-73j8-2gch-69rq, fixed in 9.0.14. The MCP SDK needs 10.0.14. -->
+    <PackageVersion Include="Microsoft.Bcl.Memory" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
