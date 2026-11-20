@@ -28,6 +28,7 @@ import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { LimitFacts, limitText } from '../limit-text';
 import { conveyorColours, describeContents, statusColours, statusLabels, MachineStatus } from '../map/map-model';
 import { boxGeometry } from './box-geometry';
+import { sceneBackground } from './scene-background';
 import { Area, areaAround, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
 import { FactoryDeletion } from '../factory-deletion';
 import { blockedMachines, factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
@@ -322,7 +323,8 @@ export class AreaPage {
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 20000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.screenSpacePanning = true;
-    this.scene.background = new THREE.Color(getComputedStyle(stage).getPropertyValue('--scene').trim() || '#1b1f24');
+    // The stage's own background, as the browser worked it out: the site's colours, never white (asked 2026-11-20).
+    this.scene.background = new THREE.Color(sceneBackground(getComputedStyle(stage).backgroundColor));
 
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = stage;
