@@ -32,6 +32,34 @@
   }
 }
 
+// Inside a factory's page, the overview above it and its input and output below.
+.stage.embedded {
+  height: 65vh;
+}
+
+.status-legend {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mat-sys-surface-container) 85%, transparent);
+  font: var(--mat-sys-body-small);
+  pointer-events: none;
+
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border-radius: 2px;
+    vertical-align: middle;
+  }
+}
+
 .hint {
   position: absolute;
   left: 12px;

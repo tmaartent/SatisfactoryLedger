@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, resource, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, output, resource, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -81,6 +81,17 @@ export class AreaPage {
   readonly x1 = input<string>();
   readonly y1 = input<string>();
   readonly factory = input<string>();
+  /** Shown inside a factory's page (asked 2026-11-19): no title or way back of its own; the page says what changed. */
+  readonly embedded = input(false);
+  /** A factory saved here, new or edited: its id. */
+  readonly saved = output<string>();
+
+  /** What the machines' colours mean: how they run (BR-A11). */
+  protected readonly statusLegend = (['none', 'starved', 'outputBlocked', 'noRecipe'] as MachineStatus[]).map((status) => ({
+    status,
+    label: statusLabels[status],
+    colour: statusColours[status],
+  }));
 
   protected readonly area = computed<Area>(() => {
     const factoryId = this.factory();
@@ -160,15 +171,18 @@ export class AreaPage {
   });
   protected readonly cutOff = signal<number | null>(null);
 
-  /** Defining a factory: the machines chosen so far, by id, and what to call it. */
-  protected readonly defining = signal(false);
+  /**
+   * Defining a factory: the machines chosen so far, by id, and what to call it. Public, with saving and stopping: a
+   * factory's page edits its factory from its own header (asked 2026-11-19).
+   */
+  readonly defining = signal(false);
   /** The factory being edited; null when a new one is defined. */
   protected readonly editing = signal<string | null>(null);
   protected readonly chosen = signal<ReadonlySet<string>>(new Set());
-  protected readonly factoryName = signal('');
+  readonly factoryName = signal('');
   protected readonly saving = signal(false);
-  protected readonly saveError = signal<string | null>(null);
-  protected readonly canSave = computed(() => this.chosen().size > 0 && this.factoryName().trim() !== '' && !this.saving());
+  readonly saveError = signal<string | null>(null);
+  readonly canSave = computed(() => this.chosen().size > 0 && this.factoryName().trim() !== '' && !this.saving());
 
   /** The chosen machines once the choosing pauses: the preview follows them (part 2b(2)). */
   private readonly settled = signal<readonly string[]>([]);
@@ -229,7 +243,7 @@ export class AreaPage {
   }
 
   /** Edits a factory as a new one is defined: its machines chosen, its name filled in. */
-  protected startEditing(factory: OutlinedFactory): void {
+  protected startEditing(factory: Pick<OutlinedFactory, 'factoryId' | 'name'>): void {
     const machines = this.factories.value()?.find((trace) => trace.factoryId === factory.factoryId)?.machines ?? [];
     this.editing.set(factory.factoryId);
     this.chosen.set(new Set(machines.map((machine) => machine.id)));
@@ -239,6 +253,12 @@ export class AreaPage {
     this.defining.set(true);
   }
 
+  /** Edits a factory by its id, once its machines are known: the factory's page asks this from its Edit button. */
+  edit(factoryId: string): void {
+    const trace = this.factories.value()?.find((candidate) => candidate.factoryId === factoryId);
+    if (trace) this.startEditing({ factoryId, name: trace.name });
+  }
+
   /** After asking; then the factories again, without it. */
   protected async deleteFactory(factory: OutlinedFactory): Promise<void> {
     if (!(await this.factoryDeletion.confirmAndDelete(factory))) return;
@@ -246,7 +266,7 @@ export class AreaPage {
     this.factories.reload();
   }
 
-  protected stopDefining(): void {
+  stopDefining(): void {
     this.defining.set(false);
     this.editing.set(null);
     this.chosen.set(new Set());
@@ -256,7 +276,7 @@ export class AreaPage {
   }
 
   /** Stores the factory, new or edited, in the snapshot's world, then opens its page. */
-  protected async save(): Promise<void> {
+  async save(): Promise<void> {
     const snapshot = this.snapshot.value();
     if (!snapshot || !this.canSave()) return;
     this.saving.set(true);
@@ -268,6 +288,10 @@ export class AreaPage {
       const factory = editing
         ? await this.api.invoke(editFactory, { id: editing, body: { name, machines } })
         : await this.api.invoke(defineFactory, { body: { world: snapshot.sessionName, name, machines } });
+      this.saved.emit(factory.id);
+      // On the factory's own page this changes nothing; stop defining, and show its machines as they are now.
+      this.stopDefining();
+      this.factories.reload();
       await this.router.navigate(['/snapshots', this.id(), 'factories', factory.id]);
     } catch (error) {
       this.saveError.set(problemMessage(error));

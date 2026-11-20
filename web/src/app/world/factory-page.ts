@@ -1,10 +1,10 @@
-import { Component, inject, input, resource } from '@angular/core';
+import { Component, inject, input, resource, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { Api } from '../api/api';
 import { analyseFactory } from '../api/fn/world/analyse-factory';
@@ -17,27 +17,44 @@ import { OutputDestinationKind } from '../api/models/output-destination-kind';
 import { CatalogNames } from '../shared/catalog-names';
 import { megawatts, perMinute } from '../shared/display';
 import { problemMessage, whenAnalysed } from '../shared/problem';
-import { FindingsView } from './findings';
+import { AreaPage } from './area/area-page';
+import { FactoryDeletion } from './factory-deletion';
+import { FindingsSummary } from './findings-summary';
 
 /**
- * A factory's findings in one snapshot: what it makes now and at 100%, where that goes, what its receivers would take,
- * what's sunk and what can't leave (BR-A18), its generators' power, and why not more (BR-A14).
+ * A factory's findings in one snapshot: the overview of its machines and power, the factory in 3D with all the 3D view
+ * can do, then what comes in (BR-A19) and what leaves: what it makes now and at 100%, where that goes, what its
+ * receivers would take, what's sunk and what can't leave (BR-A18).
  */
 @Component({
   selector: 'app-factory-page',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, MatTooltipModule, FindingsView],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, MatTooltipModule, FindingsSummary, AreaPage],
   templateUrl: './factory-page.html',
   styles: `
     .output { margin-bottom: 24px; }
     .destinations { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; }
     .destinations li { display: inline-flex; gap: 4px; }
     .muted { color: var(--mat-sys-on-surface-variant); }
-    .power { margin-bottom: 24px; }
+    .power { margin: 0 0 16px; }
+    app-area-page { display: block; margin-bottom: 24px; }
     .short { color: var(--mat-sys-error); }
+    .error { color: var(--mat-sys-error); }
+    .name {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 8px;
+      border: 1px solid var(--mat-sys-outline);
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      font: var(--mat-sys-headline-small);
+    }
   `,
 })
 export class FactoryPage {
   private readonly api = inject(Api);
+  private readonly router = inject(Router);
+  private readonly deletion = inject(FactoryDeletion);
   protected readonly names = inject(CatalogNames);
 
   /** From the route: /snapshots/:id/factories/:factoryId. */
@@ -93,6 +110,16 @@ export class FactoryPage {
     return destination.factory ?? this.destinationLabels[destination.kind];
   }
 
+
+  /** The factory in 3D: its Edit button edits it there. */
+  protected readonly area = viewChild<AreaPage>('area');
+
+  /** After asking; then there's nothing left to show of it, so back to the map. */
+  protected async delete(): Promise<void> {
+    const name = this.analysis.value()?.name;
+    if (!name || !(await this.deletion.confirmAndDelete({ factoryId: this.factoryId(), name }))) return;
+    await this.router.navigate(['/snapshots', this.id(), 'map']);
+  }
 
   protected readonly perMinute = perMinute;
   protected readonly megawatts = megawatts;

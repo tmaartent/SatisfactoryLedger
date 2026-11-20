@@ -2,7 +2,6 @@ import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
@@ -23,6 +22,7 @@ import { UnknownSupplyFinding } from '../api/models/unknown-supply-finding';
 import { CatalogNames } from '../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../shared/display';
 import { OutlinedFactory, factoryColour, machineOwners } from './area/factory-outlines';
+import { FindingsSummary } from './findings-summary';
 import { LimitFacts, limitText } from './limit-text';
 
 /**
@@ -41,7 +41,7 @@ export type Findings = Pick<AnalysisResponse, 'summary' | 'generatorSummary' | '
     DecimalPipe,
     MatButtonModule,
     MatButtonToggleModule,
-    MatCardModule,
+    FindingsSummary,
     MatChipsModule,
     MatIconModule,
     MatPaginatorModule,

@@ -1,0 +1,25 @@
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+
+  .figure {
+    font: var(--mat-sys-display-small);
+  }
+
+  .good .figure {
+    color: var(--mat-sys-primary);
+  }
+
+  .bad .figure {
+    color: var(--mat-sys-error);
+  }
+}
+
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mat-sys-tertiary);
+}

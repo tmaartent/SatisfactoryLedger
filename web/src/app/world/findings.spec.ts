@@ -131,7 +131,7 @@ describe('FindingsView', () => {
 
   const summaries = (element: HTMLElement) =>
     Array.from(element.querySelectorAll('.summary')).map((row) =>
-      Array.from(row.querySelectorAll('mat-card')).map((card) => (card.textContent ?? '').replace(/(\d)(\D)/, '$1 $2').trim()),
+      Array.from(row.querySelectorAll('mat-card')).map((card) => (card.textContent ?? '').replace(/(\d)(\D)/, '$1 $2').replace(/\s+/g, ' ').trim()),
     );
 
   it('counts the generators in a row of their own, next to the machines', async () => {
