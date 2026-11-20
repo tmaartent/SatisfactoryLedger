@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { buildingStyle, describeContents, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { buildingStyle, describeContents, mapArtExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -207,6 +207,14 @@ describe('map model', () => {
 
     it('lays nothing without map art', () => {
       expect(mapArtTiles(null)).toEqual([]);
+    });
+
+    it('covers the rectangle of the world it shows, as the corners the map can be held to', () => {
+      expect(mapArtExtent(art)).toEqual([[5, -10], [-5, 10]]);
+    });
+
+    it('holds the map to nothing without map art', () => {
+      expect(mapArtExtent(null)).toBeNull();
     });
   });
 });

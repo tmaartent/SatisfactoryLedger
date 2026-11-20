@@ -34,6 +34,13 @@ export function mapArtTiles(
   }));
 }
 
+/** The corners of the world the map picture shows, as map points: the map is held to it (asked 2026-11-20). */
+export function mapArtExtent(
+  art: { x0: number; y0: number; x1: number; y1: number } | null | undefined,
+): [[number, number], [number, number]] | null {
+  return art ? [toMapPoint({ x: art.x0, y: art.y0, z: 0 }), toMapPoint({ x: art.x1, y: art.y1, z: 0 })] : null;
+}
+
 /** A point on the map (latitude and longitude in metres) as a game position at height 0: the opposite of toMapPoint. */
 export function fromMapPoint(lat: number, lng: number): Position {
   return { x: Math.round(lng * 100), y: Math.round(-lat * 100), z: 0 };

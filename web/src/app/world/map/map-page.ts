@@ -33,6 +33,7 @@ import {
   freeNodes,
   fromMapPoint,
   locate,
+  mapArtExtent,
   mapArtTiles,
   machineStatuses,
   purityColours,
@@ -47,6 +48,8 @@ import { SnapshotsSidebar } from '../snapshots-sidebar';
 /** Every kilometre a grid line, over the whole game world (about −3.3 to 4.3 km east, −3.8 to 3.8 km north). */
 const GridStep = 1000;
 const GridExtent = { from: -5000, to: 5000 };
+/** How far out the map zooms without the map picture: the whole grid. */
+const MinZoom = -4;
 
 /**
  * The world map of a snapshot: its machines by how they run, its belts and pipes as built with the bottlenecks red,
@@ -188,11 +191,14 @@ export class MapPage {
     this.map = L.map(this.container().nativeElement, {
       crs: L.CRS.Simple,
       preferCanvas: true,
-      minZoom: -4,
+      minZoom: MinZoom,
       maxZoom: 3,
       zoomSnap: 0.25,
+      // Held to the map picture, once there is one: it stops at its edges instead of giving way a little.
+      maxBoundsViscosity: 1,
       attributionControl: false,
     });
+    this.map.on('resize', () => this.holdToMapArt());
     // The map picture first, so everything else lies over it.
     this.artLayer.addTo(this.map);
     this.gridLayer().addTo(this.map);
@@ -218,11 +224,32 @@ export class MapPage {
 
   /** The game's map picture, a tile at a time over its part of the world; not clickable, so it never takes a click. */
   private drawMapArt(): void {
-    const tiles = mapArtTiles(this.mapArt.hasValue() ? this.mapArt.value() : null);
+    const art = this.mapArt.hasValue() ? this.mapArt.value() : null;
     if (!this.map) return;
 
     this.artLayer.clearLayers();
-    for (const tile of tiles) L.imageOverlay(tile.url, tile.bounds, { interactive: false }).addTo(this.artLayer);
+    for (const tile of mapArtTiles(art)) L.imageOverlay(tile.url, tile.bounds, { interactive: false }).addTo(this.artLayer);
+    this.holdToMapArt();
+  }
+
+  /**
+   * With the map picture, the map zooms out no further than the whole picture and moves no further than its edges: past
+   * them is only the grid (asked 2026-11-20). Without one, the whole world's grid can be seen, as before.
+   */
+  private holdToMapArt(): void {
+    if (!this.map) return;
+    const extent = mapArtExtent(this.mapArt.hasValue() ? this.mapArt.value() : null);
+    if (!extent) {
+      this.map.setMaxBounds();
+      this.map.setMinZoom(MinZoom);
+      return;
+    }
+    const size = this.map.getSize();
+    // Not laid out yet: the zoom that fits it is known once the map has a size, and a resize asks again.
+    if (size.x === 0 || size.y === 0) return;
+    const bounds = L.latLngBounds(extent);
+    this.map.setMinZoom(this.map.getBoundsZoom(bounds));
+    this.map.setMaxBounds(bounds);
   }
 
   /** A factory picked in the list beside the map is highlighted; picked again, none is (asked 2026-11-19). */
