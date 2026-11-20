@@ -1,11 +1,12 @@
 using SatisfactoryLedger.MapExtractor;
 
-// Writes the resource node table from a game install (ADR-0015). Run it after a game update, then import the
-// table into the Catalog. Exit code 0 on success, 1 on wrong arguments, 2 when the game files can't be read.
+// Writes the resource node table from a game install (ADR-0015), and the map art when asked (ADR-0020). Run it after
+// a game update, then import what it wrote into the Catalog. Exit code 0 on success, 1 on wrong arguments, 2 when the game files can't be read.
 
 string? game = Option("--game");
 string? gameVersion = Option("--game-version");
 string output = Option("--out") ?? "resource-nodes.json";
+string? mapArtOutput = Option("--map-art");
 
 if (game is null || gameVersion is null)
 {
@@ -15,6 +16,8 @@ if (game is null || gameVersion is null)
           --game <folder>          the game's install folder, e.g. "C:\Program Files (x86)\Steam\steamapps\common\Satisfactory"
           --game-version <label>   the game version the table belongs to, e.g. 1.2
           --out <file>             where to write the table (default: resource-nodes.json)
+          --map-art <file>         also write the game's map picture there, e.g. map-art.json (the game's own art:
+                                   keep it out of git; the Catalog imports it, see ADR-0020)
         """);
     return 1;
 }
@@ -43,6 +46,23 @@ Console.WriteLine($"{table.Nodes.Count} resource nodes written to {Path.GetFullP
 foreach (var group in table.Nodes.GroupBy(node => node.Purity).OrderBy(group => group.Key))
 {
     Console.WriteLine($"  {group.Key}: {group.Count()}");
+}
+
+if (mapArtOutput is not null)
+{
+    MapArtTable art;
+    try
+    {
+        art = MapArtTable.Build(gameVersion, map.MapCapture());
+    }
+    catch (InvalidDataException e)
+    {
+        Console.Error.WriteLine($"The game files can't be read into map art: {e.Message}");
+        return 2;
+    }
+
+    await File.WriteAllTextAsync(mapArtOutput, art.ToJson());
+    Console.WriteLine($"Map art of {art.Tiles.Count} tiles written to {Path.GetFullPath(mapArtOutput)}");
 }
 
 return 0;
