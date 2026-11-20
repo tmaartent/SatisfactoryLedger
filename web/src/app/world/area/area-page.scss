@@ -205,6 +205,11 @@
   &.none {
     color: #4caf50;
   }
+
+  // The map's red for a bottleneck (BR-A12).
+  &.bottleneck {
+    color: #ef5350;
+  }
 }
 
 .muted {

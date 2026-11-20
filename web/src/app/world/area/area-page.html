@@ -35,7 +35,7 @@
         @if (defining()) {
           Click a machine to add it, click it again to take it out. Shift-drag to add a box of them, alt-drag to take them out.
         } @else {
-          Drag to turn, scroll to zoom, right-drag to move. Click a machine to see it.
+          Drag to turn, scroll to zoom, right-drag to move. Click a machine, belt, pipe or lift to see it.
         }
       </span>
     </div>
@@ -155,8 +155,20 @@
       @if (!embedded()) {
         <a mat-stroked-button [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ focus: building.id }">Show on the map</a>
       }
+    } @else if (selectedConveyor(); as conveyor) {
+      <h2>{{ names.building(conveyor.className) }}</h2>
+      @if (selectedBottleneck(); as bottleneck) {
+        <p class="status bottleneck">Bottleneck</p>
+        <p>Carries {{ perMinute(bottleneck.flow) }} of {{ perMinute(bottleneck.capacity) }}, {{ perMinute(bottleneck.offeredMore) }} more offered.</p>
+      }
+      @if (conveyor.contents) {
+        <dl>
+          <dt>On it</dt>
+          <dd>{{ contents(conveyor.contents) }}</dd>
+        </dl>
+      }
     } @else {
-      <p class="muted">Click a machine to see its recipe, what it holds, and why it runs as it does.</p>
+      <p class="muted">Click a machine to see its recipe, what it holds, and why it runs as it does; a belt, pipe or lift to see what's on it.</p>
     }
     <!-- On a factory's own page, the page edits and deletes it. -->
     @if (factoriesShown().length > 0 && !embedded()) {
