@@ -18,7 +18,7 @@ public static class LedgerMcp
 
     private const string Instructions =
         "Investigates a Satisfactory world the player imported: why machines run below full speed, where belts are full, what supply goes " +
-        "unused. Start with get_findings_summary, then follow up with find_machines, list_findings or get_factory_findings. Rates are per " +
+        "unused. Start with get_findings_summary, then follow up with find_machines, list_findings or get_factory_findings; trace_upstream and trace_downstream find where a shortage or blockage starts. Rates are per " +
         "minute, shares and utilisation in percent, positions in metres. Use the in-game names (\"Iron Plate\"); get_recipes and " +
         "get_transport_tiers give the game's numbers, so check against them rather than recalling them. The tools only read.";
 
@@ -54,6 +54,7 @@ public static class LedgerMcp
             .WithTools<SnapshotTools>(AnswerJson)
             .WithTools<FactoryTools>(AnswerJson)
             .WithTools<MachineTools>(AnswerJson)
+            .WithTools<TraceTools>(AnswerJson)
             .WithTools<CatalogTools>(AnswerJson);
 
         return builder;

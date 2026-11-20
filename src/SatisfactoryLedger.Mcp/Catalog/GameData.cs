@@ -39,6 +39,16 @@ internal sealed class GameData(IReadOnlyList<ItemResponse> items, IReadOnlyList<
 
     public BuildableResponse FindBuilding(string name) => Find(buildables, name, building => building.Id, building => building.Name, "building");
 
+    /// <summary>A recipe of one building, by its name or class name; an error naming the building's recipes when it isn't one of them.</summary>
+    public RecipeResponse FindRecipe(BuildableResponse building, string name)
+    {
+        List<RecipeResponse> its = [.. recipes.Where(recipe => recipe.BuildingId == building.Id)];
+        RecipeResponse? found = its.FirstOrDefault(recipe => string.Equals(recipe.Name, name.Trim(), StringComparison.OrdinalIgnoreCase) || recipe.Id == name.Trim());
+        return found ?? throw new McpException(its.Count == 0
+            ? $"The {building.Name} has no recipes."
+            : $"The {building.Name} has no recipe \"{name.Trim()}\". Its recipes are: {string.Join(", ", its.Select(recipe => recipe.Name).Order(StringComparer.Ordinal))}.");
+    }
+
     /// <summary>
     /// Exactly that name or class name, ignoring case; else the only name holding it. Anything else is an error a model
     /// can act on: the names it may have meant.
