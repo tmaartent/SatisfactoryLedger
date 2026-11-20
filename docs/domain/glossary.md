@@ -38,6 +38,7 @@ These terms are used **identically** in conversation, docs, code (class and meth
 | **Steady State** | What flows where once everything has run long enough to settle (BR-A1 to A10). An approximation to 0.0001/min. | `SteadyState`, `FlowResult` |
 | **Utilisation** | The share of 100% a machine runs at: the lowest of what its inputs supply and its outputs take (BR-A1). | `MachineState.Utilisation` |
 | **Starved / Output Blocked** | Why a machine runs below 100% (below 99.9%: a smaller shortfall counts as running): too little of an input is offered, or an output can't leave (BR-A11). | `MachineLimit` |
+| **Trace (upstream, downstream)** | Following a shortage upstream, or an output blockage downstream, from the held-back machines of one class and recipe to where it **starts**: the first place that holds the item back for a reason of its own (BR-A20, BR-A21). | `ShortageTrace`, `BlockageTrace`, `TraceStart` |
 | **Bottleneck** | A belt, lift or pipe at its capacity while more is offered upstream (BR-A12). The first saturated segment of a line. | `Bottleneck` |
 | **Unused Supply** | What a provider could deliver on top of what it does (BR-A13). | `UnusedSupply` |
 | **Supplier** | A provider, station or container nothing feeds upstream of a factory's inputs, through logistics. Never part of the factory (BR-W1); can supply several (BR-A14). | `FactoryMembers.Suppliers` |

@@ -21,6 +21,8 @@ Three questions to settle: where the server runs, how it reaches the data, and w
 
 The first tools (step 55): `list_snapshots`, `get_findings_summary`, `list_findings`, `list_factories`, `get_factory_findings`, `find_machines`, `find_items`, `get_recipes`, `get_transport_tiers`. Tracing up and downstream (step 56) needs new World endpoints first.
 
+*Amended 2026-11-20 ([step 56](../guide/log/56-where-a-shortage-starts.md)):* `trace_upstream` and `trace_downstream`, over World's new public endpoints `GET /snapshots/{id}/traces/shortage` and `/traces/blockage` (BR-A20, BR-A21). The rules are World's, in its domain; the MCP server only translates names, as for every other tool.
+
 ## Alternatives considered
 - **A stdio console tool,** started by the MCP client: no AppHost change, but it needs the API's address passed in, and it lives outside the dashboard and its traces.
 - **Inside the API,** calling the modules' Contracts in-process: the fewest moving parts, but it puts the MCP SDK into the API and couples the tools to the modules' internals instead of the published contract.
