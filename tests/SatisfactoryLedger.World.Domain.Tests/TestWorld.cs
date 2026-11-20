@@ -21,6 +21,9 @@ internal sealed class TestWorld
 
     public TestWorld Machine(string id, ItemId consumes, ItemId produces) => Machine(id, [consumes], [produces]);
 
+    /// <summary>A machine with no recipe set: it takes and makes nothing.</summary>
+    public TestWorld NoRecipe(string id) => Add(new Machine(BuildableId.Of(id), null, ClockSpeed.Percent(100)));
+
     /// <summary>A machine for tracing: only which items matter, so every rate is 1 per minute.</summary>
     public TestWorld Machine(string id, ItemId[] consumes, ItemId[] produces) =>
         Add(new Machine(BuildableId.Of(id), new Recipe(PerMinute(consumes, 1), PerMinute(produces, 1)), ClockSpeed.Percent(100)));

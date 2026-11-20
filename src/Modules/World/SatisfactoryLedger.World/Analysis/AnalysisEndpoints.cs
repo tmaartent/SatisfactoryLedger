@@ -78,7 +78,7 @@ internal static class AnalysisEndpoints
     }
 
     /// <summary>The snapshot's analysis when it's current, or why it failed. Queues it when it's missing or outdated.</summary>
-    private static async Task<(AnalysisDocument? Document, string? Error)> StoredAsync(
+    internal static async Task<(AnalysisDocument? Document, string? Error)> StoredAsync(
         Guid id, WorldDbContext db, IMessageBus bus, CancellationToken cancellationToken)
     {
         StoredAnalysis? stored = await db.Analyses.AsNoTracking().SingleOrDefaultAsync(analysis => analysis.SnapshotId == id, cancellationToken);
@@ -101,10 +101,10 @@ internal static class AnalysisEndpoints
         return (null, null);
     }
 
-    private static Accepted<AnalysisPendingResponse> Pending(Guid id) =>
+    internal static Accepted<AnalysisPendingResponse> Pending(Guid id) =>
         TypedResults.Accepted($"/api/v1/world/snapshots/{id}/analysis", new AnalysisPendingResponse(AnalysisStatus.Pending));
 
-    private static ProblemHttpResult Failed(string error) => TypedResults.Problem(
+    internal static ProblemHttpResult Failed(string error) => TypedResults.Problem(
         title: "The analysis of this snapshot failed",
         detail: error,
         statusCode: StatusCodes.Status500InternalServerError,

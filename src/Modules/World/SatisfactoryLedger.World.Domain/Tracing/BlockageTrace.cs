@@ -1,0 +1,254 @@
+using SatisfactoryLedger.World.Domain.Flow.Objects;
+
+namespace SatisfactoryLedger.World.Domain.Tracing;
+
+/// <summary>
+/// Where an output blockage starts (decided 2026-11-20), the mirror of <see cref="ShortageTrace"/>. From the
+/// output-blocked machines asked about, each item that can't all leave is followed downstream along their lines:
+/// <list type="bullet">
+/// <item>a full belt, lift or pipe on the way is where it starts;</item>
+/// <item>a consumer blocked itself is followed in turn, along the items it can't get away;</item>
+/// <item>a consumer short of another input takes no more: that's where it starts;</item>
+/// <item>consumers at full speed: if part of what they take comes from other producers, they're supplied by others;
+/// otherwise there are too few consumers;</item>
+/// <item>a full container or station, a belt to nowhere, a machine that doesn't take the item or has no recipe: each is
+/// a start of its own.</item>
+/// </list>
+/// </summary>
+public static class BlockageTrace
+{
+    /// <param name="machines">The machines asked about; only the output-blocked among them are traced.</param>
+    public static IReadOnlyList<TraceStart> From(WorldGraph world, FlowReadings readings, IReadOnlyCollection<BuildableId> machines)
+    {
+        var starts = new TraceStarts();
+        HashSet<(BuildableId, ItemId)> followed = [];
+        List<(BuildableId Id, MachineReading Reading)> blocked =
+        [
+            .. machines.Select(id => (id, readings.Machine(id))).Where(m => m.Item2?.Limit == MachineLimit.OutputBlocked).Select(m => (m.id, m.Item2!)),
+        ];
+        foreach (ItemId item in blocked.SelectMany(m => m.Reading.BlockedOn.Keys).Distinct())
+        {
+            Follow([.. blocked.Where(m => m.Reading.BlockedOn.ContainsKey(item)).Select(m => m.Id)], item, []);
+        }
+
+        return starts.All;
+
+        void Follow(List<BuildableId> group, ItemId item, IReadOnlyList<TraceStep> path)
+        {
+            group = [.. group.Where(id => followed.Add((id, item)))];
+            if (group.Count == 0)
+            {
+                return;
+            }
+
+            IReadOnlyList<TraceStep> here = [.. path, new TraceStep(group, item, group.Sum(id => CannotLeave(id, item)))];
+            if (here.Count > TraceStarts.MostSteps)
+            {
+                starts.Add(new TraceStart(TraceCause.Unclear, item, group, here, 0));
+                return;
+            }
+
+            DownstreamLine line = DownstreamLine.Of(world, readings, group, item);
+            foreach (BuildableId belt in line.FullBelts)
+            {
+                starts.Add(new TraceStart(TraceCause.BeltFull, item, [belt], here, TraceStarts.Capacity(world, belt)));
+            }
+
+            if (line.FullStores.Count > 0)
+            {
+                starts.Add(new TraceStart(TraceCause.StorageFull, item, line.FullStores, here, 0));
+            }
+
+            if (line.Nowhere.Count > 0)
+            {
+                starts.Add(new TraceStart(TraceCause.NowhereToGo, item, line.Nowhere, here, 0));
+            }
+
+            List<BuildableId> fullSpeed = [];
+            Dictionary<ItemId, List<BuildableId>> blockedConsumers = [];
+            foreach (BuildableId consumer in line.Consumers)
+            {
+                MachineReading? reading = readings.Machine(consumer);
+                switch (reading?.Limit)
+                {
+                    case MachineLimit.NoRecipe:
+                        starts.Add(new TraceStart(TraceCause.NoRecipe, item, [consumer], here, 0));
+                        break;
+                    case MachineLimit.OutputBlocked:
+                        foreach (ItemId product in reading.BlockedOn.Keys)
+                        {
+                            (blockedConsumers.TryGetValue(product, out List<BuildableId>? consumers) ? consumers : blockedConsumers[product] = []).Add(consumer);
+                        }
+
+                        break;
+                    case MachineLimit.Starved:
+                        starts.Add(new TraceStart(TraceCause.ConsumerStarved, item, [consumer], here, Takes(world.Find(consumer)!, item)) { ShortOf = reading.StarvedOf });
+                        break;
+                    default:
+                        fullSpeed.Add(consumer);
+                        break;
+                }
+            }
+
+            foreach ((ItemId product, List<BuildableId> consumers) in blockedConsumers)
+            {
+                Follow(consumers, product, here);
+            }
+
+            if (fullSpeed.Count == 0)
+            {
+                return;
+            }
+
+            HashSet<BuildableId> asked = [.. group];
+            Dictionary<BuildableId, double> others = [];
+            foreach (BuildableId consumer in fullSpeed)
+            {
+                foreach (Buildable from in world.Upstream(consumer).Where(from => from is Logistics))
+                {
+                    double arriving = readings.Into(from.Id, item);
+                    foreach ((BuildableId start, double perMinute) in InputSources.Of(world, from.Id, item, arriving, id => readings.OutOf(world.Find(id)!, item)))
+                    {
+                        if (!asked.Contains(start))
+                        {
+                            others[start] = others.GetValueOrDefault(start) + perMinute;
+                        }
+                    }
+                }
+            }
+
+            double taken = fullSpeed.Sum(id => Takes(world.Find(id)!, item));
+            starts.Add(TraceStarts.Matters(others.Values.Sum(), taken)
+                ? new TraceStart(TraceCause.SuppliedByOthers, item, fullSpeed, here, taken) { Others = TraceStarts.Rounded(others) }
+                : new TraceStart(TraceCause.TooFewConsumers, item, fullSpeed, here, taken));
+        }
+
+        // What a blocked machine can't get away of an item per minute: what it makes at its clock speed less the share that leaves.
+        double CannotLeave(BuildableId id, ItemId item) =>
+            world.Find(id) is Machine machine && readings.Machine(id) is { } reading
+                ? Math.Round((machine.Production.GetValueOrDefault(item)?.ToDouble() ?? 0) * (1 - reading.BlockedOn.GetValueOrDefault(item, 1)), 6)
+                : 0;
+    }
+
+    /// <summary>What a consumer takes of an item at full speed, per minute; 0 when that isn't known (a sink takes all).</summary>
+    private static double Takes(Buildable consumer, ItemId item) => consumer switch
+    {
+        Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
+        Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
+        _ => 0,
+    };
+
+    /// <summary>
+    /// The lines out of some machines, followed downstream through logistics for one item, to where they end: the
+    /// consumers that take it, a full belt (instead of what's after it), a full container or station, and belts or
+    /// machines where it can go no further. Each buildable is walked once.
+    /// </summary>
+    private sealed class DownstreamLine
+    {
+        private readonly WorldGraph _world;
+        private readonly FlowReadings _readings;
+        private readonly ItemId _item;
+        private readonly HashSet<BuildableId> _walked;
+
+        private DownstreamLine(WorldGraph world, FlowReadings readings, ItemId item, IEnumerable<BuildableId> machines)
+        {
+            _world = world;
+            _readings = readings;
+            _item = item;
+            _walked = [.. machines];
+        }
+
+        public List<BuildableId> Consumers { get; } = [];
+
+        public List<BuildableId> FullBelts { get; } = [];
+
+        public List<BuildableId> FullStores { get; } = [];
+
+        public List<BuildableId> Nowhere { get; } = [];
+
+        public static DownstreamLine Of(WorldGraph world, FlowReadings readings, IReadOnlyList<BuildableId> machines, ItemId item)
+        {
+            var line = new DownstreamLine(world, readings, item, machines);
+            foreach (BuildableId machine in machines)
+            {
+                // A machine with more than one product sends each on its own lines: only those that carry this one.
+                bool oneProduct = world.Find(machine) is not Machine { Produces.Count: > 1 };
+                foreach (Buildable next in world.Downstream(machine).Where(next => oneProduct || line.Carries(next)))
+                {
+                    line.Walk(next.Id);
+                }
+            }
+
+            return line;
+        }
+
+        private bool Carries(Buildable buildable) =>
+            _readings.Into(buildable.Id, _item) > 0 || (buildable is Logistics logistics && logistics.Carrying.ContainsKey(_item));
+
+        /// <returns>Whether the item goes this way: something downstream takes it, or holds it up.</returns>
+        private bool Walk(BuildableId id)
+        {
+            if (!_walked.Add(id))
+            {
+                return false;
+            }
+
+            switch (_world.Find(id))
+            {
+                case Logistics logistics:
+                    List<Buildable> downstream = [.. _world.Downstream(id)];
+                    if (downstream.Count == 0)
+                    {
+                        if (logistics.Kind is LogisticsKind.StorageContainer or LogisticsKind.FluidBuffer)
+                        {
+                            return Store(logistics.Inventory);
+                        }
+
+                        Nowhere.Add(id);
+                        return true;
+                    }
+
+                    (int consumers, int belts, int stores, int nowhere) = (Consumers.Count, FullBelts.Count, FullStores.Count, Nowhere.Count);
+                    bool goes = false;
+                    foreach (Buildable next in downstream)
+                    {
+                        goes |= Walk(next.Id);
+                    }
+
+                    // A full belt holds up all after it: it's where the blockage starts, not what's after it.
+                    if (goes && _readings.IsBottleneck(id))
+                    {
+                        Consumers.RemoveRange(consumers, Consumers.Count - consumers);
+                        FullBelts.RemoveRange(belts, FullBelts.Count - belts);
+                        FullStores.RemoveRange(stores, FullStores.Count - stores);
+                        Nowhere.RemoveRange(nowhere, Nowhere.Count - nowhere);
+                        FullBelts.Add(id);
+                    }
+
+                    return goes;
+                case Machine machine when machine.Consumes.Contains(_item) || machine.Consumes.Count == 0:
+                    Consumers.Add(id);
+                    return true;
+                case Consumer { Inventory: { } inventory }:
+                    return Store(inventory);
+                case Consumer:
+                    Consumers.Add(id);
+                    return true;
+                default:
+                    Nowhere.Add(id);
+                    return true;
+            }
+
+            bool Store(Inventory? inventory)
+            {
+                if (inventory?.Takes(_item) == false)
+                {
+                    FullStores.Add(id);
+                    return true;
+                }
+
+                return false;
+            }
+        }
+    }
+}
