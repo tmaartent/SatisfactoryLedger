@@ -13,12 +13,13 @@ Each World page had its own side panel. The map had the snapshots on its left an
 
   | Page | Tabs |
   |---|---|
-  | World map | Factories, Snapshots, Explanation |
+  | World map | Info *(2026-11-23)*, Factories, Snapshots, Explanation |
   | Area in 3D | Info, Factories, Explanation |
   | Factory | Info (its 3D view's), Explanation |
   | Snapshot (findings) | Explanation |
 
   The map's own factories list and snapshots column and the 3D view's panel are gone: the page gets the width.
+- **The map's Info tab is the overview of the findings** *(decided 2026-11-23, step 67)*: the cards from the top of the findings page. A count of a status (at 100%, starved, output blocked, without a recipe; a generator's alike) is a button: clicked, the map dims everything else, outlines those buildings boldly, rings each one and zooms to fit them. Clicked again, all show. Showing a status lets go of a highlighted factory, and the other way round. *The findings page stays for now; its list is covered by the map and the factory pages.*
 - **A tab is declared in the page's template,** as `<ng-template appSidebarTab="info" label="Info" icon="info">`. Its content keeps the page's bindings and styles. A root service (`SidebarTabs`) holds the tabs, which one is open and whether the sidebar is collapsed.
 - **Clicks in the page show the tab that answers them,** opening the sidebar if it was collapsed:
   - a building, belt, pipe or lift clicked in 3D shows Info, with *Explain why* for a held-back machine;
