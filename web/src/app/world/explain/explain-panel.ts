@@ -11,17 +11,16 @@ import { Explainer } from './explainer';
 import { whereItStarts } from './trace-starts';
 
 /**
- * A finding explained in words by a chat model (AI enhancement 3), beside every page so it stays while the player
- * follows its links (asked 2026-11-22). With what it stands on: the model, the tool whose answer it was given, where
- * that answer says it starts (linked to the map), and the numbers in the text that the answer doesn't hold. It
- * collapses to a strip, to give the page its width back.
+ * A finding explained in words by a chat model (AI enhancement 3), in the sidebar's Explanation tab so it stays while
+ * the player follows its links (asked 2026-11-22). With what it stands on: the model, the tool whose answer it was given,
+ * where that answer says it starts (linked to the map), and the numbers in the text that the answer doesn't hold. With
+ * nothing asked, where to ask.
  */
 @Component({
   selector: 'app-explain-panel',
   imports: [DecimalPipe, NgTemplateOutlet, MatButtonModule, MatButtonToggleModule, MatIconModule, MatProgressBarModule, MatTooltipModule, RouterLink],
   templateUrl: './explain-panel.html',
   styleUrl: './explain-panel.scss',
-  host: { '[class.collapsed]': 'explainer.collapsed()' },
 })
 export class ExplainPanel {
   protected readonly explainer = inject(Explainer);

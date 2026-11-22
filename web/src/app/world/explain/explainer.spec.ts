@@ -1,7 +1,9 @@
+import { TemplateRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 
 import { CatalogNames } from '../../shared/catalog-names';
+import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { Assistant, ChatModel, Explanation, ExplanationRequest } from './assistant';
 import { Explainer } from './explainer';
 
@@ -80,13 +82,17 @@ describe('explaining a held-back machine, kept beside every page', () => {
     expect(explain.explanation()?.text).toBe('Nothing takes the ingots.');
   });
 
-  it('opens again when it was collapsed and a new question is asked', () => {
+  it("shows the sidebar's Explanation tab, also when the sidebar was collapsed", () => {
     const explain = explainer();
-    explain.collapsed.set(true);
+    const sidebar = TestBed.inject(SidebarTabs);
+    sidebar.add({ key: 'info', label: 'Info', icon: 'info', order: 0, template: {} as TemplateRef<unknown> });
+    sidebar.add({ key: 'explanation', label: 'Explanation', icon: 'lightbulb', order: 9, template: {} as TemplateRef<unknown> });
+    sidebar.collapsed.set(true);
 
     explain.explain(plates, 's1');
 
-    expect(explain.collapsed()).toBe(false);
+    expect(sidebar.collapsed()).toBe(false);
+    expect(sidebar.current()?.key).toBe('explanation');
   });
 
   it('stays while the player follows its links within the snapshot, and to pages of no snapshot', async () => {

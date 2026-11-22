@@ -53,27 +53,6 @@ body {
   }
 }
 
-// The snapshots beside the page, the map's or the world's start (asked 2026-11-19); above it on a narrow screen.
-.with-sidebar {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-
-  > :last-child {
-    flex: 1;
-    min-width: 0;
-  }
-
-  @media (max-width: 800px) {
-    flex-direction: column;
-    align-items: stretch;
-
-    app-snapshots-sidebar {
-      width: auto;
-    }
-  }
-}
-
 .muted {
   color: var(--mat-sys-on-surface-variant);
 }
