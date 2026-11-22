@@ -1,61 +1,47 @@
-using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace SatisfactoryLedger.Assistant.Explaining;
 
 /// <summary>
-/// The model explains, the solver computes: every number in an explanation should come from the facts it was given.
-/// Finds the ones that don't, so the player sees which to doubt.
+/// The model explains in words, the list beside it gives the numbers (asked 2026-11-22): a small model copied the right
+/// numbers but pinned them on the wrong things, "9 units of Wire" for 9 machines. Finds the numbers it wrote anyway,
+/// so the player sees which to doubt.
 /// </summary>
 internal static partial class NumberCheck
 {
-    /// <summary>Full speed: a machine at 100% needs no fact to say so.</summary>
-    private const double FullSpeed = 100;
-
     /// <summary>
-    /// The numbers in an explanation that no number in the facts gives, as written. A fact counts when it rounds to the
-    /// number at the decimals written, or, for a whole number, rounds to it up or down (22.5 is "about 22" or "23").
-    /// Numbers inside the facts' strings count too: names (Mk.2), ids, notes. A sign is ignored: a position may be
-    /// written as "-3" or "3 south".
+    /// The numbers in an explanation outside the names the facts give, as written. "Conveyor Belt Mk.6" is a name, so
+    /// its 6 isn't a number the model wrote; "6 machines" is.
     /// </summary>
     public static IReadOnlyList<string> Unsupported(string explanation, JsonElement facts)
     {
-        List<double> known = [FullSpeed];
-        Collect(facts, known);
-        return [.. Numbers().Matches(explanation).Select(match => match.Value).Where(written => !known.Any(fact => Gives(fact, written)))];
+        List<string> names = [];
+        Collect(facts, names);
+        string words = names.Distinct(StringComparer.Ordinal)
+            .OrderByDescending(name => name.Length)
+            .Aggregate(explanation, (text, name) => text.Replace(name, " ", StringComparison.Ordinal));
+        return [.. Numbers().Matches(words).Select(match => match.Value)];
     }
 
-    private static bool Gives(double fact, string written)
-    {
-        double value = double.Parse(written, CultureInfo.InvariantCulture);
-        int decimals = written.Contains('.', StringComparison.Ordinal) ? written.Length - written.IndexOf('.', StringComparison.Ordinal) - 1 : 0;
-        double magnitude = Math.Abs(fact);
-        return Math.Round(magnitude, decimals, MidpointRounding.AwayFromZero) == value
-            || (decimals == 0 && (Math.Floor(magnitude) == value || Math.Ceiling(magnitude) == value));
-    }
-
-    private static void Collect(JsonElement element, List<double> known)
+    private static void Collect(JsonElement element, List<string> names)
     {
         switch (element.ValueKind)
         {
-            case JsonValueKind.Number:
-                known.Add(element.GetDouble());
-                break;
-            case JsonValueKind.String:
-                known.AddRange(Numbers().Matches(element.GetString()!).Select(match => double.Parse(match.Value, CultureInfo.InvariantCulture)));
+            case JsonValueKind.String when Numbers().IsMatch(element.GetString()!):
+                names.Add(element.GetString()!);
                 break;
             case JsonValueKind.Object:
                 foreach (JsonProperty property in element.EnumerateObject())
                 {
-                    Collect(property.Value, known);
+                    Collect(property.Value, names);
                 }
 
                 break;
             case JsonValueKind.Array:
                 foreach (JsonElement item in element.EnumerateArray())
                 {
-                    Collect(item, known);
+                    Collect(item, names);
                 }
 
                 break;

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 using Microsoft.Extensions.AI;
 
@@ -32,7 +33,7 @@ public class ExplanationTests
         """;
 
     private const string Explanation =
-        "In the model, the 2 Constructors are short of Iron Ingot: the one Smelter makes 30 a minute at full speed. Build a second Smelter next to it.";
+        "In the model, the Constructors are short of Iron Ingot: too few smelters make it. Build another Smelter next to the one there.";
 
     private static readonly object StarvedConstructors = new
     {
@@ -133,13 +134,13 @@ public class ExplanationTests
 
         Assert.Contains("nextStep", Assert.Single(chat.Messages, message => message.Role == ChatRole.System).Text, StringComparison.Ordinal);
         string question = Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text;
-        Assert.Contains("\"nextStep\":\"Lay another Conveyor Belt Mk.6 beside it, for 2 lines side by side.\"", question, StringComparison.Ordinal);
+        Assert.Contains("\"nextStep\":\"Lay another Conveyor Belt Mk.6 beside it.\"", question, StringComparison.Ordinal);
         Assert.DoesNotContain("moreCapacity", question, StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("Conveyor Belt Mk.4", 1, "Rebuild it as Conveyor Belt Mk.4.")]
-    [InlineData("Conveyor Belt Mk.6", 2, "Rebuild it as 2 lines of Conveyor Belt Mk.6 side by side.")]
+    [InlineData("Conveyor Belt Mk.6", 2, "Rebuild it as lines of Conveyor Belt Mk.6 side by side.")]
     public async Task Words_the_next_step_for_a_bottleneck_below_the_tier_it_needs_as_a_rebuild(string tier, int lines, string nextStep)
     {
         string fullMk3 = $$"""
@@ -161,15 +162,40 @@ public class ExplanationTests
     }
 
     [Fact]
-    public async Task Leaves_out_what_more_lines_would_carry_so_the_model_cannot_take_it_for_the_belt_s_capacity()
+    public async Task Lays_more_lines_beside_a_bottleneck_of_the_tier_it_needs_already_without_saying_how_many()
     {
         const string fullMk6 = """
             {
-              "building": "Assembler", "recipe": "Alternate: Quickwire Stator", "machines": 15, "traced": 6,
+              "building": "Assembler", "recipe": "Alternate: Steel Rotor", "machines": 21, "traced": 9,
               "starts": [{
-                "cause": "beltFull", "causeTerm": "bottleneck", "item": "Quickwire", "perMinute": 1200,
+                "cause": "beltFull", "causeTerm": "bottleneck", "item": "Wire", "perMinute": 1200,
                 "at": [{ "building": "Conveyor Belt Mk.6", "count": 1, "ids": ["belt-1"] }],
-                "path": [], "moreCapacity": { "tier": "Conveyor Belt Mk.6", "lines": 2, "carriesPerMinute": 1285.42 }
+                "path": [], "moreCapacity": { "tier": "Conveyor Belt Mk.6", "lines": 3, "carriesPerMinute": 2400 }
+              }]
+            }
+            """;
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", fullMk6), chat);
+
+        await ExplainAsync(server, StarvedConstructors);
+
+        Assert.Contains(
+            "\"nextStep\":\"Lay more lines of Conveyor Belt Mk.6 beside it.\"",
+            Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Gives_the_model_no_numbers_so_it_cannot_pin_one_on_the_wrong_thing()
+    {
+        const string fullMk6 = """
+            {
+              "building": "Assembler", "recipe": "Alternate: Steel Rotor", "machines": 21, "traced": 9,
+              "starts": [{
+                "cause": "beltFull", "causeTerm": "bottleneck", "item": "Wire", "perMinute": 1200,
+                "at": [{ "building": "Conveyor Belt Mk.6", "count": 1, "ids": ["belt-1"] }],
+                "path": [{ "building": "Assembler", "recipe": "Alternate: Steel Rotor", "machines": 9, "shortOf": "Wire", "perMinute": 1462.03 }],
+                "moreCapacity": { "tier": "Conveyor Belt Mk.6", "lines": 2, "carriesPerMinute": 1462.03 }
               }]
             }
             """;
@@ -178,9 +204,10 @@ public class ExplanationTests
 
         JsonElement explanation = await ExplainAsync(server, StarvedConstructors);
 
-        Assert.DoesNotContain("1285.42", Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text, StringComparison.Ordinal);
-        JsonElement more = explanation.GetProperty("facts").GetProperty("answer").GetProperty("starts")[0].GetProperty("moreCapacity");
-        Assert.Equal(1285.42, more.GetProperty("carriesPerMinute").GetDouble());
+        string question = Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text;
+        // Only the 6 of Mk.6, a name.
+        Assert.All(Regex.Matches(question, @"\d+(?:\.\d+)?"), number => Assert.Equal("6", number.Value));
+        Assert.Equal(21, explanation.GetProperty("facts").GetProperty("answer").GetProperty("machines").GetInt32());
     }
 
     [Fact]
@@ -255,14 +282,14 @@ public class ExplanationTests
     }
 
     [Fact]
-    public async Task Flags_the_numbers_the_model_did_not_take_from_the_facts()
+    public async Task Flags_the_numbers_the_model_wrote_even_those_from_the_facts()
     {
         var chat = new FakeChatClient("They need 45 a minute and get 30, so they are short by 15.");
         await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", ShortageTrace), chat);
 
         JsonElement explanation = await ExplainAsync(server, StarvedConstructors);
 
-        Assert.Equal(["45", "15"], explanation.GetProperty("unsupportedNumbers").EnumerateArray().Select(number => number.GetString()));
+        Assert.Equal(["45", "30", "15"], explanation.GetProperty("unsupportedNumbers").EnumerateArray().Select(number => number.GetString()));
     }
 
     [Fact]

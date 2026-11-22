@@ -9,40 +9,34 @@ public class NumberCheckTests
     private static JsonElement Facts(string json) => JsonDocument.Parse(json).RootElement;
 
     [Fact]
-    public void Numbers_copied_from_the_facts_are_supported()
+    public void An_explanation_in_words_has_no_numbers_to_flag()
     {
-        JsonElement facts = Facts("""{ "perMinute": 22.5, "shortOf": { "Iron Ingot": 76 } }""");
+        JsonElement facts = Facts("""{ "item": "Iron Ingot", "perMinute": 30 }""");
 
-        Assert.Empty(NumberCheck.Unsupported("They get 22.5 a minute, 76% of what they need.", facts));
+        Assert.Empty(NumberCheck.Unsupported("In the model, too few smelters make Iron Ingot. Build another Smelter.", facts));
     }
 
     [Fact]
-    public void A_number_rounded_from_a_fact_is_supported()
+    public void A_number_copied_from_the_facts_is_flagged_as_the_list_beside_the_text_gives_it()
     {
-        JsonElement facts = Facts("""{ "perMinute": 12.37, "others": [{ "perMinute": 7.5 }] }""");
+        JsonElement facts = Facts("""{ "machines": 21, "starts": [{ "perMinute": 1200, "at": [{ "count": 9 }] }] }""");
 
-        Assert.Empty(NumberCheck.Unsupported("About 12.4 a minute, of which the others take some 8.", facts));
+        Assert.Equal(["21", "9"], NumberCheck.Unsupported("With 21 machines needing it, only 9 units of Wire arrive.", facts));
     }
 
     [Fact]
-    public void A_number_the_model_worked_out_itself_is_flagged()
+    public void Numbers_in_the_names_the_facts_give_are_part_of_the_name()
     {
-        JsonElement facts = Facts("""{ "path": [{ "perMinute": 30 }], "starts": [{ "perMinute": 22.5 }] }""");
+        JsonElement facts = Facts("""{ "at": [{ "building": "Conveyor Belt Mk.6" }], "recipe": "Alternate: Uranium-235" }""");
 
-        Assert.Equal(["7.5"], NumberCheck.Unsupported("They need 30 and get 22.5, so they are short by 7.5 a minute.", facts));
+        Assert.Empty(NumberCheck.Unsupported("Lay another Conveyor Belt Mk.6 beside it for the Alternate: Uranium-235 machines.", facts));
     }
 
     [Fact]
-    public void Numbers_in_names_ids_and_positions_count_as_facts()
+    public void A_number_outside_a_name_is_flagged_even_when_a_name_holds_it()
     {
-        JsonElement facts = Facts("""{ "building": "Miner Mk.2", "ids": ["Build_MinerMk2_C_2147"], "positionMetres": { "x": -1200.5 } }""");
+        JsonElement facts = Facts("""{ "at": [{ "building": "Conveyor Belt Mk.6" }] }""");
 
-        Assert.Empty(NumberCheck.Unsupported("The Miner Mk.2 (Build_MinerMk2_C_2147) at x -1200.5.", facts));
-    }
-
-    [Fact]
-    public void Full_speed_is_supported_without_a_fact()
-    {
-        Assert.Empty(NumberCheck.Unsupported("The smelters already run at 100%.", Facts("{}")));
+        Assert.Equal(["6"], NumberCheck.Unsupported("The 6 machines wait on one Conveyor Belt Mk.6.", facts));
     }
 }

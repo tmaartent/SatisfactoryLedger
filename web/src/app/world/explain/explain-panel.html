@@ -16,7 +16,8 @@
       @if (explanation.unsupportedNumbers.length > 0) {
         <p class="warning">
           <mat-icon inline>warning</mat-icon>
-          Not in the facts: {{ explanation.unsupportedNumbers.join(', ') }}. The model may have worked these out itself; check them.
+          Numbers in the text: {{ explanation.unsupportedNumbers.join(', ') }}. The model was asked for words only and may
+          have pinned them on the wrong things; the list below has the ledger's.
         </p>
       }
       @if (starts().length > 0) {

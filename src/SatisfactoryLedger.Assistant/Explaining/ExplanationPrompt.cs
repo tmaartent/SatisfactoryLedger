@@ -21,7 +21,8 @@ internal static class ExplanationPrompt
         Rules:
         - Use only these facts. Don't add what you know or guess about the game.
         - Write buildings, recipes and items exactly as the facts name them, e.g. "Quantum Encoder (Superposition Oscillator)".
-        - Copy every number from the facts. Never work out a new number. Rates are per minute.
+        - Write no numbers: no counts, rates or percentages. The player sees the ledger's numbers beside your text.
+          Say in words what is short, full or left over, and where.
         - Say the main cause in the ledger's term the facts give it ("taken by others") and the item it concerns,
           then one next step the player can take. Never write the tool's names for the causes.
         - A start with a nextStep: that is the next step for it. Give it as written, and suggest no other belt, lift or pipe.
@@ -48,11 +49,12 @@ internal static class ExplanationPrompt
     }
 
     /// <summary>
-    /// The answer without the machines' ids and positions: the dialog links those to the map, and they take most of a
-    /// large trace's tokens. A prompt longer than the model's context loses its start, the rules. Each cause is the
+    /// The answer without its numbers, the machines' ids and positions. The panel gives the numbers: a small model copied
+    /// them right but pinned them on the wrong things (asked 2026-11-22). The panel links the ids and positions to the
+    /// map, and they take most of a large trace's tokens. A prompt longer than the model's context loses its start, the rules. Each cause is the
     /// ledger's term alone (the MCP server's causeTerm), so the model doesn't repeat the code for it. A bottleneck's
     /// more capacity is a sentence, its nextStep: given the tier, lines and rate, a small model took the rate for the
-    /// belt's capacity and the lines for how many there are now. The dialog shows the rate. A start's path is a sentence
+    /// belt's capacity and the lines for how many there are now. The panel shows the lines and the rate. A start's path is a sentence
     /// too, its way: given the steps, a small model skipped from the machines asked about to the start's item.
     /// </summary>
     private static string ForTheModel(JsonElement answer)
@@ -93,6 +95,11 @@ internal static class ExplanationPrompt
                     properties["cause"] = words;
                 }
 
+                foreach (string number in properties.Where(property => property.Value?.GetValueKind() == JsonValueKind.Number).Select(property => property.Key).ToList())
+                {
+                    properties.Remove(number);
+                }
+
                 foreach (KeyValuePair<string, JsonNode?> property in properties)
                 {
                     Simplify(property.Value);
@@ -110,16 +117,17 @@ internal static class ExplanationPrompt
     }
 
     /// <summary>
-    /// What a bottleneck needs, as the step to take: another line beside it when it's of the tier needed already,
-    /// otherwise a rebuild as the tier, in lines side by side when one isn't enough.
+    /// What a bottleneck needs, as the step to take, in words: how many lines is the panel's. Another line beside it when
+    /// it's of the tier needed already, otherwise a rebuild as the tier, in lines side by side when one isn't enough.
     /// </summary>
     private static string NextStep(JsonObject more, string? bottleneck)
     {
         string tier = more["tier"]!.GetValue<string>();
         int lines = more["lines"]!.GetValue<int>();
         return lines == 1 ? $"Rebuild it as {tier}."
-            : tier == bottleneck ? $"Lay another {tier} beside it, for {lines} lines side by side."
-            : $"Rebuild it as {lines} lines of {tier} side by side.";
+            : tier != bottleneck ? $"Rebuild it as lines of {tier} side by side."
+            : lines == 2 ? $"Lay another {tier} beside it."
+            : $"Lay more lines of {tier} beside it.";
     }
 
     /// <summary>
