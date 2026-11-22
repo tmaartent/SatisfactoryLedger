@@ -53,6 +53,50 @@ internal static class IronWorld
             unusedSupply = Array.Empty<object>(),
             unknownSupply = Array.Empty<object>(),
         });
+        api.Answer($"/api/v1/world/snapshots/{Newest}/traces/shortage?building=Build_ConstructorMk1_C&recipe=Recipe_IronPlate_C", new
+        {
+            building = "Build_ConstructorMk1_C",
+            recipe = "Recipe_IronPlate_C",
+            machines = 3,
+            traced = 2,
+            starts = new[]
+            {
+                new
+                {
+                    cause = "tooFewProducers",
+                    item = "Desc_IronIngot_C",
+                    at = new[] { Group("Build_SmelterMk1_C", "Recipe_IngotIron_C", 1, 0, "m-3") },
+                    path = new[] { new { machines = new[] { Group("Build_ConstructorMk1_C", "Recipe_IronPlate_C", 2, 0, "m-1", "m-2") }, item = "Desc_IronIngot_C", perMinute = 30.0 } },
+                    perMinute = 30.0,
+                    others = Array.Empty<object>(),
+                    shortOf = new Dictionary<string, double>(),
+                },
+            },
+        });
+        api.Answer($"/api/v1/world/snapshots/{Newest}/traces/shortage?building=Build_SmelterMk1_C", new
+        {
+            building = "Build_SmelterMk1_C", recipe = (string?)null, machines = 1, traced = 0, starts = Array.Empty<object>(),
+        });
+        api.Answer($"/api/v1/world/snapshots/{Newest}/traces/blockage?building=Build_ConstructorMk1_C&recipe=Recipe_IronPlate_C", new
+        {
+            building = "Build_ConstructorMk1_C",
+            recipe = "Recipe_IronPlate_C",
+            machines = 3,
+            traced = 1,
+            starts = new[]
+            {
+                new
+                {
+                    cause = "suppliedByOthers",
+                    item = "Desc_IronPlate_C",
+                    at = new[] { Group("Build_ConstructorMk1_C", "Recipe_IronRod_C", 1, 0, "m-9") },
+                    path = new[] { new { machines = new[] { Group("Build_ConstructorMk1_C", "Recipe_IronPlate_C", 1, 0, "m-4") }, item = "Desc_IronPlate_C", perMinute = 4.0 } },
+                    perMinute = 15.0,
+                    others = new[] { Group("Build_SmelterMk1_C", "Recipe_IngotIron_C", 1, 10, "m-3") },
+                    shortOf = new Dictionary<string, double>(),
+                },
+            },
+        });
         return api;
     }
 
@@ -158,6 +202,9 @@ internal static class IronWorld
             onStock = (string?)null,
             stockMinutes = (double?)null,
         };
+
+    private static object Group(string className, string? recipe, int count, double perMinute, params string[] ids) =>
+        new { className, recipe, count, perMinute, ids, position = new { x = 1250.0, y = -300.0, z = 400.0 } };
 
     private static object Item(string id, string name, string form = "solid", bool raw = false) =>
         new { id, name, form, isRawResource = raw, inGame = true, fluidColour = (string?)null };

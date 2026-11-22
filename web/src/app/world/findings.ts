@@ -3,6 +3,7 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -22,6 +23,7 @@ import { UnknownSupplyFinding } from '../api/models/unknown-supply-finding';
 import { CatalogNames } from '../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../shared/display';
 import { OutlinedFactory, factoryColour, machineOwners } from './area/factory-outlines';
+import { ExplainDialog, ExplainDialogData } from './explain/explain-dialog';
 import { FindingsSummary } from './findings-summary';
 import { LimitFacts, limitText } from './limit-text';
 
@@ -56,6 +58,7 @@ export type Findings = Pick<AnalysisResponse, 'summary' | 'generatorSummary' | '
 })
 export class FindingsView {
   protected readonly names = inject(CatalogNames);
+  private readonly dialog = inject(MatDialog);
   readonly findings = input.required<Findings>();
   /** The generators tab shows only when there are any: most factories have none. */
   protected readonly generators = computed(() => (this.findings().generators?.length ? this.findings().generators! : null));
@@ -133,6 +136,22 @@ export class FindingsView {
   /** The items a factory's outputs or inputs carry, each once, by name. */
   protected itemsOf(connections: ConnectionSummary[]): string {
     return [...new Set(connections.flatMap((connection) => connection.items))].map((item) => this.names.item(item)).join(', ') || '—';
+  }
+
+  /** Whether a machine is held back in a way the Assistant explains: starved or output blocked (ADR-0030). */
+  protected explainable(machine: MachineFinding): boolean {
+    return machine.limit === 'starved' || machine.limit === 'outputBlocked';
+  }
+
+  /** Explains why the machines of this one's building and recipe are held back; the trace takes them together. */
+  protected explain(machine: MachineFinding, snapshotId: string): void {
+    if (machine.limit !== 'starved' && machine.limit !== 'outputBlocked') return;
+    const recipe = machine.recipe ? ` (${this.names.recipe(machine.recipe)})` : '';
+    const data: ExplainDialogData = {
+      finding: { snapshotId, building: machine.className, recipe: machine.recipe, limit: machine.limit },
+      machines: `${this.names.building(machine.className)}${recipe}`,
+    };
+    this.dialog.open(ExplainDialog, { data, width: '640px' });
   }
 
   // Generator rows are untyped too.

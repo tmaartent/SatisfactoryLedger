@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 
 import { MachineFinding } from '../api/models/machine-finding';
 import { CatalogNames } from '../shared/catalog-names';
 import { classNameAsWords } from '../shared/display';
+import { ExplainDialog } from './explain/explain-dialog';
 import { Findings, FindingsView } from './findings';
 
 const machine = (id: string, limit: MachineFinding['limit'], limitingItem: string | null = null, onStock: string | null = null): MachineFinding => ({
@@ -65,10 +67,13 @@ const catalogNames: Partial<CatalogNames> = {
 };
 
 describe('FindingsView', () => {
+  let dialog: { open: ReturnType<typeof vi.fn> };
+
   async function render(shown: Findings = findings) {
+    dialog = { open: vi.fn() };
     TestBed.configureTestingModule({
       imports: [FindingsView],
-      providers: [{ provide: CatalogNames, useValue: catalogNames }, provideRouter([])],
+      providers: [{ provide: CatalogNames, useValue: catalogNames }, { provide: MatDialog, useValue: dialog }, provideRouter([])],
     });
     const fixture = TestBed.createComponent(FindingsView);
     fixture.componentRef.setInput('findings', shown);
@@ -83,6 +88,21 @@ describe('FindingsView', () => {
     const fixture = await render();
 
     expect(rows(fixture.nativeElement)[0]).toContain('Not enough Iron Ingot');
+  });
+
+  it('offers to explain why a held-back machine runs below 100%, and not a running one', async () => {
+    const fixture = await render();
+
+    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button[aria-label="Explain why"]'));
+    expect(buttons).toHaveLength(2);
+    buttons[0].click();
+
+    expect(dialog.open).toHaveBeenCalledWith(ExplainDialog, expect.objectContaining({
+      data: {
+        finding: { snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' },
+        machines: `${classNameAsWords('Build_ConstructorMk1_C')} (${classNameAsWords('Recipe_IronPlate_C')})`,
+      },
+    }));
   });
 
   async function filterOn(fixture: Awaited<ReturnType<typeof render>>, label: string) {

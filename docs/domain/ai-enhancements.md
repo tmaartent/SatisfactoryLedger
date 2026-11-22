@@ -11,7 +11,7 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 1. MCP server, then 2. evals, then 3. explain a finding. Everything after builds on the evals: they're what tells you whether RAG, a local model or fine-tuning actually helped. MLflow (8) can start as soon as the evals do.
 
 ## 1. An MCP server over the ledger
-*Raised 2026-11-08. Started 2026-11-20: [ADR-0029](../adr/0029-mcp-server-over-the-public-api.md), [step 55](../guide/log/55-mcp-server.md). Tracing up and downstream is next.*
+*Raised 2026-11-08. Started 2026-11-20: [ADR-0029](../adr/0029-mcp-server-over-the-public-api.md), [step 55](../guide/log/55-mcp-server.md). Tracing up and downstream: [step 56](../guide/log/56-where-a-shortage-starts.md).*
 
 **What:** expose the API as Model Context Protocol tools, such as `list_snapshots`, `get_findings`, `find_machine` and `trace_upstream`, so Claude or any MCP client can investigate a world in a conversation.
 
@@ -38,7 +38,7 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 **What it would take:** the questions with expected facts as a file in the repo, a runner, and snapshots of the owner's saves at known points (or small fixture worlds built in code, as `StockFindingsTests` does).
 
 ## 3. Explain a finding
-*Raised 2026-11-08.*
+*Raised 2026-11-08. Started 2026-11-21: [ADR-0030](../adr/0030-assistant-explains-a-finding.md), [step 57](../guide/log/57-explain-a-finding.md).*
 
 **What:** a button on a finding that writes a short explanation and next step, grounded in the finding and its trace, for example "the rod makers get 76% of the control rods they need; look at the control rod line".
 
@@ -47,6 +47,8 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 **Skills:** grounding, structured context, prompt design, showing where each claim comes from.
 
 **What it would take:** an *Assistant* module that only uses the other modules' `*.Contracts` (ADR-0003), and `Microsoft.Extensions.AI`'s `IChatClient`: .NET's common interface for chat models, roughly Spring AI's `ChatClient`. The same code then runs against Claude or a local model.
+
+**As built (step 57):** not a module but a service of its own, which gets its facts as an MCP client of idea 1's server: the trace that fits the finding, and the tool's own description. One model call through `IChatClient`, with Qwen 2.5 7B on Ollama, or Claude when an API key is set. Code checks that every number in the answer comes from the facts.
 
 ## 4. RAG over the docs and the game data
 *Raised 2026-11-08.*

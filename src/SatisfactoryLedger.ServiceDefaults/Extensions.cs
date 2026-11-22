@@ -64,6 +64,8 @@ public static class Extensions
                 .WithTracing(tracing =>
                 {
                     tracing.AddSource(builder.Environment.ApplicationName)
+                        // The chat models' calls (Microsoft.Extensions.AI): the dashboard shows them as GenAI spans.
+                        .AddSource("Experimental.Microsoft.Extensions.AI")
                         .AddAspNetCoreInstrumentation(tracing =>
                             // Exclude health check requests from tracing
                             tracing.Filter = context =>

@@ -25,6 +25,15 @@ internal sealed class LedgerClient(HttpClient http)
         GetAnalysedAsync<FactoryAnalysisResponse>(
             $"/api/v1/world/snapshots/{Uri.EscapeDataString(snapshotId)}/factories/{Uri.EscapeDataString(factoryId)}/analysis", "factory", cancellationToken);
 
+    /// <param name="direction">"shortage" (upstream) or "blockage" (downstream).</param>
+    /// <param name="recipe">Only the machines with this recipe (its class name); all of the building when null.</param>
+    public Task<TraceResponse> GetTraceAsync(string snapshotId, string direction, string building, string? recipe, CancellationToken cancellationToken) =>
+        GetAnalysedAsync<TraceResponse>(
+            $"/api/v1/world/snapshots/{Uri.EscapeDataString(snapshotId)}/traces/{direction}?building={Uri.EscapeDataString(building)}"
+            + (recipe is null ? "" : $"&recipe={Uri.EscapeDataString(recipe)}"),
+            "snapshot",
+            cancellationToken);
+
     public Task<IReadOnlyList<ItemResponse>> GetItemsAsync(CancellationToken cancellationToken) =>
         GetListAsync<ItemResponse>("/api/v1/catalog/items", cancellationToken);
 

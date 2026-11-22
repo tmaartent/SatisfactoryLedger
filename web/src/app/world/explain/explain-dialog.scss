@@ -1,0 +1,51 @@
+.text {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+// Numbers the facts don't hold: the model may have computed them, which is the solver's job.
+.warning {
+  color: var(--mat-sys-error);
+
+  mat-icon {
+    vertical-align: middle;
+  }
+}
+
+// Where it starts: listed by code from the trace, so it holds every place, linked to the map.
+.starts {
+  h3 {
+    margin: 16px 0 4px;
+    font-size: 0.95rem;
+  }
+
+  .start {
+    margin-bottom: 12px;
+  }
+
+  // What each list below is: who's held back, the way there, the buildings it starts at, who else shares the item.
+  .label {
+    display: block;
+    margin-top: 4px;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.85rem;
+  }
+
+  .via {
+    display: block;
+    padding-left: 20px;
+  }
+
+  ul {
+    margin: 2px 0;
+    padding-left: 20px;
+  }
+}
+
+mat-button-toggle-group {
+  margin-right: auto;
+}

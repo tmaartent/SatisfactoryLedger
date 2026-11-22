@@ -1036,6 +1036,148 @@
         }
       }
     },
+    "/api/v1/world/snapshots/{id}/traces/shortage": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Where the shortage of the starved machines of one class and recipe starts: upstream along what they're short of",
+        "description": "?building=<class name>&recipe=<class name, optional>. Each start says why (too few producers, a belt full, a source at its limit, taken by others, …), of which item, at which buildables, and the steps leading there. 202 until the analysis is ready.",
+        "operationId": "TraceShortage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "building",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipe",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPendingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/snapshots/{id}/traces/blockage": {
+      "get": {
+        "tags": [
+          "World"
+        ],
+        "summary": "Where the blockage of the output-blocked machines of one class and recipe starts: downstream along what can't leave",
+        "description": "?building=<class name>&recipe=<class name, optional>. Each start says why (too few consumers, a belt full, consumers starved, storage full, nowhere to go, …), of which item, at which buildables, and the steps leading there. 202 until the analysis is ready.",
+        "operationId": "TraceBlockage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "building",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipe",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceResponse"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPendingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/world/snapshots/{id}/map": {
       "get": {
         "tags": [
@@ -3771,6 +3913,177 @@
           },
           "analysis": {
             "$ref": "#/components/schemas/AnalysisStatus"
+          }
+        }
+      },
+      "TraceCause": {
+        "enum": [
+          "tooFewProducers",
+          "beltFull",
+          "sourceAtLimit",
+          "takenByOthers",
+          "nothingBringsIt",
+          "noRecipe",
+          "unknownSupply",
+          "producerOutputBlocked",
+          "tooFewConsumers",
+          "suppliedByOthers",
+          "consumerStarved",
+          "storageFull",
+          "nowhereToGo",
+          "unclear"
+        ]
+      },
+      "TraceGroupResponse": {
+        "required": [
+          "className",
+          "recipe",
+          "count",
+          "perMinute",
+          "ids",
+          "position"
+        ],
+        "type": "object",
+        "properties": {
+          "className": {
+            "type": "string"
+          },
+          "recipe": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "perMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PositionDocument"
+              }
+            ]
+          }
+        }
+      },
+      "TraceResponse": {
+        "required": [
+          "building",
+          "recipe",
+          "machines",
+          "traced",
+          "starts"
+        ],
+        "type": "object",
+        "properties": {
+          "building": {
+            "type": "string"
+          },
+          "recipe": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "machines": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "traced": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "starts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceStartResponse"
+            }
+          }
+        }
+      },
+      "TraceStartResponse": {
+        "required": [
+          "cause",
+          "item",
+          "at",
+          "path",
+          "perMinute",
+          "others",
+          "shortOf"
+        ],
+        "type": "object",
+        "properties": {
+          "cause": {
+            "$ref": "#/components/schemas/TraceCause"
+          },
+          "item": {
+            "type": "string"
+          },
+          "at": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceGroupResponse"
+            }
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceStepResponse"
+            }
+          },
+          "perMinute": {
+            "type": "number",
+            "format": "double"
+          },
+          "others": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceGroupResponse"
+            }
+          },
+          "shortOf": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      },
+      "TraceStepResponse": {
+        "required": [
+          "machines",
+          "item",
+          "perMinute"
+        ],
+        "type": "object",
+        "properties": {
+          "machines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceGroupResponse"
+            }
+          },
+          "item": {
+            "type": "string"
+          },
+          "perMinute": {
+            "type": "number",
+            "format": "double"
           }
         }
       },

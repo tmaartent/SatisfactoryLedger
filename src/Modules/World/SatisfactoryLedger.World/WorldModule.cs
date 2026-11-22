@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +13,7 @@ using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Map;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
+using SatisfactoryLedger.World.Tracing;
 
 namespace SatisfactoryLedger.World;
 
@@ -51,6 +52,7 @@ public static class WorldModule
             .MapSnapshotEndpoints()
             .MapFactoryEndpoints()
             .MapAnalysisEndpoints()
+            .MapTraceEndpoints()
             .MapWorldMapEndpoints()
             .MapArrangementEndpoints();
 

@@ -1,0 +1,61 @@
+using SatisfactoryLedger.World.Domain.Flow.Objects;
+using SatisfactoryLedger.World.Domain.Tracing;
+
+namespace SatisfactoryLedger.World.Domain.Tests.Tracing;
+
+/// <summary>What the analysis found about a small world, set by hand: how each machine runs, and what flows where.</summary>
+internal sealed class TestReadings
+{
+    private readonly Dictionary<BuildableId, MachineReading> _machines = [];
+    private readonly Dictionary<BuildableId, double> _bottlenecks = [];
+    private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _spare = [];
+    private readonly HashSet<BuildableId> _unknown = [];
+    private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _into = [];
+
+    public TestReadings Running(string id) => Machine(id, new MachineReading(MachineLimit.None, 1, new Dictionary<ItemId, double>(), new Dictionary<ItemId, double>()));
+
+    public TestReadings Starved(string id, ItemId item, double share) =>
+        Machine(id, new MachineReading(MachineLimit.Starved, share, new Dictionary<ItemId, double> { [item] = share }, new Dictionary<ItemId, double>()));
+
+    public TestReadings Blocked(string id, ItemId item, double share) =>
+        Machine(id, new MachineReading(MachineLimit.OutputBlocked, share, new Dictionary<ItemId, double>(), new Dictionary<ItemId, double> { [item] = share }));
+
+    public TestReadings WithoutRecipe(string id) =>
+        Machine(id, new MachineReading(MachineLimit.NoRecipe, 0, new Dictionary<ItemId, double>(), new Dictionary<ItemId, double>()));
+
+    /// <summary>A belt or pipe at its capacity while more is offered to it (BR-A12).</summary>
+    public TestReadings Bottleneck(string id, double offeredMore)
+    {
+        _bottlenecks[BuildableId.Of(id)] = offeredMore;
+        return this;
+    }
+
+    /// <summary>A provider that could deliver more than is taken from it.</summary>
+    public TestReadings Spare(string id, ItemId item, double perMinute)
+    {
+        _spare[BuildableId.Of(id)] = new Dictionary<ItemId, double> { [item] = perMinute };
+        return this;
+    }
+
+    /// <summary>A station whose supply the save doesn't say.</summary>
+    public TestReadings Unknown(string id)
+    {
+        _unknown.Add(BuildableId.Of(id));
+        return this;
+    }
+
+    /// <summary>What flows into a belt or pipe, per minute.</summary>
+    public TestReadings Into(string id, ItemId item, double perMinute)
+    {
+        _into[BuildableId.Of(id)] = new Dictionary<ItemId, double> { [item] = perMinute };
+        return this;
+    }
+
+    public FlowReadings Build() => new(_machines, _bottlenecks, _spare, _unknown, _into);
+
+    private TestReadings Machine(string id, MachineReading reading)
+    {
+        _machines[BuildableId.Of(id)] = reading;
+        return this;
+    }
+}
