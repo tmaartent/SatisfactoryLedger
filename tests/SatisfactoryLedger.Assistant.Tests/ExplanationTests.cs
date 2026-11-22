@@ -114,6 +114,76 @@ public class ExplanationTests
     }
 
     [Fact]
+    public async Task Gives_the_model_what_a_bottleneck_needs_as_the_next_step_so_it_suggests_no_tier_the_game_lacks()
+    {
+        const string fullMk6 = """
+            {
+              "building": "Assembler", "recipe": "Alternate: Quickwire Stator", "machines": 15, "traced": 6,
+              "starts": [{
+                "cause": "beltFull", "causeTerm": "bottleneck", "item": "Quickwire", "perMinute": 1200,
+                "at": [{ "building": "Conveyor Belt Mk.6", "count": 1, "ids": ["belt-1"] }],
+                "path": [], "moreCapacity": { "tier": "Conveyor Belt Mk.6", "lines": 2, "carriesPerMinute": 1550 }
+              }]
+            }
+            """;
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", fullMk6), chat);
+
+        await ExplainAsync(server, StarvedConstructors);
+
+        Assert.Contains("nextStep", Assert.Single(chat.Messages, message => message.Role == ChatRole.System).Text, StringComparison.Ordinal);
+        string question = Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text;
+        Assert.Contains("\"nextStep\":\"Lay another Conveyor Belt Mk.6 beside it, for 2 lines side by side.\"", question, StringComparison.Ordinal);
+        Assert.DoesNotContain("moreCapacity", question, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Conveyor Belt Mk.4", 1, "Rebuild it as Conveyor Belt Mk.4.")]
+    [InlineData("Conveyor Belt Mk.6", 2, "Rebuild it as 2 lines of Conveyor Belt Mk.6 side by side.")]
+    public async Task Words_the_next_step_for_a_bottleneck_below_the_tier_it_needs_as_a_rebuild(string tier, int lines, string nextStep)
+    {
+        string fullMk3 = $$"""
+            {
+              "building": "Constructor", "recipe": "Iron Plate", "machines": 3, "traced": 2,
+              "starts": [{
+                "cause": "beltFull", "causeTerm": "bottleneck", "item": "Iron Ingot", "perMinute": 270,
+                "at": [{ "building": "Conveyor Belt Mk.3", "count": 1, "ids": ["belt-1"] }],
+                "path": [], "moreCapacity": { "tier": "{{tier}}", "lines": {{lines}}, "carriesPerMinute": 450 }
+              }]
+            }
+            """;
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", fullMk3), chat);
+
+        await ExplainAsync(server, StarvedConstructors);
+
+        Assert.Contains($"\"nextStep\":\"{nextStep}\"", Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Leaves_out_what_more_lines_would_carry_so_the_model_cannot_take_it_for_the_belt_s_capacity()
+    {
+        const string fullMk6 = """
+            {
+              "building": "Assembler", "recipe": "Alternate: Quickwire Stator", "machines": 15, "traced": 6,
+              "starts": [{
+                "cause": "beltFull", "causeTerm": "bottleneck", "item": "Quickwire", "perMinute": 1200,
+                "at": [{ "building": "Conveyor Belt Mk.6", "count": 1, "ids": ["belt-1"] }],
+                "path": [], "moreCapacity": { "tier": "Conveyor Belt Mk.6", "lines": 2, "carriesPerMinute": 1285.42 }
+              }]
+            }
+            """;
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", fullMk6), chat);
+
+        JsonElement explanation = await ExplainAsync(server, StarvedConstructors);
+
+        Assert.DoesNotContain("1285.42", Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text, StringComparison.Ordinal);
+        JsonElement more = explanation.GetProperty("facts").GetProperty("answer").GetProperty("starts")[0].GetProperty("moreCapacity");
+        Assert.Equal(1285.42, more.GetProperty("carriesPerMinute").GetDouble());
+    }
+
+    [Fact]
     public async Task Traces_an_output_blocked_finding_downstream()
     {
         var chat = new FakeChatClient("The Smelter makes more Iron Ingot than its consumers take.");
