@@ -36,5 +36,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0028](0028-belt-routing-without-crossings-as-nesting-orders.md) | Routing belts without crossings, as orders that nest | Proposed |
 | [0029](0029-mcp-server-over-the-public-api.md) | An MCP server over the public API, read-only | Accepted |
 | [0030](0030-assistant-explains-a-finding.md) | The Assistant explains a finding, from the MCP server's tools, with a local model or Claude | Accepted |
+| [0031](0031-a-sidebar-of-tabs-on-every-world-page.md) | A sidebar of tabs on the right of every World page | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

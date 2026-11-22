@@ -1,0 +1,93 @@
+@if (explainer.question(); as question) {
+  <header>
+    <h2>Why are the {{ question.machines }} machines {{ held() }}?</h2>
+    <button mat-icon-button (click)="explainer.close()" aria-label="Clear the explanation" matTooltip="Clear"><mat-icon>close</mat-icon></button>
+  </header>
+  <div class="body">
+    @if (explainer.asking()) {
+      <p class="muted">Asking {{ modelName() }}. A local model's first answer can take a while, as it loads.</p>
+      <mat-progress-bar mode="indeterminate" />
+    }
+    @if (explainer.error(); as error) {
+      <p class="error">{{ error }}</p>
+    }
+    @if (explainer.explanation(); as explanation) {
+      <p class="text">{{ explanation.text }}</p>
+      @if (explanation.unsupportedNumbers.length > 0) {
+        <p class="warning">
+          <mat-icon inline>warning</mat-icon>
+          Not in the facts: {{ explanation.unsupportedNumbers.join(', ') }}. The model may have worked these out itself; check them.
+        </p>
+      }
+      @if (starts().length > 0) {
+        <section class="starts">
+          <h3>Where it starts</h3>
+          @for (row of starts(); track row.cause + row.item + row.via + row.needs?.what) {
+            <div class="start">
+              <strong>{{ row.cause }}</strong> · {{ row.item }}
+              @if (row.heldLabel) {
+                <span class="label">{{ row.heldLabel }}</span>
+                <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.held }" />
+              }
+              @if (row.via) {
+                <span class="label">Via</span>
+                <span class="via">{{ row.via }}</span>
+              }
+              <span class="label">
+                {{ row.atLabel }}
+                @if (row.perMinute !== null) {
+                  · {{ row.perMinute | number: '1.0-2' }}/min
+                }
+              </span>
+              <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.at }" />
+              @if (row.needs; as needs) {
+                <span class="label">To carry all that's offered · {{ needs.perMinute | number: '1.0-2' }}/min</span>
+                <span class="via">{{ needs.what }}</span>
+              }
+              @if (row.othersLabel) {
+                <span class="label">{{ row.othersLabel }}</span>
+                <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.others }" />
+              }
+            </div>
+          }
+        </section>
+      }
+      <p class="muted">{{ source() }}</p>
+    }
+  </div>
+  <footer>
+    @if (explainer.models().length > 1) {
+      <mat-button-toggle-group [value]="explainer.model()" (change)="explainer.ask($event.value)" [disabled]="explainer.asking()" hideSingleSelectionIndicator>
+        @for (choice of explainer.models(); track choice.key) {
+          <mat-button-toggle [value]="choice.key">{{ choice.model }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    }
+    <button mat-button (click)="explainer.ask()" [disabled]="explainer.asking()">Explain again</button>
+  </footer>
+
+  <!-- Buildings of one kind each, linked to the map where the trace gives an id, with what they take or give. -->
+  <ng-template #placesList let-places>
+    <ul>
+      @for (place of places; track place.name) {
+        <li>
+          @if (place.focus) {
+            <a [routerLink]="['/snapshots', question.finding.snapshotId, 'map']" [queryParams]="{ focus: place.focus }">{{ place.name }}</a>
+          } @else {
+            {{ place.name }}
+          }
+          ×{{ place.count }}
+          @if (place.perMinute !== null) {
+            · {{ place.perMinute | number: '1.0-2' }}/min
+          }
+        </li>
+      }
+    </ul>
+  </ng-template>
+} @else {
+  <!-- Nothing asked yet: where to ask. -->
+  <p class="muted hint">
+    Ask why a starved or output-blocked machine runs as it does: <b>Explain why</b> in the findings or beside a machine
+    clicked in 3D, or click a machine of no factory on the map.
+  </p>
+}

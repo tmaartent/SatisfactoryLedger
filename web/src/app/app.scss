@@ -18,7 +18,24 @@ nav .active {
   background: var(--mat-sys-secondary-container);
 }
 
-// The whole width of the window (asked 2026-11-19): the map is the main view.
+.shell {
+  display: flex;
+  align-items: flex-start;
+}
+
+// The whole width of the window (asked 2026-11-19): the map is the main view. Less the sidebar beside it.
 main {
+  flex: 1;
+  min-width: 0;
   padding: 24px 16px;
+}
+
+// Held below the toolbar while the page scrolls. Above Leaflet's panes (up to 1000), which share the page's stacking
+// context: on a narrow screen its open tab lies over the map.
+app-sidebar {
+  position: sticky;
+  top: var(--mat-toolbar-standard-height, 64px);
+  z-index: 1100;
+  flex-shrink: 0;
+  height: calc(100vh - var(--mat-toolbar-standard-height, 64px));
 }

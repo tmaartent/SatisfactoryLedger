@@ -1,15 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 
+import { CatalogNames } from '../../shared/catalog-names';
 import { Assistant, ChatModel, Explanation } from './assistant';
-import { ExplainDialog, ExplainDialogData } from './explain-dialog';
+import { ExplainPanel } from './explain-panel';
+import { Explainer } from './explainer';
 
-const data: ExplainDialogData = {
-  finding: { snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' },
-  machines: 'Constructor (Iron Plate)',
-};
+const finding = { snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' as const };
 
 const explanation = (unsupportedNumbers: string[] = []): Explanation => ({
   text: 'In the model, the 2 Constructors are short of Iron Ingot: the one Smelter makes 30 a minute.',
@@ -42,32 +40,32 @@ const claude: ChatModel = { key: 'claude', model: 'claude-sonnet-5-5' };
 describe('explaining a finding', () => {
   async function render(assistant: { models: () => Promise<ChatModel[]>; explain: Assistant['explain'] }) {
     TestBed.configureTestingModule({
-      imports: [ExplainDialog],
+      imports: [ExplainPanel],
       providers: [
-        { provide: MAT_DIALOG_DATA, useValue: data },
-        { provide: MatDialogRef, useValue: { close: vi.fn() } },
         provideRouter([]),
         { provide: Assistant, useValue: assistant },
+        { provide: CatalogNames, useValue: { building: () => 'Constructor', recipe: () => 'Iron Plate' } },
       ],
     });
-    const fixture = TestBed.createComponent(ExplainDialog);
+    TestBed.inject(Explainer).explain({ className: finding.building, recipe: finding.recipe, limit: finding.limit }, finding.snapshotId);
+    const fixture = TestBed.createComponent(ExplainPanel);
     await settled(fixture);
     return fixture;
   }
 
-  /** Lets the dialog's calls answer: they're promises the test resolves at once. */
-  async function settled(fixture: ComponentFixture<ExplainDialog>) {
+  /** Lets the panel's calls answer: they're promises the test resolves at once. */
+  async function settled(fixture: ComponentFixture<ExplainPanel>) {
     await new Promise((resolve) => setTimeout(resolve));
     await fixture.whenStable();
   }
 
-  const text = (fixture: ComponentFixture<ExplainDialog>) => (fixture.nativeElement as HTMLElement).textContent ?? '';
+  const text = (fixture: ComponentFixture<ExplainPanel>) => (fixture.nativeElement as HTMLElement).textContent ?? '';
 
   it('asks the first model and says which model wrote it, from which facts', async () => {
     const explain = vi.fn(() => Promise.resolve(explanation()));
     const fixture = await render({ models: () => Promise.resolve([local]), explain });
 
-    expect(explain).toHaveBeenCalledWith({ ...data.finding, model: 'local' });
+    expect(explain).toHaveBeenCalledWith({ ...finding, model: 'local' });
     expect(text(fixture)).toContain('Why are the Constructor (Iron Plate) machines starved?');
     expect(text(fixture)).toContain('the one Smelter makes 30 a minute');
     expect(text(fixture)).toContain('Written by qwen2.5:7b, from trace_upstream');
@@ -140,7 +138,18 @@ describe('explaining a finding', () => {
     toggles[1].click();
     await settled(fixture);
 
-    expect(explain).toHaveBeenLastCalledWith({ ...data.finding, model: 'claude' });
+    expect(explain).toHaveBeenLastCalledWith({ ...finding, model: 'claude' });
+  });
+
+  it('clears, and then says where to ask', async () => {
+    const fixture = await render({ models: () => Promise.resolve([local]), explain: () => Promise.resolve(explanation()) });
+
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-label="Clear the explanation"]')!.click();
+    await settled(fixture);
+
+    expect(TestBed.inject(Explainer).question()).toBeNull();
+    expect(text(fixture)).not.toContain('the one Smelter makes 30 a minute');
+    expect(text(fixture)).toContain('Ask why a starved or output-blocked machine runs as it does');
   });
 
   it('offers no choice of model when there is one', async () => {

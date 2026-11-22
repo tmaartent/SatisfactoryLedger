@@ -1,0 +1,96 @@
+// The sidebar's Explanation tab (asked 2026-11-22): the question, the text scrolling under it, the model choice below.
+:host {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.hint {
+  padding: 0 16px;
+}
+
+header {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 4px 4px 16px;
+
+  h2 {
+    flex: 1;
+    margin: 8px 0 0;
+    font-size: 1.05rem;
+    line-height: 1.4;
+  }
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  mat-button-toggle-group {
+    margin-right: auto;
+  }
+}
+
+.text {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+// Numbers the facts don't hold: the model may have computed them, which is the solver's job.
+.warning {
+  color: var(--mat-sys-error);
+
+  mat-icon {
+    vertical-align: middle;
+  }
+}
+
+// Where it starts: listed by code from the trace, so it holds every place, linked to the map.
+.starts {
+  h3 {
+    margin: 16px 0 4px;
+    font-size: 0.95rem;
+  }
+
+  .start {
+    margin-bottom: 12px;
+  }
+
+  // What each list below is: who's held back, the way there, the buildings it starts at, who else shares the item.
+  .label {
+    display: block;
+    margin-top: 4px;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.85rem;
+  }
+
+  .via {
+    display: block;
+    padding-left: 20px;
+  }
+}
+
+ul {
+  margin: 2px 0;
+  padding-left: 20px;
+}

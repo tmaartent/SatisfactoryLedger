@@ -11,6 +11,7 @@ import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FactoryTrace } from '../../api/models/factory-trace';
 import { CatalogNames } from '../../shared/catalog-names';
+import { Sidebar } from '../../sidebar/sidebar';
 import { MapPage } from './map-page';
 
 const factory = (factoryId: string, name: string, traceable = true): FactoryTrace => ({
@@ -30,9 +31,11 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
     nothing as CanvasRenderingContext2D,
   );
+  // Nor does it lay anything out, so nothing is ever resized: an observer that never calls back.
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
 });
 
-async function render(id?: string, mapArt: unknown = null) {
+async function render(id?: string, mapArt: unknown = null, focus?: string) {
   const answers = new Map<unknown, unknown>([
     [
       getResourceNodes,
@@ -41,7 +44,16 @@ async function render(id?: string, mapArt: unknown = null) {
     [getSnapshot, { id, sessionName: 'Desert Start' }],
     [
       getWorldMap,
-      { machines: [], conveyors: [], providers: [], logistics: [], consumers: [], footprints: [] },
+      {
+        machines: [
+          { id: 'smelter-1', className: 'Build_SmelterMk1_C', recipe: 'Recipe_IngotIron_C', position: { x: 0, y: 0, z: 0 }, yaw: 0 },
+        ],
+        conveyors: [],
+        providers: [],
+        logistics: [],
+        consumers: [],
+        footprints: [],
+      },
     ],
     [
       traceFactories,
@@ -57,9 +69,16 @@ async function render(id?: string, mapArt: unknown = null) {
             Promise.reject(new HttpErrorResponse({ status: 404 }))
         : Promise.resolve(answers.get(fn) ?? []),
     ),
-    // The analysis, ready: nothing in it that the list needs.
+    // The analysis, ready: a smelter of no factory, starved.
     invoke$Response: vi.fn(() =>
-      Promise.resolve({ status: 200, body: { machines: [], generators: [], bottlenecks: [] } }),
+      Promise.resolve({
+        status: 200,
+        body: {
+          machines: [{ id: 'smelter-1', className: 'Build_SmelterMk1_C', recipe: 'Recipe_IngotIron_C', limit: 'starved', utilisation: 0.5, starvedOf: {}, blockedOn: {} }],
+          generators: [],
+          bottlenecks: [],
+        },
+      }),
     ),
   };
   TestBed.configureTestingModule({
@@ -79,8 +98,12 @@ async function render(id?: string, mapArt: unknown = null) {
   });
   const fixture = TestBed.createComponent(MapPage);
   if (id) fixture.componentRef.setInput('id', id);
+  if (focus) fixture.componentRef.setInput('focus', focus);
+  // The sidebar the shell puts beside the page: the map's factories and snapshots are tabs of it.
+  const sidebar = TestBed.createComponent(Sidebar);
   await fixture.whenStable();
-  return { fixture, api, element: fixture.nativeElement as HTMLElement };
+  await sidebar.whenStable();
+  return { fixture, sidebar, api, element: fixture.nativeElement as HTMLElement, tabs: sidebar.nativeElement as HTMLElement };
 }
 
 describe('the world map with no snapshot loaded', () => {
@@ -106,36 +129,52 @@ describe('the world map with no snapshot loaded', () => {
     expect(text).not.toContain('Open an area in 3D');
     expect(element.querySelector('.factories')).toBeNull();
   });
+
+  it('has the snapshots in the sidebar, and no factories there', async () => {
+    const { tabs } = await render();
+
+    expect([...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Snapshots']);
+    expect(tabs.querySelector('app-snapshots-sidebar')).not.toBeNull();
+  });
 });
 
 describe('the world map of a snapshot', () => {
   const names = (element: HTMLElement, selector: string) =>
     [...element.querySelectorAll(selector)].map((entry) => entry.textContent?.trim());
 
-  it('lists its factories beside the map', async () => {
-    const { element } = await render('snapshot-1');
+  it('lists its factories in the sidebar, open, with the snapshots in the tab after it', async () => {
+    const { element, tabs } = await render('snapshot-1');
 
-    expect(names(element, '.factories .factory-name')).toEqual(['Rubber', 'Plastic', 'Gone']);
+    expect(names(tabs, '.factories .factory-name')).toEqual(['Rubber', 'Plastic', 'Gone']);
+    expect([...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Factories', 'Snapshots']);
+    expect(element.querySelector('.factories')).toBeNull();
   });
 
   it('highlights a factory picked in the list, and none once it is picked again', async () => {
-    const { fixture, element } = await render('snapshot-1');
-    const rubber = () =>
-      element.querySelector('.factories button.factory-name') as HTMLButtonElement;
+    const { fixture, sidebar, tabs } = await render('snapshot-1');
+    const rubber = () => tabs.querySelector('.factories button.factory-name') as HTMLButtonElement;
 
     rubber().click();
     await fixture.whenStable();
-    expect(names(element, '.factories .highlighted .factory-name')).toEqual(['Rubber']);
+    await sidebar.whenStable();
+    expect(names(tabs, '.factories .highlighted .factory-name')).toEqual(['Rubber']);
 
     rubber().click();
     await fixture.whenStable();
-    expect(names(element, '.factories .highlighted .factory-name')).toEqual([]);
+    await sidebar.whenStable();
+    expect(names(tabs, '.factories .highlighted .factory-name')).toEqual([]);
+  });
+
+  it('offers to explain a held-back machine of no factory, in its tooltip', async () => {
+    const { element } = await render('snapshot-1', null, 'smelter-1');
+
+    expect(element.querySelector('.leaflet-tooltip')?.textContent).toContain('Click to explain why');
   });
 
   it('offers no factory to highlight that cannot be traced', async () => {
-    const { element } = await render('snapshot-1');
+    const { tabs } = await render('snapshot-1');
 
-    const gone = [...element.querySelectorAll('.factories button.factory-name')].find(
+    const gone = [...tabs.querySelectorAll('.factories button.factory-name')].find(
       (button) => button.textContent?.trim() === 'Gone',
     ) as HTMLButtonElement;
     expect(gone.disabled).toBe(true);

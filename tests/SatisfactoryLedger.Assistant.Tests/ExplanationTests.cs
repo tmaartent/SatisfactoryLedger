@@ -184,6 +184,62 @@ public class ExplanationTests
     }
 
     [Fact]
+    public async Task Words_the_way_to_a_start_further_up_so_the_model_names_what_the_machines_asked_about_lack()
+    {
+        const string sulfur = """
+            {
+              "building": "Assembler", "recipe": "Nobelisk", "machines": 6, "traced": 6,
+              "starts": [{
+                "cause": "takenByOthers", "causeTerm": "taken by others", "item": "Sulfur", "perMinute": 600,
+                "at": [{ "building": "Miner Mk.3", "count": 1, "ids": ["miner-1"] }],
+                "path": [
+                  { "building": "Assembler", "recipe": "Nobelisk", "machines": 6, "ids": ["n1"], "shortOf": "Black Powder", "perMinute": 30 },
+                  { "building": "Assembler", "recipe": "Black Powder", "machines": 6, "ids": ["b1"], "shortOf": "Sulfur", "perMinute": 60 }
+                ]
+              }]
+            }
+            """;
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", sulfur), chat);
+
+        await ExplainAsync(server, StarvedConstructors);
+
+        string question = Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text;
+        Assert.Contains(
+            "\"way\":\"The Assembler (Nobelisk) machines are short of Black Powder, made by the Assembler (Black Powder) machines, which are short of Sulfur.\"",
+            question,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("\"path\"", question, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Words_the_way_downstream_by_what_the_machines_cannot_get_away()
+    {
+        const string plates = """
+            {
+              "building": "Smelter", "recipe": "Iron Ingot", "machines": 1, "traced": 1,
+              "starts": [{
+                "cause": "tooFewConsumers", "causeTerm": "too few consumers", "item": "Iron Plate", "perMinute": 20, "at": [],
+                "path": [
+                  { "building": "Smelter", "recipe": "Iron Ingot", "machines": 1, "ids": ["s1"], "cannotLeave": "Iron Ingot", "perMinute": 15 },
+                  { "building": "Constructor", "recipe": "Iron Plate", "machines": 2, "ids": ["c1"], "cannotLeave": "Iron Plate", "perMinute": 10 },
+                  { "building": "Constructor", "recipe": "Alternate: Coated Iron Plate", "machines": 1, "ids": ["c2"], "cannotLeave": "Iron Plate", "perMinute": 5 }
+                ]
+              }]
+            }
+            """;
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_downstream", plates), chat);
+
+        await ExplainAsync(server, new { snapshotId = "s1", building = "Build_SmelterMk1_C", limit = "outputBlocked" });
+
+        Assert.Contains(
+            "\"way\":\"The Smelter (Iron Ingot) machines can't get Iron Ingot away, to the Constructor (Iron Plate) and Constructor (Alternate: Coated Iron Plate) machines, which can't get Iron Plate away.\"",
+            Assert.Single(chat.Messages, message => message.Role == ChatRole.User).Text,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Traces_an_output_blocked_finding_downstream()
     {
         var chat = new FakeChatClient("The Smelter makes more Iron Ingot than its consumers take.");

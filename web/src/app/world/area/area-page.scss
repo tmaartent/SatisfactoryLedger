@@ -1,13 +1,3 @@
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 16px;
-
-  @media (max-width: 900px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .viewer {
   display: grid;
   gap: 8px;
@@ -79,9 +69,6 @@
 .factory {
   display: grid;
   gap: 8px;
-  padding-bottom: 12px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
 
   .how {
     display: grid;
@@ -94,21 +81,21 @@
   .clicked {
     font: var(--mat-sys-title-small);
   }
-
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
 }
 
-.legend {
-  display: grid;
-  gap: 8px;
-  padding-top: 12px;
-  margin-top: 4px;
-  border-top: 1px solid var(--mat-sys-outline-variant);
+// The factory's name while defining one, in the page's header, as on a factory's own page.
+.name {
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: var(--mat-sys-title-medium);
+}
 
+// The Factories tab: each factory with machines in the area, to open, edit or delete.
+.legend {
   ul {
     display: grid;
     gap: 4px;
@@ -153,13 +140,12 @@
   }
 }
 
+// A tab of the sidebar: the Info tab, and the Factories tab.
 .panel {
   display: grid;
   align-content: start;
   gap: 8px;
-  padding: 16px;
-  border-radius: 12px;
-  background: var(--mat-sys-surface-container);
+  padding: 4px 16px 16px;
 
   h2 {
     margin: 0;
@@ -189,6 +175,11 @@
 
 .recipe {
   color: var(--mat-sys-on-surface-variant);
+}
+
+// Under why a held-back machine runs as it does, before what it holds.
+.explain {
+  margin-bottom: 12px;
 }
 
 .status {

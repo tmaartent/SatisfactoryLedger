@@ -27,13 +27,15 @@ The enhancements doc planned an *Assistant module* in the API, using the other m
   - copy numbers and never compute one;
   - say "in the model";
   - the main cause in plain words, and one next step;
-  - no list of the starts and no positions: the dialog lists those;
+  - no list of the starts and no positions: the panel lists those;
   - two or three sentences.
 
   Temperature 0.2.
-- **Code checks the numbers.** Every number in the answer must come from the facts: as written, rounded to the decimals written, or rounded up or down to a whole number. Numbers in names and ids count, and 100 (full speed) is always allowed. The ones that don't come from the facts are returned as `unsupportedNumbers`, and the dialog flags them. This is "the model explains, the solver computes", checked rather than hoped for.
+- **Code checks the numbers.** Every number in the answer must come from the facts: as written, rounded to the decimals written, or rounded up or down to a whole number. Numbers in names and ids count, and 100 (full speed) is always allowed. The ones that don't come from the facts are returned as `unsupportedNumbers`, and the panel flags them. This is "the model explains, the solver computes", checked rather than hoped for.
 - **When nothing is held back,** the trace's own note is the answer, without a model.
-- **The answer shows its sources:** the model and the tool. Beside the text, the dialog lists *where it starts*: built by code from the tool's answer, not by the model, with one row per cause and item and each place linked to the map (`?focus=` its first id). The model says why; the list says where. *(Decided 2026-11-21, instead of the raw JSON.)*
+- **The answer shows its sources:** the model and the tool. Beside the text, the panel lists *where it starts*: built by code from the tool's answer, not by the model, with one row per cause and item and each place linked to the map (`?focus=` its first id). The model says why; the list says where. *(Decided 2026-11-21, instead of the raw JSON.)*
+- **The explanation stays beside every page** (decided 2026-11-22): the Explanation tab of the sidebar on the right of every World page, not a dialog. Following its links to the map or a 3D view keeps it. One at a time, a new question replaces it; asking shows the tab, opening the sidebar if it was collapsed. It's cleared when the player moves to another snapshot; with nothing asked, the tab says where to ask. *(First a panel of its own, the same day; it became a tab when the sidebar took the pages' side panels, step 63.)*
+- **Where to ask:** *Explain why* in the findings table and beside a machine clicked in 3D, and a click on a starved or output-blocked machine of no factory on the map. A machine of a factory opens the factory's page instead, which asks from its 3D view. *(Decided 2026-11-22.)*
 
 ## Alternatives considered
 - **An Assistant module in the API** (the enhancements doc's plan): no extra process, but the chat clients, their timeouts and a model's latency would live in the API. The name translation would also need writing a second time.
