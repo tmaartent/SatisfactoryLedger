@@ -35,5 +35,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0027](0027-optimal-arrangement-with-cp-sat-in-the-analysis-service.md) | The optimal arrangement, solved with CP-SAT in the analysis service | Accepted |
 | [0028](0028-belt-routing-without-crossings-as-nesting-orders.md) | Routing belts without crossings, as orders that nest | Proposed |
 | [0029](0029-mcp-server-over-the-public-api.md) | An MCP server over the public API, read-only | Accepted |
+| [0030](0030-assistant-explains-a-finding.md) | The Assistant explains a finding, from the MCP server's tools, with a local model or Claude | Accepted |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

@@ -36,6 +36,8 @@ flowchart LR
     analysis[Analysis service<br/>SatisfactoryLedger.AnalysisService<br/>stateless, ADR-0018]
     mcp[MCP server<br/>SatisfactoryLedger.Mcp<br/>read-only tools, ADR-0029]
     model[MCP client<br/>e.g. Claude Code]
+    assistant[Assistant<br/>SatisfactoryLedger.Assistant<br/>explains a finding, ADR-0030]
+    ollama[Ollama<br/>local chat model<br/>container, GPU]
     db[(PostgreSQL<br/>one schema per module<br/>+ Wolverine's outbox)]
     mq[[RabbitMQ]]
     apphost[Aspire AppHost<br/>local orchestration +<br/>dashboard / OpenTelemetry]
@@ -47,16 +49,22 @@ flowchart LR
     analysis -- "GET flow network,<br/>PUT analysis<br/>(/internal/world)" --> api
     model -- "MCP over HTTP<br/>/mcp" --> mcp
     mcp -- "GET /api/v1" --> api
+    browser -- "POST explanations<br/>/api/v1/assistant" --> assistant
+    assistant -- "MCP over HTTP<br/>trace tools" --> mcp
+    assistant -- "IChatClient" --> ollama
     apphost -. starts and wires .-> browser
     apphost -. starts and wires .-> api
     apphost -. starts and wires .-> analysis
     apphost -. starts and wires .-> mcp
+    apphost -. starts and wires .-> assistant
+    apphost -. starts .-> ollama
     apphost -. starts .-> db
     apphost -. starts .-> mq
 ```
 
 - **Two deployable backends.** The API host composes all modules in-process. The **analysis service** runs a snapshot's flow simulation when the API says it was imported (ADR-0018). It owns no data: it fetches the flow network over HTTP and sends the analysis back.
 - **The MCP server** (ADR-0029) gives a model tools to investigate a world. It's a client of the public API, like the web app, and only reads.
+- **The Assistant** (ADR-0030) explains a finding in words. It's an MCP client of that server: code calls the trace that fits, and a chat model (local on Ollama, or Claude with an API key) writes the explanation, whose numbers code checks against the facts.
 - **Messages stay small.** RabbitMQ carries only `SnapshotImported { SnapshotId }`; the documents (megabytes on a big world) go over HTTP (the *claim check* pattern). The API publishes through Wolverine's transactional outbox, so a snapshot and its message are stored together.
 - **One database, a schema per module.** A module never reads another module's tables. This is the cheapest boundary to enforce now and the most expensive to fix later.
 - The **TypeScript API client is generated** from the OpenAPI document (ADR-0006), so the frontend can't drift from the contract.

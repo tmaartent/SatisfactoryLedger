@@ -38,7 +38,7 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 **What it would take:** the questions with expected facts as a file in the repo, a runner, and snapshots of the owner's saves at known points (or small fixture worlds built in code, as `StockFindingsTests` does).
 
 ## 3. Explain a finding
-*Raised 2026-11-08.*
+*Raised 2026-11-08. Started 2026-11-21: [ADR-0030](../adr/0030-assistant-explains-a-finding.md), [step 57](../guide/log/57-explain-a-finding.md).*
 
 **What:** a button on a finding that writes a short explanation and next step, grounded in the finding and its trace, for example "the rod makers get 76% of the control rods they need; look at the control rod line".
 
@@ -47,6 +47,8 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 **Skills:** grounding, structured context, prompt design, showing where each claim comes from.
 
 **What it would take:** an *Assistant* module that only uses the other modules' `*.Contracts` (ADR-0003), and `Microsoft.Extensions.AI`'s `IChatClient`: .NET's common interface for chat models, roughly Spring AI's `ChatClient`. The same code then runs against Claude or a local model.
+
+**As built (step 57):** not a module but a service of its own, which gets its facts as an MCP client of idea 1's server: the trace that fits the finding, and the tool's own description. One model call through `IChatClient`, with Qwen 2.5 7B on Ollama, or Claude when an API key is set. Code checks that every number in the answer comes from the facts.
 
 ## 4. RAG over the docs and the game data
 *Raised 2026-11-08.*
