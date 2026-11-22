@@ -24,6 +24,7 @@ Each World page had its own side panel. The map had the snapshots on its left an
 - **Clicks in the page show the tab that answers them,** opening the sidebar if it was collapsed:
   - a building, belt, pipe or lift clicked in 3D shows Info, with *Explain why* for a held-back machine;
   - starting to define or edit a factory shows Info, with the steps;
+  - saving a factory in the 3D view of an area stays there and shows Factories, with it among the others, so the next one can be defined *(decided 2026-11-23, step 70; it opened the factory's page)*;
   - asking for an explanation shows Explanation.
 - **While defining a factory, its name, Save and Cancel are in the page's header,** as on a factory's own page. Switching tabs can't hide them.
 - **The tab last asked for is remembered across pages:** when the next page has a tab by that key, it's shown; otherwise the page's first tab is.
