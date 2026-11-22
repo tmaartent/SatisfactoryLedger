@@ -11,7 +11,8 @@ namespace SatisfactoryLedger.World.Domain.Tracing;
 /// <item>producers at full speed and sources giving all they can: if part of what they send goes to other machines, it's
 /// taken by others; otherwise there are too few producers, or the source is at its limit;</item>
 /// <item>a producer that can't get its output away, a station or container whose supply is unknown, a line from nothing,
-/// a machine without a recipe: each is a start of its own.</item>
+/// a machine without a recipe: each is a start of its own. A station counts only for the items the analysis has it
+/// deliver (decided 2026-11-22).</item>
 /// </list>
 /// Machines short of the same item are followed together, so a line they share is walked once.
 /// </summary>
@@ -263,8 +264,12 @@ public static class ShortageTrace
                     return Source(machine.Produces.Contains(_item));
                 case Consumer { Generation.Byproduct: { } waste }:
                     return Source(waste == _item);
+                // A station could unload anything: it brings the item only if the analysis has it deliver some.
                 case Provider provider:
-                    return Source(provider.Offer?.Item == _item || provider.IsStation || provider.Stock.ContainsKey(_item) || _readings.IsUnknownSupply(id));
+                    return Source(
+                        provider.Offer?.Item == _item
+                        || (!provider.IsStation && provider.Stock.ContainsKey(_item))
+                        || _readings.Delivered(id, _item) > TraceStarts.Tolerance);
                 default:
                     return false;
             }

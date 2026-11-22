@@ -105,9 +105,29 @@ public class ShortageTraceTests
         WorldGraph world = new TestWorld()
             .Station("station", (Items.IronIngot, 100)).Belt("ingots").Machine("plates", Items.IronIngot, 30, Items.IronPlate, 20)
             .Connect("station", "ingots", "plates").Build();
-        FlowReadings readings = new TestReadings().Unknown("station").Starved("plates", Items.IronIngot, 0.5).Into("ingots", Items.IronIngot, 15).Build();
+        FlowReadings readings = new TestReadings().Unknown("station", Items.IronIngot, 15).Starved("plates", Items.IronIngot, 0.5).Into("ingots", Items.IronIngot, 15).Build();
 
-        Assert.Equal(TraceCause.UnknownSupply, Single(ShortageTrace.From(world, readings, Ids("plates"))).Cause);
+        TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
+
+        Assert.Equal(TraceCause.UnknownSupply, start.Cause);
+        Assert.Equal(15, start.PerMinute);
+    }
+
+    [Fact]
+    public void A_station_that_delivered_only_other_items_onto_a_shared_line_is_not_where_it_starts()
+    {
+        // The platform unloads ore onto the belt the smelter's ingots also take; the analysis has it deliver no ingots.
+        WorldGraph world = new TestWorld()
+            .Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Station("platform").Merger("merge").Belt("mixed")
+            .Machine("plates", Items.IronIngot, 60, Items.IronPlate, 40)
+            .Connect("smelter", "merge", "mixed", "plates").Connect("platform", "merge").Build();
+        FlowReadings readings = new TestReadings()
+            .Running("smelter").Unknown("platform", Items.IronOre, 20).Starved("plates", Items.IronIngot, 0.5).Into("mixed", Items.IronIngot, 30).Build();
+
+        TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
+
+        Assert.Equal(TraceCause.TooFewProducers, start.Cause);
+        Assert.Equal(Ids("smelter"), start.At);
     }
 
     [Fact]
