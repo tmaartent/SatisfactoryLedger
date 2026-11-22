@@ -71,6 +71,51 @@ public class BlockageTraceTests
     }
 
     [Fact]
+    public void A_machine_with_no_line_for_the_item_it_cannot_get_away_is_where_it_starts()
+    {
+        // The blender's tanks have a belt; its gas has no pipe that carries it (decided 2026-11-22, Nitro Rocket Fuel).
+        WorldGraph world = new TestWorld()
+            .Machine("blender", [Items.Coal, Items.Water], [Items.NitrogenGas, Items.EmptyFluidTank]).BeltCarrying("tanks", (Items.EmptyFluidTank, 10))
+            .Machine("packager", Items.EmptyFluidTank, Items.PackagedNitrogenGas)
+            .Connect("blender", "tanks", "packager").Build();
+        FlowReadings readings = new TestReadings().Blocked("blender", Items.NitrogenGas, 0).Running("packager").Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("blender")));
+
+        Assert.Equal((TraceCause.NowhereToGo, Items.NitrogenGas), (start.Cause, start.Item));
+        Assert.Equal(Ids("blender"), start.At);
+    }
+
+    [Fact]
+    public void A_machine_with_no_line_out_at_all_is_where_it_starts()
+    {
+        WorldGraph world = new TestWorld().Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
+
+        Assert.Equal(TraceCause.NowhereToGo, start.Cause);
+        Assert.Equal(Ids("smelter"), start.At);
+    }
+
+    [Fact]
+    public void Blocked_machines_the_trace_finds_no_start_for_are_unclear_not_left_out()
+    {
+        // The box still has room, so nothing on the way explains the blockage the readings report.
+        Inventory room = Inventory.OfSlots(1, new Dictionary<ItemId, decimal> { [Items.IronIngot] = 10 }, new Dictionary<ItemId, int> { [Items.IronIngot] = 100 });
+        WorldGraph world = new TestWorld()
+            .Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("ingots").Container("box", room)
+            .Connect("smelter", "ingots", "box").Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
+
+        Assert.Equal((TraceCause.Unclear, Items.IronIngot), (start.Cause, start.Item));
+        Assert.Equal(Ids("smelter"), start.At);
+        Assert.Equal(Ids("smelter"), Assert.Single(start.Path).Machines);
+    }
+
+    [Fact]
     public void A_full_container_at_the_end_of_the_line_is_where_it_starts()
     {
         Inventory full = Inventory.OfSlots(1, new Dictionary<ItemId, decimal> { [Items.IronIngot] = 100 }, new Dictionary<ItemId, int> { [Items.IronIngot] = 100 });

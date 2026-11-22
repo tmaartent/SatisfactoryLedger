@@ -12,8 +12,10 @@ namespace SatisfactoryLedger.World.Domain.Tracing;
 /// <item>consumers at full speed: if part of what they take comes from other producers, they're supplied by others;
 /// otherwise there are too few consumers;</item>
 /// <item>a full container or station, a belt to nowhere, a machine that doesn't take the item or has no recipe: each is
-/// a start of its own.</item>
+/// a start of its own;</item>
+/// <item>a machine asked about with no line that carries the item has nowhere to send it (decided 2026-11-22).</item>
 /// </list>
+/// Blocked machines that none of these explain get an unclear start: a trace never leaves them out.
 /// </summary>
 public static class BlockageTrace
 {
@@ -28,7 +30,14 @@ public static class BlockageTrace
         ];
         foreach (ItemId item in blocked.SelectMany(m => m.Reading.BlockedOn.Keys).Distinct())
         {
-            Follow([.. blocked.Where(m => m.Reading.BlockedOn.ContainsKey(item)).Select(m => m.Id)], item, []);
+            List<BuildableId> group = [.. blocked.Where(m => m.Reading.BlockedOn.ContainsKey(item)).Select(m => m.Id)];
+            bool fresh = group.Exists(id => !followed.Contains((id, item)));
+            int found = starts.Found;
+            Follow(group, item, []);
+            if (fresh && starts.Found == found)
+            {
+                starts.Add(new TraceStart(TraceCause.Unclear, item, group, [new TraceStep(group, item, group.Sum(id => CannotLeave(id, item)))], 0));
+            }
         }
 
         return starts.All;
@@ -173,7 +182,14 @@ public static class BlockageTrace
             {
                 // A machine with more than one product sends each on its own lines: only those that carry this one.
                 bool oneProduct = world.Find(machine) is not Machine { Produces.Count: > 1 };
-                foreach (Buildable next in world.Downstream(machine).Where(next => oneProduct || line.Carries(next)))
+                List<Buildable> lines = [.. world.Downstream(machine).Where(next => oneProduct || line.Carries(next))];
+                if (lines.Count == 0)
+                {
+                    // No belt or pipe takes the item away from the machine itself: an output left unconnected.
+                    line.Nowhere.Add(machine);
+                }
+
+                foreach (Buildable next in lines)
                 {
                     line.Walk(next.Id);
                 }

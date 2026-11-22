@@ -17,8 +17,12 @@ internal sealed class TraceStarts
 
     public IReadOnlyList<TraceStart> All => _starts;
 
+    /// <summary>How many starts were found, counting one found again along another path: whether a follow ended anywhere.</summary>
+    public int Found { get; private set; }
+
     public void Add(TraceStart start)
     {
+        Found++;
         string key = $"{start.Cause}|{start.Item.Id}|{string.Join(",", start.At.Select(id => id.Id).Order(StringComparer.Ordinal))}";
         if (_keys.Add(key))
         {

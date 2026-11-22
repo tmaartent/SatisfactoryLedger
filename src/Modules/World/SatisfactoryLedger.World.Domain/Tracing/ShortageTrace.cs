@@ -28,7 +28,15 @@ public static class ShortageTrace
         ];
         foreach (ItemId item in starved.SelectMany(m => m.Reading.StarvedOf.Keys).Distinct())
         {
-            Follow([.. starved.Where(m => m.Reading.StarvedOf.ContainsKey(item)).Select(m => m.Id)], item, []);
+            // Starved machines that nothing found explains get an unclear start: a trace never leaves them out.
+            List<BuildableId> group = [.. starved.Where(m => m.Reading.StarvedOf.ContainsKey(item)).Select(m => m.Id)];
+            bool fresh = group.Exists(id => !followed.Contains((id, item)));
+            int found = starts.Found;
+            Follow(group, item, []);
+            if (fresh && starts.Found == found)
+            {
+                starts.Add(new TraceStart(TraceCause.Unclear, item, group, [new TraceStep(group, item, group.Sum(id => Missing(id, item)))], 0));
+            }
         }
 
         return starts.All;
