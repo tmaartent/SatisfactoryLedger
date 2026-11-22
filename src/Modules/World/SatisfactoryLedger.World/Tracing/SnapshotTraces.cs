@@ -62,7 +62,7 @@ internal static class SnapshotTraces
                 .ToDictionary(
                     group => BuildableId.Of(group.Key),
                     group => (IReadOnlyDictionary<ItemId, double>)group.ToDictionary(supply => ItemId.Of(supply.Item), supply => supply.Offered - supply.Delivered)),
-            analysis.UnknownSupply.Select(supply => BuildableId.Of(supply.Id)).ToHashSet(),
+            analysis.UnknownSupply.ToDictionary(supply => BuildableId.Of(supply.Id), supply => Items(supply.Delivered)),
             analysis.Into.ToDictionary(entry => BuildableId.Of(entry.Key), entry => Items(entry.Value)));
     }
 

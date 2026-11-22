@@ -9,7 +9,7 @@ internal sealed class TestReadings
     private readonly Dictionary<BuildableId, MachineReading> _machines = [];
     private readonly Dictionary<BuildableId, double> _bottlenecks = [];
     private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _spare = [];
-    private readonly HashSet<BuildableId> _unknown = [];
+    private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _unknown = [];
     private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _into = [];
 
     public TestReadings Running(string id) => Machine(id, new MachineReading(MachineLimit.None, 1, new Dictionary<ItemId, double>(), new Dictionary<ItemId, double>()));
@@ -37,10 +37,10 @@ internal sealed class TestReadings
         return this;
     }
 
-    /// <summary>A station whose supply the save doesn't say.</summary>
-    public TestReadings Unknown(string id)
+    /// <summary>A station whose supply the save doesn't say, and what the analysis has it deliver per minute.</summary>
+    public TestReadings Unknown(string id, ItemId item, double perMinute)
     {
-        _unknown.Add(BuildableId.Of(id));
+        _unknown[BuildableId.Of(id)] = new Dictionary<ItemId, double> { [item] = perMinute };
         return this;
     }
 
