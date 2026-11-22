@@ -23,6 +23,7 @@ This is a **learning project**. The owner's goal is to learn how .NET, ASP.NET C
 - One type per file, the file named after it: class, record, interface, enum, struct. The build enforces it (StyleCop SA1402, SA1649). A `file`-local helper type may stay with the type it serves.
 - Tests: domain tests are written first, with one behaviour per test, and named in domain language.
 - Commits: Conventional Commits. No AI co-author lines.
+- Pull requests: no AI attribution in the description: no "Generated with Claude Code" line and no Claude session link.
 
 ## Commands
 
