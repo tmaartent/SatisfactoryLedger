@@ -64,6 +64,18 @@ public class TraceToolsTests
     }
 
     [Fact]
+    public async Task Says_what_a_bottleneck_needs_to_carry_all_that_is_offered_to_it_by_the_tier_s_name()
+    {
+        await using var server = await LedgerMcpTestServer.StartAsync(IronWorld.Api());
+
+        JsonElement start = (await server.CallAsync("trace_downstream", new() { ["building"] = "Smelter" })).GetProperty("starts")[0];
+
+        Assert.Equal("bottleneck", start.GetProperty("causeTerm").GetString());
+        JsonElement more = start.GetProperty("moreCapacity");
+        Assert.Equal(("Conveyor Belt Mk.4", 1, 300.0), (more.GetProperty("tier").GetString(), more.GetProperty("lines").GetInt32(), more.GetProperty("carriesPerMinute").GetDouble()));
+    }
+
+    [Fact]
     public async Task Says_so_when_none_of_the_machines_asked_about_is_held_back()
     {
         await using var server = await LedgerMcpTestServer.StartAsync(IronWorld.Api());
