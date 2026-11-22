@@ -7,8 +7,8 @@ using SatisfactoryLedger.Assistant.LedgerTools;
 namespace SatisfactoryLedger.Assistant.Explaining;
 
 /// <summary>
-/// Explains a finding in one model call (AI enhancement 3): code gathers the facts with the trace that fits the finding,
-/// the model puts them in words, and code checks its numbers against the facts.
+/// Explains a finding (AI enhancement 3): code gathers the facts with the trace that fits the finding, the model puts
+/// each start in words in a call of its own, and code checks the text for numbers.
 /// </summary>
 internal sealed class FindingExplainer(LedgerToolsClient tools)
 {
@@ -50,12 +50,21 @@ internal sealed class FindingExplainer(LedgerToolsClient tools)
                 []);
         }
 
-        ChatResponse response = await model.GetResponseAsync(
-            ExplanationPrompt.For(request.Limit, facts),
-            new ChatOptions { Temperature = Temperature, MaxOutputTokens = MaxOutputTokens },
-            cancellationToken);
-        string text = response.Text.Trim();
-        string? modelId = response.ModelId ?? model.GetService<ChatClientMetadata>()?.DefaultModelId;
+        // One start at a time, in the trace's order: two in one prompt were merged into a cause neither gives.
+        List<string> paragraphs = [];
+        string? modelId = null;
+        for (int start = 0; start < facts.Answer.GetProperty("starts").GetArrayLength(); start++)
+        {
+            ChatResponse response = await model.GetResponseAsync(
+                ExplanationPrompt.For(request.Limit, facts, start),
+                new ChatOptions { Temperature = Temperature, MaxOutputTokens = MaxOutputTokens },
+                cancellationToken);
+            paragraphs.Add(response.Text.Trim());
+            modelId ??= response.ModelId;
+        }
+
+        string text = string.Join("\n\n", paragraphs);
+        modelId ??= model.GetService<ChatClientMetadata>()?.DefaultModelId;
         return new ExplanationResponse(text, modelId, factsResponse, NumberCheck.Unsupported(text, facts.Answer));
     }
 }

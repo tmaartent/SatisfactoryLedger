@@ -23,8 +23,8 @@ internal static class ExplanationPrompt
         - Write buildings, recipes and items exactly as the facts name them, e.g. "Quantum Encoder (Superposition Oscillator)".
         - Write no numbers: no counts, rates or percentages. The player sees the ledger's numbers beside your text.
           Say in words what is short, full or left over, and where.
-        - Say the main cause in the ledger's term the facts give it ("taken by others") and the item it concerns,
-          then one next step the player can take. Never write the tool's names for the causes.
+        - The facts give one start. Say its cause in the ledger's term the facts give it ("taken by others") and the
+          item it concerns, then one next step the player can take. Never write the tool's names for the causes.
         - A start with a nextStep: that is the next step for it. Give it as written, and suggest no other belt, lift or pipe.
         - Each start's way says what the machines asked about lack (or can't get away) and how that leads to the start.
           Name what they lack first, as the way does; don't skip to the start's item.
@@ -36,30 +36,42 @@ internal static class ExplanationPrompt
         The tool's own description of what it answers:
         """;
 
-    public static IReadOnlyList<ChatMessage> For(HeldBack limit, ToolCall facts)
+    /// <summary>
+    /// The question about one of the trace's starts. With two starts in one prompt, a small model merged them into one
+    /// cause that neither gives: "Iron Ore taken by others" from "nothing brings Iron Ore" and "Iron Ingot taken by
+    /// others" (asked 2026-11-22). So each start is asked about on its own.
+    /// </summary>
+    public static IReadOnlyList<ChatMessage> For(HeldBack limit, ToolCall facts, int start)
     {
         string held = limit == HeldBack.Starved ? "starved" : "output blocked";
+        string others = facts.Answer.GetProperty("starts").GetArrayLength() > 1
+            ? "\nThe ledger finds this starts in more than one place. These facts are one of several places; the others are explained beside it.\n"
+            : "";
         string question = $"""
             Why are the {Kind(facts.Answer)} machines {held}?
-
+            {others}
             The facts, from {facts.Tool}:
-            {ForTheModel(facts.Answer)}
+            {ForTheModel(facts.Answer, start)}
             """;
         return [new ChatMessage(ChatRole.System, $"{Rules}\n{facts.Description}"), new ChatMessage(ChatRole.User, question)];
     }
 
     /// <summary>
-    /// The answer without its numbers, the machines' ids and positions. The panel gives the numbers: a small model copied
-    /// them right but pinned them on the wrong things (asked 2026-11-22). The panel links the ids and positions to the
-    /// map, and they take most of a large trace's tokens. A prompt longer than the model's context loses its start, the rules. Each cause is the
-    /// ledger's term alone (the MCP server's causeTerm), so the model doesn't repeat the code for it. A bottleneck's
-    /// more capacity is a sentence, its nextStep: given the tier, lines and rate, a small model took the rate for the
-    /// belt's capacity and the lines for how many there are now. The panel shows the lines and the rate. A start's path is a sentence
-    /// too, its way: given the steps, a small model skipped from the machines asked about to the start's item.
+    /// The answer without its numbers, the machines' ids and positions, and who else takes an item. The panel gives the
+    /// numbers: a small model copied them right but pinned them on the wrong things (asked 2026-11-22). It also names
+    /// who else takes an item, which a model listed in full. The panel links the ids and positions to the map, and they
+    /// take most of a large trace's tokens. A prompt longer than the model's context loses its start, the rules.
+    /// Each cause is the ledger's term alone (the MCP server's causeTerm), so the model doesn't repeat the code for it.
+    /// A bottleneck's more capacity is a sentence, its nextStep: given the tier, lines and rate, a small model took the
+    /// rate for the belt's capacity and the lines for how many there are now. The panel shows the lines and the rate.
+    /// A start's path is a sentence too, its way: given the steps, a small model skipped from the machines asked about
+    /// to the start's item.
     /// </summary>
-    private static string ForTheModel(JsonElement answer)
+    private static string ForTheModel(JsonElement answer, int start)
     {
         JsonNode node = JsonNode.Parse(answer.GetRawText())!;
+        JsonNode? only = node["starts"]![start];
+        node["starts"] = new JsonArray(only!.DeepClone());
         Simplify(node);
 
         // Not for HTML: "can't" stays as written, not ', for the model to read and copy.
@@ -73,6 +85,9 @@ internal static class ExplanationPrompt
             case JsonObject properties:
                 properties.Remove("ids");
                 properties.Remove("positionMetres");
+
+                // Who else takes it: the panel names them, and a model given them lists them all.
+                properties.Remove("others");
 
                 if (properties["path"] is JsonArray path)
                 {

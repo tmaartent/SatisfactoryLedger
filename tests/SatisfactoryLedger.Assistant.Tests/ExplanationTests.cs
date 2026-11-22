@@ -210,6 +210,78 @@ public class ExplanationTests
         Assert.Equal(21, explanation.GetProperty("facts").GetProperty("answer").GetProperty("machines").GetInt32());
     }
 
+    /// <summary>
+    /// Three iron wire constructors are short of Iron Ingot for two reasons: two smelters get no Iron Ore, and the ingots
+    /// of the others are taken by other constructors first.
+    /// </summary>
+    private const string TwoStarts = """
+        {
+          "building": "Constructor", "recipe": "Alternate: Iron Wire", "machines": 14, "traced": 3,
+          "starts": [
+            {
+              "cause": "nothingBringsIt", "causeTerm": "nothing brings it", "item": "Iron Ore", "perMinute": 0,
+              "at": [{ "building": "Smelter", "recipe": "Iron Ingot", "count": 2, "ids": ["s1"] }],
+              "path": [
+                { "building": "Constructor", "recipe": "Alternate: Iron Wire", "machines": 3, "ids": ["c1"], "shortOf": "Iron Ingot", "perMinute": 58.59 },
+                { "building": "Smelter", "recipe": "Iron Ingot", "machines": 2, "ids": ["s1"], "shortOf": "Iron Ore", "perMinute": 60 }
+              ]
+            },
+            {
+              "cause": "takenByOthers", "causeTerm": "taken by others", "item": "Iron Ingot", "perMinute": 2340,
+              "at": [{ "building": "Smelter", "recipe": "Iron Ingot", "count": 78, "ids": ["s2"] }],
+              "path": [{ "building": "Constructor", "recipe": "Alternate: Iron Wire", "machines": 3, "ids": ["c1"], "shortOf": "Iron Ingot", "perMinute": 58.59 }],
+              "others": [{ "building": "AWESOME Sink", "count": 2, "ids": ["sink-1"], "perMinute": 482.56 }]
+            }
+          ]
+        }
+        """;
+
+    [Fact]
+    public async Task Asks_the_model_about_each_start_on_its_own_so_two_causes_are_not_merged()
+    {
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", TwoStarts), chat);
+
+        JsonElement explanation = await ExplainAsync(server, StarvedConstructors);
+
+        Assert.Collection(
+            chat.Questions,
+            first =>
+            {
+                Assert.Contains("\"cause\":\"nothing brings it\"", first, StringComparison.Ordinal);
+                Assert.DoesNotContain("taken by others", first, StringComparison.Ordinal);
+            },
+            second =>
+            {
+                Assert.Contains("\"cause\":\"taken by others\"", second, StringComparison.Ordinal);
+                Assert.DoesNotContain("nothing brings it", second, StringComparison.Ordinal);
+            });
+        Assert.Equal($"{Explanation}\n\n{Explanation}", explanation.GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public async Task Tells_the_model_the_other_starts_are_explained_beside_it()
+    {
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", TwoStarts), chat);
+
+        await ExplainAsync(server, StarvedConstructors);
+
+        Assert.Contains("one of several places", chat.Questions[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Leaves_out_who_else_takes_it_as_the_panel_names_them()
+    {
+        var chat = new FakeChatClient(Explanation);
+        await using var server = await AssistantTestServer.StartAsync(new FakeLedger().Answer("trace_upstream", TwoStarts), chat);
+
+        JsonElement explanation = await ExplainAsync(server, StarvedConstructors);
+
+        Assert.All(chat.Questions, question => Assert.DoesNotContain("AWESOME Sink", question, StringComparison.Ordinal));
+        Assert.Equal("AWESOME Sink", explanation.GetProperty("facts").GetProperty("answer").GetProperty("starts")[1].GetProperty("others")[0].GetProperty("building").GetString());
+    }
+
     [Fact]
     public async Task Words_the_way_to_a_start_further_up_so_the_model_names_what_the_machines_asked_about_lack()
     {
