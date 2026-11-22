@@ -8,6 +8,7 @@ import { Api } from '../api/api';
 import { deleteSnapshot } from '../api/fn/world/delete-snapshot';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { problemMessage } from '../shared/problem';
+import { LastSnapshot } from './last-snapshot';
 
 /** Deleting a snapshot and its analysis, after asking. The world's factories stay (BR-W2). */
 @Injectable({ providedIn: 'root' })
@@ -15,6 +16,7 @@ export class SnapshotDeletion {
   private readonly api = inject(Api);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly lastSnapshot = inject(LastSnapshot);
 
   /** True once it's deleted; false when the player cancelled or the API refused. */
   async confirmAndDelete(snapshot: { id: string; sessionName: string; savedAt: string }): Promise<boolean> {
@@ -30,6 +32,7 @@ export class SnapshotDeletion {
 
     try {
       await this.api.invoke(deleteSnapshot, { id: snapshot.id });
+      this.lastSnapshot.forget(snapshot.id);
       return true;
     } catch (error) {
       this.snackBar.open(`The snapshot couldn't be deleted: ${problemMessage(error)}`, 'Close');

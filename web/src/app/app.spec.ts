@@ -1,8 +1,10 @@
 import { Component } from '@angular/core';
+import { TemplateRef } from '@angular/core';
 import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 
 import { App } from './app';
+import { SidebarTabs } from './sidebar/sidebar-tabs';
 import { CatalogNames } from './shared/catalog-names';
 import { Assistant } from './world/explain/assistant';
 import { Explainer } from './world/explain/explainer';
@@ -11,12 +13,16 @@ import { Explainer } from './world/explain/explainer';
 class EmptyPage {}
 
 describe('App', () => {
+  beforeEach(() => localStorage.clear());
+
   async function render(url = '/snapshots/s1') {
     TestBed.configureTestingModule({
       imports: [App],
       providers: [
         provideRouter([
+          { path: 'snapshots', component: EmptyPage },
           { path: 'snapshots/:id', component: EmptyPage },
+          { path: 'snapshots/:id/map', component: EmptyPage },
           { path: 'catalog', component: EmptyPage },
         ]),
         { provide: Assistant, useValue: { models: () => Promise.resolve([]), explain: () => new Promise(() => undefined) } },
@@ -60,6 +66,34 @@ describe('App', () => {
     await loadExplanation(fixture);
 
     expect(sidebar()?.textContent).toContain('Why are the Constructor (Iron Plate) machines starved?');
+  });
+
+  it('goes back to the world on the map of the snapshot last looked at', async () => {
+    const { fixture, element } = await render('/snapshots/s1/map');
+    await TestBed.inject(Router).navigateByUrl('/catalog');
+    await fixture.whenStable();
+
+    expect(element.querySelector('mat-toolbar nav a')?.getAttribute('href')).toBe('/snapshots/s1/map');
+  });
+
+  it('goes to the world with no snapshot before one is looked at', async () => {
+    const { element } = await render('/catalog');
+
+    expect(element.querySelector('mat-toolbar nav a')?.getAttribute('href')).toBe('/snapshots');
+  });
+
+  it('shows the snapshots in the sidebar when going back to the world', async () => {
+    const { fixture, element } = await render('/catalog');
+    const tabs = TestBed.inject(SidebarTabs);
+
+    (element.querySelector('mat-toolbar nav a') as HTMLElement).click();
+    await fixture.whenStable();
+    // The map's tabs, as it adds them.
+    const template = {} as TemplateRef<unknown>;
+    tabs.add({ key: 'info', label: 'Info', icon: 'info', order: -1, template });
+    tabs.add({ key: 'snapshots', label: 'Snapshots', icon: 'folder_open', order: 1, template });
+
+    expect(tabs.current()?.key).toBe('snapshots');
   });
 
   it('has no sidebar in the Catalog, which has no tabs', async () => {
