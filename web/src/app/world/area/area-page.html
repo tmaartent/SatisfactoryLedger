@@ -119,6 +119,11 @@
         @if (why(finding); as reason) {
           <p>{{ reason }}</p>
         }
+        @if (building.kind === 'machine' && explainer.explainable(finding)) {
+          <button mat-stroked-button class="explain" (click)="explainer.explain({ className: building.className, recipe: building.recipe, limit: finding.limit }, id())">
+            <mat-icon>lightbulb</mat-icon> Explain why
+          </button>
+        }
       } @else if (building.kind === 'machine') {
         <p class="muted">Not analysed yet</p>
       }

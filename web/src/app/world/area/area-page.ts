@@ -31,6 +31,7 @@ import { conveyorColours, describeContents, statusColours, statusLabels, Machine
 import { boxGeometry } from './box-geometry';
 import { sceneBackground } from './scene-background';
 import { Area, areaAround, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
+import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
 import { blockedMachines, factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
@@ -77,6 +78,7 @@ export class AreaPage {
   private readonly router = inject(Router);
   private readonly factoryDeletion = inject(FactoryDeletion);
   protected readonly names = inject(CatalogNames);
+  protected readonly explainer = inject(Explainer);
 
   /** From the route: /snapshots/:id/area?x0=…&y0=…&x1=…&y1=… (centimetres), or ?factory=… for the area around a factory. */
   readonly id = input.required<string>();
