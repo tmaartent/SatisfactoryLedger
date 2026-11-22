@@ -15,10 +15,12 @@ internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, 
     [McpServerTool(Name = "trace_upstream", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Description(
         "Where the shortage of starved machines starts. Follows what the machines of a building (and recipe) are short of upstream, through " +
-        "producers that are starved themselves, to the first cause: tooFewProducers (they run at full speed and all of it arrives), beltFull " +
-        "(a belt, lift or pipe at capacity), sourceAtLimit (a miner or extractor gives all it can), takenByOthers (enough is made, but other " +
-        "machines get part of it first; 'others' says who and how much), producerOutputBlocked, unknownSupply (a station or container), " +
-        "nothingBringsIt, noRecipe, unclear. Each start comes with the path of steps from the machines asked about.")]
+        "producers that are starved themselves, to the first cause. Each start gives its cause as a code and, in causeTerm, as the ledger's " +
+        $"term: {TraceCauses.TooFewProducers} (they run at full speed and all of it arrives), {TraceCauses.Bottleneck} (a belt, lift or pipe " +
+        $"at capacity), {TraceCauses.SourceAtLimit} (a miner or extractor gives all it can), {TraceCauses.TakenByOthers} (enough is made, but " +
+        $"other machines get part of it first; 'others' says who and how much), {TraceCauses.ProducerOutputBlocked} (the producers can't get " +
+        $"their own output away), {TraceCauses.UnknownSupply} (a station or container), {TraceCauses.NothingBringsIt}, " +
+        $"{TraceCauses.WithoutARecipe}, {TraceCauses.Unclear}. Each start comes with the path of steps from the machines asked about.")]
     public Task<TraceAnswer> TraceUpstreamAsync(
         [Description("The building, by its in-game name, e.g. \"Constructor\".")] string building,
         [Description("Its recipe, by its in-game name, e.g. \"Iron Plate\"; leave it out for every recipe of the building.")] string? recipe = null,
@@ -29,9 +31,12 @@ internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, 
     [McpServerTool(Name = "trace_downstream", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Description(
         "Where the blockage of output-blocked machines starts. Follows what the machines of a building (and recipe) can't get away downstream, " +
-        "through consumers that are blocked themselves, to the first cause: tooFewConsumers (they run at full speed on all that's sent), " +
-        "beltFull, suppliedByOthers (the consumers also take from other producers; 'others' says who and how much), consumerStarved (they " +
-        "lack another input; 'shortOf' says which, in percent), storageFull, nowhereToGo, noRecipe, unclear. Each start comes with the path.")]
+        "through consumers that are blocked themselves, to the first cause. Each start gives its cause as a code and, in causeTerm, as the " +
+        $"ledger's term: {TraceCauses.TooFewConsumers} (they run at full speed on all that's sent), {TraceCauses.Bottleneck} (a belt, lift or " +
+        $"pipe at capacity), {TraceCauses.SuppliedByOthers} (the consumers also take from other producers; 'others' says who and how much), " +
+        $"{TraceCauses.ConsumerStarved} (they lack another input; 'shortOf' says which, in percent), {TraceCauses.StorageFull} (a full " +
+        $"container or station), {TraceCauses.NowhereToGo} (a belt to nothing, or no line out at all), {TraceCauses.WithoutARecipe}, " +
+        $"{TraceCauses.Unclear}. Each start comes with the path.")]
     public Task<TraceAnswer> TraceDownstreamAsync(
         [Description("The building, by its in-game name, e.g. \"Smelter\".")] string building,
         [Description("Its recipe, by its in-game name, e.g. \"Iron Ingot\"; leave it out for every recipe of the building.")] string? recipe = null,
@@ -60,6 +65,7 @@ internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, 
         string item = game.Item(start.Item);
         return new TraceStartAnswer(
             start.Cause,
+            TraceCauses.TermOf(start.Cause),
             item,
             [.. start.At.Select(group => Buildings(group, game))],
             [
@@ -67,6 +73,7 @@ internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, 
                     game.Building(group.ClassName),
                     game.Recipe(group.Recipe),
                     group.Count,
+                    group.Ids,
                     upstream ? game.Item(step.Item) : null,
                     upstream ? null : game.Item(step.Item),
                     step.PerMinute))),

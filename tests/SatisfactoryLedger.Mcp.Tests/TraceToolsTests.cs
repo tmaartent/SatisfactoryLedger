@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using ModelContextProtocol.Client;
+
 namespace SatisfactoryLedger.Mcp.Tests;
 
 public class TraceToolsTests
@@ -14,12 +16,38 @@ public class TraceToolsTests
         Assert.Equal(2, trace.GetProperty("traced").GetInt32());
         JsonElement start = trace.GetProperty("starts")[0];
         Assert.Equal("tooFewProducers", start.GetProperty("cause").GetString());
+        Assert.Equal("too few producers", start.GetProperty("causeTerm").GetString());
         Assert.Equal("Iron Ingot", start.GetProperty("item").GetString());
         Assert.Equal("Smelter", start.GetProperty("at")[0].GetProperty("building").GetString());
         Assert.Equal("Iron Ingot", start.GetProperty("at")[0].GetProperty("recipe").GetString());
         Assert.Equal(12.5, start.GetProperty("at")[0].GetProperty("positionMetres").GetProperty("x").GetDouble());
         JsonElement step = start.GetProperty("path")[0];
         Assert.Equal(("Constructor", 2, "Iron Ingot", 30.0), (step.GetProperty("building").GetString(), step.GetProperty("machines").GetInt32(), step.GetProperty("shortOf").GetString(), step.GetProperty("perMinute").GetDouble()));
+    }
+
+    [Theory]
+    [InlineData("trace_upstream", "taken by others", "takenByOthers")]
+    [InlineData("trace_downstream", "supplied by others", "suppliedByOthers")]
+    public async Task Describes_each_cause_by_the_term_its_answer_gives_it_not_by_its_code(string tool, string term, string code)
+    {
+        await using var server = await LedgerMcpTestServer.StartAsync(IronWorld.Api());
+
+        IList<McpClientTool> tools = await server.Client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        string description = tools.Single(listed => listed.Name == tool).Description;
+        Assert.Contains($"{term} (", description, StringComparison.Ordinal);
+        Assert.DoesNotContain(code, description, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Names_the_machines_of_each_step_by_their_ids_so_they_can_be_found_on_the_map()
+    {
+        await using var server = await LedgerMcpTestServer.StartAsync(IronWorld.Api());
+
+        JsonElement trace = await server.CallAsync("trace_upstream", new() { ["building"] = "Constructor", ["recipe"] = "Iron Plate" });
+
+        JsonElement step = trace.GetProperty("starts")[0].GetProperty("path")[0];
+        Assert.Equal(["m-1", "m-2"], step.GetProperty("ids").EnumerateArray().Select(id => id.GetString()));
     }
 
     [Fact]
