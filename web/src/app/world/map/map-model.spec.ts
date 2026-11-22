@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { MapMargin, buildingStyle, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { MapMargin, buildingStyle, buildingsShown, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -237,6 +237,25 @@ describe('map model', () => {
       it('is nothing without map art', () => {
         expect(mapExtent(null, off([building(3000, 0)]))).toBeNull();
       });
+    });
+  });
+
+  describe('the buildings of a status, picked in the overview', () => {
+    const analysis = {
+      machines: [{ id: 'a', limit: 'noRecipe' as const }, { id: 'b', limit: 'starved' as const }, { id: 'c', limit: 'noRecipe' as const }],
+      generators: [{ id: 'g', limit: 'starved' as const }],
+    };
+
+    it('are the machines of that status', () => {
+      expect(buildingsShown(analysis, { of: 'machines', limit: 'noRecipe' })).toEqual(new Set(['a', 'c']));
+    });
+
+    it('are the generators of that status, not its machines', () => {
+      expect(buildingsShown(analysis, { of: 'generators', limit: 'starved' })).toEqual(new Set(['g']));
+    });
+
+    it('are none picked when no status is', () => {
+      expect(buildingsShown(analysis, null)).toBeNull();
     });
   });
 });
