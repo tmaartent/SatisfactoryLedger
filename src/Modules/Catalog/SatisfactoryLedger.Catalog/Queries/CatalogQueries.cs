@@ -84,6 +84,19 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
         ];
     }
 
+    public async Task<IReadOnlyList<CatalogTransportTier>> GetAllTransportTiersAsync(CancellationToken cancellationToken)
+    {
+        List<TransportTier> tiers = await db.TransportTiers.AsNoTracking()
+            .Where(tier => tier.IsInGame)
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. tiers.OrderBy(tier => tier.Id.Id, StringComparer.Ordinal)
+                .Select(tier => new CatalogTransportTier(tier.Id.Id, tier.Capacity))
+        ];
+    }
+
     public async Task<IReadOnlyList<CatalogFootprint>> GetFootprintsAsync(IReadOnlyCollection<string> buildingIds, CancellationToken cancellationToken)
     {
         List<FootprintId> ids = [.. buildingIds.Select(FootprintId.Of)];

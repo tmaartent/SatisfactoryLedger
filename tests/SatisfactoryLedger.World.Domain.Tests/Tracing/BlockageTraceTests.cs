@@ -59,6 +59,19 @@ public class BlockageTraceTests
     }
 
     [Fact]
+    public void A_full_belt_at_the_highest_tier_needs_more_lines_of_it()
+    {
+        WorldGraph world = new TestWorld()
+            .Machine("smelter", Items.IronOre, 120, Items.IronIngot, 120).Belt("mk1", 60).Machine("plates", Items.IronIngot, 120, Items.IronPlate, 80)
+            .Connect("smelter", "mk1", "plates").Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Bottleneck("mk1", 60).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter"), [new("Build_ConveyorBeltMk1_C", LogisticsKind.Belt, 60)]));
+
+        Assert.Equal(new MoreCapacity("Build_ConveyorBeltMk1_C", 2, 120), start.MoreCapacity);
+    }
+
+    [Fact]
     public void A_belt_that_ends_at_nothing_takes_nothing()
     {
         WorldGraph world = new TestWorld().Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("loose end").Connect("smelter", "loose end").Build();

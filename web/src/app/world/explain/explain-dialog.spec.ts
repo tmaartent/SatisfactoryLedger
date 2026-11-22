@@ -105,6 +105,19 @@ describe('explaining a finding', () => {
     expect(text(fixture)).toMatch(/Via\s*Iron Plate/);
   });
 
+  it('says what a bottleneck needs to carry all that is offered to it', async () => {
+    const full = explanation();
+    full.facts.answer.starts[0] = {
+      ...full.facts.answer.starts[0],
+      cause: 'beltFull', causeTerm: 'bottleneck', item: 'Quickwire', perMinute: 1200,
+      at: [{ building: 'Conveyor Belt Mk.6', count: 1, ids: ['belt-1'] }],
+      moreCapacity: { tier: 'Conveyor Belt Mk.6', lines: 2, carriesPerMinute: 1550 },
+    };
+    const fixture = await render({ models: () => Promise.resolve([local]), explain: () => Promise.resolve(full) });
+
+    expect(text(fixture)).toMatch(/To carry all that's offered\s*·\s*1,550\/min\s*2 lines of Conveyor Belt Mk\.6 side by side/);
+  });
+
   it('flags the numbers that are not in the facts', async () => {
     const fixture = await render({ models: () => Promise.resolve([local]), explain: () => Promise.resolve(explanation(['45', '15'])) });
 

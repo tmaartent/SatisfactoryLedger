@@ -23,6 +23,7 @@ internal static class ExplanationPrompt
         - Copy every number from the facts. Never work out a new number. Rates are per minute.
         - Say the main cause in the ledger's term the facts give it ("taken by others") and the item it concerns,
           then one next step the player can take. Never write the tool's names for the causes.
+        - A start with a nextStep: that is the next step for it. Give it as written, and suggest no other belt, lift or pipe.
         - The player sees every start beside your text, as a list with links to the map: don't list the starts, and
           don't give positions.
         - The facts are the ledger's model of the world: say "in the model" or "the ledger finds", not that it is certain.
@@ -46,7 +47,9 @@ internal static class ExplanationPrompt
     /// <summary>
     /// The answer without the machines' ids and positions: the dialog links those to the map, and they take most of a
     /// large trace's tokens. A prompt longer than the model's context loses its start, the rules. Each cause is the
-    /// ledger's term alone (the MCP server's causeTerm), so the model doesn't repeat the code for it.
+    /// ledger's term alone (the MCP server's causeTerm), so the model doesn't repeat the code for it. A bottleneck's
+    /// more capacity is a sentence, its nextStep: given the tier, lines and rate, a small model took the rate for the
+    /// belt's capacity and the lines for how many there are now. The dialog shows the rate.
     /// </summary>
     private static string ForTheModel(JsonElement answer)
     {
@@ -62,6 +65,13 @@ internal static class ExplanationPrompt
             case JsonObject properties:
                 properties.Remove("ids");
                 properties.Remove("positionMetres");
+
+                if (properties["moreCapacity"] is JsonObject more)
+                {
+                    properties.Remove("moreCapacity");
+                    properties["nextStep"] = NextStep(more, properties["at"]?[0]?["building"]?.GetValue<string>());
+                }
+
                 if (properties["causeTerm"] is JsonValue term && term.TryGetValue(out string? words))
                 {
                     properties.Remove("causeTerm");
@@ -82,6 +92,19 @@ internal static class ExplanationPrompt
 
                 break;
         }
+    }
+
+    /// <summary>
+    /// What a bottleneck needs, as the step to take: another line beside it when it's of the tier needed already,
+    /// otherwise a rebuild as the tier, in lines side by side when one isn't enough.
+    /// </summary>
+    private static string NextStep(JsonObject more, string? bottleneck)
+    {
+        string tier = more["tier"]!.GetValue<string>();
+        int lines = more["lines"]!.GetValue<int>();
+        return lines == 1 ? $"Rebuild it as {tier}."
+            : tier == bottleneck ? $"Lay another {tier} beside it, for {lines} lines side by side."
+            : $"Rebuild it as {lines} lines of {tier} side by side.";
     }
 
     /// <summary>The machines asked about as the trace names them: "Constructor (Iron Plate)".</summary>

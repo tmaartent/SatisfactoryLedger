@@ -77,6 +77,27 @@ internal static class IronWorld
         {
             building = "Build_SmelterMk1_C", recipe = (string?)null, machines = 1, traced = 0, starts = Array.Empty<object>(),
         });
+        api.Answer($"/api/v1/world/snapshots/{Newest}/traces/blockage?building=Build_SmelterMk1_C", new
+        {
+            building = "Build_SmelterMk1_C",
+            recipe = (string?)null,
+            machines = 1,
+            traced = 1,
+            starts = new[]
+            {
+                new
+                {
+                    cause = "beltFull",
+                    item = "Desc_IronIngot_C",
+                    at = new[] { Group("Build_ConveyorBeltMk3_C", null, 1, 0, "belt-7") },
+                    path = new[] { new { machines = new[] { Group("Build_SmelterMk1_C", "Recipe_IngotIron_C", 1, 0, "m-3") }, item = "Desc_IronIngot_C", perMinute = 30.0 } },
+                    perMinute = 270.0,
+                    others = Array.Empty<object>(),
+                    shortOf = new Dictionary<string, double>(),
+                    moreCapacity = new { tier = "Build_ConveyorBeltMk4_C", lines = 1, carries = 300.0 },
+                },
+            },
+        });
         api.Answer($"/api/v1/world/snapshots/{Newest}/traces/blockage?building=Build_ConstructorMk1_C&recipe=Recipe_IronPlate_C", new
         {
             building = "Build_ConstructorMk1_C",
@@ -123,6 +144,7 @@ internal static class IronWorld
             new { id = "Build_SmelterMk1_C", name = "Smelter", inGame = true },
             new { id = "Build_ConstructorMk1_C", name = "Constructor", inGame = true },
             new { id = "Build_ConveyorBeltMk3_C", name = "Conveyor Belt Mk.3", inGame = true },
+            new { id = "Build_ConveyorBeltMk4_C", name = "Conveyor Belt Mk.4", inGame = true },
             new { id = "Build_MinerMk2_C", name = "Miner Mk.2", inGame = true },
         });
         object[] recipes =

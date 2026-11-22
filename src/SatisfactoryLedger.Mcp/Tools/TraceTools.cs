@@ -12,12 +12,15 @@ namespace SatisfactoryLedger.Mcp.Tools;
 [McpServerToolType]
 internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, GameDataSource gameData)
 {
+    private const string MoreCapacityText =
+        "'moreCapacity' says what carries all that's offered to it: the lowest tier that does, or that many lines of the highest tier side by side";
+
     [McpServerTool(Name = "trace_upstream", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Description(
         "Where the shortage of starved machines starts. Follows what the machines of a building (and recipe) are short of upstream, through " +
         "producers that are starved themselves, to the first cause. Each start gives its cause as a code and, in causeTerm, as the ledger's " +
         $"term: {TraceCauses.TooFewProducers} (they run at full speed and all of it arrives), {TraceCauses.Bottleneck} (a belt, lift or pipe " +
-        $"at capacity), {TraceCauses.SourceAtLimit} (a miner or extractor gives all it can), {TraceCauses.TakenByOthers} (enough is made, but " +
+        $"at capacity; {MoreCapacityText}), {TraceCauses.SourceAtLimit} (a miner or extractor gives all it can), {TraceCauses.TakenByOthers} (enough is made, but " +
         $"other machines get part of it first; 'others' says who and how much), {TraceCauses.ProducerOutputBlocked} (the producers can't get " +
         $"their own output away), {TraceCauses.UnknownSupply} (a station or container), {TraceCauses.NothingBringsIt}, " +
         $"{TraceCauses.WithoutARecipe}, {TraceCauses.Unclear}. Each start comes with the path of steps from the machines asked about.")]
@@ -33,7 +36,7 @@ internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, 
         "Where the blockage of output-blocked machines starts. Follows what the machines of a building (and recipe) can't get away downstream, " +
         "through consumers that are blocked themselves, to the first cause. Each start gives its cause as a code and, in causeTerm, as the " +
         $"ledger's term: {TraceCauses.TooFewConsumers} (they run at full speed on all that's sent), {TraceCauses.Bottleneck} (a belt, lift or " +
-        $"pipe at capacity), {TraceCauses.SuppliedByOthers} (the consumers also take from other producers; 'others' says who and how much), " +
+        $"pipe at capacity; {MoreCapacityText}), {TraceCauses.SuppliedByOthers} (the consumers also take from other producers; 'others' says who and how much), " +
         $"{TraceCauses.ConsumerStarved} (they lack another input; 'shortOf' says which, in percent), {TraceCauses.StorageFull} (a full " +
         $"container or station), {TraceCauses.NowhereToGo} (a belt to nothing, or no line out at all), {TraceCauses.WithoutARecipe}, " +
         $"{TraceCauses.Unclear}. Each start comes with the path.")]
@@ -80,7 +83,8 @@ internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, 
             ],
             start.PerMinute,
             start.Others.Count == 0 ? null : [.. start.Others.Select(group => Buildings(group, game))],
-            MachineFacts.Shares(start.ShortOf, game));
+            MachineFacts.Shares(start.ShortOf, game),
+            start.MoreCapacity is { } more ? new MoreCapacityAnswer(game.Building(more.Tier), more.Lines, more.Carries) : null);
     }
 
     private static BuildingsAnswer Buildings(TraceGroupResponse group, GameData game) => new(

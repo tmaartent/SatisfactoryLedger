@@ -8,4 +8,5 @@ internal sealed record TraceStartResponse(
     IReadOnlyList<TraceStepResponse> Path,
     double PerMinute,
     IReadOnlyList<TraceGroupResponse> Others,
-    IReadOnlyDictionary<string, double> ShortOf);
+    IReadOnlyDictionary<string, double> ShortOf,
+    MoreCapacityResponse? MoreCapacity);

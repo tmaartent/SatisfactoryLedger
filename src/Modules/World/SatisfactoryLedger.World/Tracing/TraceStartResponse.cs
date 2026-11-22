@@ -6,6 +6,7 @@ namespace SatisfactoryLedger.World.Tracing;
 /// Where a shortage or blockage starts (decided 2026-11-20): why, of which item, at which buildables, the steps that
 /// lead there, and what those buildables make, offer, carry or take of it per minute. <see cref="Others"/>: who else
 /// takes it (taken by others) or sends it (supplied by others). <see cref="ShortOf"/>: what starved consumers lack.
+/// <see cref="MoreCapacity"/>: what a bottleneck needs to carry what's offered to it (decided 2026-11-22).
 /// </summary>
 internal sealed record TraceStartResponse(
     TraceCause Cause,
@@ -14,4 +15,5 @@ internal sealed record TraceStartResponse(
     IReadOnlyList<TraceStepResponse> Path,
     double PerMinute,
     IReadOnlyList<TraceGroupResponse> Others,
-    IReadOnlyDictionary<string, double> ShortOf);
+    IReadOnlyDictionary<string, double> ShortOf,
+    MoreCapacity? MoreCapacity);

@@ -3,7 +3,7 @@ namespace SatisfactoryLedger.Mcp.Answers;
 /// <summary>
 /// Where a shortage or blockage starts: why (as the API's code, and as the ledger's term from <see cref="TraceCauses"/>),
 /// of which item, at which buildings, and the steps from the machines traced. <see cref="PerMinute"/> is what those
-/// buildings make, offer, carry or take of the item.
+/// buildings make, offer, carry or take of the item; <see cref="MoreCapacity"/>, for a bottleneck, what carries all that's offered to it.
 /// </summary>
 internal sealed record TraceStartAnswer(
     string Cause,
@@ -13,4 +13,5 @@ internal sealed record TraceStartAnswer(
     IReadOnlyList<TraceStepAnswer> Path,
     double PerMinute,
     IReadOnlyList<BuildingsAnswer>? Others,
-    IReadOnlyDictionary<string, int>? ShortOf);
+    IReadOnlyDictionary<string, int>? ShortOf,
+    MoreCapacityAnswer? MoreCapacity);

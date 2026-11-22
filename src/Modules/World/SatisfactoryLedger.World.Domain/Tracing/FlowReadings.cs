@@ -19,6 +19,9 @@ public sealed class FlowReadings(
 
     public bool IsBottleneck(BuildableId id) => bottlenecks.ContainsKey(id);
 
+    /// <summary>What's offered to a bottleneck on top of what it carries, per minute; 0 for anything else.</summary>
+    public double OfferedMore(BuildableId id) => bottlenecks.GetValueOrDefault(id);
+
     public double Spare(BuildableId id, ItemId item) => spare.GetValueOrDefault(id)?.GetValueOrDefault(item) ?? 0;
 
     public bool IsUnknownSupply(BuildableId id) => unknownSupply.ContainsKey(id);

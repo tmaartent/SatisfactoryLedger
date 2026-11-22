@@ -49,6 +49,22 @@ public class ShortageTraceTests
     }
 
     [Fact]
+    public void A_full_belt_says_what_it_takes_to_carry_what_is_offered_to_it()
+    {
+        WorldGraph world = new TestWorld()
+            .Machine("smelter", Items.IronOre, 60, Items.IronIngot, 60).Belt("ingots").Belt("mk1", 60)
+            .Machine("plates", Items.IronIngot, 120, Items.IronPlate, 80)
+            .Connect("smelter", "ingots", "mk1", "plates").Build();
+        FlowReadings readings = new TestReadings()
+            .Starved("smelter", Items.IronOre, 0.5).Bottleneck("mk1", 30).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build();
+        TransportTier[] tiers = [new("Build_ConveyorBeltMk1_C", LogisticsKind.Belt, 60), new("Build_ConveyorBeltMk2_C", LogisticsKind.Belt, 120)];
+
+        TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates"), tiers));
+
+        Assert.Equal(new MoreCapacity("Build_ConveyorBeltMk2_C", 1, 90), start.MoreCapacity);
+    }
+
+    [Fact]
     public void A_starved_producer_is_followed_to_where_its_own_shortage_starts()
     {
         // The miner gives all it can; the smelter gets half its ore; the constructor half its ingots.

@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="SatisfactoryLedger.World.SaveFile.Tests" />
+    <!-- The World module reads the game's transport tiers by kind, as a save's buildables are read. -->
+    <InternalsVisibleTo Include="SatisfactoryLedger.World" />
   </ItemGroup>
 
 </Project>

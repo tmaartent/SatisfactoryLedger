@@ -20,8 +20,11 @@ namespace SatisfactoryLedger.World.Domain.Tracing;
 public static class BlockageTrace
 {
     /// <param name="machines">The machines asked about; only the output-blocked among them are traced.</param>
-    public static IReadOnlyList<TraceStart> From(WorldGraph world, FlowReadings readings, IReadOnlyCollection<BuildableId> machines)
+    /// <param name="tiers">The game's belt, lift and pipe tiers, for what a full one needs; none, and it says nothing.</param>
+    public static IReadOnlyList<TraceStart> From(
+        WorldGraph world, FlowReadings readings, IReadOnlyCollection<BuildableId> machines, IReadOnlyCollection<TransportTier>? tiers = null)
     {
+        tiers ??= [];
         var starts = new TraceStarts();
         HashSet<(BuildableId, ItemId)> followed = [];
         List<(BuildableId Id, MachineReading Reading)> blocked =
@@ -60,7 +63,7 @@ public static class BlockageTrace
             DownstreamLine line = DownstreamLine.Of(world, readings, group, item);
             foreach (BuildableId belt in line.FullBelts)
             {
-                starts.Add(new TraceStart(TraceCause.BeltFull, item, [belt], here, TraceStarts.Capacity(world, belt)));
+                starts.Add(TraceStarts.Bottleneck(world, readings, belt, item, here, tiers));
             }
 
             if (line.FullStores.Count > 0)
