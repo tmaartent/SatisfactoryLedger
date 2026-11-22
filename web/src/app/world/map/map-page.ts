@@ -42,6 +42,8 @@ import {
   statusLabels,
   toMapPoint,
 } from './map-model';
+import { SidebarTab } from '../../sidebar/sidebar-tab';
+import { Explainer, HeldBackMachine } from '../explain/explainer';
 import { LimitFacts, limitText } from '../limit-text';
 import { SnapshotsSidebar } from '../snapshots-sidebar';
 
@@ -62,6 +64,7 @@ const MinZoom = -4;
     FormsModule,
     RouterLink,
     SnapshotsSidebar,
+    SidebarTab,
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,
@@ -74,6 +77,7 @@ export class MapPage {
   private readonly api = inject(Api);
   private readonly names = inject(CatalogNames);
   private readonly router = inject(Router);
+  private readonly explainer = inject(Explainer);
 
   /** From the route: /snapshots/:id/map; none at /snapshots, where the site starts with no snapshot loaded. */
   readonly id = input<string>();
@@ -173,7 +177,7 @@ export class MapPage {
 
   constructor() {
     afterNextRender(() => this.createMap());
-    // Leaflet follows the window's size only: the explanation beside the page also changes the map's (asked 2026-11-22).
+    // Leaflet follows the window's size only: the sidebar beside the page also changes the map's (asked 2026-11-22).
     const resized = new ResizeObserver(() => this.map?.invalidateSize());
     afterNextRender(() => resized.observe(this.container().nativeElement));
     inject(DestroyRef).onDestroy(() => {
@@ -335,20 +339,25 @@ export class MapPage {
       const point = toMapPoint(machine.position);
       points.push(point);
       const utilisation = utilisations.get(machine.id);
+      const finding = findings.get(machine.id);
+      // A held-back machine of no factory: a click explains it; one of a factory opens the factory, which explains it.
+      const explains = !owner && finding !== undefined && this.explainer.explainable(finding);
       // A factory's machines are edged in its colour, boldly when it is the one highlighted.
       const style = buildingStyle(statusColours[status], owner?.colour, highlighted ? inFactory : null);
       const shape = this.shape(machine.position, machine.yaw, machine.className, style)
         .bindTooltip(
           `<b>${this.names.building(machine.className)}</b> · ${this.names.recipe(machine.recipe)}<br>` +
             `${statusLabels[status]}${utilisation !== undefined ? ` · ${percent(utilisation)}` : ''}<br>` +
-            (findings.get(machine.id) ? this.limitLine(findings.get(machine.id)!) : '') +
+            (finding ? this.limitLine(finding) : '') +
             (machine.inputContents ? `In: ${this.contents(machine.inputContents)}<br>` : '') +
             (machine.outputContents ? `Out: ${this.contents(machine.outputContents)}<br>` : '') +
             this.factoryLine(owner) +
+            (explains ? 'Click to explain why<br>' : '') +
             positionInMetres(machine.position),
         )
         .addTo(this.machineLayer);
       this.opensFactory(shape, owner);
+      if (explains && finding) this.explainsWhy(shape, { className: machine.className, recipe: machine.recipe, limit: finding.limit });
       this.shapes.set(machine.id, shape);
     }
 
@@ -468,6 +477,15 @@ export class MapPage {
       if (this.drawing()) return;
       L.DomEvent.stopPropagation(event);
       void this.router.navigate(['/snapshots', this.id(), 'factories', owner.factoryId]);
+    });
+  }
+
+  /** A click on a held-back machine of no factory asks why, in the sidebar (asked 2026-11-22); not while drawing. */
+  private explainsWhy(shape: L.Path, machine: HeldBackMachine): void {
+    shape.on('click', (event: L.LeafletMouseEvent) => {
+      if (this.drawing()) return;
+      L.DomEvent.stopPropagation(event);
+      this.explainer.explain(machine, this.id()!);
     });
   }
 

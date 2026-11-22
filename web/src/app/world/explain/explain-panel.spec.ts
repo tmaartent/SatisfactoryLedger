@@ -141,27 +141,15 @@ describe('explaining a finding', () => {
     expect(explain).toHaveBeenLastCalledWith({ ...finding, model: 'claude' });
   });
 
-  it('collapses to a strip and comes back as it was', async () => {
-    const fixture = await render({ models: () => Promise.resolve([local]), explain: () => Promise.resolve(explanation()) });
-    const button = (label: string) => (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
-
-    button('Collapse the explanation').click();
-    await settled(fixture);
-    expect(text(fixture)).not.toContain('the one Smelter makes 30 a minute');
-
-    button('Show the explanation').click();
-    await settled(fixture);
-    expect(text(fixture)).toContain('the one Smelter makes 30 a minute');
-  });
-
-  it('closes', async () => {
+  it('clears, and then says where to ask', async () => {
     const fixture = await render({ models: () => Promise.resolve([local]), explain: () => Promise.resolve(explanation()) });
 
-    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-label="Close the explanation"]')!.click();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button[aria-label="Clear the explanation"]')!.click();
     await settled(fixture);
 
     expect(TestBed.inject(Explainer).question()).toBeNull();
-    expect(text(fixture).trim()).toBe('');
+    expect(text(fixture)).not.toContain('the one Smelter makes 30 a minute');
+    expect(text(fixture)).toContain('Ask why a starved or output-blocked machine runs as it does');
   });
 
   it('offers no choice of model when there is one', async () => {

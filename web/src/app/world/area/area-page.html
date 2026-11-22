@@ -6,11 +6,19 @@
   <span class="spacer"></span>
   @if (!embedded()) {
     <span class="muted">{{ machineCount() }} machines, {{ buildings().length }} buildings in the area</span>
-  }
-  @if (!defining() && !embedded()) {
-    <button mat-flat-button (click)="startDefining()"><mat-icon>add</mat-icon> Define a factory</button>
+    <!-- While defining, the name and Save and Cancel are here, as on a factory's own page (asked 2026-11-22). -->
+    @if (defining()) {
+      <input class="name" aria-label="Name" placeholder="Name" [(ngModel)]="factoryName" (keydown.enter)="save()" />
+      <button mat-button type="button" (click)="stopDefining()">Cancel</button>
+      <button mat-flat-button type="button" (click)="save()" [disabled]="!canSave()"><mat-icon>save</mat-icon> Save</button>
+    } @else {
+      <button mat-flat-button (click)="startDefining()"><mat-icon>add</mat-icon> Define a factory</button>
+    }
   }
 </div>
+@if (!embedded() && saveError()) {
+  <p class="error">{{ saveError() }}</p>
+}
 
 @if (world.isLoading()) {
   <mat-progress-bar mode="indeterminate" />
@@ -19,37 +27,38 @@
   <p>The area couldn't be loaded: {{ problem(error) }}</p>
 }
 
-<div class="layout">
-  <div class="viewer">
-    <div #stage class="stage" [class.embedded]="embedded()">
-      <!-- What the machines' colours mean, so the starved, output blocked and recipe-less ones can be told apart. -->
-      <div class="status-legend">
-        @for (entry of statusLegend; track entry.status) {
-          <span><span class="dot" [style.background]="entry.colour"></span>{{ entry.label }}</span>
-        }
-      </div>
-      @if (dragBox(); as box) {
-        <div class="drag-box" [style.left.px]="box.left" [style.top.px]="box.top" [style.width.px]="box.right - box.left" [style.height.px]="box.bottom - box.top"></div>
+<div class="viewer">
+  <div #stage class="stage" [class.embedded]="embedded()">
+    <!-- What the machines' colours mean, so the starved, output blocked and recipe-less ones can be told apart. -->
+    <div class="status-legend">
+      @for (entry of statusLegend; track entry.status) {
+        <span><span class="dot" [style.background]="entry.colour"></span>{{ entry.label }}</span>
       }
-      <span class="hint">
-        @if (defining()) {
-          Click a machine to add it, click it again to take it out. Shift-drag to add a box of them, alt-drag to take them out.
-        } @else {
-          Drag to turn, scroll to zoom, right-drag to move. Click a machine, belt, pipe or lift to see it.
-        }
-      </span>
     </div>
-    @if (heights().high > heights().low) {
-      <label class="cut">
-        <span>Show up to {{ cutOff() ?? heights().high }} m</span>
-        <mat-slider [min]="heights().low" [max]="heights().high" step="1" discrete>
-          <input matSliderThumb [value]="cutOff() ?? heights().high" (valueChange)="cutOff.set($event === heights().high ? null : $event)" aria-label="Height cut-off in metres" />
-        </mat-slider>
-      </label>
+    @if (dragBox(); as box) {
+      <div class="drag-box" [style.left.px]="box.left" [style.top.px]="box.top" [style.width.px]="box.right - box.left" [style.height.px]="box.bottom - box.top"></div>
     }
+    <span class="hint">
+      @if (defining()) {
+        Click a machine to add it, click it again to take it out. Shift-drag to add a box of them, alt-drag to take them out.
+      } @else {
+        Drag to turn, scroll to zoom, right-drag to move. Click a machine, belt, pipe or lift to see it.
+      }
+    </span>
   </div>
+  @if (heights().high > heights().low) {
+    <label class="cut">
+      <span>Show up to {{ cutOff() ?? heights().high }} m</span>
+      <mat-slider [min]="heights().low" [max]="heights().high" step="1" discrete>
+        <input matSliderThumb [value]="cutOff() ?? heights().high" (valueChange)="cutOff.set($event === heights().high ? null : $event)" aria-label="Height cut-off in metres" />
+      </mat-slider>
+    </label>
+  }
+</div>
 
-  <aside class="panel" aria-live="polite">
+<!-- The building or belt clicked, or the steps of defining a factory: the sidebar's Info tab (asked 2026-11-22). -->
+<ng-template appSidebarTab="info" label="Info" icon="info">
+  <div class="panel" aria-live="polite">
     @if (defining()) {
       <section class="factory">
         <h2>{{ editing() ? 'Edit factory' : 'New factory' }}</h2>
@@ -90,20 +99,6 @@
               <span class="muted"> · already in {{ selectedOwners()[0].name }}</span>
             }
           </p>
-        }
-        <!-- On a factory's own page, its name and Save and Cancel are in the page's header. -->
-        @if (!embedded()) {
-          <mat-form-field subscriptSizing="dynamic">
-            <mat-label>Name</mat-label>
-            <input matInput [(ngModel)]="factoryName" (keydown.enter)="save()" />
-          </mat-form-field>
-          @if (saveError(); as message) {
-            <p class="error">{{ message }}</p>
-          }
-          <div class="actions">
-            <button mat-button (click)="stopDefining()">Cancel</button>
-            <button mat-flat-button (click)="save()" [disabled]="!canSave()">Save</button>
-          </div>
         }
       </section>
     }
@@ -175,25 +170,28 @@
     } @else {
       <p class="muted">Click a machine to see its recipe, what it holds, and why it runs as it does; a belt, pipe or lift to see what's on it.</p>
     }
-    <!-- On a factory's own page, the page edits and deletes it. -->
-    @if (factoriesShown().length > 0 && !embedded()) {
-      <section class="legend">
-        <h2>Factories here</h2>
-        <ul>
-          @for (factory of factoriesShown(); track factory.factoryId) {
-            <li>
-              <span class="swatch" [style.border-color]="factory.colour"></span>
-              <a [routerLink]="['/snapshots', id(), 'factories', factory.factoryId]">{{ factory.name }}</a>
-              @if (!defining()) {
-                <span class="legend-actions">
-                  <button mat-icon-button (click)="startEditing(factory)" [attr.aria-label]="'Edit ' + factory.name"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button (click)="deleteFactory(factory)" [attr.aria-label]="'Delete ' + factory.name"><mat-icon>delete</mat-icon></button>
-                </span>
-              }
-            </li>
-          }
-        </ul>
-      </section>
-    }
-  </aside>
-</div>
+  </div>
+</ng-template>
+<!-- The factories with machines in the area; on a factory's own page, the page edits and deletes it. -->
+@if (!embedded()) {
+  <ng-template appSidebarTab="factories" label="Factories" icon="factory" [order]="1">
+    <section class="panel legend">
+      <ul>
+        @for (factory of factoriesShown(); track factory.factoryId) {
+          <li>
+            <span class="swatch" [style.border-color]="factory.colour"></span>
+            <a [routerLink]="['/snapshots', id(), 'factories', factory.factoryId]">{{ factory.name }}</a>
+            @if (!defining()) {
+              <span class="legend-actions">
+                <button mat-icon-button (click)="startEditing(factory)" [attr.aria-label]="'Edit ' + factory.name"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button (click)="deleteFactory(factory)" [attr.aria-label]="'Delete ' + factory.name"><mat-icon>delete</mat-icon></button>
+              </span>
+            }
+          </li>
+        } @empty {
+          <li class="muted">No factory has machines here. Define one with <b>Define a factory</b>.</li>
+        }
+      </ul>
+    </section>
+  </ng-template>
+}

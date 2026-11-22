@@ -15,7 +15,7 @@ import { problemMessage } from '../shared/problem';
 import { SnapshotDeletion } from './snapshot-deletion';
 
 /**
- * Beside the map (asked 2026-11-19): the import of a new save, and every snapshot by its world's name, newest first,
+ * The map's Snapshots tab in the sidebar (asked 2026-11-22): the import of a new save, and every snapshot by its world's name, newest first,
  * linking to its map, with a delete button.
  */
 @Component({

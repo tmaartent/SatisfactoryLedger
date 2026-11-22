@@ -6,15 +6,20 @@
     <a mat-button routerLink="/catalog" routerLinkActive="active">Catalog</a>
   </nav>
 </mat-toolbar>
-<!-- The page, and beside it the explanation asked last, so it stays while the player follows its links (asked 2026-11-22). -->
+<!-- The page, and on its right the sidebar with the page's tabs and the explanation (asked 2026-11-22). -->
 <div class="shell">
   <main>
     <router-outlet />
   </main>
-  <!-- Deferred: its code loads with the first question, not with every page. -->
-  @if (explainer.question()) {
-    @defer {
-      <app-explain-panel />
-    }
+  @if (inWorld()) {
+    <!-- On every World page, last: it stays while the player follows its links. Its code loads when it's first shown. -->
+    <ng-template appSidebarTab="explanation" label="Explanation" icon="lightbulb" [order]="9">
+      @defer {
+        <app-explain-panel />
+      }
+    </ng-template>
+  }
+  @if (sidebar.tabs().length > 0) {
+    <app-sidebar />
   }
 </div>

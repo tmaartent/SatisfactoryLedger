@@ -1,0 +1,63 @@
+// The open tab, then the rail at the window's right edge. The shell holds it below the toolbar (app.scss).
+:host {
+  display: flex;
+  height: 100%;
+  background: var(--mat-sys-surface);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 340px;
+  border-left: 1px solid var(--mat-sys-outline-variant);
+  background: var(--mat-sys-surface);
+
+  header {
+    display: flex;
+    align-items: center;
+    padding: 4px 4px 0 16px;
+
+    h2 {
+      flex: 1;
+      margin: 0;
+      font: var(--mat-sys-title-small);
+      color: var(--mat-sys-on-surface-variant);
+    }
+  }
+}
+
+// A tab's own content: it scrolls when it doesn't fit, and a tab with a footer of its own fills the height.
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 48px;
+  padding-top: 8px;
+  border-left: 1px solid var(--mat-sys-outline-variant);
+
+  .active {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+}
+
+// Too narrow to sit beside the page: the open tab lies over it, left of the rail, which stays beside it.
+@media (max-width: 960px) {
+  .tab {
+    position: absolute;
+    top: 0;
+    right: 48px;
+    bottom: 0;
+    box-shadow: var(--mat-sys-level3);
+  }
+}

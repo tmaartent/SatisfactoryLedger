@@ -1,26 +1,20 @@
-// Beside the page, below the toolbar, the height of the window (asked 2026-11-22). The shell lays it out (app.scss).
+// The sidebar's Explanation tab (asked 2026-11-22): the question, the text scrolling under it, the model choice below.
 :host {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  box-sizing: border-box;
-  width: 380px;
-  height: 100%;
-  border-left: 1px solid var(--mat-sys-outline-variant);
-  background: var(--mat-sys-surface);
+  min-height: 0;
 }
 
-// A strip with the lightbulb, to bring it back, and a close button.
-:host(.collapsed) {
-  width: 48px;
-  align-items: center;
-  padding-top: 8px;
+.hint {
+  padding: 0 16px;
 }
 
 header {
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  padding: 12px 8px 4px 16px;
+  padding: 4px 4px 4px 16px;
 
   h2 {
     flex: 1;

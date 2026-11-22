@@ -1,9 +1,7 @@
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, output, resource, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSliderModule } from '@angular/material/slider';
 import { Router, RouterLink } from '@angular/router';
@@ -31,6 +29,8 @@ import { conveyorColours, describeContents, statusColours, statusLabels, Machine
 import { boxGeometry } from './box-geometry';
 import { sceneBackground } from './scene-background';
 import { Area, areaAround, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
+import { SidebarTab } from '../../sidebar/sidebar-tab';
+import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
 import { blockedMachines, factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
@@ -63,13 +63,13 @@ function choosable(building: AreaBuilding | null | undefined): building is AreaB
 /**
  * An area of a snapshot in 3D (ADR-0024): every building inside a rectangle drawn on the map, as its clearance boxes,
  * with belts, pipes and lifts along their curves. Machines are coloured by the analysis; a click shows what a building or
- * a belt is and holds.
+ * a belt is and holds, in the sidebar's Info tab; the factories in the area are its Factories tab (asked 2026-11-22).
  * While defining a factory, a click adds or takes out a machine, and a box dragged with shift or alt adds or takes out
  * every machine inside it (BR-W2).
  */
 @Component({
   selector: 'app-area-page',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatProgressBarModule, MatSliderModule],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatSliderModule, SidebarTab],
   templateUrl: './area-page.html',
   styleUrl: './area-page.scss',
 })
@@ -79,6 +79,7 @@ export class AreaPage {
   private readonly factoryDeletion = inject(FactoryDeletion);
   protected readonly names = inject(CatalogNames);
   protected readonly explainer = inject(Explainer);
+  private readonly sidebar = inject(SidebarTabs);
 
   /** From the route: /snapshots/:id/area?x0=…&y0=…&x1=…&y1=… (centimetres), or ?factory=… for the area around a factory. */
   readonly id = input.required<string>();
@@ -253,7 +254,9 @@ export class AreaPage {
     effect(() => this.drawSelectedConveyor());
   }
 
+  /** Defining a factory shows the Info tab, which has the steps; the name and Save are in the page's header. */
   protected startDefining(): void {
+    this.sidebar.show('info');
     this.defining.set(true);
     this.settled.set([]);
     this.saveError.set(null);
@@ -267,6 +270,7 @@ export class AreaPage {
     this.factoryName.set(factory.name);
     this.settled.set([]);
     this.saveError.set(null);
+    this.sidebar.show('info');
     this.defining.set(true);
   }
 
@@ -553,6 +557,8 @@ export class AreaPage {
       const conveyors = hit?.object.userData['conveyors'] as MapConveyor[] | undefined;
       this.selected.set(building);
       this.selectedConveyor.set(conveyors && hit?.faceIndex != null ? conveyors[pieceAt(hit.object.userData['starts'], hit.faceIndex)] : null);
+      // What was clicked is in the Info tab: shown, and the sidebar opened, also when it was collapsed (asked 2026-11-22).
+      if (building || this.selectedConveyor()) this.sidebar.show('info');
       if (this.defining() && choosable(building) && !this.blocked().has(building.id)) this.chosen.update((chosen) => toggle(chosen, building.id));
     });
   }

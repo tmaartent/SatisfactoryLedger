@@ -3,6 +3,7 @@ import { NavigationEnd, Router } from '@angular/router';
 
 import { CatalogNames } from '../../shared/catalog-names';
 import { problemMessage } from '../../shared/problem';
+import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { Assistant, ChatModel, Explanation, ExplanationRequest } from './assistant';
 
 /** A machine as the findings and the 3D view know it: its building, recipe and how it runs. */
@@ -19,18 +20,18 @@ export interface Question {
 }
 
 /**
- * The explanation of a held-back machine (ADR-0030), asked from the findings table or the 3D view and kept for the whole
- * app: the panel beside every page shows it, so it stays while the player follows its links to the map and the 3D view
- * (asked 2026-11-22). One at a time: a new question replaces it. It closes when the player moves to another snapshot,
+ * The explanation of a held-back machine (ADR-0030), asked from the findings table, the 3D view or the map, and kept for
+ * the whole app: the sidebar's Explanation tab shows it, so it stays while the player follows its links to the map and the
+ * 3D view (asked 2026-11-22). One at a time: a new question replaces it. It closes when the player moves to another snapshot,
  * where its links would lead into another world.
  */
 @Injectable({ providedIn: 'root' })
 export class Explainer {
   private readonly assistant = inject(Assistant);
   private readonly names = inject(CatalogNames);
+  private readonly sidebar = inject(SidebarTabs);
 
   readonly question = signal<Question | null>(null);
-  readonly collapsed = signal(false);
   readonly models = signal<ChatModel[]>([]);
   readonly model = signal<string | null>(null);
   readonly asking = signal(false);
@@ -62,7 +63,7 @@ export class Explainer {
       finding: { snapshotId, building: machine.className, recipe: machine.recipe ?? null, limit: machine.limit },
       machines: `${this.names.building(machine.className)}${recipe}`,
     });
-    this.collapsed.set(false);
+    this.sidebar.show('explanation');
     void this.start();
   }
 
