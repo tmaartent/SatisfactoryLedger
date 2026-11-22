@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSliderModule } from '@angular/material/slider';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -75,7 +75,6 @@ function choosable(building: AreaBuilding | null | undefined): building is AreaB
 })
 export class AreaPage {
   private readonly api = inject(Api);
-  private readonly router = inject(Router);
   private readonly factoryDeletion = inject(FactoryDeletion);
   protected readonly names = inject(CatalogNames);
   protected readonly explainer = inject(Explainer);
@@ -296,7 +295,10 @@ export class AreaPage {
     this.saveError.set(null);
   }
 
-  /** Stores the factory, new or edited, in the snapshot's world, then opens its page. */
+  /**
+   * Stores the factory, new or edited, in the snapshot's world, and stays: in the 3D view of an area the Factories tab
+   * shows it among the others, so the next one can be defined (asked 2026-11-23). It no longer opens the factory's page.
+   */
   async save(): Promise<void> {
     const snapshot = this.snapshot.value();
     if (!snapshot || !this.canSave()) return;
@@ -310,10 +312,11 @@ export class AreaPage {
         ? await this.api.invoke(editFactory, { id: editing, body: { name, machines } })
         : await this.api.invoke(defineFactory, { body: { world: snapshot.sessionName, name, machines } });
       this.saved.emit(factory.id);
-      // On the factory's own page this changes nothing; stop defining, and show its machines as they are now.
+      // Stop defining, and show its machines as they are now, edged in its colour.
       this.stopDefining();
       this.factories.reload();
-      await this.router.navigate(['/snapshots', this.id(), 'factories', factory.id]);
+      // The factory's own page has no Factories tab: it reloads its findings on saved.
+      if (!this.embedded()) this.sidebar.show('factories');
     } catch (error) {
       this.saveError.set(problemMessage(error));
     } finally {
