@@ -13,7 +13,7 @@ import { whereItStarts } from './trace-starts';
 /**
  * A finding explained in words by a chat model (AI enhancement 3), in the sidebar's Explanation tab so it stays while
  * the player follows its links (asked 2026-11-22). With what it stands on: the model, the tool whose answer it was given,
- * where that answer says it starts (linked to the map), and the numbers in the text that the answer doesn't hold. With
+ * where that answer says it starts (linked to the map) with its numbers, and any numbers the model wrote anyway. With
  * nothing asked, where to ask.
  */
 @Component({

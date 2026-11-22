@@ -10,13 +10,16 @@ internal sealed class FakeChatClient(string answer) : IChatClient
     /// <summary>The messages of the last call.</summary>
     public List<ChatMessage> Messages { get; } = [];
 
-    public int Calls { get; private set; }
+    /// <summary>The question of each call, in order.</summary>
+    public List<string> Questions { get; } = [];
+
+    public int Calls => Questions.Count;
 
     public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
-        Calls++;
         Messages.Clear();
         Messages.AddRange(messages);
+        Questions.Add(Messages.Last(message => message.Role == ChatRole.User).Text);
         return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, answer)) { ModelId = Model });
     }
 

@@ -20,7 +20,7 @@ export interface ChatModel {
   model: string;
 }
 
-/** An explanation, the model that wrote it (none for the trace's own note), the facts it stands on, and the numbers that aren't in them. */
+/** An explanation, the model that wrote it (none for the trace's own note), the facts it stands on, and the numbers it wrote outside names, which it was asked not to. */
 export interface Explanation {
   text: string;
   model: string | null;

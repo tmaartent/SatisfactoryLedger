@@ -69,7 +69,7 @@ describe('explaining a finding', () => {
     expect(text(fixture)).toContain('Why are the Constructor (Iron Plate) machines starved?');
     expect(text(fixture)).toContain('the one Smelter makes 30 a minute');
     expect(text(fixture)).toContain('Written by qwen2.5:7b, from trace_upstream');
-    expect(text(fixture)).not.toContain('Not in the facts');
+    expect(text(fixture)).not.toContain('Numbers in the text');
   });
 
   it('lists where it starts, each place linked to the map, instead of the raw facts', async () => {
@@ -116,10 +116,10 @@ describe('explaining a finding', () => {
     expect(text(fixture)).toMatch(/To carry all that's offered\s*·\s*1,550\/min\s*2 lines of Conveyor Belt Mk\.6 side by side/);
   });
 
-  it('flags the numbers that are not in the facts', async () => {
+  it('flags the numbers the model wrote, pointing at the list', async () => {
     const fixture = await render({ models: () => Promise.resolve([local]), explain: () => Promise.resolve(explanation(['45', '15'])) });
 
-    expect(text(fixture)).toContain('Not in the facts: 45, 15');
+    expect(text(fixture)).toMatch(/Numbers in the text: 45, 15\..*the list below has the ledger's/);
   });
 
   it("says why the ledger couldn't answer", async () => {

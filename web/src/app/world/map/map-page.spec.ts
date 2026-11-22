@@ -35,6 +35,10 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
 });
 
+// Leaflet redraws its canvas on the next animation frame. Removed before that frame, the map left it to draw on a
+// canvas that was gone, an error after the test that failed the run: let it draw first.
+afterEach(() => new Promise((drawn) => requestAnimationFrame(drawn)));
+
 async function render(id?: string, mapArt: unknown = null, focus?: string) {
   const answers = new Map<unknown, unknown>([
     [

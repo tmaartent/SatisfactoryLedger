@@ -48,7 +48,7 @@ The project suits this well. It has real domain data (the game's Docs file, the 
 
 **What it would take:** an *Assistant* module that only uses the other modules' `*.Contracts` (ADR-0003), and `Microsoft.Extensions.AI`'s `IChatClient`: .NET's common interface for chat models, roughly Spring AI's `ChatClient`. The same code then runs against Claude or a local model.
 
-**As built (step 57):** not a module but a service of its own, which gets its facts as an MCP client of idea 1's server: the trace that fits the finding, and the tool's own description. One model call through `IChatClient`, with Qwen 2.5 7B on Ollama, or Claude when an API key is set. Code checks that every number in the answer comes from the facts.
+**As built (step 57):** not a module but a service of its own, which gets its facts as an MCP client of idea 1's server: the trace that fits the finding, and the tool's own description. One model call through `IChatClient`, with Qwen 2.5 7B on Ollama, or Claude when an API key is set. Code checks that every number in the answer comes from the facts. *Since step 64 the model gets no numbers and writes none; the panel gives them.*
 
 ## 4. RAG over the docs and the game data
 *Raised 2026-11-08.*

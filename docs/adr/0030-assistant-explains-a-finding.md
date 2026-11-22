@@ -15,7 +15,8 @@ The enhancements doc planned an *Assistant module* in the API, using the other m
   - the tool's own description, which says what every cause means.
 
   The names, positions and causes are then the same ones Claude Code sees. The Assistant references neither the API's records nor the MCP server's code.
-- **Code chooses the tool; the model makes one call.** No agent loop: the finding says which trace fits. Tool-calling agents are for idea 6.
+- **Code chooses the tool; the model makes one call per start.** No agent loop: the finding says which trace fits. Tool-calling agents are for idea 6.
+- **Every start is explained, each in a call of its own** (decided 2026-11-22, step 65). The model is given one start at a time and told there are others; code joins the answers as paragraphs, in the trace's order. *At first one call got all the starts and the rules asked for "the main cause". The model then picked one: of two Smelters that nothing brings Iron Ore to, and Iron Ingot taken by others, it named only the second. Asked for every start in one prompt, it merged them into "Iron Ore taken by others", which neither start says.*
 - **Models behind `IChatClient`** (`Microsoft.Extensions.AI`), each registered under a key:
   - `local`: **Qwen 2.5 7B** (`qwen2.5:7b`, 4-bit, 4.7 GB) on **Ollama in a container** with the GPU, started by the AppHost (CommunityToolkit.Aspire). Always there. *(Container and local model decided 2026-11-21; the model is a default, to be overruled.)*
   - `claude`: Claude (`claude-sonnet-5-5`) through Anthropic's SDK, only when the AppHost has the secret `Parameters:anthropic-api-key`. *(Decided 2026-11-21.)*
@@ -24,14 +25,15 @@ The enhancements doc planned an *Assistant module* in the API, using the other m
 - **Grounding rules in the prompt:**
   - use only the facts;
   - write names as the facts give them;
-  - copy numbers and never compute one;
+  - write no numbers: the panel gives them *(decided 2026-11-22, step 64; at first: copy numbers, never compute one)*;
   - say "in the model";
-  - the main cause in plain words, and one next step;
-  - no list of the starts and no positions: the panel lists those;
+  - the start's cause in plain words, and one next step;
+  - no list of the starts and no positions: the panel lists those. Nor who else takes an item: the model isn't given them *(step 65; it listed them all)*;
   - two or three sentences.
 
   Temperature 0.2.
-- **Code checks the numbers.** Every number in the answer must come from the facts: as written, rounded to the decimals written, or rounded up or down to a whole number. Numbers in names and ids count, and 100 (full speed) is always allowed. The ones that don't come from the facts are returned as `unsupportedNumbers`, and the panel flags them. This is "the model explains, the solver computes", checked rather than hoped for.
+- **The model gets no numbers and writes none** (decided 2026-11-22, step 64). Code removes every number from the answer before the model sees it, and a bottleneck's next step is worded without its count of lines. The panel's list gives the numbers, each with its label. Numbers in names stay (Conveyor Belt Mk.6). *At first the model copied numbers from the facts and code checked that each came from them. Qwen 2.5 7B copied them right but pinned them on the wrong things: "only 9 units of Wire per minute" for 9 starved Assemblers on a belt full at 1,200/min. A check of values can't catch that.*
+- **Code checks for numbers.** A number in the answer outside the names the facts give is returned in `unsupportedNumbers`, and the panel flags it, pointing at the list. This is "the model explains, the solver computes", checked rather than hoped for.
 - **When nothing is held back,** the trace's own note is the answer, without a model.
 - **The answer shows its sources:** the model and the tool. Beside the text, the panel lists *where it starts*: built by code from the tool's answer, not by the model, with one row per cause and item and each place linked to the map (`?focus=` its first id). The model says why; the list says where. *(Decided 2026-11-21, instead of the raw JSON.)*
 - **The explanation stays beside every page** (decided 2026-11-22): the Explanation tab of the sidebar on the right of every World page, not a dialog. Following its links to the map or a 3D view keeps it. One at a time, a new question replaces it; asking shows the tab, opening the sidebar if it was collapsed. It's cleared when the player moves to another snapshot; with nothing asked, the tab says where to ask. *(First a panel of its own, the same day; it became a tab when the sidebar took the pages' side panels, step 63.)*

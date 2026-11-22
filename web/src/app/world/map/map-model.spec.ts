@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { buildingStyle, describeContents, mapArtExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { MapMargin, buildingStyle, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -215,6 +215,28 @@ describe('map model', () => {
 
     it('holds the map to nothing without map art', () => {
       expect(mapArtExtent(null)).toBeNull();
+    });
+
+    describe('with buildings past its edges, as the game allows', () => {
+      const building = (x: number, y: number) => ({ id: `b${x}`, position: { x, y, z: 0 } });
+      const off = (buildings: { id: string; position: { x: number; y: number; z: number } }[], conveyors: { location: { x: number; y: number; z: number } }[][] = []) =>
+        ({ machines: [], providers: buildings, logistics: [], consumers: [], conveyors: conveyors.map((curve, i) => ({ id: `c${i}`, curve })) }) as unknown as WorldMapResponse;
+
+      it('reaches as far as the buildings, and a margin past them', () => {
+        expect(mapExtent(art, off([building(3000, 0)]))).toEqual([[-5, -10], [5, 30 + MapMargin]]);
+      });
+
+      it('reaches as far as the belts and pipes too', () => {
+        expect(mapExtent(art, off([], [[{ location: { x: 0, y: 0, z: 0 } }, { location: { x: 0, y: 4000, z: 0 } }]]))).toEqual([[-40 - MapMargin, -10], [5, 10]]);
+      });
+
+      it('stays the map picture when every building is on it', () => {
+        expect(mapExtent(art, off([building(500, -200)]))).toEqual([[-5, -10], [5, 10]]);
+      });
+
+      it('is nothing without map art', () => {
+        expect(mapExtent(null, off([building(3000, 0)]))).toBeNull();
+      });
     });
   });
 });

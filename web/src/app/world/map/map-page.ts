@@ -33,7 +33,7 @@ import {
   freeNodes,
   fromMapPoint,
   locate,
-  mapArtExtent,
+  mapExtent,
   mapArtTiles,
   machineStatuses,
   purityColours,
@@ -192,6 +192,8 @@ export class MapPage {
     effect(() => this.drawOthers());
     effect(() => this.drawFreeNodes());
     effect(() => this.drawMapArt());
+    // Again with the snapshot's buildings, which may stand past the picture.
+    effect(() => this.holdToMapArt());
     effect(() => this.fitToFactory());
     // Last, so the shapes it opens a tooltip on are drawn.
     effect(() => this.focusOnBuildable());
@@ -244,11 +246,12 @@ export class MapPage {
 
   /**
    * With the map picture, the map zooms out no further than the whole picture and moves no further than its edges: past
-   * them is only the grid (asked 2026-11-20). Without one, the whole world's grid can be seen, as before.
+   * them is only the grid (asked 2026-11-20). Buildings past its edges, as the game allows, take the edges with them
+   * (asked 2026-11-23). Without one, the whole world's grid can be seen, as before.
    */
   private holdToMapArt(): void {
     if (!this.map) return;
-    const extent = mapArtExtent(this.mapArt.hasValue() ? this.mapArt.value() : null);
+    const extent = mapExtent(this.mapArt.hasValue() ? this.mapArt.value() : null, this.world.hasValue() ? this.world.value() : null);
     if (!extent) {
       this.map.setMaxBounds();
       this.map.setMinZoom(MinZoom);
