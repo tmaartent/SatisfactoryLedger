@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -24,6 +25,8 @@ internal static class ExplanationPrompt
         - Say the main cause in the ledger's term the facts give it ("taken by others") and the item it concerns,
           then one next step the player can take. Never write the tool's names for the causes.
         - A start with a nextStep: that is the next step for it. Give it as written, and suggest no other belt, lift or pipe.
+        - Each start's way says what the machines asked about lack (or can't get away) and how that leads to the start.
+          Name what they lack first, as the way does; don't skip to the start's item.
         - The player sees every start beside your text, as a list with links to the map: don't list the starts, and
           don't give positions.
         - The facts are the ledger's model of the world: say "in the model" or "the ledger finds", not that it is certain.
@@ -49,13 +52,16 @@ internal static class ExplanationPrompt
     /// large trace's tokens. A prompt longer than the model's context loses its start, the rules. Each cause is the
     /// ledger's term alone (the MCP server's causeTerm), so the model doesn't repeat the code for it. A bottleneck's
     /// more capacity is a sentence, its nextStep: given the tier, lines and rate, a small model took the rate for the
-    /// belt's capacity and the lines for how many there are now. The dialog shows the rate.
+    /// belt's capacity and the lines for how many there are now. The dialog shows the rate. A start's path is a sentence
+    /// too, its way: given the steps, a small model skipped from the machines asked about to the start's item.
     /// </summary>
     private static string ForTheModel(JsonElement answer)
     {
         JsonNode node = JsonNode.Parse(answer.GetRawText())!;
         Simplify(node);
-        return node.ToJsonString();
+
+        // Not for HTML: "can't" stays as written, not ', for the model to read and copy.
+        return node.ToJsonString(new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }
 
     private static void Simplify(JsonNode? node)
@@ -65,6 +71,15 @@ internal static class ExplanationPrompt
             case JsonObject properties:
                 properties.Remove("ids");
                 properties.Remove("positionMetres");
+
+                if (properties["path"] is JsonArray path)
+                {
+                    properties.Remove("path");
+                    if (path.Count > 0)
+                    {
+                        properties["way"] = Way(path);
+                    }
+                }
 
                 if (properties["moreCapacity"] is JsonObject more)
                 {
@@ -105,6 +120,40 @@ internal static class ExplanationPrompt
         return lines == 1 ? $"Rebuild it as {tier}."
             : tier == bottleneck ? $"Lay another {tier} beside it, for {lines} lines side by side."
             : $"Rebuild it as {lines} lines of {tier} side by side.";
+    }
+
+    /// <summary>
+    /// The path to a start as a sentence: "The Assembler (Nobelisk) machines are short of Black Powder, made by the
+    /// Assembler (Black Powder) machines, which are short of Sulfur." Downstream: what they can't get away, and to whom.
+    /// The path lists a step's machines one kind at a time, each with the step's item.
+    /// </summary>
+    private static string Way(JsonArray path)
+    {
+        List<(string Item, List<string> Machines)> steps = [];
+        bool upstream = path[0]?["shortOf"] is not null;
+        foreach (JsonNode? step in path)
+        {
+            string item = (step?["shortOf"] ?? step?["cannotLeave"])?.GetValue<string>() ?? "";
+            string building = step?["building"]?.GetValue<string>() ?? "";
+            string machines = step?["recipe"]?.GetValue<string>() is { } recipe ? $"{building} ({recipe})" : building;
+            if (steps.Count > 0 && steps[^1].Item == item)
+            {
+                steps[^1].Machines.Add(machines);
+            }
+            else
+            {
+                steps.Add((item, [machines]));
+            }
+        }
+
+        string Held(string item) => upstream ? $"are short of {item}" : $"can't get {item} away";
+        string way = $"The {string.Join(" and ", steps[0].Machines)} machines {Held(steps[0].Item)}";
+        foreach ((string item, List<string> machines) in steps.Skip(1))
+        {
+            way += $"{(upstream ? ", made by" : ", to")} the {string.Join(" and ", machines)} machines, which {Held(item)}";
+        }
+
+        return way + ".";
     }
 
     /// <summary>The machines asked about as the trace names them: "Constructor (Iron Plate)".</summary>
