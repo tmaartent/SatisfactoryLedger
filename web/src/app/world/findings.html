@@ -52,6 +52,13 @@
           <td mat-cell *matCellDef="let m">
             <mat-chip [class]="m.limit" disableRipple>{{ limitLabel(m) }}</mat-chip>
             <span class="muted">{{ why(m) }}</span>
+            @if (snapshotId(); as snapshot) {
+              @if (explainable(m)) {
+                <button mat-icon-button class="explain" (click)="explain(m, snapshot)" aria-label="Explain why" matTooltip="Explain why, with the trace">
+                  <mat-icon>lightbulb</mat-icon>
+                </button>
+              }
+            }
           </td>
         </ng-container>
         <ng-container matColumnDef="position">
