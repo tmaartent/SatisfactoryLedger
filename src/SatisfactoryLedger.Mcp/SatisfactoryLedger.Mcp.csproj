@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The MCP server (AI enhancement 1): the ledger's findings and game data as tools a model can call. It reads the
+       public API over HTTP, as any client would, and never a module directly. -->
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SatisfactoryLedger.ServiceDefaults\SatisfactoryLedger.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

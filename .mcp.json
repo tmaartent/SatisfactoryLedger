@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "satisfactory-ledger": {
+      "type": "http",
+      "url": "http://localhost:5280/mcp"
+    }
+  }
+}

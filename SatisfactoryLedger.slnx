@@ -10,6 +10,7 @@
     <Project Path="src/SatisfactoryLedger.AnalysisService/SatisfactoryLedger.AnalysisService.csproj" />
     <Project Path="src/SatisfactoryLedger.Api/SatisfactoryLedger.Api.csproj" />
     <Project Path="src/SatisfactoryLedger.AppHost/SatisfactoryLedger.AppHost.csproj" />
+    <Project Path="src/SatisfactoryLedger.Mcp/SatisfactoryLedger.Mcp.csproj" />
     <Project Path="src/SatisfactoryLedger.ServiceDefaults/SatisfactoryLedger.ServiceDefaults.csproj" />
     <Project Path="src/SatisfactoryLedger.SharedKernel/SatisfactoryLedger.SharedKernel.csproj" />
   </Folder>
@@ -35,6 +36,7 @@
     <Project Path="tests/SatisfactoryLedger.Catalog.Domain.Tests/SatisfactoryLedger.Catalog.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.Catalog.Tests/SatisfactoryLedger.Catalog.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.MapExtractor.Tests/SatisfactoryLedger.MapExtractor.Tests.csproj" />
+    <Project Path="tests/SatisfactoryLedger.Mcp.Tests/SatisfactoryLedger.Mcp.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.SharedKernel.Tests/SatisfactoryLedger.SharedKernel.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.Domain.Tests/SatisfactoryLedger.World.Domain.Tests.csproj" />
     <Project Path="tests/SatisfactoryLedger.World.SaveFile.Tests/SatisfactoryLedger.World.SaveFile.Tests.csproj" />
