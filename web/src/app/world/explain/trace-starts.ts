@@ -1,7 +1,7 @@
 import { TraceCause } from '../../api/models/trace-cause';
-import { TraceBuildings, TraceStart, TraceStep } from './assistant';
+import { MoreCapacity, TraceBuildings, TraceStart, TraceStep } from './assistant';
 
-/** Where a shortage or blockage starts, as the explain dialog lists it beside the model's text. */
+/** Where a shortage or blockage starts, as the explanation panel lists it beside the model's text. */
 export interface StartRow {
   cause: string;
   item: string;
@@ -21,6 +21,8 @@ export interface StartRow {
   /** "Also taken by" or "Also supplied by", when others share the item. */
   othersLabel: string | null;
   others: Place[];
+  /** A bottleneck: what carries all that's offered to it, "2 lines of Conveyor Belt Mk.6 side by side", and how much. */
+  needs: { what: string; perMinute: number } | null;
 }
 
 /** Buildings of one kind: "Converter (Dark Matter Residue)", how many, and the first one's id to show on the map. */
@@ -72,7 +74,8 @@ export function whereItStarts(starts: TraceStart[]): StartRow[] {
   const rows = new Map<string, Row>();
   for (const start of starts) {
     const way = wayTo(start);
-    const key = `${start.cause}|${start.item}|${way.via ?? ''}`;
+    const needs = start.moreCapacity ? needsOf(start.moreCapacity) : null;
+    const key = `${start.cause}|${start.item}|${way.via ?? ''}|${needs?.what ?? ''}|${needs?.perMinute ?? ''}`;
     const cause = causes[start.cause];
     let row = rows.get(key);
     if (!row) {
@@ -87,6 +90,7 @@ export function whereItStarts(starts: TraceStart[]): StartRow[] {
         via: way.via,
         othersLabel: null,
         others: new Map(),
+        needs,
       };
       rows.set(key, row);
     } else if (row.perMinute !== start.perMinute) {
@@ -98,6 +102,10 @@ export function whereItStarts(starts: TraceStart[]): StartRow[] {
     if (row.others.size > 0) row.othersLabel = start.cause === 'suppliedByOthers' ? 'Also supplied by' : 'Also taken by';
   }
   return [...rows.values()].map((row) => ({ ...row, at: places(row.at), held: places(row.held), others: places(row.others) }));
+}
+
+function needsOf(more: MoreCapacity): { what: string; perMinute: number } {
+  return { what: more.lines > 1 ? `${more.lines} lines of ${more.tier} side by side` : more.tier, perMinute: more.carriesPerMinute };
 }
 
 /**

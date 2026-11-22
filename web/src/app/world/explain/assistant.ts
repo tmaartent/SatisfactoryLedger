@@ -51,6 +51,15 @@ export interface TraceStart {
   path: TraceStep[];
   perMinute: number;
   others?: TraceBuildings[];
+  /** A bottleneck: what carries all that's offered to it, as lines side by side of a tier. */
+  moreCapacity?: MoreCapacity;
+}
+
+/** The lowest tier that carries all that's offered to a bottleneck, or lines of the highest when none does alone. */
+export interface MoreCapacity {
+  tier: string;
+  lines: number;
+  carriesPerMinute: number;
 }
 
 /**

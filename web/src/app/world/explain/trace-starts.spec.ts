@@ -27,6 +27,7 @@ describe('where a shortage starts, as the dialog lists it', () => {
         via: null,
         othersLabel: null,
         others: [],
+        needs: null,
       },
     ]);
   });
@@ -61,6 +62,34 @@ describe('where a shortage starts, as the dialog lists it', () => {
     const start = (perMinute: number, id: string): TraceStart => ({ cause: 'beltFull', causeTerm: 'bottleneck', item: 'Iron Ore', perMinute, at: [buildings('Conveyor Belt', [id])], path: [constructors] });
 
     expect(whereItStarts([start(780, 'b1'), start(480, 'b2')])[0].perMinute).toBeNull();
+  });
+
+  describe('what a bottleneck needs', () => {
+    const full = (id: string, lines: number, carriesPerMinute: number): TraceStart => ({
+      cause: 'beltFull', causeTerm: 'bottleneck', item: 'Quickwire', perMinute: 1200,
+      at: [buildings('Conveyor Belt Mk.6', [id])], path: [constructors],
+      moreCapacity: { tier: 'Conveyor Belt Mk.6', lines, carriesPerMinute },
+    });
+
+    it('says what carries all that is offered to it, in lines of the highest tier when one is not enough', () => {
+      expect(whereItStarts([full('b1', 2, 1550)])[0].needs).toEqual({ what: '2 lines of Conveyor Belt Mk.6 side by side', perMinute: 1550 });
+    });
+
+    it('names just the tier when one line of it is enough', () => {
+      const upgrade: TraceStart = { ...full('b1', 1, 450), moreCapacity: { tier: 'Conveyor Belt Mk.4', lines: 1, carriesPerMinute: 450 } };
+
+      expect(whereItStarts([upgrade])[0].needs).toEqual({ what: 'Conveyor Belt Mk.4', perMinute: 450 });
+    });
+
+    it('keeps bottlenecks that need different things on rows of their own', () => {
+      expect(whereItStarts([full('b1', 2, 1550), full('b2', 3, 2500)]).map((row) => row.needs?.perMinute)).toEqual([1550, 2500]);
+    });
+
+    it('needs nothing for other causes', () => {
+      const start: TraceStart = { cause: 'takenByOthers', causeTerm: 'taken by others', item: 'Computer', perMinute: 50, at: [buildings('Assembler', ['a1'])], path: [constructors] };
+
+      expect(whereItStarts([start])[0].needs).toBeNull();
+    });
   });
 
   it("names the cause by the ledger's term, as the trace gives it", () => {

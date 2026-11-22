@@ -18,7 +18,7 @@
     @if (starts().length > 0) {
       <section class="starts">
         <h3>Where it starts</h3>
-        @for (row of starts(); track row.cause + row.item + row.via) {
+        @for (row of starts(); track row.cause + row.item + row.via + row.needs?.what) {
           <div class="start">
             <strong>{{ row.cause }}</strong> · {{ row.item }}
             @if (row.heldLabel) {
@@ -36,6 +36,10 @@
               }
             </span>
             <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.at }" />
+            @if (row.needs; as needs) {
+              <span class="label">To carry all that's offered · {{ needs.perMinute | number: '1.0-2' }}/min</span>
+              <span class="via">{{ needs.what }}</span>
+            }
             @if (row.othersLabel) {
               <span class="label">{{ row.othersLabel }}</span>
               <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.others }" />
