@@ -15,7 +15,8 @@ The enhancements doc planned an *Assistant module* in the API, using the other m
   - the tool's own description, which says what every cause means.
 
   The names, positions and causes are then the same ones Claude Code sees. The Assistant references neither the API's records nor the MCP server's code.
-- **Code chooses the tool; the model makes one call.** No agent loop: the finding says which trace fits. Tool-calling agents are for idea 6.
+- **Code chooses the tool; the model makes one call per start.** No agent loop: the finding says which trace fits. Tool-calling agents are for idea 6.
+- **Every start is explained, each in a call of its own** (decided 2026-11-22, step 65). The model is given one start at a time and told there are others; code joins the answers as paragraphs, in the trace's order. *At first one call got all the starts and the rules asked for "the main cause". The model then picked one: of two Smelters that nothing brings Iron Ore to, and Iron Ingot taken by others, it named only the second. Asked for every start in one prompt, it merged them into "Iron Ore taken by others", which neither start says.*
 - **Models behind `IChatClient`** (`Microsoft.Extensions.AI`), each registered under a key:
   - `local`: **Qwen 2.5 7B** (`qwen2.5:7b`, 4-bit, 4.7 GB) on **Ollama in a container** with the GPU, started by the AppHost (CommunityToolkit.Aspire). Always there. *(Container and local model decided 2026-11-21; the model is a default, to be overruled.)*
   - `claude`: Claude (`claude-sonnet-5-5`) through Anthropic's SDK, only when the AppHost has the secret `Parameters:anthropic-api-key`. *(Decided 2026-11-21.)*
@@ -26,8 +27,8 @@ The enhancements doc planned an *Assistant module* in the API, using the other m
   - write names as the facts give them;
   - write no numbers: the panel gives them *(decided 2026-11-22, step 64; at first: copy numbers, never compute one)*;
   - say "in the model";
-  - the main cause in plain words, and one next step;
-  - no list of the starts and no positions: the panel lists those;
+  - the start's cause in plain words, and one next step;
+  - no list of the starts and no positions: the panel lists those. Nor who else takes an item: the model isn't given them *(step 65; it listed them all)*;
   - two or three sentences.
 
   Temperature 0.2.
