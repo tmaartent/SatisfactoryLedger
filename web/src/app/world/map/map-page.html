@@ -64,6 +64,26 @@
 </div>
 
 @if (id(); as id) {
+  <!-- The overview of the findings, first in the sidebar (asked 2026-11-23): a count clicked shows its buildings. -->
+  <ng-template appSidebarTab="info" label="Info" icon="info" [order]="-1">
+    <section class="info">
+      @if (analysis.error(); as error) {
+        <p class="muted">The findings couldn't be loaded: {{ problem(error) }}</p>
+      } @else if (analysis.value(); as findings) {
+        <app-findings-summary
+          [findings]="findings"
+          [selectable]="true"
+          [shown]="shownStatus()"
+          (show)="showStatus($event)"
+        />
+        <p class="muted">Click a count to show those buildings on the map; click it again to show all.</p>
+      } @else {
+        <mat-progress-bar mode="indeterminate" />
+        <p class="muted">The analysis service is simulating the world.</p>
+      }
+    </section>
+  </ng-template>
+
   <!-- The factories, in the sidebar (asked 2026-11-22): picking one highlights it; picked again, none is. -->
   <ng-template appSidebarTab="factories" label="Factories" icon="factory">
     <nav class="factories" aria-label="Factories">

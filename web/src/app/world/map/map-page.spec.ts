@@ -81,6 +81,9 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
           machines: [{ id: 'smelter-1', className: 'Build_SmelterMk1_C', recipe: 'Recipe_IngotIron_C', limit: 'starved', utilisation: 0.5, starvedOf: {}, blockedOn: {} }],
           generators: [],
           bottlenecks: [],
+          summary: { machines: 1, running: 0, starved: 1, outputBlocked: 0, noRecipe: 0 },
+          generatorSummary: { generators: 0, running: 0, starved: 0, outputBlocked: 0, fuelUnknown: 0 },
+          settled: true,
         },
       }),
     ),
@@ -107,7 +110,14 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
   const sidebar = TestBed.createComponent(Sidebar);
   await fixture.whenStable();
   await sidebar.whenStable();
-  return { fixture, sidebar, api, element: fixture.nativeElement as HTMLElement, tabs: sidebar.nativeElement as HTMLElement };
+  const tabs = sidebar.nativeElement as HTMLElement;
+  /** Opens a tab of the sidebar by its icon on the rail. */
+  const open = async (label: string) => {
+    (tabs.querySelector(`.rail button[aria-label="${label}"]`) as HTMLButtonElement).click();
+    await fixture.whenStable();
+    await sidebar.whenStable();
+  };
+  return { fixture, sidebar, api, element: fixture.nativeElement as HTMLElement, tabs, open };
 }
 
 describe('the world map with no snapshot loaded', () => {
@@ -146,16 +156,40 @@ describe('the world map of a snapshot', () => {
   const names = (element: HTMLElement, selector: string) =>
     [...element.querySelectorAll(selector)].map((entry) => entry.textContent?.trim());
 
-  it('lists its factories in the sidebar, open, with the snapshots in the tab after it', async () => {
-    const { element, tabs } = await render('snapshot-1');
+  it('opens the sidebar on the overview of its findings, with its factories and the snapshots in the tabs after it', async () => {
+    const { tabs } = await render('snapshot-1');
+
+    expect([...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Info', 'Factories', 'Snapshots']);
+    expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
+  });
+
+  it('lists its factories in the sidebar, not beside the map', async () => {
+    const { element, tabs, open } = await render('snapshot-1');
+
+    await open('Factories');
 
     expect(names(tabs, '.factories .factory-name')).toEqual(['Rubber', 'Plastic', 'Gone']);
-    expect([...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Factories', 'Snapshots']);
     expect(element.querySelector('.factories')).toBeNull();
   });
 
+  it('marks the count clicked in the overview as shown, and lets go of it when a factory is picked', async () => {
+    const { fixture, sidebar, tabs, open } = await render('snapshot-1');
+    const starved = () => [...tabs.querySelectorAll('.info mat-card')].find((card) => card.textContent?.includes('starved')) as HTMLElement;
+
+    starved().click();
+    await fixture.whenStable();
+    await sidebar.whenStable();
+    expect(starved().getAttribute('aria-pressed')).toBe('true');
+
+    await open('Factories');
+    (tabs.querySelector('.factories button.factory-name') as HTMLButtonElement).click();
+    await open('Info');
+    expect(starved().getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('highlights a factory picked in the list, and none once it is picked again', async () => {
-    const { fixture, sidebar, tabs } = await render('snapshot-1');
+    const { fixture, sidebar, tabs, open } = await render('snapshot-1');
+    await open('Factories');
     const rubber = () => tabs.querySelector('.factories button.factory-name') as HTMLButtonElement;
 
     rubber().click();
@@ -176,7 +210,8 @@ describe('the world map of a snapshot', () => {
   });
 
   it('offers no factory to highlight that cannot be traced', async () => {
-    const { tabs } = await render('snapshot-1');
+    const { tabs, open } = await render('snapshot-1');
+    await open('Factories');
 
     const gone = [...tabs.querySelectorAll('.factories button.factory-name')].find(
       (button) => button.textContent?.trim() === 'Gone',

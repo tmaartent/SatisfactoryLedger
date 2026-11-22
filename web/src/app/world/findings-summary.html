@@ -1,67 +1,13 @@
 <div class="summary">
-  <mat-card appearance="outlined"
-    ><mat-card-content
-      ><div class="figure">{{ findings().summary.machines }}</div>
-      machines</mat-card-content
-    ></mat-card
-  >
-  <mat-card appearance="outlined" class="good"
-    ><mat-card-content
-      ><div class="figure">{{ findings().summary.running }}</div>
-      at 100%</mat-card-content
-    ></mat-card
-  >
-  <mat-card appearance="outlined" class="bad"
-    ><mat-card-content
-      ><div class="figure">{{ findings().summary.starved }}</div>
-      starved</mat-card-content
-    ></mat-card
-  >
-  <mat-card appearance="outlined" class="bad"
-    ><mat-card-content
-      ><div class="figure">{{ findings().summary.outputBlocked }}</div>
-      output blocked</mat-card-content
-    ></mat-card
-  >
-  <mat-card appearance="outlined"
-    ><mat-card-content
-      ><div class="figure">{{ findings().summary.noRecipe }}</div>
-      without a recipe</mat-card-content
-    ></mat-card
-  >
+  @for (count of machines(); track count.label) {
+    <ng-container *ngTemplateOutlet="card; context: { $implicit: count }" />
+  }
 </div>
 @if (findings().generatorSummary.generators > 0) {
   <div class="summary">
-    <mat-card appearance="outlined"
-      ><mat-card-content
-        ><div class="figure">{{ findings().generatorSummary.generators }}</div>
-        generators</mat-card-content
-      ></mat-card
-    >
-    <mat-card appearance="outlined" class="good"
-      ><mat-card-content
-        ><div class="figure">{{ findings().generatorSummary.running }}</div>
-        at 100%</mat-card-content
-      ></mat-card
-    >
-    <mat-card appearance="outlined" class="bad"
-      ><mat-card-content
-        ><div class="figure">{{ findings().generatorSummary.starved }}</div>
-        starved</mat-card-content
-      ></mat-card
-    >
-    <mat-card appearance="outlined" class="bad"
-      ><mat-card-content
-        ><div class="figure">{{ findings().generatorSummary.outputBlocked }}</div>
-        output blocked</mat-card-content
-      ></mat-card
-    >
-    <mat-card appearance="outlined"
-      ><mat-card-content
-        ><div class="figure">{{ findings().generatorSummary.fuelUnknown }}</div>
-        fuel unknown</mat-card-content
-      ></mat-card
-    >
+    @for (count of generators(); track count.label) {
+      <ng-container *ngTemplateOutlet="card; context: { $implicit: count }" />
+    }
   </div>
 }
 @if (!findings().settled) {
@@ -70,3 +16,24 @@
     <mat-icon inline matTooltip="Approximate">blur_on</mat-icon> are approximate.
   </p>
 }
+
+<ng-template #card let-count>
+  <mat-card
+    appearance="outlined"
+    [class.good]="count.tone === 'good'"
+    [class.bad]="count.tone === 'bad'"
+    [class.clickable]="clickable(count)"
+    [class.shown]="isShown(count)"
+    [attr.role]="clickable(count) ? 'button' : null"
+    [attr.tabindex]="clickable(count) ? 0 : null"
+    [attr.aria-pressed]="clickable(count) ? isShown(count) : null"
+    [attr.title]="clickable(count) ? (isShown(count) ? 'Show all again' : 'Show them on the map') : null"
+    (click)="toggle(count)"
+    (keydown.enter)="toggle(count)"
+    (keydown.space)="$event.preventDefault(); toggle(count)"
+    ><mat-card-content
+      ><div class="figure">{{ count.figure }}</div>
+      {{ count.label }}</mat-card-content
+    ></mat-card
+  >
+</ng-template>

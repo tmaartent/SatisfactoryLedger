@@ -9,6 +9,7 @@ import { MapProvider } from '../../api/models/map-provider';
 import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { WorldMapResponse } from '../../api/models/world-map-response';
 import { Position } from '../../shared/display';
+import { ShownStatus } from '../shown-status';
 
 /** How a machine runs, or 'unknown' while its snapshot's analysis isn't ready. */
 export type MachineStatus = MachineLimit | 'unknown';
@@ -147,6 +148,16 @@ export function locate(world: WorldMapResponse, id: string): [number, number] | 
 /** How each machine (or generator) runs, by id, from the findings; empty while there are none. */
 export function machineStatuses(findings: Pick<MachineFinding, 'id' | 'limit'>[] | undefined): Map<string, MachineLimit> {
   return new Map((findings ?? []).map((machine) => [machine.id, machine.limit]));
+}
+
+/** The ids of the machines or generators of the status picked in the overview (asked 2026-11-23); null when none is picked. */
+export function buildingsShown(
+  analysis: { machines: { id: string; limit: MachineLimit }[]; generators: { id: string; limit: MachineLimit }[] } | undefined,
+  shown: ShownStatus | null,
+): Set<string> | null {
+  if (!shown) return null;
+  const buildings = shown.of === 'machines' ? (analysis?.machines ?? []) : (analysis?.generators ?? []);
+  return new Set(buildings.filter((building) => building.limit === shown.limit).map((building) => building.id));
 }
 
 /** The resource nodes no provider stands on: where a miner or extractor could still go. */

@@ -13,6 +13,21 @@
   position: relative;
 }
 
+// The Info tab of the sidebar: the overview of the findings, in a column of two cards (asked 2026-11-23).
+.info {
+  padding: 0 16px 16px;
+
+  ::ng-deep .summary {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  p {
+    font: var(--mat-sys-body-small);
+  }
+}
+
 // The Factories tab of the sidebar (asked 2026-11-22).
 .factories {
   padding: 0 8px 8px;

@@ -33,6 +33,7 @@ import {
   freeNodes,
   fromMapPoint,
   locate,
+  buildingsShown,
   mapExtent,
   mapArtTiles,
   machineStatuses,
@@ -45,6 +46,8 @@ import {
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { Explainer, HeldBackMachine } from '../explain/explainer';
 import { LimitFacts, limitText } from '../limit-text';
+import { FindingsSummary } from '../findings-summary';
+import { ShownStatus } from '../shown-status';
 import { SnapshotsSidebar } from '../snapshots-sidebar';
 
 /** Every kilometre a grid line, over the whole game world (about −3.3 to 4.3 km east, −3.8 to 3.8 km north). */
@@ -63,6 +66,7 @@ const MinZoom = -4;
   imports: [
     FormsModule,
     RouterLink,
+    FindingsSummary,
     SnapshotsSidebar,
     SidebarTab,
     MatButtonModule,
@@ -146,6 +150,13 @@ export class MapPage {
     const factory = this.factories.value()?.find((trace) => trace.factoryId === this.factoryId());
     return factory ? new Set(factory.machines.map((machine) => machine.id)) : null;
   });
+  /** A count picked in the Info tab's overview: its machines or generators are shown (asked 2026-11-23). */
+  protected readonly shownStatus = signal<ShownStatus | null>(null);
+  /**
+   * The buildings stood out, the others dimmed: those of the status picked in the overview, or else the highlighted
+   * factory's. Only one at a time: picking either lets go of the other.
+   */
+  private readonly highlighted = computed(() => buildingsShown(this.analysis.value(), this.shownStatus()) ?? this.factoryMachines());
   /** The factories each machine is in, with their colour: the same edges as in 3D. */
   private readonly owners = computed(() => machineOwners(this.factories.value() ?? []));
   /** The factories to choose from, each with the colour its machines are outlined in. */
@@ -171,6 +182,8 @@ export class MapPage {
   private readonly nodeLayer = L.layerGroup();
   private readonly artLayer = L.layerGroup();
   private readonly focusLayer = L.layerGroup();
+  /** Rings around the buildings of the status picked in the overview. */
+  private readonly shownLayer = L.layerGroup();
   /** Every drawn buildable's shape, by id: to open the tooltip of the one in focus. */
   private readonly shapes = new Map<string, L.Path>();
   private fitted = false;
@@ -194,7 +207,7 @@ export class MapPage {
     effect(() => this.drawMapArt());
     // Again with the snapshot's buildings, which may stand past the picture.
     effect(() => this.holdToMapArt());
-    effect(() => this.fitToFactory());
+    effect(() => this.fitToHighlighted());
     // Last, so the shapes it opens a tooltip on are drawn.
     effect(() => this.focusOnBuildable());
   }
@@ -219,6 +232,7 @@ export class MapPage {
     this.conveyorLayer.addTo(this.map);
     this.providerLayer.addTo(this.map);
     this.machineLayer.addTo(this.map);
+    this.shownLayer.addTo(this.map);
     this.focusLayer.addTo(this.map);
     this.map.setView([0, 0], -3);
     this.listenForArea(this.map);
@@ -267,7 +281,14 @@ export class MapPage {
 
   /** A factory picked in the list beside the map is highlighted; picked again, none is (asked 2026-11-19). */
   protected toggleFactory(factoryId: string): void {
+    this.shownStatus.set(null);
     this.factoryId.update((highlighted) => (highlighted === factoryId ? null : factoryId));
+  }
+
+  /** A count clicked in the overview shows its buildings; clicked again, none (asked 2026-11-23). */
+  protected showStatus(status: ShownStatus | null): void {
+    this.factoryId.set(null);
+    this.shownStatus.set(status);
   }
 
   protected toggleDrawing(): void {
@@ -329,7 +350,7 @@ export class MapPage {
     const statuses = this.statuses();
     const utilisations = this.utilisations();
     const findings = this.machineFindings();
-    const highlighted = this.factoryMachines();
+    const highlighted = this.highlighted();
     const owners = this.owners();
     if (!this.map) return;
 
@@ -429,7 +450,7 @@ export class MapPage {
 
     this.otherLayer.clearLayers();
     const owners = this.owners();
-    const highlighted = this.factoryMachines();
+    const highlighted = this.highlighted();
     const consumerColour = '#ab47bc';
     const style = (consumer: boolean): L.PathOptions => ({
       color: consumer ? consumerColour : '#78909c',
@@ -447,8 +468,10 @@ export class MapPage {
           building.position,
           building.yaw,
           building.className,
-          // A generator of a factory is edged in its colour, as its machines are.
-          colour || owner ? buildingStyle(colour ?? consumerColour, owner?.colour, highlighted ? highlighted.has(building.id) : null) : style(consumer),
+          // A generator of a factory is edged in its colour, as its machines are. Dimmed too while others stand out.
+          colour || owner || highlighted
+            ? buildingStyle(colour ?? consumerColour, owner?.colour, highlighted ? highlighted.has(building.id) : null)
+            : style(consumer),
           2,
         )
           .bindTooltip(
@@ -526,12 +549,19 @@ export class MapPage {
     }
   }
 
-  private fitToFactory(): void {
-    const highlighted = this.factoryMachines();
-    const machines = this.world.value()?.machines ?? [];
-    if (!this.map || !highlighted) return;
+  /** Zoom to the buildings stood out, a factory's or a status's, and ring each one: a machine is small from afar. */
+  private fitToHighlighted(): void {
+    const highlighted = this.highlighted();
+    const world = this.world.value();
+    if (!this.map) return;
 
-    const points = machines.filter((machine) => highlighted.has(machine.id)).map((machine) => toMapPoint(machine.position));
+    this.shownLayer.clearLayers();
+    if (!highlighted || !world) return;
+    const points = [...world.machines, ...world.consumers].filter((building) => highlighted.has(building.id)).map((building) => toMapPoint(building.position));
+    // A factory's machines are edged in its colour already; a status's, scattered over the world, are ringed.
+    if (this.shownStatus()) {
+      for (const point of points) L.circleMarker(point, { radius: 12, color: '#ffeb3b', weight: 2, fill: false, interactive: false }).addTo(this.shownLayer);
+    }
     if (points.length > 0) this.map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 1 });
   }
 
