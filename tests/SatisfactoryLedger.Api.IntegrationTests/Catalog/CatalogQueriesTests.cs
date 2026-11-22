@@ -136,6 +136,20 @@ public sealed class CatalogQueriesTests(LedgerApiFactory api) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Every_transport_tier_is_found_up_to_the_highest_belt_lift_and_pipeline()
+    {
+        await using AsyncServiceScope scope = api.Services.CreateAsyncScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<Contracts.ICatalogQueries>();
+
+        IReadOnlyList<Contracts.CatalogTransportTier> tiers = await catalog.GetAllTransportTiersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains(new Contracts.CatalogTransportTier("Build_ConveyorBeltMk6_C", 1200), tiers);
+        Assert.Contains(new Contracts.CatalogTransportTier("Build_ConveyorLiftMk6_C", 1200), tiers);
+        Assert.Contains(new Contracts.CatalogTransportTier("Build_PipelineMK2_C", 600), tiers);
+        Assert.Equal(1200, tiers.Max(tier => tier.CapacityPerMinute));
+    }
+
+    [Fact]
     public async Task Transport_tiers_are_found_by_class_name_with_their_capacity_per_minute()
     {
         await using AsyncServiceScope scope = api.Services.CreateAsyncScope();

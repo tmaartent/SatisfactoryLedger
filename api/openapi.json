@@ -3455,6 +3455,27 @@
           }
         }
       },
+      "MoreCapacity": {
+        "required": [
+          "tier",
+          "lines",
+          "carries"
+        ],
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "carries": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "OutputDestination": {
         "required": [
           "kind",
@@ -4023,7 +4044,8 @@
           "path",
           "perMinute",
           "others",
-          "shortOf"
+          "shortOf",
+          "moreCapacity"
         ],
         "type": "object",
         "properties": {
@@ -4061,6 +4083,16 @@
               "type": "number",
               "format": "double"
             }
+          },
+          "moreCapacity": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MoreCapacity"
+              }
+            ]
           }
         }
       },

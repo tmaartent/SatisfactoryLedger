@@ -30,8 +30,19 @@ internal sealed class TraceStarts
         }
     }
 
-    /// <summary>What a belt, lift or pipe carries at most per minute; 0 when it has no limit known.</summary>
-    public static double Capacity(WorldGraph world, BuildableId id) => world.Find(id) is Logistics { Capacity: { } capacity } ? capacity.ToDouble() : 0;
+    /// <summary>
+    /// A belt, lift or pipe at its capacity (BR-A12) as a start: what it carries at most per minute, and what it takes
+    /// to carry what's offered to it (decided 2026-11-22).
+    /// </summary>
+    public static TraceStart Bottleneck(
+        WorldGraph world, FlowReadings readings, BuildableId conduit, ItemId item, IReadOnlyList<TraceStep> path, IReadOnlyCollection<TransportTier> tiers)
+    {
+        Logistics? logistics = world.Find(conduit) as Logistics;
+        return new TraceStart(TraceCause.BeltFull, item, [conduit], path, logistics?.Capacity?.ToDouble() ?? 0)
+        {
+            MoreCapacity = logistics is null ? null : MoreCapacity.For(logistics, readings.OfferedMore(conduit), tiers),
+        };
+    }
 
     /// <summary>Whether something is more than rounding, compared with what it's part of.</summary>
     public static bool Matters(double amount, double of) => amount > Math.Max(Tolerance, of * 0.01);

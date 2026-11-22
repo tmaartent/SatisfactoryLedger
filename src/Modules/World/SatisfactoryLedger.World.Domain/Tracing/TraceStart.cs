@@ -12,4 +12,7 @@ public sealed record TraceStart(TraceCause Cause, ItemId Item, IReadOnlyList<Bui
 
     /// <summary>Consumer starved: the inputs the consumers are short of, with the share they get.</summary>
     public IReadOnlyDictionary<ItemId, double> ShortOf { get; init; } = new Dictionary<ItemId, double>();
+
+    /// <summary>A bottleneck: what it takes to carry what's offered to it. Null for other causes, or when no tier is known.</summary>
+    public MoreCapacity? MoreCapacity { get; init; }
 }

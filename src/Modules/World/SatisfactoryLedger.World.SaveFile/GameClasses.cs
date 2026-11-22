@@ -153,7 +153,7 @@ internal static class GameClasses
     public static LogisticsKind LogisticsKindOf(string className) =>
         TryLogisticsKindOf(className) ?? throw new ArgumentException($"{className} is not logistics", nameof(className));
 
-    private static LogisticsKind? TryLogisticsKindOf(string className) => className switch
+    public static LogisticsKind? TryLogisticsKindOf(string className) => className switch
     {
         _ when className.StartsWith("Build_ConveyorBeltMk", StringComparison.Ordinal) => LogisticsKind.Belt,
         _ when className.StartsWith("Build_ConveyorLiftMk", StringComparison.Ordinal) => LogisticsKind.Lift,

@@ -21,6 +21,9 @@ public interface ICatalogQueries
     /// <summary>The belts, lifts and pipes with these building class names that the Catalog knows. Unknown ids are left out.</summary>
     Task<IReadOnlyList<CatalogTransportTier>> GetTransportTiersAsync(IReadOnlyCollection<string> tierIds, CancellationToken cancellationToken);
 
+    /// <summary>Every belt, lift and pipe tier in the game: what a bottleneck could be built as instead.</summary>
+    Task<IReadOnlyList<CatalogTransportTier>> GetAllTransportTiersAsync(CancellationToken cancellationToken);
+
     /// <summary>The footprints of the buildings with these class names that the Catalog knows (ADR-0020). Unknown ids, such as lifts, are left out.</summary>
     Task<IReadOnlyList<CatalogFootprint>> GetFootprintsAsync(IReadOnlyCollection<string> buildingIds, CancellationToken cancellationToken);
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
+using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
@@ -33,18 +34,19 @@ internal static class TraceEndpoints
     }
 
     private static Task<Results<Ok<TraceResponse>, Accepted<AnalysisPendingResponse>, NotFound, ProblemHttpResult>> ShortageAsync(
-        Guid id, string building, string? recipe, WorldDbContext db, [FromServices] IMessageBus bus, CancellationToken cancellationToken) =>
-        TraceAsync(id, db, bus, (snapshot, analysis) => SnapshotTraces.Shortage(snapshot, analysis, building, recipe), cancellationToken);
+        Guid id, string building, string? recipe, WorldDbContext db, ICatalogQueries catalog, [FromServices] IMessageBus bus, CancellationToken cancellationToken) =>
+        TraceAsync(id, db, catalog, bus, (snapshot, analysis, tiers) => SnapshotTraces.Shortage(snapshot, analysis, building, recipe, tiers), cancellationToken);
 
     private static Task<Results<Ok<TraceResponse>, Accepted<AnalysisPendingResponse>, NotFound, ProblemHttpResult>> BlockageAsync(
-        Guid id, string building, string? recipe, WorldDbContext db, [FromServices] IMessageBus bus, CancellationToken cancellationToken) =>
-        TraceAsync(id, db, bus, (snapshot, analysis) => SnapshotTraces.Blockage(snapshot, analysis, building, recipe), cancellationToken);
+        Guid id, string building, string? recipe, WorldDbContext db, ICatalogQueries catalog, [FromServices] IMessageBus bus, CancellationToken cancellationToken) =>
+        TraceAsync(id, db, catalog, bus, (snapshot, analysis, tiers) => SnapshotTraces.Blockage(snapshot, analysis, building, recipe, tiers), cancellationToken);
 
     private static async Task<Results<Ok<TraceResponse>, Accepted<AnalysisPendingResponse>, NotFound, ProblemHttpResult>> TraceAsync(
         Guid id,
         WorldDbContext db,
+        ICatalogQueries catalog,
         IMessageBus bus,
-        Func<SnapshotDocument, Contracts.Analysis.AnalysisDocument, TraceResponse> trace,
+        Func<SnapshotDocument, Contracts.Analysis.AnalysisDocument, IReadOnlyCollection<Domain.Tracing.TransportTier>, TraceResponse> trace,
         CancellationToken cancellationToken)
     {
         var snapshot = await db.LoadSnapshotAsync(id, cancellationToken);
@@ -55,7 +57,7 @@ internal static class TraceEndpoints
 
         return await AnalysisEndpoints.StoredAsync(id, db, bus, cancellationToken) switch
         {
-            { Document: { } analysis } => TypedResults.Ok(trace(snapshot.Value.Document, analysis)),
+            { Document: { } analysis } => TypedResults.Ok(trace(snapshot.Value.Document, analysis, SnapshotTraces.Tiers(await catalog.GetAllTransportTiersAsync(cancellationToken)))),
             { Error: { } error } => AnalysisEndpoints.Failed(error),
             _ => AnalysisEndpoints.Pending(id),
         };

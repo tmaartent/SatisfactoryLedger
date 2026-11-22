@@ -1,7 +1,9 @@
+using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Tracing;
+using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
 
 using DomainLimit = SatisfactoryLedger.World.Domain.Flow.Objects.MachineLimit;
@@ -19,11 +21,21 @@ internal static class SnapshotTraces
     private const int IdsShown = 10;
 
     /// <param name="recipe">Only the machines with this recipe; all of the class when null.</param>
-    public static TraceResponse Shortage(SnapshotDocument snapshot, AnalysisDocument analysis, string building, string? recipe) =>
-        Trace(snapshot, analysis, building, recipe, MachineLimit.Starved, ShortageTrace.From);
+    /// <param name="tiers">The game's belt, lift and pipe tiers, for what a bottleneck needs (decided 2026-11-22).</param>
+    public static TraceResponse Shortage(SnapshotDocument snapshot, AnalysisDocument analysis, string building, string? recipe, IReadOnlyCollection<TransportTier> tiers) =>
+        Trace(snapshot, analysis, building, recipe, MachineLimit.Starved, (world, readings, machines) => ShortageTrace.From(world, readings, machines, tiers));
 
-    public static TraceResponse Blockage(SnapshotDocument snapshot, AnalysisDocument analysis, string building, string? recipe) =>
-        Trace(snapshot, analysis, building, recipe, MachineLimit.OutputBlocked, BlockageTrace.From);
+    public static TraceResponse Blockage(SnapshotDocument snapshot, AnalysisDocument analysis, string building, string? recipe, IReadOnlyCollection<TransportTier> tiers) =>
+        Trace(snapshot, analysis, building, recipe, MachineLimit.OutputBlocked, (world, readings, machines) => BlockageTrace.From(world, readings, machines, tiers));
+
+    /// <summary>The Catalog's tiers as a trace reads them, by kind. A class that isn't a belt, lift or pipe is left out.</summary>
+    public static IReadOnlyList<TransportTier> Tiers(IEnumerable<CatalogTransportTier> tiers) =>
+    [
+        .. tiers
+            .Select(tier => (tier, Kind: GameClasses.TryLogisticsKindOf(tier.Id)))
+            .Where(tier => tier.Kind is LogisticsKind.Belt or LogisticsKind.Lift or LogisticsKind.Pipe)
+            .Select(tier => new TransportTier(tier.tier.Id, tier.Kind!.Value, tier.tier.CapacityPerMinute)),
+    ];
 
     private static TraceResponse Trace(
         SnapshotDocument snapshot,
@@ -73,7 +85,8 @@ internal static class SnapshotTraces
         [.. start.Path.Select(step => new TraceStepResponse(Groups(step.Machines.Select(id => (id, 0.0)), buildables), step.Item.Id, SnapshotAnalysis.Round(step.PerMinute)))],
         SnapshotAnalysis.Round(start.PerMinute),
         Groups(start.Others.Select(other => (other.Key, other.Value)), buildables),
-        start.ShortOf.ToDictionary(share => share.Key.Id, share => SnapshotAnalysis.Round(share.Value)));
+        start.ShortOf.ToDictionary(share => share.Key.Id, share => SnapshotAnalysis.Round(share.Value)),
+        start.MoreCapacity is { } more ? more with { Carries = SnapshotAnalysis.Round(more.Carries) } : null);
 
     /// <summary>Buildables of one class and recipe together, the biggest group first.</summary>
     private static IReadOnlyList<TraceGroupResponse> Groups(IEnumerable<(BuildableId Id, double PerMinute)> members, IReadOnlyDictionary<string, BuildableDocument> buildables) =>

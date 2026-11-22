@@ -19,7 +19,7 @@ public class SnapshotTracesTests
     [Fact]
     public void A_constructor_no_belt_brings_ingots_to_has_nothing_bringing_them()
     {
-        TraceResponse trace = SnapshotTraces.Shortage(Document, TestWorldAnalysis, Constructor, "Recipe_IronRod_C");
+        TraceResponse trace = SnapshotTraces.Shortage(Document, TestWorldAnalysis, Constructor, "Recipe_IronRod_C", []);
 
         TraceStartResponse start = Assert.Single(trace.Starts);
         Assert.Equal((TraceCause.NothingBringsIt, "Desc_IronIngot_C"), (start.Cause, start.Item));
@@ -29,7 +29,7 @@ public class SnapshotTracesTests
     [Fact]
     public void Each_step_groups_the_machines_traced_by_class_and_recipe_with_where_the_first_stands()
     {
-        TraceStepResponse step = Assert.Single(SnapshotTraces.Shortage(Document, TestWorldAnalysis, Constructor, "Recipe_IronRod_C").Starts[0].Path);
+        TraceStepResponse step = Assert.Single(SnapshotTraces.Shortage(Document, TestWorldAnalysis, Constructor, "Recipe_IronRod_C", []).Starts[0].Path);
 
         TraceGroupResponse rods = Assert.Single(step.Machines);
         Assert.Equal((Constructor, "Recipe_IronRod_C", 1), (rods.ClassName, rods.Recipe, rods.Count));
@@ -40,7 +40,7 @@ public class SnapshotTracesTests
     [Fact]
     public void A_blocked_smelter_whose_consumer_also_takes_from_another_smelter_is_supplied_by_others()
     {
-        TraceResponse trace = SnapshotTraces.Blockage(Document, TestWorldAnalysis, Smelter, null);
+        TraceResponse trace = SnapshotTraces.Blockage(Document, TestWorldAnalysis, Smelter, null, []);
 
         TraceStartResponse start = Assert.Single(trace.Starts);
         Assert.Equal(TraceCause.SuppliedByOthers, start.Cause);
@@ -53,10 +53,25 @@ public class SnapshotTracesTests
     [Fact]
     public void Machines_that_run_as_they_should_give_nothing_to_trace()
     {
-        TraceResponse trace = SnapshotTraces.Shortage(Document, TestWorldAnalysis, Constructor, "Recipe_IronPlate_C");
+        TraceResponse trace = SnapshotTraces.Shortage(Document, TestWorldAnalysis, Constructor, "Recipe_IronPlate_C", []);
 
         Assert.Equal((1, 0), (trace.Machines, trace.Traced));
         Assert.Empty(trace.Starts);
+    }
+
+    [Fact]
+    public void The_Catalog_s_tiers_are_read_by_kind_leaving_out_what_is_no_belt_lift_or_pipe()
+    {
+        IReadOnlyList<TransportTier> tiers = SnapshotTraces.Tiers(
+            [new("Build_ConveyorBeltMk6_C", 1200), new("Build_ConveyorLiftMk6_C", 1200), new("Build_PipelineMK2_NoIndicator_C", 600), new("Build_Hypertube_C", 0)]);
+
+        Assert.Equal(
+            [
+                new TransportTier("Build_ConveyorBeltMk6_C", Domain.LogisticsKind.Belt, 1200),
+                new TransportTier("Build_ConveyorLiftMk6_C", Domain.LogisticsKind.Lift, 1200),
+                new TransportTier("Build_PipelineMK2_NoIndicator_C", Domain.LogisticsKind.Pipe, 600),
+            ],
+            tiers);
     }
 
     [Fact]
