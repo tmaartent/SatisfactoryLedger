@@ -30,6 +30,8 @@ beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
     nothing as CanvasRenderingContext2D,
   );
+  // Nor does it lay anything out, so nothing is ever resized: an observer that never calls back.
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
 });
 
 async function render(id?: string, mapArt: unknown = null) {

@@ -6,6 +6,15 @@
     <a mat-button routerLink="/catalog" routerLinkActive="active">Catalog</a>
   </nav>
 </mat-toolbar>
-<main>
-  <router-outlet />
-</main>
+<!-- The page, and beside it the explanation asked last, so it stays while the player follows its links (asked 2026-11-22). -->
+<div class="shell">
+  <main>
+    <router-outlet />
+  </main>
+  <!-- Deferred: its code loads with the first question, not with every page. -->
+  @if (explainer.question()) {
+    @defer {
+      <app-explain-panel />
+    }
+  }
+</div>

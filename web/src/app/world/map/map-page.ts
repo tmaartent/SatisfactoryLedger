@@ -173,7 +173,13 @@ export class MapPage {
 
   constructor() {
     afterNextRender(() => this.createMap());
-    inject(DestroyRef).onDestroy(() => this.map?.remove());
+    // Leaflet follows the window's size only: the explanation beside the page also changes the map's (asked 2026-11-22).
+    const resized = new ResizeObserver(() => this.map?.invalidateSize());
+    afterNextRender(() => resized.observe(this.container().nativeElement));
+    inject(DestroyRef).onDestroy(() => {
+      resized.disconnect();
+      this.map?.remove();
+    });
 
     // Redraw a layer when what it shows changes; Leaflet itself knows nothing about signals.
     effect(() => this.drawConveyors());

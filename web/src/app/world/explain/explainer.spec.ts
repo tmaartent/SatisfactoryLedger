@@ -1,21 +1,34 @@
 import { TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
+import { provideRouter, Router } from '@angular/router';
 
 import { CatalogNames } from '../../shared/catalog-names';
-import { ExplainDialog } from './explain-dialog';
+import { Assistant, ChatModel, Explanation, ExplanationRequest } from './assistant';
 import { Explainer } from './explainer';
 
-describe('explaining a held-back machine', () => {
-  let dialog: { open: ReturnType<typeof vi.fn> };
+const local: ChatModel = { key: 'local', model: 'qwen2.5:7b' };
 
-  function explainer(): Explainer {
-    dialog = { open: vi.fn() };
+const answer = (text: string): Explanation => ({
+  text,
+  model: 'qwen2.5:7b',
+  facts: { tool: 'trace_upstream', arguments: {}, answer: { building: 'Constructor', recipe: 'Iron Plate', machines: 3, traced: 2, starts: [] } },
+  unsupportedNumbers: [],
+});
+
+const plates = { className: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' };
+const smelters = { className: 'Build_SmelterMk1_C', recipe: null, limit: 'outputBlocked' };
+
+/** Lets the explainer's calls answer: they're promises the test resolves at once. */
+const settled = () => new Promise((resolve) => setTimeout(resolve));
+
+describe('explaining a held-back machine, kept beside every page', () => {
+  function explainer(explain: (request: ExplanationRequest) => Promise<Explanation> = () => Promise.resolve(answer('Too few smelters.'))): Explainer {
     TestBed.configureTestingModule({
       providers: [
-        { provide: MatDialog, useValue: dialog },
+        provideRouter([{ path: '**', children: [] }]),
+        { provide: Assistant, useValue: { models: () => Promise.resolve([local]), explain: vi.fn(explain) } },
         {
           provide: CatalogNames,
-          useValue: { building: (id: string) => ({ Build_ConstructorMk1_C: 'Constructor' })[id] ?? id, recipe: (id: string) => ({ Recipe_IronPlate_C: 'Iron Plate' })[id] ?? id },
+          useValue: { building: (id: string) => ({ Build_ConstructorMk1_C: 'Constructor', Build_SmelterMk1_C: 'Smelter' })[id] ?? id, recipe: (id: string) => ({ Recipe_IronPlate_C: 'Iron Plate' })[id] ?? id },
         },
       ],
     });
@@ -28,24 +41,70 @@ describe('explaining a held-back machine', () => {
     expect(['starved', 'outputBlocked', 'none', 'noRecipe'].map((limit) => explain.explainable({ limit }))).toEqual([true, true, false, false]);
   });
 
-  it('asks about the machines of its building and recipe, named as the game names them', () => {
+  it('asks about the machines of its building and recipe, named as the game names them, with the first model', async () => {
     const explain = explainer();
 
-    explain.explain({ className: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' }, 's1');
+    explain.explain(plates, 's1');
+    await settled();
 
-    expect(dialog.open).toHaveBeenCalledWith(ExplainDialog, expect.objectContaining({
-      data: {
-        finding: { snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' },
-        machines: 'Constructor (Iron Plate)',
-      },
-    }));
+    expect(explain.question()).toEqual({
+      finding: { snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' },
+      machines: 'Constructor (Iron Plate)',
+    });
+    expect(TestBed.inject(Assistant).explain).toHaveBeenCalledWith({ snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved', model: 'local' });
+    expect(explain.explanation()?.text).toBe('Too few smelters.');
   });
 
   it('asks nothing about a machine that is not held back', () => {
     const explain = explainer();
 
-    explain.explain({ className: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'none' }, 's1');
+    explain.explain({ ...plates, limit: 'none' }, 's1');
 
-    expect(dialog.open).not.toHaveBeenCalled();
+    expect(explain.question()).toBeNull();
+  });
+
+  it('replaces the explanation with a new question, and drops the answer to the old one when it comes late', async () => {
+    let answerPlates: (explanation: Explanation) => void = () => undefined;
+    const explain = explainer((request) =>
+      request.building === 'Build_ConstructorMk1_C' ? new Promise((resolve) => (answerPlates = resolve)) : Promise.resolve(answer('Nothing takes the ingots.')),
+    );
+
+    explain.explain(plates, 's1');
+    await settled();
+    explain.explain(smelters, 's1');
+    await settled();
+    answerPlates(answer('Too few smelters.'));
+    await settled();
+
+    expect(explain.question()?.machines).toBe('Smelter');
+    expect(explain.explanation()?.text).toBe('Nothing takes the ingots.');
+  });
+
+  it('opens again when it was collapsed and a new question is asked', () => {
+    const explain = explainer();
+    explain.collapsed.set(true);
+
+    explain.explain(plates, 's1');
+
+    expect(explain.collapsed()).toBe(false);
+  });
+
+  it('stays while the player follows its links within the snapshot, and to pages of no snapshot', async () => {
+    const explain = explainer();
+    explain.explain(plates, 's1');
+
+    await TestBed.inject(Router).navigateByUrl('/snapshots/s1/map?focus=smelter-1');
+    await TestBed.inject(Router).navigateByUrl('/catalog');
+
+    expect(explain.question()).not.toBeNull();
+  });
+
+  it('closes when the player moves to another snapshot, where its links would lead into another world', async () => {
+    const explain = explainer();
+    explain.explain(plates, 's1');
+
+    await TestBed.inject(Router).navigateByUrl('/snapshots/s2/map');
+
+    expect(explain.question()).toBeNull();
   });
 });
