@@ -41,6 +41,37 @@ export function mapArtExtent(
   return art ? [toMapPoint({ x: art.x0, y: art.y0, z: 0 }), toMapPoint({ x: art.x1, y: art.y1, z: 0 })] : null;
 }
 
+/** How far past the furthest building the map may still move, in metres, so it isn't drawn against the edge. */
+export const MapMargin = 50;
+
+/**
+ * The corners the map is held to: the map picture's, reaching further where buildings stand past its edges, as the game
+ * allows (asked 2026-11-23). Belts and pipes count by their points. Null without map art: then nothing holds the map.
+ */
+export function mapExtent(
+  art: { x0: number; y0: number; x1: number; y1: number } | null | undefined,
+  world: Pick<WorldMapResponse, 'machines' | 'providers' | 'logistics' | 'consumers' | 'conveyors'> | null | undefined,
+): [[number, number], [number, number]] | null {
+  const extent = mapArtExtent(art);
+  if (!extent) return null;
+
+  const points = [
+    ...[...(world?.machines ?? []), ...(world?.providers ?? []), ...(world?.logistics ?? []), ...(world?.consumers ?? [])].map((b) => toMapPoint(b.position)),
+    ...(world?.conveyors ?? []).flatMap((conveyor) => conveyor.curve.map((point) => toMapPoint(point.location))),
+  ];
+  // Not Math.min(...points): a large world's belts have more points than a call takes arguments.
+  const furthest = points.reduce(
+    (far, [lat, lng]) => ({ south: Math.min(far.south, lat), west: Math.min(far.west, lng), north: Math.max(far.north, lat), east: Math.max(far.east, lng) }),
+    { south: Infinity, west: Infinity, north: -Infinity, east: -Infinity },
+  );
+  // A side reaches past the picture only when a building does: then to the furthest one, and the margin past it.
+  const reach = (picture: number, building: number, outwards: number) => (building * outwards > picture * outwards ? building + outwards * MapMargin : picture);
+  return [
+    [reach(Math.min(extent[0][0], extent[1][0]), furthest.south, -1), reach(Math.min(extent[0][1], extent[1][1]), furthest.west, -1)],
+    [reach(Math.max(extent[0][0], extent[1][0]), furthest.north, 1), reach(Math.max(extent[0][1], extent[1][1]), furthest.east, 1)],
+  ];
+}
+
 /** A point on the map (latitude and longitude in metres) as a game position at height 0: the opposite of toMapPoint. */
 export function fromMapPoint(lat: number, lng: number): Position {
   return { x: Math.round(lng * 100), y: Math.round(-lat * 100), z: 0 };
