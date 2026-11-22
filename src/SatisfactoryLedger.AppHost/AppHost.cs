@@ -24,14 +24,42 @@ builder.AddProject<Projects.SatisfactoryLedger_AnalysisService>("analysis")
 
 // The MCP server (AI enhancement 1): a model investigates a world through it, at http://localhost:5280/mcp. It reads
 // the API by service discovery, as any client would, and only reads.
-builder.AddProject<Projects.SatisfactoryLedger_Mcp>("mcp")
+var mcp = builder.AddProject<Projects.SatisfactoryLedger_Mcp>("mcp")
     .WithReference(api)
     .WaitFor(api);
 
+// The local chat model (ADR-0030): Ollama in a container, on the GPU. The data volume keeps the model between runs;
+// the first run downloads it (some 4.7 GB), and the Assistant waits for that. The Ollama connection string names the model.
+// Ollama's context is 4k tokens below 24 GB of VRAM, and a longer prompt silently loses its start (the rules): 16k fits a
+// large trace, and its cache (about 1 GB for qwen2.5:7b) still fits the 8 GB GPU next to the model.
+var chat = builder.AddOllama("ollama")
+    .WithDataVolume()
+    .WithGPUSupport()
+    .WithEnvironment("OLLAMA_CONTEXT_LENGTH", "16384")
+    .AddModel("chat", "qwen2.5:7b");
+
+// The Assistant (AI enhancement 3) explains a finding: facts from the MCP server's tools, words from a chat model.
+var assistant = builder.AddProject<Projects.SatisfactoryLedger_Assistant>("assistant")
+    .WithReference(mcp)
+    .WithReference(chat)
+    .WaitFor(mcp)
+    .WaitFor(chat);
+
+// Claude as a second model, only with an API key: dotnet user-secrets set Parameters:anthropic-api-key <key>
+// --project src/SatisfactoryLedger.AppHost. Without one, the Assistant has the local model alone.
+if (!string.IsNullOrEmpty(builder.Configuration["Parameters:anthropic-api-key"]))
+{
+    var anthropicApiKey = builder.AddParameter("anthropic-api-key", secret: true);
+    assistant.WithEnvironment("Anthropic__ApiKey", anthropicApiKey);
+}
+
 // The Angular dev server (ADR-0019). Its proxy sends /api to the API, whose address WithReference passes on as
 // services__api__https__0. "start" first generates the API client from api/openapi.json.
+// It also reaches the Assistant (services__assistant__http__0), without waiting for it: a first model download
+// shouldn't hold up the app, only its explanations.
 builder.AddJavaScriptApp("web", "../../web", "start")
     .WithReference(api)
+    .WithReference(assistant)
     .WaitFor(api)
     .WithHttpEndpoint(port: 4200, isProxied: false)
     .WithExternalHttpEndpoints();

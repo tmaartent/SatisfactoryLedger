@@ -18,6 +18,14 @@
     <PackageVersion Include="SkiaSharp" Version="4.157.0" />
     <!-- The MCP server (AI enhancement 1): the Model Context Protocol over HTTP, from its official C# SDK. -->
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
+    <!-- The Assistant (AI enhancement 3): an MCP client of the ledger's tools, and chat models behind IChatClient (ADR-0030). -->
+    <PackageVersion Include="ModelContextProtocol.Core" Version="2.4.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.11.0" />
+    <!-- Ollama: the container in the AppHost, and its IChatClient in the Assistant. 13.6.x goes with Aspire 13.6. -->
+    <PackageVersion Include="CommunityToolkit.Aspire.Hosting.Ollama" Version="13.6.1" />
+    <PackageVersion Include="CommunityToolkit.Aspire.OllamaSharp" Version="13.6.1" />
+    <!-- Anthropic's official SDK; it brings Claude as an IChatClient (AsIChatClient). -->
+    <PackageVersion Include="Anthropic" Version="13.12.0" />
     <PackageVersion Include="Google.OrTools" Version="9.15.6755" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
     <!-- Only for one type per file (SA1402, SA1649); every other StyleCop rule is off in .editorconfig. The 1.1 release predates records. -->
