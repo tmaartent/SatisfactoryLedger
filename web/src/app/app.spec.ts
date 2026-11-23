@@ -23,6 +23,7 @@ describe('App', () => {
           { path: 'snapshots', component: EmptyPage },
           { path: 'snapshots/:id', component: EmptyPage },
           { path: 'snapshots/:id/map', component: EmptyPage },
+          { path: 'snapshots/:id/arrangement', component: EmptyPage },
           { path: 'catalog', component: EmptyPage },
         ]),
         // The snapshots the picker above the sidebar lists.
@@ -127,6 +128,15 @@ describe('App', () => {
     const picker = sidebar()?.querySelector('app-snapshot-picker');
     expect(picker?.closest('.tab')).toBeNull();
     expect(picker?.querySelector('button.current')?.textContent).toContain('Learning');
+  });
+
+  it('has no snapshot picker on the optimal arrangement, which is about the snapshot it was opened from', async () => {
+    const { fixture, sidebar } = await render('/snapshots/s1/arrangement');
+    for (const deferred of await fixture.getDeferBlocks())
+      await deferred.render(DeferBlockState.Complete);
+    await fixture.whenStable();
+
+    expect(sidebar()?.querySelector('app-snapshot-picker')).toBeNull();
   });
 
   it('has no sidebar in the Catalog, which has no tabs', async () => {

@@ -23,7 +23,7 @@
     <app-sidebar>
       <!-- Above the tabs on every World page: the snapshot they're all about (asked 2026-11-23). Its code, with the
            menu and dialogs it needs, loads once the page is up, not with the shell. -->
-      @if (inWorld()) {
+      @if (picksSnapshot()) {
         @defer (on idle) {
           <app-snapshot-picker [current]="snapshotId()" />
         }
