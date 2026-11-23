@@ -99,6 +99,12 @@ export class CatalogNames {
     return item ? this.icon(item.id) : null;
   }
 
+  /** A building's icon by its name, as a trace names buildings ("Smelter"); null when no building is named so, or it has none. */
+  iconOfBuildingNamed(name: string): string | null {
+    const entry = [...(this.catalog.value()?.buildingNames ?? [])].find(([, buildingName]) => buildingName === name);
+    return entry ? this.icon(entry[0]) : null;
+  }
+
   /** After a new catalog import, or a new import of the icons. */
   reload(): void {
     this.catalog.reload();

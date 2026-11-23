@@ -1,5 +1,5 @@
 import { classNameAsWords } from '../shared/display';
-import { limitText } from './limit-text';
+import { limitParts, limitText } from './limit-text';
 
 describe('limitText', () => {
   const name = (item: string | null | undefined) => (item ? classNameAsWords(item) : '—');
@@ -31,5 +31,25 @@ describe('limitText', () => {
 
   it('says nothing for a machine running on its supply', () => {
     expect(limitText({ limit: 'none', limitingItem: null }, name)).toBe('');
+  });
+
+  describe('as parts, so each item can be shown with its icon', () => {
+    it('gives the words before the items, and the items with their shares, worst first', () => {
+      const parts = limitParts({ limit: 'outputBlocked', limitingItem: null, blockedOn: { Desc_AluminaSolution_C: 0.06, Desc_Water_C: 0.5 } });
+
+      expect(parts).toEqual({
+        before: "Can't all leave: ",
+        items: [{ item: 'Desc_AluminaSolution_C', share: '6%' }, { item: 'Desc_Water_C', share: '50%' }],
+        after: '',
+      });
+    });
+
+    it('gives the words after the item too, when the sentence goes on past it', () => {
+      expect(limitParts({ limit: 'none', limitingItem: null, onStock: 'Desc_Coal_C', stockMinutes: 42.4 })).toEqual({
+        before: 'On stock: ',
+        items: [{ item: 'Desc_Coal_C', share: null }],
+        after: ', lasts 42 min',
+      });
+    });
   });
 });

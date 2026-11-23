@@ -80,15 +80,63 @@ table.mat-mdc-table {
   vertical-align: middle;
 }
 
-// A free resource node: its resource's icon in a dashed ring of its purity's colour.
+// A free resource node: its resource's icon on its purity's colour, in a white ring on a white stick.
+.node-pin {
+  // A pin, as on the game's map (asked 2026-11-23): the ring up and to the left of the node, on a stick down to a dot
+  // where the node lies. The marker Leaflet puts it in has no size, its top left on the node (see map-page.ts), and
+  // everything is drawn from there, sized by the map's --node-size. White, as the game's; the purity shows as the
+  // colour behind the icon (--purity, set on the pin).
+  --pin: #fff;
+  --size: var(--node-size, 22px);
+  // Where the ring's middle is, from the node: up and to the left, one ring's width away, 60 degrees from level.
+  --ring-x: calc(var(--size) * -0.5);
+  --ring-y: calc(var(--size) * -0.866);
+
+  position: relative;
+
+  // The stick, from the node to the ring's edge.
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: calc(var(--size) / 2);
+    height: max(1.5px, calc(var(--size) / 20));
+    background: var(--pin);
+    transform-origin: 0 0;
+    transform: rotate(-120deg);
+    transition: width 0.25s;
+  }
+
+  // The dot where the node lies.
+  &::after {
+    content: '';
+    position: absolute;
+    width: max(4px, calc(var(--size) / 7));
+    height: max(4px, calc(var(--size) / 7));
+    border-radius: 50%;
+    background: var(--pin);
+    transform: translate(-50%, -50%);
+  }
+}
+
 .node-marker {
+  position: absolute;
+  left: var(--ring-x);
+  top: var(--ring-y);
   box-sizing: border-box;
-  width: 22px;
-  height: 22px;
-  padding: 2px;
-  border: 1.5px dashed;
+  width: var(--size);
+  height: var(--size);
+  // Centred on its place at the stick's top.
+  transform: translate(-50%, -50%);
+  padding: calc(var(--size) / 11);
+  border: max(1.5px, calc(var(--size) / 16)) solid var(--pin);
   border-radius: 50%;
-  background: rgb(0 0 0 / 45%);
+  background: var(--purity);
+  // A shadow, so a white ring stands out on light ground too.
+  box-shadow: 0 1px 3px rgb(0 0 0 / 50%);
+  // As long as Leaflet's zoom animation: the pins grow along with the map.
+  transition: width 0.25s, height 0.25s, left 0.25s, top 0.25s;
 
   img {
     display: block;

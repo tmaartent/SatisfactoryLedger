@@ -44,7 +44,17 @@ describe('explaining a finding', () => {
       providers: [
         provideRouter([]),
         { provide: Assistant, useValue: assistant },
-        { provide: CatalogNames, useValue: { icon: () => null, iconOfItemNamed: () => null, building: () => 'Constructor', recipe: () => 'Iron Plate' } },
+        {
+          provide: CatalogNames,
+          // The game's icons, imported: the Constructor and the Smelter have one, by class and by name.
+          useValue: {
+            icon: (className: string) => (className === 'Build_ConstructorMk1_C' ? '/api/v1/catalog/icons/Build_ConstructorMk1_C' : null),
+            iconOfItemNamed: () => null,
+            iconOfBuildingNamed: (name: string) => (name === 'Smelter' ? '/api/v1/catalog/icons/Build_SmelterMk1_C' : null),
+            building: () => 'Constructor',
+            recipe: () => 'Iron Plate',
+          },
+        },
       ],
     });
     TestBed.inject(Explainer).explain({ className: finding.building, recipe: finding.recipe, limit: finding.limit }, finding.snapshotId);
@@ -70,6 +80,14 @@ describe('explaining a finding', () => {
     expect(text(fixture)).toContain('the one Smelter makes 30 a minute');
     expect(text(fixture)).toContain('Written by qwen2.5:7b, from trace_upstream');
     expect(text(fixture)).not.toContain('Numbers in the text');
+  });
+
+  it("shows the icon of the machines asked about, and of the buildings where it starts", async () => {
+    const fixture = await render({ models: () => Promise.resolve([local]), explain: () => Promise.resolve(explanation()) });
+
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('header app-game-icon img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Build_ConstructorMk1_C');
+    expect(element.querySelector('.starts li app-game-icon img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Build_SmelterMk1_C');
   });
 
   it('lists where it starts, each place linked to the map, instead of the raw facts', async () => {

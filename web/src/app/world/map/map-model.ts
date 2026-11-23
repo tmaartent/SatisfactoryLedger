@@ -6,7 +6,6 @@ import { buildingBoxes, fromAbove } from '../area/area-model';
 import { MachineFinding } from '../../api/models/machine-finding';
 import { MachineLimit } from '../../api/models/machine-limit';
 import { MapProvider } from '../../api/models/map-provider';
-import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { WorldMapResponse } from '../../api/models/world-map-response';
 import { Position } from '../../shared/display';
 import { ShownStatus } from '../shown-status';
@@ -160,10 +159,9 @@ export function buildingsShown(
   return new Set(buildings.filter((building) => building.limit === shown.limit).map((building) => building.id));
 }
 
-/** The resource nodes no provider stands on: where a miner or extractor could still go. */
-export function freeNodes(nodes: ResourceNodeResponse[], providers: MapProvider[]): ResourceNodeResponse[] {
-  const taken = new Set(providers.map((provider) => provider.node).filter((node) => node !== null));
-  return nodes.filter((node) => !taken.has(node.name));
+/** What stands on each resource node, by the node's name: a node with none is free, where a miner or extractor could still go. */
+export function nodeTakers(providers: MapProvider[]): Map<string, MapProvider> {
+  return new Map(providers.filter((provider) => provider.node !== null).map((provider) => [provider.node!, provider]));
 }
 
 /** Colours on the dark theme: running green, held back red or amber, without a recipe or unknown grey. */
@@ -186,11 +184,18 @@ export const statusLabels: Record<MachineStatus, string> = {
 /** What's on a belt, lift, splitter or in a machine, at save time: per item, a count (fluids in m³). */
 export type Contents = Record<string, number>;
 
+/** What something holds, item by item, most first, counts rounded to two decimals: for a page to show with icons. */
+export function contentEntries(contents: Contents): { item: string; count: number }[] {
+  return Object.entries(contents)
+    .sort(([, a], [, b]) => b - a)
+    .map(([item, count]) => ({ item, count: Number(count.toFixed(2)) }));
+}
+
 /** "Iron Ore × 7, Iron Ingot × 2", most first; "empty"; or "" when the snapshot doesn't know (older than version 6). */
 export function describeContents(contents: Contents | null | undefined, name: (item: string) => string): string {
   if (!contents) return '';
-  const entries = Object.entries(contents).sort(([, a], [, b]) => b - a);
-  return entries.length === 0 ? 'empty' : entries.map(([item, count]) => `${name(item)} × ${Number(count.toFixed(2))}`).join(', ');
+  const entries = contentEntries(contents);
+  return entries.length === 0 ? 'empty' : entries.map(({ item, count }) => `${name(item)} × ${count}`).join(', ');
 }
 
 /** Belts grey, pipes teal; a bottleneck red and thicker (BR-A12). */
@@ -198,9 +203,10 @@ export const conveyorColours = { belt: '#90a4ae', pipe: '#4dd0e1', bottleneck: '
 
 /** Node purities, by how much they give: impure ×0.5, normal ×1, pure ×2 (BR-W9). */
 export const purityColours: Record<string, string> = {
-  impure: '#8d6e63',
-  normal: '#bdbdbd',
-  pure: '#fff176',
+  // Green, yellow and red, as the owner reads them (asked 2026-11-23).
+  impure: '#e53935',
+  normal: '#fdd835',
+  pure: '#43a047',
 };
 
 /** The game's icon before a name in a tooltip (ADR-0032), which Leaflet takes as HTML; nothing when there's none. */
@@ -209,11 +215,21 @@ export function iconTag(url: string | null): string {
 }
 
 /**
- * A free resource node on the map (asked 2026-11-23): its resource's icon inside a dashed ring of its purity's colour,
- * as the dot was. Styled by .node-marker in styles.scss: Leaflet puts markers outside the page's component.
+ * A resource node on the map, free or not (asked 2026-11-23): a pin, as on the game's own map. Its resource's icon on its
+ * purity's colour in a white ring, on a white stick down to a dot where the node lies. Styled by .node-pin in
+ * styles.scss: Leaflet puts markers outside the page's component.
  */
 export function nodeMarkerHtml(url: string, purityColour: string): string {
-  return `<div class="node-marker" style="border-color: ${purityColour}"><img src="${escapeHtml(url)}" alt=""></div>`;
+  return `<div class="node-pin" style="--purity: ${purityColour}"><div class="node-marker"><img src="${escapeHtml(url)}" alt=""></div></div>`;
+}
+
+/**
+ * How big a resource node's marker is at a zoom level, in pixels (asked 2026-11-23): 22 at zoom -2, and about 1.4 times
+ * as big for each step in, half as fast as the map grows, so it keeps to its place as the land grows under it. Never
+ * smaller than 18, to make out the icon, nor bigger than 72.
+ */
+export function nodeMarkerSize(zoom: number): number {
+  return Math.round(Math.min(72, Math.max(18, 22 * 2 ** ((zoom + 2) / 2))));
 }
 
 /** Text as it reads in a tooltip, which Leaflet takes as HTML: a player's factory name may hold <, & or quotes. */

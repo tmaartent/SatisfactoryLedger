@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, output, resource, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -24,8 +25,8 @@ import { MapConveyor } from '../../api/models/map-conveyor';
 import { CatalogNames } from '../../shared/catalog-names';
 import { percent, perMinute, Position, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
-import { LimitFacts, limitText } from '../limit-text';
-import { conveyorColours, describeContents, statusColours, statusLabels, MachineStatus } from '../map/map-model';
+import { LimitFacts, LimitParts, limitParts } from '../limit-text';
+import { contentEntries, Contents, conveyorColours, statusColours, statusLabels, MachineStatus } from '../map/map-model';
 import { boxGeometry } from './box-geometry';
 import { sceneBackground } from './scene-background';
 import { Area, areaAround, buildingBoxes, curveInArea, inArea, sampleCurve3d, toScene } from './area-model';
@@ -73,7 +74,7 @@ function choosable(building: AreaBuilding | null | undefined): building is AreaB
  */
 @Component({
   selector: 'app-area-page',
-  imports: [GameIcon, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatSliderModule, SidebarTab],
+  imports: [GameIcon, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatSliderModule, SidebarTab],
   templateUrl: './area-page.html',
   styleUrl: './area-page.scss',
 })
@@ -357,17 +358,19 @@ export class AreaPage {
     }
   }
 
-  /** What the panel says about why the selected machine runs as it does. */
-  protected why(finding: LimitFacts): string {
-    return limitText(finding, (item) => this.names.item(item));
+  /** What the panel says about why the selected machine runs as it does: words around its items, each with its icon. */
+  protected why(finding: LimitFacts): LimitParts | null {
+    const parts = limitParts(finding);
+    return parts.before || parts.items.length > 0 ? parts : null;
   }
 
   protected statusLabel(finding: { limit: MachineStatus }): string {
     return statusLabels[finding.limit];
   }
 
-  protected contents(contents: Record<string, number> | null | undefined): string {
-    return describeContents(contents, (item) => this.names.item(item));
+  /** What a machine, belt or container holds, item by item, for the panel to show with icons. */
+  protected entries(contents: Contents): { item: string; count: number }[] {
+    return contentEntries(contents);
   }
 
   private start(): void {

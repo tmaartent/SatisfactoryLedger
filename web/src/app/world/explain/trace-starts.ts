@@ -28,6 +28,8 @@ export interface StartRow {
 /** Buildings of one kind: "Converter (Dark Matter Residue)", how many, and the first one's id to show on the map. */
 export interface Place {
   name: string;
+  /** The building alone, without its recipe: for its icon. */
+  building: string;
   count: number;
   perMinute: number | null;
   focus: string | null;
@@ -148,7 +150,7 @@ function itemOf(step: TraceStep): string {
 function add(places: Map<string, Merged>, groups: TraceBuildings[]): void {
   for (const group of groups) {
     const name = group.recipe ? `${group.building} (${group.recipe})` : group.building;
-    const place = places.get(name) ?? { name, count: 0, perMinute: null, focus: group.ids[0] ?? null, ids: new Set<string>() };
+    const place = places.get(name) ?? { name, building: group.building, count: 0, perMinute: null, focus: group.ids[0] ?? null, ids: new Set<string>() };
     places.set(name, place);
     const added = group.ids.filter((id) => !place.ids.has(id));
     if (group.ids.length > 0 && added.length === 0) continue;
@@ -159,5 +161,5 @@ function add(places: Map<string, Merged>, groups: TraceBuildings[]): void {
 }
 
 function places(merged: Map<string, Merged>): Place[] {
-  return [...merged.values()].map(({ name, count, perMinute, focus }) => ({ name, count, perMinute, focus }));
+  return [...merged.values()].map(({ name, building, count, perMinute, focus }) => ({ name, building, count, perMinute, focus }));
 }

@@ -30,12 +30,13 @@ import {
   describeContents,
   escapeHtml,
   footprintShapes,
-  freeNodes,
   fromMapPoint,
   locate,
   buildingsShown,
   iconTag,
   nodeMarkerHtml,
+  nodeMarkerSize,
+  nodeTakers,
   mapExtent,
   mapArtTiles,
   machineStatuses,
@@ -128,7 +129,7 @@ export class MapPage {
   /** ?factory=…: the factory highlighted when the map opens; the list beside the map can pick another. */
   readonly factory = input<string>();
   protected readonly factoryId = linkedSignal(() => this.factory() ?? null);
-  protected readonly showFreeNodes = signal(true);
+  protected readonly showNodes = signal(true);
   protected readonly pointer = signal<string>('');
   /** Drawing a rectangle to open in 3D: the map stops panning, and a drag draws instead. */
   protected readonly drawing = signal(false);
@@ -205,7 +206,7 @@ export class MapPage {
     effect(() => this.drawMachines());
     effect(() => this.drawProviders());
     effect(() => this.drawOthers());
-    effect(() => this.drawFreeNodes());
+    effect(() => this.drawNodes());
     effect(() => this.drawMapArt());
     // Again with the snapshot's buildings, which may stand past the picture.
     effect(() => this.holdToMapArt());
@@ -226,6 +227,11 @@ export class MapPage {
       attributionControl: false,
     });
     this.map.on('resize', () => this.holdToMapArt());
+    // The resource nodes' markers read their size from the map (styles.scss): sized again for each zoom, not redrawn. An
+    // animated zoom says where it goes as it starts, so they grow along with the map; others end with 'zoom'.
+    const sizeNodes = (zoom = this.map!.getZoom()) => this.container().nativeElement.style.setProperty('--node-size', `${nodeMarkerSize(zoom)}px`);
+    this.map.on('zoomanim', (event) => sizeNodes((event as L.ZoomAnimEvent).zoom));
+    this.map.on('zoom', () => sizeNodes());
     // The map picture first, so everything else lies over it.
     this.artLayer.addTo(this.map);
     this.gridLayer().addTo(this.map);
@@ -237,6 +243,7 @@ export class MapPage {
     this.shownLayer.addTo(this.map);
     this.focusLayer.addTo(this.map);
     this.map.setView([0, 0], -3);
+    sizeNodes();
     this.listenForArea(this.map);
     this.map.on('mousemove', (event: L.LeafletMouseEvent) =>
       this.pointer.set(positionInMetres({ x: event.latlng.lng * 100, y: -event.latlng.lat * 100, z: 0 }).replace(/, 0 m$/, ' m')),
@@ -245,7 +252,7 @@ export class MapPage {
     this.drawMachines();
     this.drawProviders();
     this.drawOthers();
-    this.drawFreeNodes();
+    this.drawNodes();
     this.drawMapArt();
     this.focusOnBuildable();
   }
@@ -533,29 +540,35 @@ export class MapPage {
     return describeContents(contents, (item) => this.names.item(item));
   }
 
-  private drawFreeNodes(): void {
-    const free = this.showFreeNodes() ? freeNodes(this.nodes.value() ?? [], this.world.value()?.providers ?? []) : [];
+  /** Every resource node, as a pin (asked 2026-11-23): free or with a miner or extractor on it, which its tooltip names. */
+  private drawNodes(): void {
+    const nodes = this.showNodes() ? (this.nodes.value() ?? []) : [];
+    const takers = nodeTakers(this.world.value()?.providers ?? []);
     if (!this.map) return;
 
     this.nodeLayer.clearLayers();
     // With no snapshot, nothing else to zoom to: the nodes, the first time.
-    if (!this.id() && !this.fitted && free.length > 0) {
-      this.map.fitBounds(L.latLngBounds(free.map((node) => toMapPoint(node.position))), { padding: [24, 24] });
+    if (!this.id() && !this.fitted && nodes.length > 0) {
+      this.map.fitBounds(L.latLngBounds(nodes.map((node) => toMapPoint(node.position))), { padding: [24, 24] });
       this.fitted = true;
     }
-    for (const node of free) {
+    for (const node of nodes) {
       const purity = purityColours[node.purity] ?? '#bdbdbd';
       const icon = this.names.icon(node.resource);
-      // With the game's icons, the resource's icon in its purity's ring (asked 2026-11-23); without, a dashed dot.
+      // With the game's icons, a pin (asked 2026-11-23); without, a dashed dot.
       const marker = icon
         ? L.marker(toMapPoint(node.position), {
-            icon: L.divIcon({ html: nodeMarkerHtml(icon, purity), className: '', iconSize: [22, 22], iconAnchor: [11, 11] }),
+            // No size of its own: the pin is drawn from the node by CSS, at the map's --node-size.
+            icon: L.divIcon({ html: nodeMarkerHtml(icon, purity), className: '', iconSize: [0, 0], iconAnchor: [0, 0] }),
           })
         : L.circleMarker(toMapPoint(node.position), { radius: 5, color: purity, weight: 1.5, dashArray: '3 3', fill: false });
+      // With a snapshot, what stands on it, or that it's free; without one, nothing is known of either.
+      const taker = takers.get(node.name);
+      const standing = !this.id() ? '' : taker ? ` · ${this.icon(taker.className)}${this.names.building(taker.className)} on it` : ' · free';
       marker
         .bindTooltip(
-          `${this.id() ? `Free ${node.purity}` : node.purity.charAt(0).toUpperCase() + node.purity.slice(1)} node · ` +
-            `${iconTag(icon)}${this.names.item(node.resource)}<br>${positionInMetres(node.position)}`,
+          `${node.purity.charAt(0).toUpperCase() + node.purity.slice(1)} node · ${iconTag(icon)}${this.names.item(node.resource)}${standing}` +
+            `<br>${positionInMetres(node.position)}`,
         )
         .addTo(this.nodeLayer);
     }
