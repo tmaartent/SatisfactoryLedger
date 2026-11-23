@@ -174,3 +174,17 @@ table.mat-mdc-table {
     white-space: nowrap;
   }
 }
+
+// What a line between a factory picked and its suppliers carries, on the arrangement's map (arrangement-page.ts): a
+// Leaflet marker, outside the page's own styles. Its item icons in a pill, centred on the line's middle.
+.line-items {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 65%);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  color: #fff;
+  font-size: 11px;
+}
