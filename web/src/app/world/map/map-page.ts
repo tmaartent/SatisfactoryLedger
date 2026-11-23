@@ -147,8 +147,11 @@ export class MapPage {
   protected readonly purities = Purities;
   protected readonly nodeKey = nodeKey;
   protected readonly pointer = signal<string>('');
-  /** Drawing a rectangle to open in 3D: the map stops panning, and a drag draws instead. */
-  protected readonly drawing = signal(false);
+  /**
+   * Drawing a rectangle, to open in 3D (shift held) or to arrange its factories (ctrl held): the map stops panning, and
+   * a drag draws instead. Null while not drawing.
+   */
+  protected readonly drawing = signal<'3d' | 'arrangement' | null>(null);
 
   private readonly statuses = computed(() => machineStatuses(this.analysis.value()?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
@@ -351,23 +354,27 @@ export class MapPage {
 
   /** Stops drawing an area: the map pans again on a drag. */
   private stopDrawing(): void {
-    this.drawing.set(false);
+    this.drawing.set(null);
     this.map?.dragging.enable();
   }
 
   /**
-   * A drag with shift held draws a rectangle, and letting go opens what's inside it in 3D (asked 2026-11-23, as defining
-   * a factory in 3D does; it was a button). The map listens in the capture phase, so it hears the press before Leaflet's
-   * panning does, and can switch the panning off in time. Leaflet's own shift-drag, zooming to a box, is off.
+   * A drag with a key held draws a rectangle, and letting go opens what's inside it: with shift, in 3D (asked
+   * 2026-11-23, as defining a factory in 3D does; it was a button); with ctrl (or ⌘ on a Mac), in the optimal
+   * arrangement (asked 2026-11-23). The map listens in the capture phase, so it hears the press before Leaflet's panning
+   * does, and can switch the panning off in time. Leaflet's own shift-drag, zooming to a box, is off.
    */
   private listenForArea(map: L.Map): void {
     let start: L.LatLng | null = null;
     let rectangle: L.Rectangle | null = null;
+    // What the drag opens, kept from its start: letting go ends drawing before Leaflet's mouseup comes.
+    let opens: '3d' | 'arrangement' | null = null;
     map.getContainer().addEventListener(
       'pointerdown',
       (event) => {
-        if (!this.id() || !event.shiftKey || event.button !== 0) return;
-        this.drawing.set(true);
+        const kind = event.shiftKey ? '3d' : event.ctrlKey || event.metaKey ? 'arrangement' : null;
+        if (!this.id() || !kind || event.button !== 0) return;
+        this.drawing.set(kind);
         map.dragging.disable();
       },
       { capture: true },
@@ -378,6 +385,7 @@ export class MapPage {
     });
     map.on('mousedown', (event: L.LeafletMouseEvent) => {
       if (!this.drawing()) return;
+      opens = this.drawing();
       start = event.latlng;
       rectangle = L.rectangle(L.latLngBounds(start, start), {
         color: '#ffeb3b',
@@ -395,12 +403,13 @@ export class MapPage {
         fromMapPoint(start.lat, start.lng),
         fromMapPoint(event.latlng.lat, event.latlng.lng),
       );
+      const page = opens === 'arrangement' ? 'arrangement' : 'area';
       rectangle?.remove();
-      [start, rectangle] = [null, null];
+      [start, rectangle, opens] = [null, null, null];
       this.stopDrawing();
       // A click without a drag draws nothing.
       if (area.x1 - area.x0 < 200 || area.y1 - area.y0 < 200) return;
-      void this.router.navigate(['/snapshots', this.id(), 'area'], { queryParams: area });
+      void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
     });
   }
 
