@@ -2627,7 +2627,8 @@
           "outputs",
           "inputs",
           "leaving",
-          "arriving"
+          "arriving",
+          "connected"
         ],
         "type": "object",
         "properties": {
@@ -2659,6 +2660,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PreviewItem"
+            }
+          },
+          "connected": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }

@@ -9,9 +9,11 @@ namespace SatisfactoryLedger.World.Factories;
 /// <param name="Inputs">Where the world would hand over to it, line by line.</param>
 /// <param name="Leaving">Per item, what leaves over its outputs now, most first.</param>
 /// <param name="Arriving">Per item, what arrives over its inputs now, most first.</param>
+/// <param name="Connected">The ids of what's connected to it, its machines included: the rest is faded in its 3D view.</param>
 internal sealed record FactoryPreview(
     IReadOnlyList<string> Logistics,
     IReadOnlyList<ConnectionSummary> Outputs,
     IReadOnlyList<ConnectionSummary> Inputs,
     IReadOnlyList<PreviewItem> Leaving,
-    IReadOnlyList<PreviewItem> Arriving);
+    IReadOnlyList<PreviewItem> Arriving,
+    IReadOnlyList<string> Connected);

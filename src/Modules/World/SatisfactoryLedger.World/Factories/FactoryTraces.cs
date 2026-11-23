@@ -60,18 +60,20 @@ internal static class FactoryTraces
             .Select(BuildableId.Of)];
         if (chosen.Count == 0)
         {
-            return new FactoryPreview([], [], [], [], []);
+            return new FactoryPreview([], [], [], [], [], []);
         }
 
         WorldGraph world = snapshot.ToWorldGraph();
-        FactoryMembers members = new FactoryDefinition(chosen).TraceMembers(world, snapshot.Fluids.Select(ItemId.Of).ToHashSet());
+        var definition = new FactoryDefinition(chosen);
+        FactoryMembers members = definition.TraceMembers(world, snapshot.Fluids.Select(ItemId.Of).ToHashSet());
         Dictionary<string, MachineStateDocument> states = (analysis?.Machines ?? []).ToDictionary(state => state.Id, StringComparer.Ordinal);
         return new FactoryPreview(
             [.. members.Logistics.Select(id => id.Id).Order(StringComparer.Ordinal)],
             Summaries(members.Outputs, buildables),
             Summaries(members.Inputs, buildables),
             PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, analysis!).GetValueOrDefault(item.Id), analysis is not null),
-            PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, analysis!, members, states), analysis is not null));
+            PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, analysis!, members, states), analysis is not null),
+            [.. definition.ConnectedIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)]);
     }
 
     /// <summary>Per item over the connections, what crosses now: summed, most first; without rates when they aren't known.</summary>
