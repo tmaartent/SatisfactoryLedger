@@ -203,6 +203,16 @@ public class CatalogImportTests
         Assert.Empty(import.NoLongerInGame);
     }
 
+    [Fact]
+    public void An_import_of_the_icons_records_its_game_version_and_changes_no_entries()
+    {
+        var import = CatalogImport.RecordIcons(CatalogImportId.New(), " 1.2 ", ImportedAt);
+
+        Assert.Equal(CatalogImportSource.Icons, import.Source);
+        Assert.Equal("1.2", import.GameVersion);
+        Assert.Equal(new ImportCounts(0, 0, 0), import.Items);
+    }
+
     private static CatalogImport RecordImport(
         string gameVersion,
         CatalogEntryChanges<Item>? items = null,

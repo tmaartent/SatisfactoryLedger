@@ -17,11 +17,12 @@ import { problemMessage } from '../shared/problem';
 import { FactoryDeletion } from './factory-deletion';
 import { FindingsView } from './findings';
 import { SnapshotDeletion } from './snapshot-deletion';
+import { GameIcon } from '../shared/game-icon';
 
 /** One snapshot: what it holds, and its findings once the analysis is ready, its factories among them. */
 @Component({
   selector: 'app-snapshot-page',
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, MatListModule, MatProgressBarModule, MatTabsModule, AnalysisStatusChip, FindingsView],
+  imports: [GameIcon, DatePipe, RouterLink, MatButtonModule, MatIconModule, MatListModule, MatProgressBarModule, MatTabsModule, AnalysisStatusChip, FindingsView],
   templateUrl: './snapshot-page.html',
 })
 export class SnapshotPage {

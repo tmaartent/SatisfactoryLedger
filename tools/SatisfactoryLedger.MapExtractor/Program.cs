@@ -1,12 +1,13 @@
 using SatisfactoryLedger.MapExtractor;
 
-// Writes the resource node table from a game install (ADR-0015), and the map art when asked (ADR-0020). Run it after
+// Writes the resource node table from a game install (ADR-0015), and the map art (ADR-0020) and icons (ADR-0032) when asked. Run it after
 // a game update, then import what it wrote into the Catalog. Exit code 0 on success, 1 on wrong arguments, 2 when the game files can't be read.
 
 string? game = Option("--game");
 string? gameVersion = Option("--game-version");
 string output = Option("--out") ?? "resource-nodes.json";
 string? mapArtOutput = Option("--map-art");
+string? iconsOutput = Option("--icons");
 
 if (game is null || gameVersion is null)
 {
@@ -18,6 +19,8 @@ if (game is null || gameVersion is null)
           --out <file>             where to write the table (default: resource-nodes.json)
           --map-art <file>         also write the game's map picture there, e.g. map-art.json (the game's own art:
                                    keep it out of git; the Catalog imports it, see ADR-0020)
+          --icons <file>           also write the game's icons there, e.g. icons.json (the game's own art too:
+                                   keep it out of git; the Catalog imports it, see ADR-0032)
         """);
     return 1;
 }
@@ -63,6 +66,25 @@ if (mapArtOutput is not null)
 
     await File.WriteAllTextAsync(mapArtOutput, art.ToJson());
     Console.WriteLine($"Map art of {art.Tiles.Count} tiles written to {Path.GetFullPath(mapArtOutput)}");
+}
+
+if (iconsOutput is not null)
+{
+    IconTable icons;
+    try
+    {
+        // The Docs file says which texture is whose icon; it's UTF-16, as the game writes it.
+        string docs = await File.ReadAllTextAsync(Path.Combine(game, "CommunityResources", "Docs", "en-US.json"));
+        icons = IconTable.Build(gameVersion, map.Icons(DocsIcons.Read(docs)));
+    }
+    catch (Exception e) when (e is InvalidDataException or IOException or System.Text.Json.JsonException)
+    {
+        Console.Error.WriteLine($"The game files can't be read into icons: {e.Message}");
+        return 2;
+    }
+
+    await File.WriteAllTextAsync(iconsOutput, icons.ToJson());
+    Console.WriteLine($"{icons.Icons.Count} icons written to {Path.GetFullPath(iconsOutput)}");
 }
 
 return 0;

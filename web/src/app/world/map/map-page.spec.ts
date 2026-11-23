@@ -95,7 +95,8 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
       { provide: Api, useValue: api },
       {
         provide: CatalogNames,
-        useValue: {
+        // The game's icons, imported: Iron Ore has one.
+        useValue: { icon: (className: string) => (className === 'Desc_OreIron_C' ? '/api/v1/catalog/icons/Desc_OreIron_C' : null), iconOfItemNamed: () => null,
           item: (item: string) => item,
           building: (name: string) => name,
           recipe: (r: string) => r,
@@ -133,6 +134,15 @@ describe('the world map with no snapshot loaded', () => {
       ),
     ).toBe(true);
     expect(api.invoke$Response).not.toHaveBeenCalled();
+  });
+
+  it("draws a resource node as its resource's icon in the ring of its purity", async () => {
+    const { element } = await render();
+
+    const node = element.querySelector('.node-marker') as HTMLElement | null;
+    expect(node?.querySelector('img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Desc_OreIron_C');
+    // Pure: yellow, as the browser reads the colour back.
+    expect(node?.style.borderColor).toBe('rgb(255, 241, 118)');
   });
 
   it('offers nothing that needs a snapshot', async () => {

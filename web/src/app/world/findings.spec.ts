@@ -64,6 +64,8 @@ const catalogNames: Partial<CatalogNames> = {
   item: (id) => (id ? classNameAsWords(id) : '—'),
   recipe: (id) => (id ? classNameAsWords(id) : '—'),
   building: classNameAsWords,
+  // The game's icons, imported: every class has one.
+  icon: (className) => (className ? `/api/v1/catalog/icons/${className}` : null),
 };
 
 describe('FindingsView', () => {
@@ -85,6 +87,13 @@ describe('FindingsView', () => {
     const fixture = await render();
 
     expect(rows(fixture.nativeElement)[0]).toContain('Not enough Iron Ingot');
+  });
+
+  it("shows the game's icon beside each machine's building", async () => {
+    const fixture = await render();
+
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row');
+    expect(row?.querySelector('app-game-icon img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Build_ConstructorMk1_C');
   });
 
   it('offers to explain why a held-back machine runs below 100%, and not a running one', async () => {

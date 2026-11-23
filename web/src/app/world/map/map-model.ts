@@ -203,6 +203,19 @@ export const purityColours: Record<string, string> = {
   pure: '#fff176',
 };
 
+/** The game's icon before a name in a tooltip (ADR-0032), which Leaflet takes as HTML; nothing when there's none. */
+export function iconTag(url: string | null): string {
+  return url ? `<img class="tooltip-icon" src="${escapeHtml(url)}" width="16" height="16" alt="">` : '';
+}
+
+/**
+ * A free resource node on the map (asked 2026-11-23): its resource's icon inside a dashed ring of its purity's colour,
+ * as the dot was. Styled by .node-marker in styles.scss: Leaflet puts markers outside the page's component.
+ */
+export function nodeMarkerHtml(url: string, purityColour: string): string {
+  return `<div class="node-marker" style="border-color: ${purityColour}"><img src="${escapeHtml(url)}" alt=""></div>`;
+}
+
 /** Text as it reads in a tooltip, which Leaflet takes as HTML: a player's factory name may hold <, & or quotes. */
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

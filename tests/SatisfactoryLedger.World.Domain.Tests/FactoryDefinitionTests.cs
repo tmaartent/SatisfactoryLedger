@@ -337,4 +337,39 @@ public class FactoryDefinitionTests
         FactoryConnection input = Assert.Single(factory.Inputs);
         Assert.Equal(Id("miner"), input.Outside);
     }
+
+    private static IEnumerable<string> Connected(TestWorld world, params string[] machines) =>
+        Names(new FactoryDefinition(machines.Select(Id)).ConnectedIn(world.Build()));
+
+    /// <summary>
+    /// smelter → ingots → merge → to sink → sink, and another factory's smelter → other ingots → merge: the line into the
+    /// sink is shared, so neither owns it, but it's connected to both.
+    /// </summary>
+    private static TestWorld SharedLineToASink() => new TestWorld()
+        .Miner("miner").Belt("ore").Machine("smelter", Items.IronOre, Items.IronIngot).Belt("ingots").Merger("merge")
+        .Belt("to sink").Sink("sink")
+        .Machine("other smelter", Items.IronOre, Items.IronIngot).Belt("other ingots")
+        .Connect("miner", "ore", "smelter", "ingots", "merge", "to sink", "sink")
+        .Connect("other smelter", "other ingots", "merge");
+
+    [Fact]
+    public void What_is_connected_to_a_factory_reaches_along_a_line_it_shares_to_the_sink_at_its_end()
+    {
+        Assert.Superset(new HashSet<string> { "ingots", "merge", "to sink", "sink" }, Connected(SharedLineToASink(), "smelter").ToHashSet());
+    }
+
+    [Fact]
+    public void What_is_connected_to_a_factory_is_its_machines_and_its_supply_up_to_the_miner()
+    {
+        Assert.Superset(new HashSet<string> { "smelter", "ore", "miner" }, Connected(SharedLineToASink(), "smelter").ToHashSet());
+    }
+
+    [Fact]
+    public void What_is_connected_to_a_factory_stops_at_another_machine()
+    {
+        IEnumerable<string> connected = Connected(SharedLineToASink(), "smelter");
+
+        Assert.Contains("other ingots", connected);
+        Assert.DoesNotContain("other smelter", connected);
+    }
 }

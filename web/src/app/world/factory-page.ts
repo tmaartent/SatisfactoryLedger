@@ -20,6 +20,7 @@ import { problemMessage, whenAnalysed } from '../shared/problem';
 import { AreaPage } from './area/area-page';
 import { FactoryDeletion } from './factory-deletion';
 import { FindingsSummary } from './findings-summary';
+import { GameIcon } from '../shared/game-icon';
 
 /**
  * A factory's findings in one snapshot: the overview of its machines and power, the factory in 3D with all the 3D view
@@ -28,7 +29,7 @@ import { FindingsSummary } from './findings-summary';
  */
 @Component({
   selector: 'app-factory-page',
-  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, MatTooltipModule, FindingsSummary, AreaPage],
+  imports: [GameIcon, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, MatTooltipModule, FindingsSummary, AreaPage],
   templateUrl: './factory-page.html',
   styles: `
     .output { margin-bottom: 24px; }

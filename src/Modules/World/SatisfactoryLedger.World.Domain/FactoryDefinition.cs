@@ -49,6 +49,31 @@ public sealed class FactoryDefinition
     }
 
     /// <summary>
+    /// What's connected to the factory in a world: its machines, and everything reached from them through logistics,
+    /// owned or shared, up to the providers, consumers and containers at the lines' ends. The walk stops at a machine
+    /// that isn't the factory's. Its 3D view draws the rest faded (asked 2026-11-23).
+    /// </summary>
+    public IReadOnlySet<BuildableId> ConnectedIn(WorldGraph world)
+    {
+        HashSet<BuildableId> machines = Machines.Where(id => CanBeChosen(world.Find(id))).ToHashSet();
+        HashSet<BuildableId> connected = [.. machines];
+        Queue<BuildableId> toVisit = new(machines);
+        while (toVisit.TryDequeue(out BuildableId? current))
+        {
+            foreach (Buildable next in Neighbours(world, current).Where(next => next is not Machine && connected.Add(next.Id)))
+            {
+                // A line goes on through logistics; a provider or consumer is where it ends.
+                if (next is Logistics)
+                {
+                    toVisit.Enqueue(next.Id);
+                }
+            }
+        }
+
+        return connected;
+    }
+
+    /// <summary>
     /// BR-W3: the logistics connected to the factory's machines whose every machine, through logistics, upstream or
     /// downstream, is the factory's. Pieces of logistics connected to each other form one line, so this is decided per
     /// line: a line that also touches another factory's machine connects the two and belongs to neither. Providers,

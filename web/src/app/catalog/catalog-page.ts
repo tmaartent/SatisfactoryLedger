@@ -17,17 +17,19 @@ import { getRecipes } from '../api/fn/catalog/get-recipes';
 import { getResourceNodes } from '../api/fn/catalog/get-resource-nodes';
 import { getTransportTiers } from '../api/fn/catalog/get-transport-tiers';
 import { importCatalog } from '../api/fn/catalog/import-catalog';
+import { importIcons } from '../api/fn/catalog/import-icons';
 import { importMapArt } from '../api/fn/catalog/import-map-art';
 import { importResourceNodes } from '../api/fn/catalog/import-resource-nodes';
 import { ImportResponse } from '../api/models/import-response';
 import { CatalogNames } from '../shared/catalog-names';
 import { perMinute, positionInMetres } from '../shared/display';
 import { problemMessage } from '../shared/problem';
+import { GameIcon } from '../shared/game-icon';
 
 /** The game data (ADR-0005), the resource nodes (ADR-0015) and the map art (ADR-0020): their imports, and what's in them. */
 @Component({
   selector: 'app-catalog-page',
-  imports: [
+  imports: [GameIcon, 
     FormsModule,
     MatButtonModule,
     MatCardModule,
@@ -104,6 +106,12 @@ export class CatalogPage {
   protected async importMapArt(files: FileList | null): Promise<void> {
     const file = files?.item(0);
     if (file) await this.run(() => this.api.invoke(importMapArt, { body: { file } }));
+  }
+
+  /** The game's icons: they replace the ones before, and show beside names from then on (the names reload them). */
+  protected async importIcons(files: FileList | null): Promise<void> {
+    const file = files?.item(0);
+    if (file) await this.run(() => this.api.invoke(importIcons, { body: { file } }));
   }
 
   private async run(importing: () => Promise<ImportResponse>): Promise<void> {

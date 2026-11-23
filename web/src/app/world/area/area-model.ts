@@ -5,12 +5,17 @@ import { FootprintDocument } from '../../api/models/footprint-document';
 import { VolumeDocument } from '../../api/models/volume-document';
 import { Position } from '../../shared/display';
 
-/** A rectangle on the map, in the game's units (centimetres): x from x0 to x1, y from y0 to y1. Any height. */
+/**
+ * A rectangle on the map, in the game's units (centimetres): x from x0 to x1, y from y0 to y1. At any height, unless it
+ * says from z0 to z1, as a factory's area does (asked 2026-11-23): a factory on the floor above isn't in it.
+ */
 export interface Area {
   x0: number;
   y0: number;
   x1: number;
   y1: number;
+  z0?: number;
+  z1?: number;
 }
 
 /** The area between two corners of a rectangle drawn on the map, whichever corner the drawing started from. */
@@ -18,16 +23,22 @@ export function areaBetween(a: Position, b: Position): Area {
   return { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
 }
 
-/** The area around a factory's machines: from the outermost ones, a margin further on every side. Nothing without any. */
+/**
+ * The area around a factory's machines: from the outermost points of them, a margin further on every side, below and
+ * above too. Nothing without any.
+ */
 export function areaAround(positions: readonly Position[], margin: number): Area | null {
   if (positions.length === 0) return null;
-  const xs = positions.map((p) => p.x);
-  const ys = positions.map((p) => p.y);
-  return { x0: Math.min(...xs) - margin, y0: Math.min(...ys) - margin, x1: Math.max(...xs) + margin, y1: Math.max(...ys) + margin };
+  const [xs, ys, zs] = [positions.map((p) => p.x), positions.map((p) => p.y), positions.map((p) => p.z)];
+  return {
+    x0: Math.min(...xs) - margin, y0: Math.min(...ys) - margin, x1: Math.max(...xs) + margin, y1: Math.max(...ys) + margin,
+    z0: Math.min(...zs) - margin, z1: Math.max(...zs) + margin,
+  };
 }
 
 export function inArea(position: Position, area: Area): boolean {
-  return position.x >= area.x0 && position.x <= area.x1 && position.y >= area.y0 && position.y <= area.y1;
+  return position.x >= area.x0 && position.x <= area.x1 && position.y >= area.y0 && position.y <= area.y1
+    && (area.z0 === undefined || position.z >= area.z0) && (area.z1 === undefined || position.z <= area.z1);
 }
 
 /** A belt or pipe belongs to the area when any of its points lies inside it. */

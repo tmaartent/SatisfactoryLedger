@@ -15,7 +15,7 @@
         <ng-container matColumnDef="machine">
           <th mat-header-cell *matHeaderCellDef>Machine</th>
           <td mat-cell *matCellDef="let m">
-            {{ names.building(m.className) }}
+            <app-game-icon [of]="m.className" />{{ names.building(m.className) }}
             @if (m.approximate) {
               <mat-icon inline matTooltip="Approximate">blur_on</mat-icon>
             }
@@ -148,7 +148,7 @@
       <table mat-table [dataSource]="f.bottlenecks">
         <ng-container matColumnDef="belt">
           <th mat-header-cell *matHeaderCellDef>Belt or pipe</th>
-          <td mat-cell *matCellDef="let b">{{ names.building(b.className) }}</td>
+          <td mat-cell *matCellDef="let b"><app-game-icon [of]="b.className" />{{ names.building(b.className) }}</td>
         </ng-container>
         <ng-container matColumnDef="flow">
           <th mat-header-cell *matHeaderCellDef class="number">Carries</th>
@@ -180,11 +180,11 @@
       <table mat-table [dataSource]="f.unusedSupply">
         <ng-container matColumnDef="source">
           <th mat-header-cell *matHeaderCellDef>Source</th>
-          <td mat-cell *matCellDef="let u">{{ names.building(u.className) }}</td>
+          <td mat-cell *matCellDef="let u"><app-game-icon [of]="u.className" />{{ names.building(u.className) }}</td>
         </ng-container>
         <ng-container matColumnDef="item">
           <th mat-header-cell *matHeaderCellDef>Item</th>
-          <td mat-cell *matCellDef="let u">{{ names.item(u.item) }}</td>
+          <td mat-cell *matCellDef="let u"><app-game-icon [of]="u.item" />{{ names.item(u.item) }}</td>
         </ng-container>
         <ng-container matColumnDef="delivered">
           <th mat-header-cell *matHeaderCellDef class="number">Delivers</th>
@@ -220,7 +220,7 @@
         <ng-container matColumnDef="source">
           <th mat-header-cell *matHeaderCellDef>Source</th>
           <td mat-cell *matCellDef="let u">
-            {{ names.building(u.className) }}
+            <app-game-icon [of]="u.className" />{{ names.building(u.className) }}
             @if (u.confirmed) {
               <mat-icon inline matTooltip="Its stock confirms it can">check_circle</mat-icon>
             }
@@ -230,7 +230,7 @@
           <th mat-header-cell *matHeaderCellDef>Assumed to deliver</th>
           <td mat-cell *matCellDef="let u">
             @for (delivery of deliveries(u); track delivery.item) {
-              <div>{{ names.item(delivery.item) }}: {{ perMinute(delivery.rate) }}</div>
+              <div><app-game-icon [of]="delivery.item" />{{ names.item(delivery.item) }}: {{ perMinute(delivery.rate) }}</div>
             }
           </td>
         </ng-container>
@@ -269,7 +269,7 @@
           <ng-container matColumnDef="generator">
             <th mat-header-cell *matHeaderCellDef>Generator</th>
             <td mat-cell *matCellDef="let g">
-              {{ names.building(g.className) }}
+              <app-game-icon [of]="g.className" />{{ names.building(g.className) }}
               @if (g.approximate) {
                 <mat-icon inline matTooltip="Approximate">blur_on</mat-icon>
               }
@@ -292,7 +292,7 @@
           </ng-container>
           <ng-container matColumnDef="fuel">
             <th mat-header-cell *matHeaderCellDef>Burns</th>
-            <td mat-cell *matCellDef="let g">{{ names.item(g.fuel) }}</td>
+            <td mat-cell *matCellDef="let g"><app-game-icon [of]="g.fuel" />{{ names.item(g.fuel) }}</td>
           </ng-container>
           <ng-container matColumnDef="utilisation">
             <th mat-header-cell *matHeaderCellDef>Running at</th>
@@ -335,7 +335,7 @@
           <ng-container matColumnDef="port">
             <th mat-header-cell *matHeaderCellDef>Port</th>
             <td mat-cell *matCellDef="let d">
-              {{ names.building(d.className) }}
+              <app-game-icon [of]="d.className" />{{ names.building(d.className) }}
               @if (d.approximate) {
                 <mat-icon inline matTooltip="Approximate">blur_on</mat-icon>
               }
@@ -343,7 +343,7 @@
           </ng-container>
           <ng-container matColumnDef="fuel">
             <th mat-header-cell *matHeaderCellDef>Fuel</th>
-            <td mat-cell *matCellDef="let d">{{ names.item(d.fuel) }}</td>
+            <td mat-cell *matCellDef="let d"><app-game-icon [of]="d.fuel" />{{ names.item(d.fuel) }}</td>
           </ng-container>
           <ng-container matColumnDef="burns">
             <th mat-header-cell *matHeaderCellDef>Drones burn</th>

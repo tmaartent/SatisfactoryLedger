@@ -25,6 +25,7 @@ import { OutlinedFactory, factoryColour, machineOwners } from './area/factory-ou
 import { Explainer } from './explain/explainer';
 import { FindingsSummary } from './findings-summary';
 import { LimitFacts, limitText } from './limit-text';
+import { GameIcon } from '../shared/game-icon';
 
 /**
  * What the world's analysis and a factory's analysis have in common (BR-A9 to A13). Generators (BR-A15) are in both:
@@ -38,7 +39,7 @@ export type Findings = Pick<AnalysisResponse, 'summary' | 'generatorSummary' | '
 /** The findings of an analysis: a summary, then a tab per kind of finding. The API orders each list worst first. */
 @Component({
   selector: 'app-findings',
-  imports: [
+  imports: [GameIcon, 
     DecimalPipe,
     MatButtonModule,
     MatButtonToggleModule,

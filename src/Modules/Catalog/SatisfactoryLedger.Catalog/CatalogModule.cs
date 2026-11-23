@@ -30,6 +30,7 @@ public static class CatalogModule
         builder.Services.AddScoped<ImportCatalogHandler>();
         builder.Services.AddScoped<ImportResourceNodesHandler>();
         builder.Services.AddScoped<ImportMapArtHandler>();
+        builder.Services.AddScoped<ImportIconsHandler>();
 
         // What other modules may ask, through Catalog.Contracts.
         builder.Services.AddScoped<ICatalogQueries, CatalogQueries>();
@@ -43,7 +44,8 @@ public static class CatalogModule
             .WithTags("Catalog")
             .MapImportEndpoints()
             .MapBrowseEndpoints()
-            .MapMapArtEndpoints();
+            .MapMapArtEndpoints()
+            .MapIconEndpoints();
 
         return endpoints;
     }

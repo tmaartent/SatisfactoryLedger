@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { Api } from '../api/api';
+import { importIcons } from '../api/fn/catalog/import-icons';
 import { importMapArt } from '../api/fn/catalog/import-map-art';
 import { CatalogNames } from '../shared/catalog-names';
 import { CatalogPage } from './catalog-page';
@@ -33,7 +34,9 @@ const mapArtImport = {
 describe('the catalog page', () => {
   async function render() {
     const api = {
-      invoke: vi.fn((fn: unknown) => Promise.resolve(fn === importMapArt ? mapArtImport : [])),
+      invoke: vi.fn((fn: unknown) =>
+        Promise.resolve(fn === importMapArt ? mapArtImport : fn === importIcons ? { ...mapArtImport, source: 'icons' } : []),
+      ),
     };
     TestBed.configureTestingModule({
       imports: [CatalogPage],
@@ -41,7 +44,7 @@ describe('the catalog page', () => {
         { provide: Api, useValue: api },
         {
           provide: CatalogNames,
-          useValue: {
+          useValue: { icon: () => null, iconOfItemNamed: () => null,
             reload: vi.fn(),
             item: (item: string) => item,
             building: (name: string) => name,
@@ -64,5 +67,18 @@ describe('the catalog page', () => {
     await fixture.whenStable();
 
     expect(api.invoke).toHaveBeenCalledWith(importMapArt, { body: { file } });
+  });
+
+  it("imports the game's icons the map tool wrote, and shows them from then on", async () => {
+    const { fixture, api, element } = await render();
+    const input = element.querySelector('input[type="file"].icons') as HTMLInputElement;
+    const file = new File(['{}'], 'icons.json');
+    Object.defineProperty(input, 'files', { value: { 0: file, length: 1, item: () => file } });
+
+    input.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(api.invoke).toHaveBeenCalledWith(importIcons, { body: { file } });
+    expect(TestBed.inject(CatalogNames).reload).toHaveBeenCalled();
   });
 });

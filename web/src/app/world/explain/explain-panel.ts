@@ -9,6 +9,7 @@ import { RouterLink } from '@angular/router';
 
 import { Explainer } from './explainer';
 import { whereItStarts } from './trace-starts';
+import { GameIcon } from '../../shared/game-icon';
 
 /**
  * A finding explained in words by a chat model (AI enhancement 3), in the sidebar's Explanation tab so it stays while
@@ -18,7 +19,7 @@ import { whereItStarts } from './trace-starts';
  */
 @Component({
   selector: 'app-explain-panel',
-  imports: [DecimalPipe, NgTemplateOutlet, MatButtonModule, MatButtonToggleModule, MatIconModule, MatProgressBarModule, MatTooltipModule, RouterLink],
+  imports: [GameIcon, DecimalPipe, NgTemplateOutlet, MatButtonModule, MatButtonToggleModule, MatIconModule, MatProgressBarModule, MatTooltipModule, RouterLink],
   templateUrl: './explain-panel.html',
   styleUrl: './explain-panel.scss',
 })

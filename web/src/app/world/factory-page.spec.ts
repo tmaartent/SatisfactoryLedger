@@ -56,7 +56,7 @@ describe("a factory's page", () => {
         { provide: Api, useValue: api },
         {
           provide: CatalogNames,
-          useValue: { item: (item: string) => item, building: (name: string) => name },
+          useValue: { icon: () => null, iconOfItemNamed: () => null, item: (item: string) => item, building: (name: string) => name },
         },
         { provide: FactoryDeletion, useValue: deletion },
       ],

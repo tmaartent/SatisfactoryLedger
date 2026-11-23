@@ -30,7 +30,7 @@ describe('explaining a held-back machine, kept beside every page', () => {
         { provide: Assistant, useValue: { models: () => Promise.resolve([local]), explain: vi.fn(explain) } },
         {
           provide: CatalogNames,
-          useValue: { building: (id: string) => ({ Build_ConstructorMk1_C: 'Constructor', Build_SmelterMk1_C: 'Smelter' })[id] ?? id, recipe: (id: string) => ({ Recipe_IronPlate_C: 'Iron Plate' })[id] ?? id },
+          useValue: { icon: () => null, iconOfItemNamed: () => null, building: (id: string) => ({ Build_ConstructorMk1_C: 'Constructor', Build_SmelterMk1_C: 'Smelter' })[id] ?? id, recipe: (id: string) => ({ Recipe_IronPlate_C: 'Iron Plate' })[id] ?? id },
         },
       ],
     });
