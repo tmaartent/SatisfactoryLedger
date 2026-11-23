@@ -59,7 +59,7 @@
           <h3>Buildings the analysis leaves out</h3>
           <ul>
             @for (u of s.unsupported; track u.className) {
-              <li>{{ names.building(u.className) }} × {{ u.count }}</li>
+              <li><app-game-icon [of]="u.className" />{{ names.building(u.className) }} × {{ u.count }}</li>
             }
           </ul>
         }

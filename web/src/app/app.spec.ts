@@ -26,7 +26,7 @@ describe('App', () => {
           { path: 'catalog', component: EmptyPage },
         ]),
         { provide: Assistant, useValue: { models: () => Promise.resolve([]), explain: () => new Promise(() => undefined) } },
-        { provide: CatalogNames, useValue: { building: () => 'Constructor', recipe: () => 'Iron Plate' } },
+        { provide: CatalogNames, useValue: { icon: () => null, iconOfItemNamed: () => null, building: () => 'Constructor', recipe: () => 'Iron Plate' } },
       ],
     });
     const fixture = TestBed.createComponent(App);

@@ -25,7 +25,7 @@
           <h3>Where it starts</h3>
           @for (row of starts(); track row.cause + row.item + row.via + row.needs?.what) {
             <div class="start">
-              <strong>{{ row.cause }}</strong> · {{ row.item }}
+              <strong>{{ row.cause }}</strong> · <app-game-icon [itemNamed]="row.item" [size]="18" />{{ row.item }}
               @if (row.heldLabel) {
                 <span class="label">{{ row.heldLabel }}</span>
                 <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.held }" />

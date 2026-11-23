@@ -37,6 +37,7 @@ import { blockedMachines, factoriesInArea, machineOwners, OutlinedFactory } from
 import { handoverPoint } from './factory-preview';
 import { pieceAt, pieceStarts } from './merged-pieces';
 import { boxSelect, rectBetween, ScreenPoint, ScreenRect, toggle } from './selection';
+import { GameIcon } from '../../shared/game-icon';
 
 /** A building in the area, with what the panel shows about it. */
 interface AreaBuilding {
@@ -69,7 +70,7 @@ function choosable(building: AreaBuilding | null | undefined): building is AreaB
  */
 @Component({
   selector: 'app-area-page',
-  imports: [FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatSliderModule, SidebarTab],
+  imports: [GameIcon, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatSliderModule, SidebarTab],
   templateUrl: './area-page.html',
   styleUrl: './area-page.scss',
 })

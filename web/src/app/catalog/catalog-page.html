@@ -44,6 +44,17 @@
     </mat-card-actions>
   </mat-card>
 
+  <mat-card appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>The game's icons</mat-card-title>
+      <mat-card-subtitle>The icons the map tool writes with --icons (ADR-0032): beside every item and building, and on the map's resource nodes</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-actions>
+      <input #iconsFile class="icons" type="file" accept=".json" hidden (change)="importIcons(iconsFile.files); iconsFile.value = ''" />
+      <button mat-flat-button (click)="iconsFile.click()" [disabled]="importing()"><mat-icon>upload_file</mat-icon> Import</button>
+    </mat-card-actions>
+  </mat-card>
+
   @if (importCounts().length > 0) {
     <mat-card appearance="outlined">
       <mat-card-header><mat-card-title>Imported</mat-card-title></mat-card-header>
@@ -119,13 +130,13 @@
         </ng-container>
         <ng-container matColumnDef="building">
           <th mat-header-cell *matHeaderCellDef>Made in</th>
-          <td mat-cell *matCellDef="let recipe">{{ names.building(recipe.buildingId) }}</td>
+          <td mat-cell *matCellDef="let recipe"><app-game-icon [of]="recipe.buildingId" />{{ names.building(recipe.buildingId) }}</td>
         </ng-container>
         <ng-container matColumnDef="inputs">
           <th mat-header-cell *matHeaderCellDef>In</th>
           <td mat-cell *matCellDef="let recipe">
             @for (input of recipe.inputs; track input.itemId) {
-              <div>{{ names.item(input.itemId) }} <span class="muted">{{ perMinute(input.rate.perMinute) }}</span></div>
+              <div><app-game-icon [of]="input.itemId" />{{ names.item(input.itemId) }} <span class="muted">{{ perMinute(input.rate.perMinute) }}</span></div>
             }
           </td>
         </ng-container>
@@ -133,7 +144,7 @@
           <th mat-header-cell *matHeaderCellDef>Out</th>
           <td mat-cell *matCellDef="let recipe">
             @for (output of recipe.outputs; track output.itemId) {
-              <div>{{ names.item(output.itemId) }} <span class="muted">{{ perMinute(output.rate.perMinute) }}</span></div>
+              <div><app-game-icon [of]="output.itemId" />{{ names.item(output.itemId) }} <span class="muted">{{ perMinute(output.rate.perMinute) }}</span></div>
             }
           </td>
         </ng-container>
@@ -186,7 +197,7 @@
       <table mat-table [dataSource]="shownNodes()">
         <ng-container matColumnDef="resource">
           <th mat-header-cell *matHeaderCellDef>Resource</th>
-          <td mat-cell *matCellDef="let node" [class.muted]="!node.inGame">{{ names.item(node.resource) }}</td>
+          <td mat-cell *matCellDef="let node" [class.muted]="!node.inGame"><app-game-icon [of]="node.resource" />{{ names.item(node.resource) }}</td>
         </ng-container>
         <ng-container matColumnDef="purity">
           <th mat-header-cell *matHeaderCellDef>Purity</th>

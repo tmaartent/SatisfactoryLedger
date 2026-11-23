@@ -54,7 +54,7 @@
     <table mat-table [dataSource]="factory.input" class="output">
       <ng-container matColumnDef="item">
         <th mat-header-cell *matHeaderCellDef>Name</th>
-        <td mat-cell *matCellDef="let i">{{ names.item(i.item) }}</td>
+        <td mat-cell *matCellDef="let i"><app-game-icon [of]="i.item" />{{ names.item(i.item) }}</td>
       </ng-container>
       <ng-container matColumnDef="now">
         <th mat-header-cell *matHeaderCellDef class="number" matTooltip="What arrives over its inputs now">Now</th>
@@ -105,7 +105,7 @@
     <table mat-table [dataSource]="factory.output" class="output">
       <ng-container matColumnDef="item">
         <th mat-header-cell *matHeaderCellDef>Item</th>
-        <td mat-cell *matCellDef="let o">{{ names.item(o.item) }}</td>
+        <td mat-cell *matCellDef="let o"><app-game-icon [of]="o.item" />{{ names.item(o.item) }}</td>
       </ng-container>
       <ng-container matColumnDef="now">
         <th mat-header-cell *matHeaderCellDef class="number">Now</th>

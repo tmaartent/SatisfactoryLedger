@@ -4,7 +4,7 @@ import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { MapMargin, buildingStyle, buildingsShown, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { MapMargin, buildingStyle, buildingsShown, iconTag, nodeMarkerHtml, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -256,6 +256,22 @@ describe('map model', () => {
 
     it('are none picked when no status is', () => {
       expect(buildingsShown(analysis, null)).toBeNull();
+    });
+  });
+
+  describe("the game's icons on the map", () => {
+    it('puts an icon before a name in a tooltip', () => {
+      expect(iconTag('/api/v1/catalog/icons/Desc_OreIron_C')).toBe('<img class="tooltip-icon" src="/api/v1/catalog/icons/Desc_OreIron_C" width="16" height="16" alt="">');
+    });
+
+    it('puts nothing in a tooltip for what has no icon', () => {
+      expect(iconTag(null)).toBe('');
+    });
+
+    it("draws a free node as its resource's icon in a dashed ring of its purity's colour", () => {
+      expect(nodeMarkerHtml('/api/v1/catalog/icons/Desc_OreIron_C', '#fff176')).toBe(
+        '<div class="node-marker" style="border-color: #fff176"><img src="/api/v1/catalog/icons/Desc_OreIron_C" alt=""></div>',
+      );
     });
   });
 });

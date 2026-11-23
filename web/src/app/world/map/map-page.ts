@@ -34,6 +34,8 @@ import {
   fromMapPoint,
   locate,
   buildingsShown,
+  iconTag,
+  nodeMarkerHtml,
   mapExtent,
   mapArtTiles,
   machineStatuses,
@@ -370,7 +372,7 @@ export class MapPage {
       const style = buildingStyle(statusColours[status], owner?.colour, highlighted ? inFactory : null);
       const shape = this.shape(machine.position, machine.yaw, machine.className, style)
         .bindTooltip(
-          `<b>${this.names.building(machine.className)}</b> · ${this.names.recipe(machine.recipe)}<br>` +
+          `${this.icon(machine.className)}<b>${this.names.building(machine.className)}</b> · ${this.names.recipe(machine.recipe)}<br>` +
             `${statusLabels[status]}${utilisation !== undefined ? ` · ${percent(utilisation)}` : ''}<br>` +
             (finding ? this.limitLine(finding) : '') +
             (machine.inputContents ? `In: ${this.contents(machine.inputContents)}<br>` : '') +
@@ -410,9 +412,9 @@ export class MapPage {
       const carries = this.contents(conveyor.contents);
       line.bindTooltip(
         (bottleneck
-          ? `<b>Bottleneck</b> · ${this.names.building(conveyor.className)}<br>` +
+          ? `<b>Bottleneck</b> · ${this.icon(conveyor.className)}${this.names.building(conveyor.className)}<br>` +
             `carries ${perMinute(bottleneck.flow)} of ${perMinute(bottleneck.capacity)}, ${perMinute(bottleneck.offeredMore)} more offered`
-          : `<b>${this.names.building(conveyor.className)}</b>`) + (carries ? `<br>On it: ${carries}` : ''),
+          : `${this.icon(conveyor.className)}<b>${this.names.building(conveyor.className)}</b>`) + (carries ? `<br>On it: ${carries}` : ''),
       );
       line.addTo(this.conveyorLayer);
       this.shapes.set(conveyor.id, line);
@@ -432,8 +434,8 @@ export class MapPage {
         fillOpacity: 0.6,
       }, 5)
         .bindTooltip(
-          `<b>${this.names.building(provider.className)}</b>` +
-            (provider.resource ? ` · ${this.names.item(provider.resource)}` : '') +
+          `${this.icon(provider.className)}<b>${this.names.building(provider.className)}</b>` +
+            (provider.resource ? ` · ${this.icon(provider.resource)}${this.names.item(provider.resource)}` : '') +
             (provider.purity ? ` · ${provider.purity}` : '') +
             `<br>${positionInMetres(provider.position)}`,
         )
@@ -475,9 +477,9 @@ export class MapPage {
           2,
         )
           .bindTooltip(
-            `<b>${this.names.building(building.className)}</b><br>` +
+            `${this.icon(building.className)}<b>${this.names.building(building.className)}</b><br>` +
               (generator
-                ? `Burns ${this.names.item(generator.fuel)} · ${statusLabels[generator.limit]} · ${percent(generator.utilisation)}<br>` +
+                ? `Burns ${this.icon(generator.fuel)}${this.names.item(generator.fuel)} · ${statusLabels[generator.limit]} · ${percent(generator.utilisation)}<br>` +
                   this.limitLine(generator)
                 : '') +
               (building.contents ? `Holds: ${this.contents(building.contents)}<br>` : '') +
@@ -521,6 +523,11 @@ export class MapPage {
     return text ? `${text}<br>` : '';
   }
 
+  /** The game's icon of a class, before its name in a tooltip; nothing when it has none. */
+  private icon(className: string | null | undefined): string {
+    return iconTag(this.names.icon(className));
+  }
+
   /** Contents in words, with the Catalog's item names. */
   private contents(contents: Record<string, number> | null | undefined): string {
     return describeContents(contents, (item) => this.names.item(item));
@@ -537,14 +544,19 @@ export class MapPage {
       this.fitted = true;
     }
     for (const node of free) {
-      L.circleMarker(toMapPoint(node.position), {
-        radius: 5,
-        color: purityColours[node.purity] ?? '#bdbdbd',
-        weight: 1.5,
-        dashArray: '3 3',
-        fill: false,
-      })
-        .bindTooltip(`${this.id() ? `Free ${node.purity}` : node.purity.charAt(0).toUpperCase() + node.purity.slice(1)} node · ${this.names.item(node.resource)}<br>${positionInMetres(node.position)}`)
+      const purity = purityColours[node.purity] ?? '#bdbdbd';
+      const icon = this.names.icon(node.resource);
+      // With the game's icons, the resource's icon in its purity's ring (asked 2026-11-23); without, a dashed dot.
+      const marker = icon
+        ? L.marker(toMapPoint(node.position), {
+            icon: L.divIcon({ html: nodeMarkerHtml(icon, purity), className: '', iconSize: [22, 22], iconAnchor: [11, 11] }),
+          })
+        : L.circleMarker(toMapPoint(node.position), { radius: 5, color: purity, weight: 1.5, dashArray: '3 3', fill: false });
+      marker
+        .bindTooltip(
+          `${this.id() ? `Free ${node.purity}` : node.purity.charAt(0).toUpperCase() + node.purity.slice(1)} node · ` +
+            `${iconTag(icon)}${this.names.item(node.resource)}<br>${positionInMetres(node.position)}`,
+        )
         .addTo(this.nodeLayer);
     }
   }

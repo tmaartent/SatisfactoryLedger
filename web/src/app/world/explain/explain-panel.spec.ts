@@ -44,7 +44,7 @@ describe('explaining a finding', () => {
       providers: [
         provideRouter([]),
         { provide: Assistant, useValue: assistant },
-        { provide: CatalogNames, useValue: { building: () => 'Constructor', recipe: () => 'Iron Plate' } },
+        { provide: CatalogNames, useValue: { icon: () => null, iconOfItemNamed: () => null, building: () => 'Constructor', recipe: () => 'Iron Plate' } },
       ],
     });
     TestBed.inject(Explainer).explain({ className: finding.building, recipe: finding.recipe, limit: finding.limit }, finding.snapshotId);
