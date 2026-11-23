@@ -1,20 +1,20 @@
 <div class="page-header">
-  <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"
+  <a mat-icon-button [routerLink]="['/snapshots', id(), 'map']" aria-label="Back to the map"
     ><mat-icon>arrow_back</mat-icon></a
   >
   <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · optimal arrangement</h1>
 </div>
 
 <p class="muted intro">
-  Draw an area on the map: the factories inside it are placed on plots in rows and columns, one plot
-  each, so the belt work to their inputs is least: from other factories, and at a lighter weight
-  from nodes, stations and drone ports. Their belts and pipes are then routed on a floor below.
-  Everything else stays where it is: other factories and stations keep their plots. Draw
-  <em>Keep out</em> rectangles where no factory may stand, such as where trains come in; picking a
-  run starts a new one from its area, exclusions and settings; <em>Reset</em> clears them to draw
-  anew. A proposal only: the save has no terrain, so check where it puts things.
+  Hold shift and drag on the map to draw the area: the factories inside it are placed on plots in
+  rows and columns, one plot each, so the belt work to their inputs is least: from other factories,
+  and at a lighter weight from nodes, stations and drone ports. Their belts and pipes are then
+  routed on a floor below. Everything else stays where it is: other factories and stations keep
+  their plots. Hold ctrl and drag inside the area to keep out a part where no factory may stand,
+  such as where trains come in. The plots, roads and solver are in the <em>Settings</em> tab.
+  Picking a run starts a new one from its area, exclusions and settings; <em>Reset</em> clears them
+  to draw anew. A proposal only: the save has no terrain, so check where it puts things.
 </p>
-
 <form id="settings" class="settings" (ngSubmit)="request()">
   <mat-form-field subscriptSizing="dynamic">
     <mat-label>Plot east-west (foundations)</mat-label>
@@ -133,6 +133,14 @@
     <mat-progress-bar mode="indeterminate" />
   }
 </div>
+@if (arrangement.value()?.unrouted; as unrouted) {
+  @if (unrouted.length > 0) {
+    <p class="error">
+      {{ unrouted.length }} {{ unrouted.length === 1 ? 'link' : 'links' }} couldn't be routed
+      without crossing: their belts or pipes are missing.
+    </p>
+  }
+}
 <div class="map-tools">
   <button mat-flat-button type="submit" form="settings" [disabled]="!area() || requesting()">
     <mat-icon>auto_fix_high</mat-icon> Arrange
@@ -141,29 +149,17 @@
     <button mat-stroked-button type="button" (click)="reset()">
       <mat-icon>restart_alt</mat-icon> Reset
     </button>
-  } @else {
-    <button
-      mat-stroked-button
-      type="button"
-      (click)="draw('area')"
-      [class.active]="drawing() === 'area'"
-      [attr.aria-pressed]="drawing() === 'area'"
-    >
-      <mat-icon>crop_free</mat-icon> Draw the area
-    </button>
   }
-  <button
-    mat-stroked-button
-    type="button"
-    (click)="draw('exclusion')"
-    [disabled]="!area()"
-    [class.active]="drawing() === 'exclusion'"
-    [attr.aria-pressed]="drawing() === 'exclusion'"
-  >
-    <mat-icon>block</mat-icon> Keep out{{
-      exclusions().length > 0 ? ' (' + exclusions().length + ')' : ''
-    }}
-  </button>
+  <!-- As on the world map, with keys rather than buttons (asked 2026-11-23). -->
+  <span class="muted how">
+    @if (area()) {
+      Hold ctrl and drag inside the area to keep out a part{{
+        exclusions().length > 0 ? ' · ' + exclusions().length + ' kept out' : ''
+      }}; shift to draw it anew
+    } @else {
+      Hold shift and drag to draw the area to arrange
+    }
+  </span>
   @if ((arrangement.value()?.belts?.length ?? 0) > 0) {
     <button mat-stroked-button type="button" (click)="open3d()">
       <mat-icon>view_in_ar</mat-icon> Belt floor in 3D
@@ -182,43 +178,4 @@
       <div class="drawing-hint">Drag a rectangle where no factory may stand</div>
     }
   </div>
-  @if (moves().length > 0) {
-    <aside class="side">
-      <mat-slide-toggle [checked]="showNow()" (change)="showNow.set($event.checked)"
-        >Where they stand now</mat-slide-toggle
-      >
-      @if ((arrangement.value()?.belts?.length ?? 0) > 0) {
-        <mat-slide-toggle [checked]="showBelts()" (change)="showBelts.set($event.checked)"
-          >Belts and pipes (dashed) on the floor below</mat-slide-toggle
-        >
-      }
-      @if (arrangement.value()?.unrouted; as unrouted) {
-        @if (unrouted.length > 0) {
-          <p class="error">
-            {{ unrouted.length }} {{ unrouted.length === 1 ? 'link' : 'links' }} couldn't be routed
-            without crossing: their belts or pipes are missing.
-          </p>
-        }
-      }
-      <p class="muted">
-        Pick factories to see their belts and the factories that feed them; the rest fades.
-      </p>
-      <ul class="factories">
-        @for (move of moves(); track move.factoryId) {
-          <li>
-            <button
-              type="button"
-              [class.picked]="focused().has(move.factoryId)"
-              (click)="toggleFocus(move.factoryId)"
-            >
-              <span>{{ move.name }}</span>
-              <span class="muted">{{
-                move.metres > 0 ? (move.metres | number: '1.0-0') + ' m' : 'stays'
-              }}</span>
-            </button>
-          </li>
-        }
-      </ul>
-    </aside>
-  }
 </div>

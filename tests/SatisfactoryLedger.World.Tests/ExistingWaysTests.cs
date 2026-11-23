@@ -47,8 +47,8 @@ public class ExistingWaysTests
         // from each freight platform's middle to its belt).
         BuildableDocument belt = Document.Buildables.Single(buildable => Document.Connections.Any(connection => connection.From == Miner && connection.To == buildable.Id));
         PositionDocument start = belt.Curve![0].Location;
-        Assert.Equal(new WorldPoint(start.X, start.Y), way.Outside[0]);
-        Assert.NotEqual(new WorldPoint(miner.X, miner.Y), way.Outside[0]);
+        Assert.Equal(new WorldPoint(start.X, start.Y, start.Z), way.Outside[0]);
+        Assert.NotEqual(new WorldPoint(miner.X, miner.Y, miner.Z), way.Outside[0]);
         Assert.True(
             way.Entry.X is var x && way.Entry.Y is var y && (Math.Abs(x - area.X0) < 1 || Math.Abs(x - area.X1) < 1 || Math.Abs(y - area.Y0) < 1 || Math.Abs(y - area.Y1) < 1),
             $"{way.Entry} isn't on the area's edge");
@@ -122,8 +122,52 @@ public class ExistingWaysTests
 
         // Halfway along the bend: (7.5 m, 2.5 m) on the curve, not (5 m, 5 m) on the straight line.
         Assert.NotNull(way);
-        Assert.Contains(new WorldPoint(750, 250), way.Outside);
-        Assert.DoesNotContain(way.Outside, point => point == new WorldPoint(500, 500));
+        Assert.Contains(new WorldPoint(750, 250, 0), way.Outside);
+        Assert.DoesNotContain(way.Outside, point => point == new WorldPoint(500, 500, 0));
+    }
+
+    [Fact]
+    public void A_way_keeps_the_heights_of_its_belts_along_their_curves()
+    {
+        // The same bend, climbing from the ground to 8 m: halfway along, 4 m up (asked 2026-11-23: drawn in 3D as built).
+        static BuildableId Saved(string name) => BuildableId.Of(Id(name));
+        static SavedPosition At(double x, double y, double z = 0) => new(x, y, z);
+        var bend = new SavedLogistics(Saved("bend"), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt)
+        {
+            Position = At(500, 500),
+            Curve = [new SavedCurvePoint(At(0, 0), At(2000, 0), At(2000, 0)), new SavedCurvePoint(At(1000, 1000, 800), At(0, 2000), At(0, 2000))],
+        };
+        var saved = new SavedWorld(
+            new SaveInfo("A climbing bend", 517554, new DateTime(2026, 11, 23, 0, 0, 0, DateTimeKind.Utc)),
+            [
+                new SavedProvider(Saved("miner"), "Build_MinerMk1_C", null, ClockSpeed.Percent(100), "Desc_OreIron_C") { Position = At(0, -500) },
+                bend,
+                new SavedMachine(Saved("smelter"), "Build_SmelterMk1_C", null, ClockSpeed.Percent(100), 1) { Position = At(1000, 3000, 800) },
+            ],
+            [new Connection(Saved("miner"), Saved("bend")), new Connection(Saved("bend"), Saved("smelter"))],
+            []);
+        SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
+
+        ExistingWay? way = ExistingWays.Into(
+            snapshot.ToWorldGraph(),
+            snapshot.Buildables.ToDictionary(buildable => buildable.Id),
+            snapshot.PipeNeighbours(),
+            Id("miner"),
+            new HashSet<string> { Id("smelter") },
+            new WorldRectangle(500, 1500, 1500, 4000));
+
+        Assert.NotNull(way);
+        Assert.Contains(new WorldPoint(750, 250, 400), way.Outside);
+    }
+
+    [Fact]
+    public void A_way_comes_into_the_area_at_the_height_it_has_there()
+    {
+        // From the ground at x 0 to 10 m up at x 10 m; the area starts at x 5 m.
+        ExistingWay? way = ExistingWays.Entering(
+            [new WorldPoint(0, 0, 0), new WorldPoint(1000, 0, 1000)], new WorldRectangle(500, -500, 2000, 500));
+
+        Assert.Equal(new WorldPoint(500, 0, 500), way?.Entry);
     }
 
     [Fact]
@@ -161,7 +205,7 @@ public class ExistingWaysTests
             new HashSet<string> { Id("refinery") },
             new WorldRectangle(2500, -1000, 5000, 1000));
 
-        Assert.Equal(new WorldPoint(2500, 0), way?.Entry);
+        Assert.Equal(new WorldPoint(2500, 0, 0), way?.Entry);
         Assert.Equal([0.0, 1000, 2000, 2500], way?.Outside.Select(point => point.X));
     }
 }

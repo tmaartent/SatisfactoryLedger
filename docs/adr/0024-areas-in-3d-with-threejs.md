@@ -45,3 +45,5 @@ Finding a bottleneck went: the map, a rectangle around it, the 3D view, and then
 ## Amendment 2026-11-23: shift and drag, no button
 Defining a factory in 3D with shift held worked well, so the map does the same (decided by the owner, step 81): a drag with **shift held** draws the rectangle, and letting go opens it in 3D. The *Open an area in 3D* button is gone; the map's header says *Hold shift and drag to see an area in 3D*. The map listens in the capture phase, so it switches Leaflet's panning off before Leaflet starts it; Leaflet's own shift-drag, zooming to a box (`boxZoom`), is off.
 
+## Amendment 2026-11-23: ctrl and drag for the arrangement
+The same drag with **ctrl** held (⌘ on a Mac) opens the optimal arrangement of the area instead of the 3D view (decided by the owner, step 83). The header says both.

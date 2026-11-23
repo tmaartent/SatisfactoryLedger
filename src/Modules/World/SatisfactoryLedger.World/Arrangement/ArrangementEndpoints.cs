@@ -276,6 +276,6 @@ internal static class ArrangementEndpoints
             proposal?.Unrouted ?? [],
             [.. (problem.Spots ?? [])
                 .Where(spot => spot.Way is { Count: > 0 })
-                .Select(spot => new ExistingWayResponse(spot.Id, [.. spot.Way!.Select(point => new WorldPoint(point.X, point.Y))]))]));
+                .Select(spot => new ExistingWayResponse(spot.Id, [.. spot.Way!.Select(point => new WorldPoint(point.X, point.Y, point.Z))]))]));
     }
 }

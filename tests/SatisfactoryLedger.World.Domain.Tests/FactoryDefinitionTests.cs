@@ -372,4 +372,73 @@ public class FactoryDefinitionTests
         Assert.Contains("other ingots", connected);
         Assert.DoesNotContain("other smelter", connected);
     }
+
+    // ---- What supplies a factory: upstream only, to show before an arrangement (asked 2026-11-23) ---------------------
+
+    private static IEnumerable<string> Supplies(TestWorld world, params string[] machines) =>
+        Names(new FactoryDefinition(machines.Select(Id)).SuppliesIn(world.Build()));
+
+    /// <summary>
+    /// miner → ore → smelter (the supplier factory's) → ingots → split → to me → constructor (this factory's) → plates →
+    /// sink; the split's other branch, to sibling, feeds a sibling factory's rod maker.
+    /// </summary>
+    private static TestWorld SuppliedThroughASplitter() => new TestWorld()
+        .Miner("miner").Belt("ore").Machine("smelter", Items.IronOre, Items.IronIngot).Belt("ingots").Splitter("split")
+        .Belt("to me").Machine("constructor", Items.IronIngot, Items.IronPlate).Belt("plates").Sink("sink")
+        .Belt("to sibling").Machine("rod maker", Items.IronIngot, Items.IronRod)
+        .Connect("miner", "ore", "smelter", "ingots", "split", "to me", "constructor", "plates", "sink")
+        .Connect("split", "to sibling", "rod maker");
+
+    [Fact]
+    public void What_supplies_a_factory_is_the_line_up_to_the_supplier_factory_s_machine_and_no_further()
+    {
+        IEnumerable<string> supplies = Supplies(SuppliedThroughASplitter(), "constructor");
+
+        Assert.Superset(new HashSet<string> { "to me", "split", "ingots", "smelter" }, supplies.ToHashSet());
+        Assert.DoesNotContain("ore", supplies);
+        Assert.DoesNotContain("miner", supplies);
+    }
+
+    [Fact]
+    public void What_supplies_a_factory_leaves_out_a_sibling_on_the_same_splitter()
+    {
+        IEnumerable<string> supplies = Supplies(SuppliedThroughASplitter(), "constructor");
+
+        Assert.DoesNotContain("to sibling", supplies);
+        Assert.DoesNotContain("rod maker", supplies);
+    }
+
+    [Fact]
+    public void What_supplies_a_factory_leaves_out_what_it_feeds()
+    {
+        IEnumerable<string> supplies = Supplies(SuppliedThroughASplitter(), "constructor");
+
+        Assert.DoesNotContain("plates", supplies);
+        Assert.DoesNotContain("sink", supplies);
+    }
+
+    [Fact]
+    public void What_supplies_a_factory_reaches_the_miner_at_the_start_of_its_line()
+    {
+        Assert.Superset(new HashSet<string> { "ore", "miner" }, Supplies(SuppliedThroughASplitter(), "smelter").ToHashSet());
+    }
+
+    [Fact]
+    public void What_supplies_a_factory_takes_in_its_own_line_from_the_miner_but_not_its_belts_between_its_machines()
+    {
+        // The smelter and constructor are one factory: it owns the ore line from the miner, and the ingots between them.
+        IEnumerable<string> supplies = Supplies(PlateLine(), "smelter", "constructor");
+
+        Assert.Superset(new HashSet<string> { "miner", "ore" }, supplies.ToHashSet());
+        Assert.DoesNotContain("ingots", supplies);
+    }
+
+    [Fact]
+    public void What_supplies_a_factory_leaves_out_its_own_machines()
+    {
+        IEnumerable<string> supplies = Supplies(PlateLine(), "smelter", "constructor");
+
+        Assert.DoesNotContain("smelter", supplies);
+        Assert.DoesNotContain("constructor", supplies);
+    }
 }

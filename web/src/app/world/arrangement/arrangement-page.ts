@@ -44,7 +44,19 @@ import { ArrangementDeletion } from './arrangement-deletion';
 import { BeltFloor3dDialog, BeltFloor3dDialogData } from './belt-floor-3d-dialog';
 import { CatalogNames } from '../../shared/catalog-names';
 import { MatDialog } from '@angular/material/dialog';
-import { footprintShapes, toMapPoint } from '../map/map-model';
+import { previewFactory } from '../../api/fn/world/preview-factory';
+import { MapConveyor } from '../../api/models/map-conveyor';
+import { buildingShape } from '../map/building-shape';
+import { holdToExtent } from '../map/hold-to-extent';
+import { MapArt } from '../map/map-art';
+import {
+  footprintShapes,
+  mapArtTiles,
+  mapExtent,
+  sampleCurve,
+  toMapPoint,
+  escapeHtml,
+} from '../map/map-model';
 import {
   areaBetween,
   beltEnds,
@@ -66,13 +78,22 @@ import {
   spotMark,
   wayMark,
   standsOut,
-  toggled,
+  pickedAlone,
   SolverTime,
   solverTime,
   solverTimeOf,
+  areaFromQuery,
+  PickedConnections,
+  relationsOf,
+  lineGroups,
+  lineItems,
+  linesToLabel,
 } from './arrangement-model';
 
 /** What stays where it is and takes its plots: the stations' classes, as the arrangement counts them. */
+/** How far out the map zooms without a map picture to hold it to. */
+const LeastZoom = -4;
+
 const areaStyle: L.PathOptions = { color: '#ffeb3b', weight: 2, fillOpacity: 0.05 };
 const exclusionStyle: L.PathOptions = {
   color: '#ef5350',
@@ -115,8 +136,16 @@ const stationClasses = new Set([
 export class ArrangementPage {
   /** The snapshot, from the route. */
   readonly id = input.required<string>();
-  /** ?run=…: the run shown; the newest when not given. */
+  /** ?run=…: the run shown; the newest when not given, and none when an area is given. */
   readonly run = input<string>();
+  /** ?x0=…&y0=…&x1=…&y1=…: an area to arrange, dragged with ctrl held on the world map (asked 2026-11-23). */
+  readonly x0 = input<string>();
+  readonly y0 = input<string>();
+  readonly x1 = input<string>();
+  readonly y1 = input<string>();
+  private readonly dragged = computed(() =>
+    areaFromQuery(this.x0(), this.y0(), this.x1(), this.y1()),
+  );
 
   private readonly api = inject(Api);
   protected readonly problem = problemMessage;
@@ -134,16 +163,15 @@ export class ArrangementPage {
   protected readonly supplyLines = signal(false);
   /** How long the solver looks for a better layout: a minute when nothing else is picked. */
   protected readonly solverTime = signal<SolverTime>('balanced');
-  /** The area drawn to arrange, in the game's centimetres. */
-  protected readonly area = signal<WorldRectangle | null>(null);
+  /** The area drawn to arrange, in the game's centimetres; at first, the one dragged on the world map, if any. */
+  protected readonly area = linkedSignal<WorldRectangle | null>(() => this.dragged());
   /** Where no factory may stand inside the area, in the game's centimetres: the plots they touch stay free. */
   protected readonly exclusions = signal<WorldRectangle[]>([]);
-  /** What a drag on the map draws now: the area, an exclusion, or nothing (the map pans). */
+  /**
+   * What a drag on the map draws now: the area, with shift held, or an exclusion inside it, with ctrl held (asked
+   * 2026-11-23; they were buttons); or nothing, and the map pans.
+   */
   protected readonly drawing = signal<'area' | 'exclusion' | null>(null);
-
-  protected draw(kind: 'area' | 'exclusion'): void {
-    this.drawing.update((drawing) => (drawing === kind ? null : kind));
-  }
 
   /** Back to the start: no area, no exclusions, no run shown; the settings stay. */
   protected reset(): void {
@@ -196,7 +224,8 @@ export class ArrangementPage {
   });
 
   protected readonly selected = linkedSignal(
-    () => this.run() ?? this.runs.value()?.[0]?.id ?? null,
+    // An area dragged on the world map is a new run to make: no earlier run's area over it.
+    () => this.run() ?? (this.dragged() ? null : (this.runs.value()?.[0]?.id ?? null)),
   );
   protected readonly arrangement = resource({
     params: () => {
@@ -227,21 +256,49 @@ export class ArrangementPage {
   });
 
   /** The factories of the shown run, the farthest move first. */
-  protected readonly moves = computed(() =>
-    (this.arrangement.value()?.factories ?? [])
-      .filter((factory) => factory.proposed)
-      .map((factory) => ({
-        factoryId: factory.factoryId,
-        name: factory.name ?? '(deleted)',
-        metres: movedMetres(factory.now, factory.proposed!),
-      }))
-      .sort((a, b) => b.metres - a.metres),
-  );
+  /**
+   * Before a run, what's connected to each factory picked, and the logistics it owns, by factory, in the order picked:
+   * through its lines to their ends and the machines of the factories they reach (asked 2026-11-23). None with a run shown.
+   */
+  private readonly connectedParts = resource({
+    params: () => {
+      const running = (this.arrangement.value()?.factories.length ?? 0) > 0;
+      const picked = [...this.focused()];
+      if (running || picked.length === 0) return undefined;
+      const traces = this.factories.value() ?? [];
+      const factories = picked
+        .map((factoryId) => ({
+          factoryId,
+          machines:
+            traces.find((trace) => trace.factoryId === factoryId)?.machines.map((m) => m.id) ?? [],
+        }))
+        .filter((factory) => factory.machines.length > 0);
+      return factories.length > 0 ? { id: this.id(), factories } : undefined;
+    },
+    loader: async ({ params }) =>
+      new Map<string, PickedConnections>(
+        await Promise.all(
+          params.factories.map(async (factory) => {
+            const preview = await this.api.invoke(previewFactory, {
+              id: params.id,
+              body: { machines: factory.machines },
+            });
+            return [
+              factory.factoryId,
+              {
+                supplies: new Set(preview.supplies),
+                handovers: new Map(
+                  preview.inputs
+                    .filter((input) => input.outside)
+                    .map((input) => [input.outside!.id, input.items] as [string, string[]]),
+                ),
+              },
+            ] as [string, PickedConnections];
+          }),
+        ),
+      ),
+  });
 
-  /** Whether to show where the arranged factories stand now (their machines, and the rectangle around them). */
-  protected readonly showNow = signal(false);
-  /** Whether to show the belts routed on the floor below the factories. */
-  protected readonly showBelts = signal(true);
   private readonly names = inject(CatalogNames);
   private readonly dialog = inject(MatDialog);
   private readonly deletion = inject(ArrangementDeletion);
@@ -253,29 +310,15 @@ export class ArrangementPage {
   /** The factories picked in the side bar or on the map: they, their belts and the factories linked to them stand out. */
   protected readonly focused = signal<ReadonlySet<string>>(new Set());
 
-  protected toggleFocus(factoryId: string): void {
-    this.focused.update((focused) => toggled(focused, factoryId));
+  private toggleFocus(factoryId: string): void {
+    this.focused.update((focused) => pickedAlone(focused, factoryId));
   }
-
-  /** Where each factory's machines stand, on the map, by factory. */
-  private readonly machinePoints = computed(() => {
-    const world = this.world.value();
-    const owners = machineOwners(this.factories.value() ?? []);
-    const points = new Map<string, [number, number][]>();
-    if (!world) return points;
-    for (const machine of [...world.machines, ...world.consumers]) {
-      const owner = owners.get(machine.id)?.[0];
-      if (owner)
-        points.set(owner.factoryId, [
-          ...(points.get(owner.factoryId) ?? []),
-          toMapPoint(machine.position),
-        ]);
-    }
-    return points;
-  });
 
   private readonly container = viewChild.required<ElementRef<HTMLElement>>('map');
   private map?: L.Map;
+  /** The game's map picture under everything, as on the world map (asked 2026-11-23). */
+  private readonly mapArt = inject(MapArt).art;
+  private readonly artLayer = L.layerGroup();
   private readonly worldLayer = L.layerGroup();
   private readonly runLayer = L.layerGroup();
   private readonly beltLayer = L.layerGroup();
@@ -287,20 +330,32 @@ export class ArrangementPage {
       this.map = L.map(this.container().nativeElement, {
         crs: L.CRS.Simple,
         preferCanvas: true,
-        minZoom: -4,
+        minZoom: LeastZoom,
+        // Shift and drag draws the area to arrange (listenForArea), not a box to zoom to.
+        boxZoom: false,
         maxZoom: 3,
         zoomSnap: 0.25,
         attributionControl: false,
       });
-      for (const layer of [this.worldLayer, this.runLayer, this.beltLayer, this.areaLayer])
+      // The map picture first, so everything else lies over it.
+      for (const layer of [
+        this.artLayer,
+        this.worldLayer,
+        this.runLayer,
+        this.beltLayer,
+        this.areaLayer,
+      ])
         layer.addTo(this.map);
       this.map.setView([0, 0], -3);
       this.listenForArea(this.map);
+      this.map.on('resize', () => this.holdToMapArt());
+      this.drawMapArt();
       this.drawWorld();
       this.drawRun();
       this.drawArea();
     });
     inject(DestroyRef).onDestroy(() => this.map?.remove());
+    effect(() => this.drawMapArt());
     effect(() => this.drawWorld());
     effect(() => this.drawRun());
     effect(() => this.drawArea());
@@ -320,7 +375,6 @@ export class ArrangementPage {
       this.supplyLines.set(run.supplyLines);
       this.solverTime.set(solverTimeOf(run.seconds));
     });
-    effect(() => (this.drawing() ? this.map?.dragging.disable() : this.map?.dragging.enable()));
 
     // While a run is computed, ask again every two seconds.
     effect((onCleanup) => {
@@ -376,13 +430,113 @@ export class ArrangementPage {
         : 'No layout found: nothing placed';
   }
 
+  /**
+   * What the lines between a factory picked and its suppliers carry (asked 2026-11-23): once per line, the pieces that
+   * meet end to end, the icons of its items in a pill at its middle, their names on hover. What's on its belts at save
+   * time, and what its handover into the factory brings, for a pipe or an empty belt.
+   */
+  private drawLineItems(lit: MapConveyor[], picked: ReadonlyMap<string, PickedConnections>): void {
+    const handovers = new Map<string, readonly string[]>();
+    for (const { handovers: across } of picked.values())
+      for (const [id, items] of across) handovers.set(id, items);
+    const byId = new Map(lit.map((conveyor) => [conveyor.id, conveyor]));
+    const contents = new Map(lit.map((conveyor) => [conveyor.id, conveyor.contents]));
+    const pieces = lit.map((conveyor) => ({
+      id: conveyor.id,
+      from: conveyor.curve[0].location,
+      to: conveyor.curve[conveyor.curve.length - 1].location,
+    }));
+    // Each piece's length along its curve, in centimetres.
+    const lengths = new Map(
+      lit.map((conveyor) => {
+        const points = sampleCurve(conveyor.curve);
+        let length = 0;
+        for (let i = 1; i < points.length; i++)
+          length +=
+            Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]) * 100;
+        return [conveyor.id, length] as [string, number];
+      }),
+    );
+    for (const line of linesToLabel(lineGroups(pieces), (id) => lengths.get(id) ?? 0)) {
+      const items = [...lineItems(line, contents, handovers)];
+      if (items.length === 0) continue;
+      // Halfway along the line: the middle of its middle piece.
+      const middle = sampleCurve(byId.get(line[Math.floor(line.length / 2)])!.curve);
+      const html = items
+        .map((item) => {
+          const icon = this.names.icon(item);
+          return icon
+            ? `<img src="${escapeHtml(icon)}" alt="" width="18" height="18">`
+            : `<span>${escapeHtml(this.names.item(item))}</span>`;
+        })
+        .join('');
+      L.marker(middle[Math.floor(middle.length / 2)], {
+        icon: L.divIcon({
+          html: `<div class="line-items">${html}</div>`,
+          className: '',
+          iconSize: [0, 0],
+        }),
+      })
+        .bindTooltip(items.map((item) => this.names.item(item)).join(', '))
+        .addTo(this.worldLayer);
+    }
+  }
+
+  /** The game's map picture, a tile at a time over its part of the world; not clickable, so it never takes a click. */
+  private drawMapArt(): void {
+    const art = this.mapArt.hasValue() ? this.mapArt.value() : null;
+    if (!this.map) return;
+    this.artLayer.clearLayers();
+    for (const tile of mapArtTiles(art))
+      L.imageOverlay(tile.url, tile.bounds, { interactive: false }).addTo(this.artLayer);
+    this.holdToMapArt();
+  }
+
+  /**
+   * Held to the map picture as the world map is (asked 2026-11-23): out no further than the whole picture, no further
+   * than its edges, which buildings past them take along.
+   */
+  private holdToMapArt(): void {
+    if (!this.map) return;
+    const extent = mapExtent(
+      this.mapArt.hasValue() ? this.mapArt.value() : null,
+      this.world.hasValue() ? this.world.value() : null,
+    );
+    holdToExtent(this.map, extent, LeastZoom);
+  }
+
   /** While drawing, a drag draws the area to arrange, or an exclusion inside it. */
   private listenForArea(map: L.Map): void {
     let start: L.LatLng | null = null;
     let rectangle: L.Rectangle | null = null;
+    // What the drag draws, kept from its start: letting go ends drawing before Leaflet's mouseup comes.
+    let draws: 'area' | 'exclusion' | null = null;
+    // In the capture phase, so the press is heard before Leaflet's panning starts, and panning can be switched off.
+    map.getContainer().addEventListener(
+      'pointerdown',
+      (event) => {
+        // A part kept out lies in the area: without one, ctrl does nothing.
+        const kind = event.shiftKey
+          ? 'area'
+          : (event.ctrlKey || event.metaKey) && this.area()
+            ? 'exclusion'
+            : null;
+        if (!kind || event.button !== 0) return;
+        this.drawing.set(kind);
+        map.dragging.disable();
+      },
+      { capture: true },
+    );
+    // However the press ends, panning comes back.
+    map.getContainer().addEventListener('pointerup', () => {
+      if (!this.drawing()) return;
+      this.drawing.set(null);
+      map.dragging.enable();
+    });
     map.on('mousedown', (event: L.LeafletMouseEvent) => {
       const drawing = this.drawing();
       if (!drawing) return;
+      draws = drawing;
       start = event.latlng;
       rectangle = L.rectangle(L.latLngBounds(start, start), {
         ...(drawing === 'area' ? areaStyle : exclusionStyle),
@@ -395,19 +549,25 @@ export class ArrangementPage {
     map.on('mouseup', (event: L.LeafletMouseEvent) => {
       if (!start) return;
       const area = areaBetween([start.lat, start.lng], [event.latlng.lat, event.latlng.lng]);
+      const drew = draws;
       rectangle?.remove();
-      [start, rectangle] = [null, null];
+      [start, rectangle, draws] = [null, null, null];
+      this.drawing.set(null);
+      map.dragging.enable();
       // A click without a drag draws nothing.
       if (area.x1 - area.x0 < 1000 || area.y1 - area.y0 < 1000) return;
-      if (this.drawing() === 'area') this.area.set(area);
+      if (drew === 'area') this.area.set(area);
       else this.exclusions.update((exclusions) => [...exclusions, area]);
-      this.drawing.set(null);
     });
   }
 
   /**
-   * The world as it stands: each factory's machines as dots in its colour, the stations as dark dots. Shown to draw an
-   * area; with a run shown, only when asked (where they stand now).
+   * The world as it stands, before a run: each factory's machines in its colour, and the miners and extractors,
+   * stations and sinks, each the ground it covers; no belts. With factories picked in the Factories tab (asked
+   * 2026-11-23), each factory is a whole: the picked ones and every factory their lines reach light up, all their
+   * machines; the belts and pipes between them are drawn as built, with the splitters on them and the miners, stations
+   * and sinks at their ends, in the colour of the factory picked; the rest fades. A factory's own belts aren't drawn.
+   * With a run shown, the run is drawn instead.
    */
   private drawWorld(): void {
     const world = this.world.value();
@@ -415,36 +575,100 @@ export class ArrangementPage {
     const running = (this.arrangement.value()?.factories.length ?? 0) > 0;
     if (!this.map || !world) return;
     this.worldLayer.clearLayers();
-    if (running && !this.showNow()) return;
+    if (running) return;
     const owners = machineOwners(traces);
+    const picking = this.focused().size > 0;
+    const picked = this.connectedParts.hasValue()
+      ? this.connectedParts.value()
+      : new Map<string, PickedConnections>();
+    const { factories, parts } = relationsOf(picked, (id) => owners.get(id)?.[0]?.factoryId);
+    const colourOf = (factoryId: string) => factoryColour(traces, factoryId) ?? '#90a4ae';
+    const footprints = new Map(world.footprints.map((footprint) => [footprint.id, footprint]));
+    const named = (className: string) => this.names.building(className);
+
+    // The belts and pipes between the factories picked and what supplies them, as built; none else.
+    const lit = world.conveyors.filter(
+      (conveyor) => parts.has(conveyor.id) && conveyor.curve.length >= 2,
+    );
+    for (const conveyor of lit) {
+      L.polyline(sampleCurve(conveyor.curve), {
+        color: colourOf(parts.get(conveyor.id)!),
+        weight: 3,
+        opacity: 0.9,
+      })
+        .bindTooltip(named(conveyor.className))
+        .addTo(this.worldLayer);
+    }
+    this.drawLineItems(lit, picked);
+
+    // Splitters, mergers and containers only on those lines; miners and extractors, stations and sinks always.
+    const others = [
+      ...world.providers.map((building) => ({ building, colour: '#42a5f5' })),
+      ...world.logistics
+        .filter((building) => parts.has(building.id))
+        .map((building) => ({ building, colour: '#546e7a' })),
+      ...world.consumers
+        .filter((consumer) => !owners.has(consumer.id))
+        .map((building) => ({ building, colour: '#ab47bc' })),
+    ];
+    for (const { building, colour: own } of others) {
+      const station = stationClasses.has(building.className);
+      const between = parts.get(building.id);
+      const fades = picking && !between;
+      const colour = between ? colourOf(between) : station ? '#455a64' : own;
+      buildingShape(
+        building,
+        footprints,
+        {
+          weight: between ? 2 : 1,
+          color: between ? colour : station ? '#263238' : own,
+          opacity: fades ? 0.2 : 1,
+          fillColor: colour,
+          fillOpacity: fades ? 0.1 : station ? 0.9 : 0.6,
+        },
+        station ? 3 : 2,
+      )
+        .bindTooltip(station ? `Station · ${named(building.className)}` : named(building.className))
+        .addTo(this.worldLayer);
+    }
+
+    // The factories' machines last, on top: a factory lit up or faded as a whole. While picking, the factories lit up
+    // take the colour of the factory picked they supply (a factory's own colour can be any of eight, often shared:
+    // 2026-11-23, two suppliers lit in their own salmon and mint couldn't be told from the rest), and the rest are grey,
+    // so stacked floors don't add up to a colour; with none picked, each its own.
     const points: L.LatLngExpression[] = [];
     for (const machine of [
       ...world.machines,
       ...world.consumers.filter((consumer) => owners.has(consumer.id)),
     ]) {
       const owner = owners.get(machine.id)?.[0];
-      const point = toMapPoint(machine.position);
-      points.push(point);
-      L.circleMarker(point, {
-        radius: 2,
-        weight: 0,
-        fillColor: owner?.colour ?? '#78909c',
-        fillOpacity: owner ? 0.9 : 0.4,
-      })
+      points.push(toMapPoint(machine.position));
+      const supplied = owner ? factories.get(owner.factoryId) : undefined;
+      const fades = picking && !supplied;
+      const colour = supplied
+        ? colourOf(supplied)
+        : fades
+          ? '#90a4ae'
+          : (owner?.colour ?? '#78909c');
+      buildingShape(
+        machine,
+        footprints,
+        {
+          color: colour,
+          weight: 1,
+          opacity: fades ? 0.15 : 0.9,
+          fillColor: colour,
+          fillOpacity: fades ? 0.1 : owner ? 0.75 : 0.4,
+        },
+        2,
+      )
         .bindTooltip(owner?.name ?? 'No factory')
-        .addTo(this.worldLayer);
-    }
-    for (const station of [...world.providers, ...world.consumers].filter((building) =>
-      stationClasses.has(building.className),
-    )) {
-      L.circleMarker(toMapPoint(station.position), {
-        radius: 3,
-        weight: 1,
-        color: '#263238',
-        fillColor: '#455a64',
-        fillOpacity: 0.9,
-      })
-        .bindTooltip('Station')
+        // A click on a factory picks it alone (asked 2026-11-23): what supplies it lights up.
+        .on('click', (event: L.LeafletMouseEvent) => {
+          if (!owner || this.drawing()) return;
+          L.DomEvent.stopPropagation(event);
+          this.toggleFocus(owner.factoryId);
+        })
         .addTo(this.worldLayer);
     }
     if (!this.fitted && points.length > 0) {
@@ -474,14 +698,13 @@ export class ArrangementPage {
   }
 
   /**
-   * The shown run: its area and where each factory would go (filled, in its colour, with its machines). Where they stand
-   * now (the rectangle around their machines) shows when asked. With factories picked, those that don't feed one fade.
+   * The shown run: its area and where each factory would go (filled, in its colour, with its machines), and the belts
+   * and pipes on the floor below, always (asked 2026-11-23). With factories picked, those that don't feed one fade.
    */
   private drawRun(): void {
     const arrangement = this.arrangement.value();
     const traces = this.factories.value() ?? [];
-    const points = this.machinePoints();
-    const [showNow, focused] = [this.showNow(), this.focused()];
+    const focused = this.focused();
     const machines = this.machines.value();
     const footprints = new Map(
       (machines?.footprints ?? []).map((footprint) => [footprint.id, footprint]),
@@ -504,7 +727,8 @@ export class ArrangementPage {
       }).addTo(this.runLayer);
     }
 
-    if (this.showBelts()) this.drawBelts(arrangement, traces, focused);
+    // Always (asked 2026-11-23): the belts and pipes on the floor below are part of the proposal.
+    this.drawBelts(arrangement, traces, focused);
 
     // With factories picked, the others fade, unless they feed one picked.
     const related = relatedFactories(focused, arrangement.links);
@@ -543,18 +767,6 @@ export class ArrangementPage {
           },
         ).addTo(this.runLayer);
       }
-
-      // Where it stands now, when asked: the rectangle around its machines, as built.
-      const machines = points.get(factory.factoryId) ?? [];
-      if (machines.length === 0 || !showNow) continue;
-      L.rectangle(L.latLngBounds(machines).pad(0.05), {
-        color: colour,
-        weight: 1,
-        dashArray: '4 4',
-        fill: false,
-        opacity: 0.9 * fade,
-        interactive: false,
-      }).addTo(this.runLayer);
     }
   }
 

@@ -2628,7 +2628,8 @@
           "inputs",
           "leaving",
           "arriving",
-          "connected"
+          "connected",
+          "supplies"
         ],
         "type": "object",
         "properties": {
@@ -2663,6 +2664,12 @@
             }
           },
           "connected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supplies": {
             "type": "array",
             "items": {
               "type": "string"
@@ -4533,6 +4540,13 @@
           },
           "y": {
             "type": "number",
+            "format": "double"
+          },
+          "z": {
+            "type": [
+              "null",
+              "number"
+            ],
             "format": "double"
           }
         }

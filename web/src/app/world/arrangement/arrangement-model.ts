@@ -53,6 +53,22 @@ export function saving(costNow: number, cost: number): string {
   return `−${Math.round(((costNow - cost) / costNow) * 100)}%`;
 }
 
+/**
+ * The area to arrange as the address gives it (?x0=…&y0=…&x1=…&y1=…, centimetres): a drag with ctrl held on the world
+ * map opens the page so (asked 2026-11-23). None when a corner is missing or isn't a number.
+ */
+export function areaFromQuery(
+  x0: string | undefined,
+  y0: string | undefined,
+  x1: string | undefined,
+  y1: string | undefined,
+): WorldRectangle | null {
+  const corners = [x0, y0, x1, y1].map((corner) => (corner === undefined ? NaN : Number(corner)));
+  if (corners.some((corner) => !Number.isFinite(corner))) return null;
+  const [cx0, cy0, cx1, cy1] = corners;
+  return { x0: cx0, y0: cy0, x1: cx1, y1: cy1 };
+}
+
 /** The area to arrange from two corners dragged on the map, in the game's centimetres, whichever way it was dragged. */
 export function areaBetween(a: [number, number], b: [number, number]): WorldRectangle {
   const [p, q] = [fromMapPoint(a[0], a[1]), fromMapPoint(b[0], b[1])];
@@ -332,11 +348,12 @@ export function shownFactories(
   );
 }
 
-/** The factories picked, with one picked or unpicked. */
-export function toggled(focused: ReadonlySet<string>, factoryId: string): ReadonlySet<string> {
-  const next = new Set(focused);
-  if (!next.delete(factoryId)) next.add(factoryId);
-  return next;
+/**
+ * The factory picked once one is clicked (asked 2026-11-23): that one alone, letting go of the one picked before, even
+ * when the one clicked was lit up as its supplier; none when the one picked is clicked again.
+ */
+export function pickedAlone(focused: ReadonlySet<string>, factoryId: string): ReadonlySet<string> {
+  return focused.has(factoryId) && focused.size === 1 ? new Set() : new Set([factoryId]);
 }
 
 /** Whether a belt (by its ends) or a factory stands out: when nothing is picked, or one of them is. */
@@ -559,4 +576,118 @@ export function beltStretches3d(
       lift && i === 0 ? to[1] : lift && i === last ? from[1] : Math.min(from[1], to[1]);
     return { from, to, level: levelAt(height) };
   });
+}
+
+/**
+ * What the factory preview says of a factory picked: what supplies it, upstream only (FactoryDefinition.SuppliesIn):
+ * the sources where its lines start and the pieces between them and it, its own lines from miners included, not its
+ * belts between its own machines.
+ */
+export interface PickedConnections {
+  supplies: ReadonlySet<string>;
+  /** Per piece across which an input comes into the factory, the items it brings. */
+  handovers: ReadonlyMap<string, readonly string[]>;
+}
+
+/**
+ * What supplies the factories picked before a run (asked 2026-11-23), each factory a whole: the factories that feed
+ * them, lit up whole, and the parts between, the belts, pipes, splitters and the miners, stations and drone ports where
+ * the lines start, its own lines from miners included. Not what they feed, nor a factory fed from the same splitter. Each by the factory picked it belongs to: the one picked first where two share it,
+ * and a picked factory its own.
+ * @param ownerOf the factory a machine is in; undefined for anything else.
+ */
+export function relationsOf(
+  picked: ReadonlyMap<string, PickedConnections>,
+  ownerOf: (id: string) => string | undefined,
+): { factories: Map<string, string>; parts: Map<string, string> } {
+  const factories = new Map<string, string>();
+  const parts = new Map<string, string>();
+  for (const factoryId of picked.keys()) factories.set(factoryId, factoryId);
+  for (const [factoryId, { supplies }] of picked) {
+    for (const id of supplies) {
+      const owner = ownerOf(id);
+      if (owner) {
+        if (!factories.has(owner)) factories.set(owner, factoryId);
+      } else if (!parts.has(id)) parts.set(id, factoryId);
+    }
+  }
+  return { factories, parts };
+}
+
+/** A piece of belt, lift or pipe by its two ends, in the game's centimetres. */
+export interface LinePiece {
+  id: string;
+  from: { x: number; y: number; z: number };
+  to: { x: number; y: number; z: number };
+}
+
+/**
+ * The pieces of belt, lift and pipe that meet end to end, one line each (asked 2026-11-23: to say once per line what
+ * it carries). Two pieces meet where their ends lie in the same metre, height included, so belts stacked above one
+ * another stay apart. A splitter or merger between two pieces ends a line: its pieces don't meet end to end.
+ */
+export function lineGroups(pieces: readonly LinePiece[]): string[][] {
+  const parent = new Map<string, string>(pieces.map((piece) => [piece.id, piece.id]));
+  const find = (id: string): string => {
+    let root = id;
+    while (parent.get(root) !== root) root = parent.get(root)!;
+    parent.set(id, root);
+    return root;
+  };
+  const cell = (p: { x: number; y: number; z: number }) =>
+    `${Math.round(p.x / 100)}:${Math.round(p.y / 100)}:${Math.round(p.z / 100)}`;
+  const atEnd = new Map<string, string>();
+  for (const piece of pieces)
+    for (const end of [cell(piece.from), cell(piece.to)]) {
+      const other = atEnd.get(end);
+      if (other) parent.set(find(piece.id), find(other));
+      else atEnd.set(end, piece.id);
+    }
+  const lines = new Map<string, string[]>();
+  for (const piece of pieces) {
+    const root = find(piece.id);
+    lines.set(root, [...(lines.get(root) ?? []), piece.id]);
+  }
+  return [...lines.values()];
+}
+
+/**
+ * What a line carries: what's on its belts at save time, and the items its handover into the factory picked brings (a
+ * pipe, or an empty belt, says nothing of itself).
+ */
+export function lineItems(
+  line: readonly string[],
+  contents: ReadonlyMap<string, Record<string, number> | null>,
+  handovers: ReadonlyMap<string, readonly string[]>,
+): Set<string> {
+  const items = new Set<string>();
+  for (const id of line) {
+    for (const item of Object.keys(contents.get(id) ?? {})) items.add(item);
+    for (const item of handovers.get(id) ?? []) items.add(item);
+  }
+  return items;
+}
+
+/** How long a line must be to say what it carries, in centimetres: 30 metres. */
+const LabelledLine = 3000;
+
+/**
+ * The lines to say what they carry (asked 2026-11-23): those long enough to run between two places, at least 30 m all
+ * told. A factory's manifold is many short stubs from its splitters into its machines: labelling each piled icons up
+ * on the factory.
+ */
+export function linesToLabel(
+  lines: readonly string[][],
+  lengthOf: (id: string) => number,
+): string[][] {
+  return lines.filter((line) => line.reduce((sum, id) => sum + lengthOf(id), 0) >= LabelledLine);
+}
+
+/**
+ * How high a point of an existing belt outside the area is drawn in 3D, in metres over the belt floor (asked 2026-11-23:
+ * as built, not flat): its height in the game relative to where it comes into the area, which lies on the floor, where
+ * the routed belt joins it. On the floor where either height isn't known: a run from before heights were kept.
+ */
+export function wayHeight(point: WorldPoint, entry: WorldPoint): number {
+  return point.z != null && entry.z != null ? (point.z - entry.z) / 100 : 0;
 }

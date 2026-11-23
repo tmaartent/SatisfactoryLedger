@@ -7,7 +7,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 import { ArrangementMachinesResponse } from '../../api/models/arrangement-machines-response';
 import { ArrangementResponse } from '../../api/models/arrangement-response';
-import { toggled } from './arrangement-model';
+import { pickedAlone } from './arrangement-model';
 import { BeltFloor3d } from './belt-floor-3d';
 
 export interface BeltFloor3dDialogData {
@@ -54,7 +54,7 @@ export interface BeltFloor3dDialogData {
         [machines]="data.machines"
         [showMachines]="showMachines()"
         [focused]="data.focused()"
-        (picked)="data.focused.set(toggled(data.focused(), $event))"
+        (picked)="data.focused.set(pickedAlone(data.focused(), $event))"
       />
       <aside class="panel">
         @if (data.machines?.machines?.length) {
@@ -155,7 +155,7 @@ export class BeltFloor3dDialog {
   /** Whether the factories' machines show; only the flat slabs when not. */
   protected readonly showMachines = signal(true);
 
-  protected readonly toggled = toggled;
+  protected readonly pickedAlone = pickedAlone;
   protected readonly emptyPicks: ReadonlySet<string> = new Set();
 
   protected toggle(level: number, on: boolean): void {

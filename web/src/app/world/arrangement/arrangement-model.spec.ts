@@ -1,5 +1,10 @@
 import {
   areaBetween,
+  areaFromQuery,
+  relationsOf,
+  lineGroups,
+  lineItems,
+  linesToLabel,
   beltEnds,
   beltLine,
   beltPath3d,
@@ -26,7 +31,8 @@ import {
   wayMark,
   relatedFactories,
   standsOut,
-  toggled,
+  pickedAlone,
+  wayHeight,
 } from './arrangement-model';
 
 describe('optimal arrangement', () => {
@@ -78,9 +84,12 @@ describe('optimal arrangement', () => {
     expect(relatedFactories(new Set(), links)).toBeNull();
   });
 
-  it('picks a factory not picked, and unpicks one picked', () => {
-    expect([...toggled(new Set(['a']), 'b')]).toEqual(['a', 'b']);
-    expect([...toggled(new Set(['a', 'b']), 'a')]).toEqual(['b']);
+  it('picks the factory clicked alone, letting go of the one picked before, even one it lit up', () => {
+    expect([...pickedAlone(new Set(['a']), 'b')]).toEqual(['b']);
+  });
+
+  it('lets go of the factory picked when it is clicked again', () => {
+    expect([...pickedAlone(new Set(['a']), 'a')]).toEqual([]);
   });
 
   it('lets a belt stand out when one of its ends is picked, or nothing is', () => {
@@ -704,6 +713,134 @@ describe('optimal arrangement', () => {
       const belt = { corners: [at(0, 0), at(40, 0)], heights: [], levels: [], lifts: [] };
 
       expect(beltStretches3d(belt, middle, 32).map((stretch) => stretch.level)).toEqual([0, 0, 0]);
+    });
+  });
+
+  describe('an area handed over in the address, as a drag on the world map does', () => {
+    it('is the rectangle its four corners give, in centimetres', () => {
+      expect(areaFromQuery('1000', '2000', '3000', '4000')).toEqual({
+        x0: 1000,
+        y0: 2000,
+        x1: 3000,
+        y1: 4000,
+      });
+    });
+
+    it('is none when a corner is missing or not a number', () => {
+      expect([
+        areaFromQuery(undefined, '2000', '3000', '4000'),
+        areaFromQuery('a', '2000', '3000', '4000'),
+      ]).toEqual([null, null]);
+    });
+  });
+
+  describe("a factory's relations, picked before a run", () => {
+    // Rubber (machine r-1, its own belt r-belt) sends on belt out-1 to Plastic's machine p-1; a miner feeds it on ore-1.
+    const owners = new Map([
+      ['r-1', 'f-rubber'],
+      ['p-1', 'f-plastic'],
+    ]);
+    const ownerOf = (id: string) => owners.get(id);
+    // What the server says supplies Rubber: the sources and the pieces between, not its own machine or belt.
+    const rubber = {
+      supplies: new Set(['out-1', 'p-1', 'ore-1', 'miner-1']),
+      handovers: new Map<string, string[]>(),
+    };
+
+    it('light up the factory picked, and every factory its lines reach, as a whole', () => {
+      const { factories } = relationsOf(new Map([['f-rubber', rubber]]), ownerOf);
+
+      expect([...factories]).toEqual([
+        ['f-rubber', 'f-rubber'],
+        ['f-plastic', 'f-rubber'],
+      ]);
+    });
+
+    it('are the lines between it and them, and the miners and stations at their ends', () => {
+      const { parts } = relationsOf(new Map([['f-rubber', rubber]]), ownerOf);
+
+      expect([...parts.keys()].sort()).toEqual(['miner-1', 'ore-1', 'out-1']);
+      expect(parts.get('out-1')).toBe('f-rubber');
+    });
+
+    it('belong to the factory picked first where two picked share them', () => {
+      const plastic = {
+        supplies: new Set(['p-1', 'out-1', 'r-1']),
+        handovers: new Map<string, string[]>(),
+      };
+
+      const { parts, factories } = relationsOf(
+        new Map([
+          ['f-rubber', rubber],
+          ['f-plastic', plastic],
+        ]),
+        ownerOf,
+      );
+
+      expect(parts.get('out-1')).toBe('f-rubber');
+      expect(factories.get('f-plastic')).toBe('f-plastic');
+    });
+  });
+
+  describe('the lines between a factory picked and its suppliers', () => {
+    const at = (x: number, y: number, z = 0) => ({ x, y, z });
+    // A belt from (0, 0) to (1000, 0) joined by one on to (1000, 1000); another far off; one stacked 4 m above the first.
+    const belts = [
+      { id: 'a', from: at(0, 0), to: at(1000, 0) },
+      { id: 'b', from: at(1000, 0), to: at(1000, 1000) },
+      { id: 'far', from: at(5000, 5000), to: at(6000, 5000) },
+      { id: 'above', from: at(0, 0, 400), to: at(1000, 0, 400) },
+    ];
+
+    it('are the pieces that meet end to end, one line each', () => {
+      const lines = lineGroups(belts).map((line) => [...line].sort());
+
+      expect(lines.sort()).toEqual([['a', 'b'], ['above'], ['far']]);
+    });
+
+    it('are labelled only when long enough to run between two places, not the stubs of a manifold', () => {
+      // A trunk of two pieces, 40 m all told, and a 4 m stub from a splitter into a machine.
+      const lengths = new Map([
+        ['a', 1000],
+        ['b', 3000],
+        ['stub', 400],
+      ]);
+
+      expect(linesToLabel([['a', 'b'], ['stub']], (id) => lengths.get(id) ?? 0)).toEqual([
+        ['a', 'b'],
+      ]);
+    });
+
+    it("carry what's on their belts, and what their handover into the factory brings", () => {
+      const contents = new Map<string, Record<string, number> | null>([
+        ['a', { Desc_Computer_C: 3 }],
+        ['b', null],
+      ]);
+      const handovers = new Map([['b', ['Desc_Computer_C', 'Desc_CircuitBoard_C']]]);
+
+      expect([...lineItems(['a', 'b'], contents, handovers)].sort()).toEqual([
+        'Desc_CircuitBoard_C',
+        'Desc_Computer_C',
+      ]);
+    });
+  });
+
+  describe('an existing belt outside the area, in 3D', () => {
+    // It comes into the area 12 m up in the game: there it meets the belt floor.
+    const entry = { x: 0, y: 0, z: 1200 };
+
+    it('is drawn at its height as built, from where it comes into the area on the belt floor', () => {
+      expect([
+        wayHeight({ x: 5000, y: 0, z: 2000 }, entry),
+        wayHeight({ x: 9000, y: 0, z: 700 }, entry),
+      ]).toEqual([8, -5]);
+    });
+
+    it("lies on the floor where its heights aren't known, as in runs from before they were kept", () => {
+      expect([
+        wayHeight({ x: 5000, y: 0 }, entry),
+        wayHeight({ x: 5000, y: 0, z: 2000 }, { x: 0, y: 0 }),
+      ]).toEqual([0, 0]);
     });
   });
 });

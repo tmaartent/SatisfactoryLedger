@@ -39,6 +39,7 @@ import {
   jointColours,
   spotMark,
   wayMark,
+  wayHeight,
 } from './arrangement-model';
 
 /** A belt as a flat band, in metres; a pipe round and a little wider, as in the game. */
@@ -297,7 +298,8 @@ export class BeltFloor3d {
     }
 
     // Outside the area, the existing belts the routed ones join where they leave the floor (decided 2026-11-18): thin
-    // lines on the ground, in the colour of the factory they serve.
+    // lines in the colour of the factory they serve, at their heights as built from where they come in on the floor
+    // (asked 2026-11-23); flat in runs from before heights were kept.
     const arranged = new Set(arrangement.factories.map((factory) => factory.factoryId));
     const spotNames = {
       item: (item: string) => this.names.item(item),
@@ -311,7 +313,11 @@ export class BeltFloor3d {
           new THREE.BufferGeometry().setFromPoints(
             [...way.points, ...way.links.flatMap((link) => [...[...link].reverse(), ...link])].map(
               (point) =>
-                new THREE.Vector3((point.x - middle.x) / 100, 0, (point.y - middle.y) / 100),
+                new THREE.Vector3(
+                  (point.x - middle.x) / 100,
+                  wayHeight(point, way.entry),
+                  (point.y - middle.y) / 100,
+                ),
             ),
           ),
           new THREE.LineBasicMaterial({ color: colourOf(way.factory) ?? '#e0e0e0' }),
@@ -330,6 +336,8 @@ export class BeltFloor3d {
         const mark = wayMark(spot, arrangement.belts, spotNames);
         if (mark) {
           const drum = this.drum(mark, middle);
+          // At the height the way starts at, as built.
+          drum.position.y += wayHeight(way.points[0] ?? way.entry, way.entry);
           drum.userData['ends'] = [way.factory];
           this.levelled(drum, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
           this.content.add(drum);

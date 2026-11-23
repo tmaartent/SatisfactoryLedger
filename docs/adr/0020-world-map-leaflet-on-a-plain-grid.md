@@ -55,3 +55,7 @@ Every finding has a position, but tables don't show where things are, or how far
 - **The map is held to the picture:** it zooms out no further than the whole picture and moves no further than its edges. *Amended 2026-11-23 (step 66):* where a snapshot's buildings, belts or pipes stand past the picture, as the game allows, those edges reach to the furthest of them and 50 m past. The grid shows there.
 - **The picture is Coffee Stain's art.** `map-art.json` is in `.gitignore`; tests use made-up tiles of a few bytes.
 - **Alternatives:** exporting it by hand with FModel (a manual step per game update, and the placement calibrated by hand), or a community site's tiles (someone else's server, terms and updates, online only).
+
+## Amendment 2026-11-23: under the optimal arrangement too
+The optimal arrangement's map has the map picture under it as well (asked by the owner, step 84): the same tiles, from the same `GET /catalog/map-art`, laid first so everything else lies over them. Both maps use one projection (`toMapPoint`), so the tiles land where they do on the world map. Since step 85 it's held to the picture's edges as the world map is. Both load the picture from one service (`MapArt`) and hold their map with one function (`holdToExtent`), so they can't drift apart.
+

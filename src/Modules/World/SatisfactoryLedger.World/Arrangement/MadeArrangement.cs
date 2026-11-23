@@ -32,7 +32,7 @@ internal sealed record MadeArrangement(
             seconds,
             new BeltFloorDocument(floor.SquaresPerPlotX, floor.SquaresPerPlotY, floor.RoadSquaresX, floor.RoadSquaresY, floor.Levels),
             [.. Spots.Select(spot => Entries.GetValueOrDefault(spot.Key) is { } entry
-                ? new SpotDocument(spot.Key, Document(spot.Value), Document(entry.Squares), [.. entry.Way.Select(point => new WayPointDocument(point.X, point.Y))])
+                ? new SpotDocument(spot.Key, Document(spot.Value), Document(entry.Squares), [.. entry.Way.Select(point => new WayPointDocument(point.X, point.Y, point.Z))])
                 : new SpotDocument(spot.Key, Document(spot.Value)))],
             Supplies);
     }

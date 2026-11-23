@@ -21,9 +21,7 @@ import { Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
-import { HttpErrorResponse } from '@angular/common/http';
 
-import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { analyseSnapshot } from '../../api/fn/world/analyse-snapshot';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
@@ -32,6 +30,9 @@ import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { PositionDocument } from '../../api/models/position-document';
 import { GameIcon } from '../../shared/game-icon';
+import { buildingShape } from './building-shape';
+import { holdToExtent } from './hold-to-extent';
+import { MapArt } from './map-art';
 import { HiddenNodes } from './hidden-nodes';
 import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
@@ -45,7 +46,6 @@ import {
   conveyorColours,
   describeContents,
   escapeHtml,
-  footprintShapes,
   fromMapPoint,
   locate,
   buildingsShown,
@@ -128,17 +128,8 @@ export class MapPage {
       whenAnalysed(() => this.api.invoke$Response(analyseSnapshot, params), abortSignal),
   });
   protected readonly nodes = resource({ loader: () => this.api.invoke(getResourceNodes) });
-  /** The game's map picture under everything (ADR-0020); none until it's imported, when the API answers 404. */
-  protected readonly mapArt = resource({
-    loader: async () => {
-      try {
-        return await this.api.invoke(getMapArt);
-      } catch (error) {
-        if (error instanceof HttpErrorResponse && error.status === 404) return null;
-        throw error;
-      }
-    },
-  });
+  /** The game's map picture under everything (ADR-0020), shared with the optimal arrangement's map. */
+  protected readonly mapArt = inject(MapArt).art;
   protected readonly factories = resource({
     params: () => this.snapshotParams(),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
@@ -156,8 +147,11 @@ export class MapPage {
   protected readonly purities = Purities;
   protected readonly nodeKey = nodeKey;
   protected readonly pointer = signal<string>('');
-  /** Drawing a rectangle to open in 3D: the map stops panning, and a drag draws instead. */
-  protected readonly drawing = signal(false);
+  /**
+   * Drawing a rectangle, to open in 3D (shift held) or to arrange its factories (ctrl held): the map stops panning, and
+   * a drag draws instead. Null while not drawing.
+   */
+  protected readonly drawing = signal<'3d' | 'arrangement' | null>(null);
 
   private readonly statuses = computed(() => machineStatuses(this.analysis.value()?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
@@ -343,17 +337,7 @@ export class MapPage {
       this.mapArt.hasValue() ? this.mapArt.value() : null,
       this.world.hasValue() ? this.world.value() : null,
     );
-    if (!extent) {
-      this.map.setMaxBounds();
-      this.map.setMinZoom(MinZoom);
-      return;
-    }
-    const size = this.map.getSize();
-    // Not laid out yet: the zoom that fits it is known once the map has a size, and a resize asks again.
-    if (size.x === 0 || size.y === 0) return;
-    const bounds = L.latLngBounds(extent);
-    this.map.setMinZoom(this.map.getBoundsZoom(bounds));
-    this.map.setMaxBounds(bounds);
+    holdToExtent(this.map, extent, MinZoom);
   }
 
   /** A factory picked in the list beside the map is highlighted; picked again, none is (asked 2026-11-19). */
@@ -370,23 +354,27 @@ export class MapPage {
 
   /** Stops drawing an area: the map pans again on a drag. */
   private stopDrawing(): void {
-    this.drawing.set(false);
+    this.drawing.set(null);
     this.map?.dragging.enable();
   }
 
   /**
-   * A drag with shift held draws a rectangle, and letting go opens what's inside it in 3D (asked 2026-11-23, as defining
-   * a factory in 3D does; it was a button). The map listens in the capture phase, so it hears the press before Leaflet's
-   * panning does, and can switch the panning off in time. Leaflet's own shift-drag, zooming to a box, is off.
+   * A drag with a key held draws a rectangle, and letting go opens what's inside it: with shift, in 3D (asked
+   * 2026-11-23, as defining a factory in 3D does; it was a button); with ctrl (or ⌘ on a Mac), in the optimal
+   * arrangement (asked 2026-11-23). The map listens in the capture phase, so it hears the press before Leaflet's panning
+   * does, and can switch the panning off in time. Leaflet's own shift-drag, zooming to a box, is off.
    */
   private listenForArea(map: L.Map): void {
     let start: L.LatLng | null = null;
     let rectangle: L.Rectangle | null = null;
+    // What the drag opens, kept from its start: letting go ends drawing before Leaflet's mouseup comes.
+    let opens: '3d' | 'arrangement' | null = null;
     map.getContainer().addEventListener(
       'pointerdown',
       (event) => {
-        if (!this.id() || !event.shiftKey || event.button !== 0) return;
-        this.drawing.set(true);
+        const kind = event.shiftKey ? '3d' : event.ctrlKey || event.metaKey ? 'arrangement' : null;
+        if (!this.id() || !kind || event.button !== 0) return;
+        this.drawing.set(kind);
         map.dragging.disable();
       },
       { capture: true },
@@ -397,6 +385,7 @@ export class MapPage {
     });
     map.on('mousedown', (event: L.LeafletMouseEvent) => {
       if (!this.drawing()) return;
+      opens = this.drawing();
       start = event.latlng;
       rectangle = L.rectangle(L.latLngBounds(start, start), {
         color: '#ffeb3b',
@@ -414,19 +403,17 @@ export class MapPage {
         fromMapPoint(start.lat, start.lng),
         fromMapPoint(event.latlng.lat, event.latlng.lng),
       );
+      const page = opens === 'arrangement' ? 'arrangement' : 'area';
       rectangle?.remove();
-      [start, rectangle] = [null, null];
+      [start, rectangle, opens] = [null, null, null];
       this.stopDrawing();
       // A click without a drag draws nothing.
       if (area.x1 - area.x0 < 200 || area.y1 - area.y0 < 200) return;
-      void this.router.navigate(['/snapshots', this.id(), 'area'], { queryParams: area });
+      void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
     });
   }
 
-  /**
-   * A building as the ground it covers, each of its boxes seen from above, turned the way it faces (ADR-0020); a dot
-   * when its class has no footprint, as a lift, or when the snapshot is older than its footprints.
-   */
+  /** A building as the ground it covers, or a dot without a footprint: as the optimal arrangement draws it (buildingShape). */
   private shape(
     position: PositionDocument,
     yaw: number,
@@ -434,13 +421,7 @@ export class MapPage {
     style: L.PathOptions,
     dot = 4,
   ): L.Path {
-    const footprint = this.footprints().get(className);
-    return footprint
-      ? L.polygon(
-          footprintShapes({ className, position, yaw }, this.footprints()).map((ring) => [ring]),
-          { ...style, fillRule: 'nonzero' },
-        )
-      : L.circleMarker(toMapPoint(position), { ...style, radius: dot });
+    return buildingShape({ className, position, yaw }, this.footprints(), style, dot);
   }
 
   private gridLayer(): L.LayerGroup {

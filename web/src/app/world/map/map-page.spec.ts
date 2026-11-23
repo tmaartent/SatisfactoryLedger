@@ -376,6 +376,7 @@ describe('the world map of a snapshot', () => {
 
     const header = element.querySelector('.page-header') as HTMLElement;
     expect(header.textContent).toContain('Hold shift and drag to see an area in 3D');
+    expect(header.textContent).toContain('ctrl to arrange its factories');
     expect(header.textContent).not.toContain('Open an area in 3D');
     expect(header.textContent).not.toContain('Findings');
   });
@@ -396,6 +397,27 @@ describe('the world map of a snapshot', () => {
     await fixture.whenStable();
 
     expect(navigate).toHaveBeenCalledWith(['/snapshots', 'snapshot-1', 'area'], expect.anything());
+  });
+
+  it('opens the optimal arrangement of the area dragged over with ctrl held', async () => {
+    const { fixture, element } = await render('snapshot-1');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const map = element.querySelector('.leaflet-container') as HTMLElement;
+    const at = (type: string, x: number, y: number) =>
+      new MouseEvent(type, { bubbles: true, ctrlKey: true, button: 0, clientX: x, clientY: y });
+
+    map.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, ctrlKey: true, button: 0 }));
+    map.dispatchEvent(at('mousedown', 10, 10));
+    map.dispatchEvent(at('mousemove', 110, 110));
+    map.dispatchEvent(at('mouseup', 110, 110));
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledWith(
+      ['/snapshots', 'snapshot-1', 'arrangement'],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({ x0: expect.any(Number), y1: expect.any(Number) }),
+      }),
+    );
   });
 
   it('warns on the Info tab of recipes the catalog does not know and buildings the analysis leaves out', async () => {

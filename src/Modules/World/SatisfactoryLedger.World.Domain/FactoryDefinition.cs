@@ -74,6 +74,53 @@ public sealed class FactoryDefinition
     }
 
     /// <summary>
+    /// What supplies the factory in a world (asked 2026-11-23, to show before an arrangement): the providers (miners,
+    /// extractors, stations, drone ports) where its lines start, the machines of the factories that feed it, and the
+    /// logistics between them and its machines, its own lines from miners included. Walking upstream only from its
+    /// machines, so at a splitter the walk goes up its input and never down its other outputs: a factory fed from the
+    /// same splitter isn't a supplier, nor is what this factory feeds. Not its own machines, nor its belts between them:
+    /// a piece counts only when such a source lies upstream of it.
+    /// </summary>
+    public IReadOnlySet<BuildableId> SuppliesIn(WorldGraph world)
+    {
+        HashSet<BuildableId> machines = Machines.Where(id => CanBeChosen(world.Find(id))).ToHashSet();
+
+        // Upstream from its machines: the logistics on the way, and the sources where the lines start.
+        HashSet<BuildableId> upstream = [.. machines];
+        List<BuildableId> sources = [];
+        Queue<BuildableId> toVisit = new(machines);
+        while (toVisit.TryDequeue(out BuildableId? current))
+        {
+            foreach (Buildable next in world.Upstream(current).Where(next => upstream.Add(next.Id)))
+            {
+                // A line goes on up through logistics; a provider, or another factory's machine, is where it starts.
+                if (next is Logistics)
+                {
+                    toVisit.Enqueue(next.Id);
+                }
+                else
+                {
+                    sources.Add(next.Id);
+                }
+            }
+        }
+
+        // Then down from the sources, on the way just found: the pieces between them and its machines.
+        HashSet<BuildableId> supplies = [.. sources];
+        Queue<BuildableId> down = new(sources);
+        while (down.TryDequeue(out BuildableId? current))
+        {
+            foreach (Buildable next in world.Downstream(current)
+                .Where(next => next is Logistics && upstream.Contains(next.Id) && supplies.Add(next.Id)))
+            {
+                down.Enqueue(next.Id);
+            }
+        }
+
+        return supplies;
+    }
+
+    /// <summary>
     /// BR-W3: the logistics connected to the factory's machines whose every machine, through logistics, upstream or
     /// downstream, is the factory's. Pieces of logistics connected to each other form one line, so this is decided per
     /// line: a line that also touches another factory's machine connects the two and belongs to neither. Providers,

@@ -148,7 +148,7 @@ public class WorldArrangementTests
 
         // From where the miner's belt starts, by its output.
         BuildableDocument belt = Document.Buildables.Single(buildable => Document.Connections.Any(connection => connection.From == Miner && connection.To == buildable.Id));
-        Assert.Equal(new WorldPoint(belt.Curve![0].Location.X, belt.Curve[0].Location.Y), entry.Way[0]);
+        Assert.Equal(new WorldPoint(belt.Curve![0].Location.X, belt.Curve[0].Location.Y, belt.Curve[0].Location.Z), entry.Way[0]);
         Assert.True(Math.Abs(dx) >= Math.Abs(dy)
             ? Math.Abs(entry.Way[^1].X - ((miner.X + smelter.X) / 2)) < 1
             : Math.Abs(entry.Way[^1].Y - ((miner.Y + smelter.Y) / 2)) < 1, $"{entry.Way[^1]} isn't on the area's edge");

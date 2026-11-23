@@ -4,7 +4,8 @@
     <span class="spacer"></span>
     <!-- As defining a factory in 3D does: no button (asked 2026-11-23). -->
     <span class="muted how"
-      ><mat-icon inline>view_in_ar</mat-icon> Hold shift and drag to see an area in 3D</span
+      ><mat-icon inline>view_in_ar</mat-icon> Hold shift and drag to see an area in 3D, or ctrl to
+      arrange its factories</span
     >
   } @else {
     <span class="muted"
@@ -23,7 +24,13 @@
 <div class="map-frame">
   <div #map class="map" [class.drawing]="drawing()"></div>
   @if (drawing()) {
-    <div class="drawing-hint">Let go to see this area in 3D</div>
+    <div class="drawing-hint">
+      {{
+        drawing() === 'arrangement'
+          ? 'Let go to arrange the factories in this area'
+          : 'Let go to see this area in 3D'
+      }}
+    </div>
   }
   <div class="legend">
     @if (id()) {
