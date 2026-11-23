@@ -19,7 +19,7 @@ Pages name items and buildings in words only: findings, the factory page, the 3D
 - **Where they show** *(asked: all at once)*:
   - beside every item and building named in a page: the Catalog's recipes and nodes, the findings, the factory page's inputs and outputs, the 3D view's panel, the snapshot's unsupported buildings, the explanation's starts;
   - in the map's tooltips: a machine, belt, provider, building, a generator's fuel, a node's resource;
-  - **a free resource node** on the map is its resource's icon inside a dashed ring of its purity's colour *(asked)*, where it was a dashed dot.
+  - **every resource node** on the map, free or with a miner or extractor on it, is its resource's icon *(asked; every node, not only the free ones, asked 2026-11-23)*, where a free node was a dashed dot. Its tooltip says what stands on it, or that it's free. It's a pin, as on the game's map: the icon on its purity's colour (green pure, yellow normal, red impure) in a white ring, up and to the left, on a white stick down to a dot where the node lies. The map's other purity marks, the edges of miners on nodes, take the same colours. It grows as the map is zoomed in, half as fast as the map, from 18 to 72 pixels *(both asked 2026-11-23)*.
   - Not inside sentences (*Not enough Iron Ingot*), nor in the arrangement's tooltips.
 - **Without icons** (before an import) everything shows as before: names, and the nodes as dots.
 
