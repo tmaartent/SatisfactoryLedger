@@ -8,7 +8,12 @@ import { Assistant } from './explain/assistant';
 import { Explainer } from './explain/explainer';
 import { Findings, FindingsView } from './findings';
 
-const machine = (id: string, limit: MachineFinding['limit'], limitingItem: string | null = null, onStock: string | null = null): MachineFinding => ({
+const machine = (
+  id: string,
+  limit: MachineFinding['limit'],
+  limitingItem: string | null = null,
+  onStock: string | null = null,
+): MachineFinding => ({
   id,
   className: 'Build_ConstructorMk1_C',
   recipe: 'Recipe_IronPlate_C',
@@ -27,7 +32,11 @@ const findings: Findings = {
   // As the API sends them: every machine, the one running worst first.
   summary: { machines: 3, running: 1, starved: 1, outputBlocked: 1, noRecipe: 0 },
   generatorSummary: { generators: 0, running: 0, starved: 0, outputBlocked: 0, fuelUnknown: 0 },
-  machines: [machine('a', 'starved', 'Desc_IronIngot_C'), machine('b', 'outputBlocked', 'Desc_IronPlate_C'), machine('c', 'none', null, 'Desc_PlutoniumWaste_C')],
+  machines: [
+    machine('a', 'starved', 'Desc_IronIngot_C'),
+    machine('b', 'outputBlocked', 'Desc_IronPlate_C'),
+    machine('c', 'none', null, 'Desc_PlutoniumWaste_C'),
+  ],
   bottlenecks: [],
   unusedSupply: [],
   unknownSupply: [],
@@ -72,7 +81,17 @@ describe('FindingsView', () => {
   async function render(shown: Findings = findings) {
     TestBed.configureTestingModule({
       imports: [FindingsView],
-      providers: [{ provide: CatalogNames, useValue: catalogNames }, { provide: Assistant, useValue: { models: () => Promise.resolve([]), explain: () => new Promise(() => undefined) } }, provideRouter([])],
+      providers: [
+        { provide: CatalogNames, useValue: catalogNames },
+        {
+          provide: Assistant,
+          useValue: {
+            models: () => Promise.resolve([]),
+            explain: () => new Promise(() => undefined),
+          },
+        },
+        provideRouter([]),
+      ],
     });
     const fixture = TestBed.createComponent(FindingsView);
     fixture.componentRef.setInput('findings', shown);
@@ -81,7 +100,8 @@ describe('FindingsView', () => {
     return fixture;
   }
 
-  const rows = (element: HTMLElement) => Array.from(element.querySelectorAll('tr.mat-mdc-row')).map((row) => row.textContent ?? '');
+  const rows = (element: HTMLElement) =>
+    Array.from(element.querySelectorAll('tr.mat-mdc-row')).map((row) => row.textContent ?? '');
 
   it('says why a starved machine runs below 100%, by the name of what it lacks', async () => {
     const fixture = await render();
@@ -93,26 +113,37 @@ describe('FindingsView', () => {
     const fixture = await render();
 
     const row = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row');
-    expect(row?.querySelector('app-game-icon img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Build_ConstructorMk1_C');
+    expect(row?.querySelector('app-game-icon img')?.getAttribute('src')).toBe(
+      '/api/v1/catalog/icons/Build_ConstructorMk1_C',
+    );
   });
 
   it('offers to explain why a held-back machine runs below 100%, and not a running one', async () => {
     const fixture = await render();
 
-    const buttons = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button[aria-label="Explain why"]'));
+    const buttons = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        'button[aria-label="Explain why"]',
+      ),
+    );
     expect(buttons).toHaveLength(2);
     buttons[0].click();
 
     expect(TestBed.inject(Explainer).question()).toEqual({
-      finding: { snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' },
+      finding: {
+        snapshotId: 's1',
+        building: 'Build_ConstructorMk1_C',
+        recipe: 'Recipe_IronPlate_C',
+        limit: 'starved',
+      },
       machines: `${classNameAsWords('Build_ConstructorMk1_C')} (${classNameAsWords('Recipe_IronPlate_C')})`,
     });
   });
 
   async function filterOn(fixture: Awaited<ReturnType<typeof render>>, label: string) {
-    const toggle = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('mat-button-toggle button')).find(
-      (button) => button.textContent?.trim() === label,
-    ) as HTMLButtonElement;
+    const toggle = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('mat-button-toggle button'),
+    ).find((button) => button.textContent?.trim() === label) as HTMLButtonElement;
     toggle.click();
     await fixture.whenStable();
   }
@@ -139,32 +170,54 @@ describe('FindingsView', () => {
     expect(shown[0]).toContain("Iron Plate can't leave");
   });
 
-  async function openTab(fixture: Awaited<ReturnType<typeof render>>, label: string): Promise<string[]> {
-    const tab = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')).find((candidate) =>
-      candidate.textContent?.includes(label),
-    ) as HTMLElement;
+  async function openTab(
+    fixture: Awaited<ReturnType<typeof render>>,
+    label: string,
+  ): Promise<string[]> {
+    const tab = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]'),
+    ).find((candidate) => candidate.textContent?.includes(label)) as HTMLElement;
 
     tab.click();
     await fixture.whenStable();
 
     // Only the open tab: the machines tab's rows may still be in the page.
-    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.mat-mdc-tab-body-active tr.mat-mdc-row')).map(
-      (row) => row.textContent ?? '',
-    );
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '.mat-mdc-tab-body-active tr.mat-mdc-row',
+      ),
+    ).map((row) => row.textContent ?? '');
   }
 
   const summaries = (element: HTMLElement) =>
     Array.from(element.querySelectorAll('.summary')).map((row) =>
-      Array.from(row.querySelectorAll('mat-card')).map((card) => (card.textContent ?? '').replace(/(\d)(\D)/, '$1 $2').replace(/\s+/g, ' ').trim()),
+      Array.from(row.querySelectorAll('mat-card')).map((card) =>
+        (card.textContent ?? '')
+          .replace(/(\d)(\D)/, '$1 $2')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      ),
     );
 
   it('counts the generators in a row of their own, next to the machines', async () => {
     const fixture = await render({
       ...findings,
-      generatorSummary: { generators: 360, running: 300, starved: 60, outputBlocked: 0, fuelUnknown: 0 },
+      generatorSummary: {
+        generators: 360,
+        running: 300,
+        starved: 60,
+        outputBlocked: 0,
+        fuelUnknown: 0,
+      },
     });
 
-    expect(summaries(fixture.nativeElement)[1]).toEqual(['360 generators', '300 at 100%', '60 starved', '0 output blocked', '0 fuel unknown']);
+    expect(summaries(fixture.nativeElement)[1]).toEqual([
+      '360 generators',
+      '300 at 100%',
+      '60 starved',
+      '0 output blocked',
+      '0 fuel unknown',
+    ]);
   });
 
   it('shows no generator row without generators', async () => {
@@ -175,14 +228,25 @@ describe('FindingsView', () => {
 
   it('offers to delete a factory from the overview of factories', async () => {
     const fixture = await render();
-    const plates = { factoryId: 'f1', name: 'Iron plates', traceable: true, machines: [], logistics: 0, outputs: [], inputs: [], missing: [] };
+    const plates = {
+      factoryId: 'f1',
+      name: 'Iron plates',
+      traceable: true,
+      machines: [],
+      logistics: 0,
+      outputs: [],
+      inputs: [],
+      missing: [],
+    };
     fixture.componentRef.setInput('factories', [plates]);
     await fixture.whenStable();
     const deleted: string[] = [];
     fixture.componentInstance.deleteFactory.subscribe((factory) => deleted.push(factory.factoryId));
 
     await openTab(fixture, 'Factories');
-    const button = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.mat-mdc-tab-body-active button')).find(
+    const button = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.mat-mdc-tab-body-active button'),
+    ).find(
       (candidate) => candidate.getAttribute('aria-label') === 'Delete Iron plates',
     ) as HTMLButtonElement;
     button.click();
@@ -215,7 +279,9 @@ describe('FindingsView', () => {
   it("links where a machine stands to that machine on the snapshot's map", async () => {
     const fixture = await render();
 
-    const link = (fixture.nativeElement as HTMLElement).querySelector('tr.mat-mdc-row a') as HTMLAnchorElement;
+    const link = (fixture.nativeElement as HTMLElement).querySelector(
+      'tr.mat-mdc-row a',
+    ) as HTMLAnchorElement;
 
     expect(link.getAttribute('href')).toBe('/snapshots/s1/map?focus=a');
   });

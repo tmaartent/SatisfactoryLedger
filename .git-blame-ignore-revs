@@ -1,0 +1,3 @@
+# Commits that only reformat, skipped by git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs) and by GitHub.
+# style(web): format with Prettier
+2f44b7c8a5163ec9748128911bebd354cad06301

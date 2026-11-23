@@ -25,7 +25,9 @@ export class SidebarTabs {
   private readonly chosen = signal<string | null>(null);
 
   readonly tabs = computed(() => [...this.added()].sort((a, b) => a.order - b.order));
-  readonly current = computed(() => this.tabs().find((tab) => tab.key === this.chosen()) ?? this.tabs()[0] ?? null);
+  readonly current = computed(
+    () => this.tabs().find((tab) => tab.key === this.chosen()) ?? this.tabs()[0] ?? null,
+  );
   readonly collapsed = signal(false);
 
   add(tab: Tab): void {

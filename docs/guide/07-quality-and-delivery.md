@@ -16,7 +16,7 @@ These tests are your safety net for ADR-0002. They're also an excellent talking 
 
 - Already on: nullable reference types, `latest-recommended` analyzers, **warnings as errors**, code style enforced at build.
 - Consider: `Meziantou.Analyzer` or SonarAnalyzer.CSharp for extra rules. Treat any suppression as a decision. Use `.editorconfig` severity changes with a comment, not `#pragma` scattered around.
-- Frontend: `ng lint` (add angular-eslint with `ng add angular-eslint`). Prettier is already in the scaffold.
+- Frontend (since step 75): ESLint with angular-eslint's recommended rules for TypeScript and templates, accessibility included (`npm run lint`, `eslint.config.js`); Prettier for formatting (`npm run format`, `npm run format:check`); `strictTemplates` on. TypeScript 6 is strict by default.
 
 ## CI pipeline (GitHub Actions)
 
@@ -26,7 +26,7 @@ One workflow, `.github/workflows/ci.yml`, on every PR and push to `main`:
 |---|---|
 | **backend** | checkout → setup-dotnet (from `global.json`) → `dotnet restore` → `dotnet build --no-restore` → `dotnet test --no-build` (Testcontainers works on GitHub's Ubuntu runners) → upload test results |
 | **contract** | A step in the **backend** job, right after the build (which regenerates `api/openapi.json`): fail when `git status --porcelain -- api/` isn't empty. `git status` rather than `git diff --exit-code`, because a new, untracked document doesn't show up in `git diff`. |
-| **frontend** | setup-node 22 → `npm ci` → `npm run generate:api` → `ng lint` → `ng test --watch=false` → `ng build` |
+| **frontend** | setup-node 22 → `npm ci` → `npm run format:check` → `npm run lint` → `npm test -- --watch=false` (its `pretest` generates the API client) → `npm run build` |
 | **e2e** *(later)* | start the stack → Playwright |
 
 Best practices: cache NuGet and npm, run jobs in parallel, keep the pipeline **under ~5 minutes**, and make it a required check on `main`. Add the status badge to the README.

@@ -15,11 +15,25 @@ export interface OutlinedFactory {
 }
 
 /** Edge colours, apart from the status colours, the blue of chosen machines and the yellow of the one looked at. */
-export const outlineColours = ['#ff4081', '#b388ff', '#18ffff', '#eeff41', '#ff9e80', '#f5f5f5', '#69f0ae', '#ea80fc'];
+export const outlineColours = [
+  '#ff4081',
+  '#b388ff',
+  '#18ffff',
+  '#eeff41',
+  '#ff9e80',
+  '#f5f5f5',
+  '#69f0ae',
+  '#ea80fc',
+];
 
 /** Each factory with its colour, from its place among all the world's factories: the same in every area. */
-function outlined(factories: readonly TracedFactory[]): (OutlinedFactory & { machines: { id: string }[] })[] {
-  return factories.map((factory, i) => ({ ...factory, colour: outlineColours[i % outlineColours.length] }));
+function outlined(
+  factories: readonly TracedFactory[],
+): (OutlinedFactory & { machines: { id: string }[] })[] {
+  return factories.map((factory, i) => ({
+    ...factory,
+    colour: outlineColours[i % outlineColours.length],
+  }));
 }
 
 /**
@@ -29,20 +43,27 @@ function outlined(factories: readonly TracedFactory[]): (OutlinedFactory & { mac
 export function machineOwners(factories: readonly TracedFactory[]): Map<string, OutlinedFactory[]> {
   const owners = new Map<string, OutlinedFactory[]>();
   for (const { machines, ...factory } of outlined(factories)) {
-    for (const machine of machines) owners.set(machine.id, [...(owners.get(machine.id) ?? []), factory]);
+    for (const machine of machines)
+      owners.set(machine.id, [...(owners.get(machine.id) ?? []), factory]);
   }
   return owners;
 }
 
 /** The factories with at least one machine among the buildings in the area, for the legend. */
-export function factoriesInArea(factories: readonly TracedFactory[], inArea: ReadonlySet<string>): OutlinedFactory[] {
+export function factoriesInArea(
+  factories: readonly TracedFactory[],
+  inArea: ReadonlySet<string>,
+): OutlinedFactory[] {
   return outlined(factories)
     .filter((factory) => factory.machines.some((machine) => inArea.has(machine.id)))
     .map(({ machines: _, ...factory }) => factory);
 }
 
 /** The colour a factory's machines are outlined in, for the map's highlight; undefined when the world has no such factory. */
-export function factoryColour(factories: readonly TracedFactory[], factoryId: string): string | undefined {
+export function factoryColour(
+  factories: readonly TracedFactory[],
+  factoryId: string,
+): string | undefined {
   return outlined(factories).find((factory) => factory.factoryId === factoryId)?.colour;
 }
 
@@ -50,6 +71,13 @@ export function factoryColour(factories: readonly TracedFactory[], factoryId: st
  * The machines that can't be chosen (BR-W5): every factory's, or, while editing a factory, the other factories'. Its
  * own machines can be taken out and put back.
  */
-export function blockedMachines(owners: ReadonlyMap<string, OutlinedFactory[]>, editing: string | null): Set<string> {
-  return new Set([...owners].filter(([, factories]) => factories.some((factory) => factory.factoryId !== editing)).map(([id]) => id));
+export function blockedMachines(
+  owners: ReadonlyMap<string, OutlinedFactory[]>,
+  editing: string | null,
+): Set<string> {
+  return new Set(
+    [...owners]
+      .filter(([, factories]) => factories.some((factory) => factory.factoryId !== editing))
+      .map(([id]) => id),
+  );
 }

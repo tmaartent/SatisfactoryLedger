@@ -19,5 +19,8 @@ export function handoverPoint(
   if (across) return (direction === 'output' ? first(across) : last(across)) ?? null;
   const own = conveyorOf(connection.inside.id);
   if (own) return (direction === 'output' ? last(own) : first(own)) ?? null;
-  return positionOf(connection.inside.id) ?? (connection.outside ? (positionOf(connection.outside.id) ?? null) : null);
+  return (
+    positionOf(connection.inside.id) ??
+    (connection.outside ? (positionOf(connection.outside.id) ?? null) : null)
+  );
 }

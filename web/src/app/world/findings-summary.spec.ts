@@ -20,7 +20,9 @@ async function render(selectable: boolean, shown: ShownStatus | null = null) {
   await fixture.whenStable();
   const element = fixture.nativeElement as HTMLElement;
   const card = (label: string, group = 0) =>
-    [...element.querySelectorAll('.summary')[group].querySelectorAll('mat-card')].find((c) => c.textContent?.includes(label)) as HTMLElement;
+    [...element.querySelectorAll('.summary')[group].querySelectorAll('mat-card')].find((c) =>
+      c.textContent?.includes(label),
+    ) as HTMLElement;
   return { fixture, asked, card };
 }
 

@@ -26,11 +26,15 @@ export function toMapPoint(position: Position): [number, number] {
  * The API gives them in centimetres; the map has metres, north up. Nothing without map art.
  */
 export function mapArtTiles(
-  art: { tiles: { x0: number; y0: number; x1: number; y1: number; url: string }[] } | null | undefined,
+  art:
+    { tiles: { x0: number; y0: number; x1: number; y1: number; url: string }[] } | null | undefined,
 ): { url: string; bounds: [[number, number], [number, number]] }[] {
   return (art?.tiles ?? []).map((tile) => ({
     url: tile.url,
-    bounds: [toMapPoint({ x: tile.x0, y: tile.y0, z: 0 }), toMapPoint({ x: tile.x1, y: tile.y1, z: 0 })],
+    bounds: [
+      toMapPoint({ x: tile.x0, y: tile.y0, z: 0 }),
+      toMapPoint({ x: tile.x1, y: tile.y1, z: 0 }),
+    ],
   }));
 }
 
@@ -38,7 +42,9 @@ export function mapArtTiles(
 export function mapArtExtent(
   art: { x0: number; y0: number; x1: number; y1: number } | null | undefined,
 ): [[number, number], [number, number]] | null {
-  return art ? [toMapPoint({ x: art.x0, y: art.y0, z: 0 }), toMapPoint({ x: art.x1, y: art.y1, z: 0 })] : null;
+  return art
+    ? [toMapPoint({ x: art.x0, y: art.y0, z: 0 }), toMapPoint({ x: art.x1, y: art.y1, z: 0 })]
+    : null;
 }
 
 /** How far past the furthest building the map may still move, in metres, so it isn't drawn against the edge. */
@@ -50,25 +56,47 @@ export const MapMargin = 50;
  */
 export function mapExtent(
   art: { x0: number; y0: number; x1: number; y1: number } | null | undefined,
-  world: Pick<WorldMapResponse, 'machines' | 'providers' | 'logistics' | 'consumers' | 'conveyors'> | null | undefined,
+  world:
+    | Pick<WorldMapResponse, 'machines' | 'providers' | 'logistics' | 'consumers' | 'conveyors'>
+    | null
+    | undefined,
 ): [[number, number], [number, number]] | null {
   const extent = mapArtExtent(art);
   if (!extent) return null;
 
   const points = [
-    ...[...(world?.machines ?? []), ...(world?.providers ?? []), ...(world?.logistics ?? []), ...(world?.consumers ?? [])].map((b) => toMapPoint(b.position)),
-    ...(world?.conveyors ?? []).flatMap((conveyor) => conveyor.curve.map((point) => toMapPoint(point.location))),
+    ...[
+      ...(world?.machines ?? []),
+      ...(world?.providers ?? []),
+      ...(world?.logistics ?? []),
+      ...(world?.consumers ?? []),
+    ].map((b) => toMapPoint(b.position)),
+    ...(world?.conveyors ?? []).flatMap((conveyor) =>
+      conveyor.curve.map((point) => toMapPoint(point.location)),
+    ),
   ];
   // Not Math.min(...points): a large world's belts have more points than a call takes arguments.
   const furthest = points.reduce(
-    (far, [lat, lng]) => ({ south: Math.min(far.south, lat), west: Math.min(far.west, lng), north: Math.max(far.north, lat), east: Math.max(far.east, lng) }),
+    (far, [lat, lng]) => ({
+      south: Math.min(far.south, lat),
+      west: Math.min(far.west, lng),
+      north: Math.max(far.north, lat),
+      east: Math.max(far.east, lng),
+    }),
     { south: Infinity, west: Infinity, north: -Infinity, east: -Infinity },
   );
   // A side reaches past the picture only when a building does: then to the furthest one, and the margin past it.
-  const reach = (picture: number, building: number, outwards: number) => (building * outwards > picture * outwards ? building + outwards * MapMargin : picture);
+  const reach = (picture: number, building: number, outwards: number) =>
+    building * outwards > picture * outwards ? building + outwards * MapMargin : picture;
   return [
-    [reach(Math.min(extent[0][0], extent[1][0]), furthest.south, -1), reach(Math.min(extent[0][1], extent[1][1]), furthest.west, -1)],
-    [reach(Math.max(extent[0][0], extent[1][0]), furthest.north, 1), reach(Math.max(extent[0][1], extent[1][1]), furthest.east, 1)],
+    [
+      reach(Math.min(extent[0][0], extent[1][0]), furthest.south, -1),
+      reach(Math.min(extent[0][1], extent[1][1]), furthest.west, -1),
+    ],
+    [
+      reach(Math.max(extent[0][0], extent[1][0]), furthest.north, 1),
+      reach(Math.max(extent[0][1], extent[1][1]), furthest.east, 1),
+    ],
   ];
 }
 
@@ -105,7 +133,12 @@ export function sampleCurve(curve: CurvePointDocument[]): [number, number][] {
     const steps = isStraight(from, to, leave, arrive) ? 1 : StepsPerBend;
     for (let step = 1; step <= steps; step++) {
       const t = step / steps;
-      const [h00, h10, h01, h11] = [2 * t ** 3 - 3 * t ** 2 + 1, t ** 3 - 2 * t ** 2 + t, -2 * t ** 3 + 3 * t ** 2, t ** 3 - t ** 2];
+      const [h00, h10, h01, h11] = [
+        2 * t ** 3 - 3 * t ** 2 + 1,
+        t ** 3 - 2 * t ** 2 + t,
+        -2 * t ** 3 + 3 * t ** 2,
+        t ** 3 - t ** 2,
+      ];
       line.push(
         toMapPoint({
           x: h00 * from.x + h10 * leave.x + h01 * to.x + h11 * arrive.x,
@@ -135,33 +168,55 @@ function isStraight(from: Position, to: Position, leave: Position, arrive: Posit
  * when the map doesn't have it.
  */
 export function locate(world: WorldMapResponse, id: string): [number, number] | null {
-  const building = [...world.machines, ...world.providers, ...world.logistics, ...world.consumers].find((b) => b.id === id);
+  const building = [
+    ...world.machines,
+    ...world.providers,
+    ...world.logistics,
+    ...world.consumers,
+  ].find((b) => b.id === id);
   if (building) return toMapPoint(building.position);
 
   const conveyor = world.conveyors.find((c) => c.id === id);
   if (!conveyor || conveyor.curve.length === 0) return null;
-  const [first, last] = [conveyor.curve[0].location, conveyor.curve[conveyor.curve.length - 1].location];
+  const [first, last] = [
+    conveyor.curve[0].location,
+    conveyor.curve[conveyor.curve.length - 1].location,
+  ];
   return toMapPoint({ x: (first.x + last.x) / 2, y: (first.y + last.y) / 2, z: 0 });
 }
 
 /** How each machine (or generator) runs, by id, from the findings; empty while there are none. */
-export function machineStatuses(findings: Pick<MachineFinding, 'id' | 'limit'>[] | undefined): Map<string, MachineLimit> {
+export function machineStatuses(
+  findings: Pick<MachineFinding, 'id' | 'limit'>[] | undefined,
+): Map<string, MachineLimit> {
   return new Map((findings ?? []).map((machine) => [machine.id, machine.limit]));
 }
 
 /** The ids of the machines or generators of the status picked in the overview (asked 2026-11-23); null when none is picked. */
 export function buildingsShown(
-  analysis: { machines: { id: string; limit: MachineLimit }[]; generators: { id: string; limit: MachineLimit }[] } | undefined,
+  analysis:
+    | {
+        machines: { id: string; limit: MachineLimit }[];
+        generators: { id: string; limit: MachineLimit }[];
+      }
+    | undefined,
   shown: ShownStatus | null,
 ): Set<string> | null {
   if (!shown) return null;
-  const buildings = shown.of === 'machines' ? (analysis?.machines ?? []) : (analysis?.generators ?? []);
-  return new Set(buildings.filter((building) => building.limit === shown.limit).map((building) => building.id));
+  const buildings =
+    shown.of === 'machines' ? (analysis?.machines ?? []) : (analysis?.generators ?? []);
+  return new Set(
+    buildings.filter((building) => building.limit === shown.limit).map((building) => building.id),
+  );
 }
 
 /** What stands on each resource node, by the node's name: a node with none is free, where a miner or extractor could still go. */
 export function nodeTakers(providers: MapProvider[]): Map<string, MapProvider> {
-  return new Map(providers.filter((provider) => provider.node !== null).map((provider) => [provider.node!, provider]));
+  return new Map(
+    providers
+      .filter((provider) => provider.node !== null)
+      .map((provider) => [provider.node!, provider]),
+  );
 }
 
 /** Colours on the dark theme: running green, held back red or amber, without a recipe or unknown grey. */
@@ -192,10 +247,15 @@ export function contentEntries(contents: Contents): { item: string; count: numbe
 }
 
 /** "Iron Ore × 7, Iron Ingot × 2", most first; "empty"; or "" when the snapshot doesn't know (older than version 6). */
-export function describeContents(contents: Contents | null | undefined, name: (item: string) => string): string {
+export function describeContents(
+  contents: Contents | null | undefined,
+  name: (item: string) => string,
+): string {
   if (!contents) return '';
   const entries = contentEntries(contents);
-  return entries.length === 0 ? 'empty' : entries.map(({ item, count }) => `${name(item)} × ${count}`).join(', ');
+  return entries.length === 0
+    ? 'empty'
+    : entries.map(({ item, count }) => `${name(item)} × ${count}`).join(', ');
 }
 
 /** Belts grey, pipes teal; a bottleneck red and thicker (BR-A12). */
@@ -211,7 +271,9 @@ export const purityColours: Record<string, string> = {
 
 /** The game's icon before a name in a tooltip (ADR-0032), which Leaflet takes as HTML; nothing when there's none. */
 export function iconTag(url: string | null): string {
-  return url ? `<img class="tooltip-icon" src="${escapeHtml(url)}" width="16" height="16" alt="">` : '';
+  return url
+    ? `<img class="tooltip-icon" src="${escapeHtml(url)}" width="16" height="16" alt="">`
+    : '';
 }
 
 /**
@@ -234,7 +296,11 @@ export function nodeMarkerSize(zoom: number): number {
 
 /** Text as it reads in a tooltip, which Leaflet takes as HTML: a player's factory name may hold <, & or quotes. */
 export function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /**
@@ -242,7 +308,11 @@ export function escapeHtml(text: string): string {
  * factory is the one highlighted, and dimmed when another one is.
  * @param inHighlighted whether it's in the highlighted factory; null when no factory is highlighted.
  */
-export function buildingStyle(fill: string, factoryColour: string | undefined, inHighlighted: boolean | null) {
+export function buildingStyle(
+  fill: string,
+  factoryColour: string | undefined,
+  inHighlighted: boolean | null,
+) {
   const dimmed = inHighlighted === false;
   return {
     color: factoryColour ?? fill,

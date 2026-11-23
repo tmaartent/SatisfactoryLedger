@@ -15,7 +15,13 @@
       </mat-form-field>
     </mat-card-content>
     <mat-card-actions>
-      <input #docsFile type="file" accept=".json" hidden (change)="importDocs(docsFile.files); docsFile.value = ''" />
+      <input
+        #docsFile
+        type="file"
+        accept=".json"
+        hidden
+        (change)="importDocs(docsFile.files); docsFile.value = ''"
+      />
       <button mat-flat-button (click)="docsFile.click()" [disabled]="importing() || !gameVersion()">
         <mat-icon>upload_file</mat-icon> Import
       </button>
@@ -28,30 +34,62 @@
       <mat-card-subtitle>The node table the map tool writes (ADR-0015)</mat-card-subtitle>
     </mat-card-header>
     <mat-card-actions>
-      <input #nodesFile type="file" accept=".json" hidden (change)="importNodes(nodesFile.files); nodesFile.value = ''" />
-      <button mat-flat-button (click)="nodesFile.click()" [disabled]="importing()"><mat-icon>upload_file</mat-icon> Import</button>
+      <input
+        #nodesFile
+        type="file"
+        accept=".json"
+        hidden
+        (change)="importNodes(nodesFile.files); nodesFile.value = ''"
+      />
+      <button mat-flat-button (click)="nodesFile.click()" [disabled]="importing()">
+        <mat-icon>upload_file</mat-icon> Import
+      </button>
     </mat-card-actions>
   </mat-card>
 
   <mat-card appearance="outlined">
     <mat-card-header>
       <mat-card-title>The game's map</mat-card-title>
-      <mat-card-subtitle>The map art the map tool writes with --map-art (ADR-0020): the picture under the world map</mat-card-subtitle>
+      <mat-card-subtitle
+        >The map art the map tool writes with --map-art (ADR-0020): the picture under the world
+        map</mat-card-subtitle
+      >
     </mat-card-header>
     <mat-card-actions>
-      <input #mapArtFile class="map-art" type="file" accept=".json" hidden (change)="importMapArt(mapArtFile.files); mapArtFile.value = ''" />
-      <button mat-flat-button (click)="mapArtFile.click()" [disabled]="importing()"><mat-icon>upload_file</mat-icon> Import</button>
+      <input
+        #mapArtFile
+        class="map-art"
+        type="file"
+        accept=".json"
+        hidden
+        (change)="importMapArt(mapArtFile.files); mapArtFile.value = ''"
+      />
+      <button mat-flat-button (click)="mapArtFile.click()" [disabled]="importing()">
+        <mat-icon>upload_file</mat-icon> Import
+      </button>
     </mat-card-actions>
   </mat-card>
 
   <mat-card appearance="outlined">
     <mat-card-header>
       <mat-card-title>The game's icons</mat-card-title>
-      <mat-card-subtitle>The icons the map tool writes with --icons (ADR-0032): beside every item and building, and on the map's resource nodes</mat-card-subtitle>
+      <mat-card-subtitle
+        >The icons the map tool writes with --icons (ADR-0032): beside every item and building, and
+        on the map's resource nodes</mat-card-subtitle
+      >
     </mat-card-header>
     <mat-card-actions>
-      <input #iconsFile class="icons" type="file" accept=".json" hidden (change)="importIcons(iconsFile.files); iconsFile.value = ''" />
-      <button mat-flat-button (click)="iconsFile.click()" [disabled]="importing()"><mat-icon>upload_file</mat-icon> Import</button>
+      <input
+        #iconsFile
+        class="icons"
+        type="file"
+        accept=".json"
+        hidden
+        (change)="importIcons(iconsFile.files); iconsFile.value = ''"
+      />
+      <button mat-flat-button (click)="iconsFile.click()" [disabled]="importing()">
+        <mat-icon>upload_file</mat-icon> Import
+      </button>
     </mat-card-actions>
   </mat-card>
 
@@ -60,7 +98,12 @@
       <mat-card-header><mat-card-title>Imported</mat-card-title></mat-card-header>
       <mat-card-content>
         <table class="counts">
-          <tr><th></th><th>added</th><th>updated</th><th>no longer in game</th></tr>
+          <tr>
+            <th></th>
+            <th>added</th>
+            <th>updated</th>
+            <th>no longer in game</th>
+          </tr>
           @for (row of importCounts(); track row.kind) {
             <tr>
               <td>{{ row.kind }}</td>
@@ -130,13 +173,18 @@
         </ng-container>
         <ng-container matColumnDef="building">
           <th mat-header-cell *matHeaderCellDef>Made in</th>
-          <td mat-cell *matCellDef="let recipe"><app-game-icon [of]="recipe.buildingId" />{{ names.building(recipe.buildingId) }}</td>
+          <td mat-cell *matCellDef="let recipe">
+            <app-game-icon [of]="recipe.buildingId" />{{ names.building(recipe.buildingId) }}
+          </td>
         </ng-container>
         <ng-container matColumnDef="inputs">
           <th mat-header-cell *matHeaderCellDef>In</th>
           <td mat-cell *matCellDef="let recipe">
             @for (input of recipe.inputs; track input.itemId) {
-              <div><app-game-icon [of]="input.itemId" />{{ names.item(input.itemId) }} <span class="muted">{{ perMinute(input.rate.perMinute) }}</span></div>
+              <div>
+                <app-game-icon [of]="input.itemId" />{{ names.item(input.itemId) }}
+                <span class="muted">{{ perMinute(input.rate.perMinute) }}</span>
+              </div>
             }
           </td>
         </ng-container>
@@ -144,7 +192,10 @@
           <th mat-header-cell *matHeaderCellDef>Out</th>
           <td mat-cell *matCellDef="let recipe">
             @for (output of recipe.outputs; track output.itemId) {
-              <div><app-game-icon [of]="output.itemId" />{{ names.item(output.itemId) }} <span class="muted">{{ perMinute(output.rate.perMinute) }}</span></div>
+              <div>
+                <app-game-icon [of]="output.itemId" />{{ names.item(output.itemId) }}
+                <span class="muted">{{ perMinute(output.rate.perMinute) }}</span>
+              </div>
             }
           </td>
         </ng-container>
@@ -177,7 +228,9 @@
     <table mat-table [dataSource]="extractors.value() ?? []">
       <ng-container matColumnDef="name">
         <th mat-header-cell *matHeaderCellDef>Extractor</th>
-        <td mat-cell *matCellDef="let extractor" [class.muted]="!extractor.inGame">{{ extractor.name }}</td>
+        <td mat-cell *matCellDef="let extractor" [class.muted]="!extractor.inGame">
+          {{ extractor.name }}
+        </td>
       </ng-container>
       <ng-container matColumnDef="form">
         <th mat-header-cell *matHeaderCellDef>Extracts</th>
@@ -185,7 +238,9 @@
       </ng-container>
       <ng-container matColumnDef="rate">
         <th mat-header-cell *matHeaderCellDef class="number">On a normal node</th>
-        <td mat-cell *matCellDef="let extractor" class="number">{{ perMinute(extractor.extractionRate.perMinute) }}</td>
+        <td mat-cell *matCellDef="let extractor" class="number">
+          {{ perMinute(extractor.extractionRate.perMinute) }}
+        </td>
       </ng-container>
       <tr mat-header-row *matHeaderRowDef="extractorColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: extractorColumns"></tr>
@@ -197,7 +252,9 @@
       <table mat-table [dataSource]="shownNodes()">
         <ng-container matColumnDef="resource">
           <th mat-header-cell *matHeaderCellDef>Resource</th>
-          <td mat-cell *matCellDef="let node" [class.muted]="!node.inGame"><app-game-icon [of]="node.resource" />{{ names.item(node.resource) }}</td>
+          <td mat-cell *matCellDef="let node" [class.muted]="!node.inGame">
+            <app-game-icon [of]="node.resource" />{{ names.item(node.resource) }}
+          </td>
         </ng-container>
         <ng-container matColumnDef="purity">
           <th mat-header-cell *matHeaderCellDef>Purity</th>

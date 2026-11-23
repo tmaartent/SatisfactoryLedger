@@ -20,7 +20,12 @@ describe('selecting machines for a factory', () => {
 
   describe('a box dragged on screen', () => {
     it('is the same whichever corner the drag starts from', () => {
-      expect(rectBetween({ x: 300, y: 50 }, { x: 100, y: 200 })).toEqual({ left: 100, top: 50, right: 300, bottom: 200 });
+      expect(rectBetween({ x: 300, y: 50 }, { x: 100, y: 200 })).toEqual({
+        left: 100,
+        top: 50,
+        right: 300,
+        bottom: 200,
+      });
     });
 
     const box = { left: 100, top: 100, right: 200, bottom: 200 };
@@ -31,11 +36,17 @@ describe('selecting machines for a factory', () => {
     ];
 
     it('adds every machine inside it, with shift', () => {
-      expect([...boxSelect(new Set(['kept']), onScreen, box, 'add')]).toEqual(['kept', 'inside', 'on-the-edge']);
+      expect([...boxSelect(new Set(['kept']), onScreen, box, 'add')]).toEqual([
+        'kept',
+        'inside',
+        'on-the-edge',
+      ]);
     });
 
     it('takes out every machine inside it, with alt', () => {
-      expect([...boxSelect(new Set(['inside', 'outside']), onScreen, box, 'remove')]).toEqual(['outside']);
+      expect([...boxSelect(new Set(['inside', 'outside']), onScreen, box, 'remove')]).toEqual([
+        'outside',
+      ]);
     });
   });
 });

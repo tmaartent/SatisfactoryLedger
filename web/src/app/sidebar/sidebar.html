@@ -3,7 +3,12 @@
     <section class="tab" [attr.aria-label]="open.label">
       <header>
         <h2>{{ open.label }}</h2>
-        <button mat-icon-button (click)="tabs.collapsed.set(true)" aria-label="Collapse the sidebar" title="Collapse">
+        <button
+          mat-icon-button
+          (click)="tabs.collapsed.set(true)"
+          aria-label="Collapse the sidebar"
+          title="Collapse"
+        >
           <mat-icon>chevron_right</mat-icon>
         </button>
       </header>

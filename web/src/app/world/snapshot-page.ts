@@ -22,7 +22,18 @@ import { GameIcon } from '../shared/game-icon';
 /** One snapshot: what it holds, and its findings once the analysis is ready, its factories among them. */
 @Component({
   selector: 'app-snapshot-page',
-  imports: [GameIcon, DatePipe, RouterLink, MatButtonModule, MatIconModule, MatListModule, MatProgressBarModule, MatTabsModule, AnalysisStatusChip, FindingsView],
+  imports: [
+    GameIcon,
+    DatePipe,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatListModule,
+    MatProgressBarModule,
+    MatTabsModule,
+    AnalysisStatusChip,
+    FindingsView,
+  ],
   templateUrl: './snapshot-page.html',
 })
 export class SnapshotPage {
@@ -74,6 +85,7 @@ export class SnapshotPage {
   /** After asking; then back to the list. */
   protected async delete(): Promise<void> {
     const snapshot = this.snapshot.value();
-    if (snapshot && (await this.deletion.confirmAndDelete(snapshot))) await this.router.navigate(['/snapshots']);
+    if (snapshot && (await this.deletion.confirmAndDelete(snapshot)))
+      await this.router.navigate(['/snapshots']);
   }
 }

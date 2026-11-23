@@ -19,20 +19,38 @@ import { GameIcon } from '../../shared/game-icon';
  */
 @Component({
   selector: 'app-explain-panel',
-  imports: [GameIcon, DecimalPipe, NgTemplateOutlet, MatButtonModule, MatButtonToggleModule, MatIconModule, MatProgressBarModule, MatTooltipModule, RouterLink],
+  imports: [
+    GameIcon,
+    DecimalPipe,
+    NgTemplateOutlet,
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatIconModule,
+    MatProgressBarModule,
+    MatTooltipModule,
+    RouterLink,
+  ],
   templateUrl: './explain-panel.html',
   styleUrl: './explain-panel.scss',
 })
 export class ExplainPanel {
   protected readonly explainer = inject(Explainer);
 
-  protected readonly held = computed(() => (this.explainer.question()?.finding.limit === 'starved' ? 'starved' : 'output blocked'));
+  protected readonly held = computed(() =>
+    this.explainer.question()?.finding.limit === 'starved' ? 'starved' : 'output blocked',
+  );
   /** The model being asked, by what it runs. */
-  protected readonly modelName = computed(() => this.explainer.models().find((model) => model.key === this.explainer.model())?.model ?? 'the model');
+  protected readonly modelName = computed(
+    () =>
+      this.explainer.models().find((model) => model.key === this.explainer.model())?.model ??
+      'the model',
+  );
   protected readonly source = computed(() => {
     const explanation = this.explainer.explanation();
     if (!explanation) return '';
     return `${explanation.model ? `Written by ${explanation.model}` : "The trace's own note"}, from ${explanation.facts.tool}.`;
   });
-  protected readonly starts = computed(() => whereItStarts(this.explainer.explanation()?.facts.answer.starts ?? []));
+  protected readonly starts = computed(() =>
+    whereItStarts(this.explainer.explanation()?.facts.answer.starts ?? []),
+  );
 }

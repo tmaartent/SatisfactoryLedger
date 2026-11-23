@@ -20,7 +20,12 @@ export interface Area {
 
 /** The area between two corners of a rectangle drawn on the map, whichever corner the drawing started from. */
 export function areaBetween(a: Position, b: Position): Area {
-  return { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
+  return {
+    x0: Math.min(a.x, b.x),
+    y0: Math.min(a.y, b.y),
+    x1: Math.max(a.x, b.x),
+    y1: Math.max(a.y, b.y),
+  };
 }
 
 /**
@@ -29,16 +34,30 @@ export function areaBetween(a: Position, b: Position): Area {
  */
 export function areaAround(positions: readonly Position[], margin: number): Area | null {
   if (positions.length === 0) return null;
-  const [xs, ys, zs] = [positions.map((p) => p.x), positions.map((p) => p.y), positions.map((p) => p.z)];
+  const [xs, ys, zs] = [
+    positions.map((p) => p.x),
+    positions.map((p) => p.y),
+    positions.map((p) => p.z),
+  ];
   return {
-    x0: Math.min(...xs) - margin, y0: Math.min(...ys) - margin, x1: Math.max(...xs) + margin, y1: Math.max(...ys) + margin,
-    z0: Math.min(...zs) - margin, z1: Math.max(...zs) + margin,
+    x0: Math.min(...xs) - margin,
+    y0: Math.min(...ys) - margin,
+    x1: Math.max(...xs) + margin,
+    y1: Math.max(...ys) + margin,
+    z0: Math.min(...zs) - margin,
+    z1: Math.max(...zs) + margin,
   };
 }
 
 export function inArea(position: Position, area: Area): boolean {
-  return position.x >= area.x0 && position.x <= area.x1 && position.y >= area.y0 && position.y <= area.y1
-    && (area.z0 === undefined || position.z >= area.z0) && (area.z1 === undefined || position.z <= area.z1);
+  return (
+    position.x >= area.x0 &&
+    position.x <= area.x1 &&
+    position.y >= area.y0 &&
+    position.y <= area.y1 &&
+    (area.z0 === undefined || position.z >= area.z0) &&
+    (area.z1 === undefined || position.z <= area.z1)
+  );
 }
 
 /** A belt or pipe belongs to the area when any of its points lies inside it. */
@@ -54,7 +73,11 @@ function rotate(q: [number, number, number, number], v: Position): Position {
   const [x, y, z, w] = q;
   const c = { x: y * v.z - z * v.y, y: z * v.x - x * v.z, z: x * v.y - y * v.x };
   const cc = { x: y * c.z - z * c.y, y: z * c.x - x * c.z, z: x * c.y - y * c.x };
-  return { x: v.x + 2 * w * c.x + 2 * cc.x, y: v.y + 2 * w * c.y + 2 * cc.y, z: v.z + 2 * w * c.z + 2 * cc.z };
+  return {
+    x: v.x + 2 * w * c.x + 2 * cc.x,
+    y: v.y + 2 * w * c.y + 2 * cc.y,
+    z: v.z + 2 * w * c.z + 2 * cc.z,
+  };
 }
 
 /** A clearance box in the building's own coordinates: turned by its quaternion, then moved by its offset. */
@@ -63,8 +86,15 @@ export function volumeCorners(volume: VolumeDocument): Box {
   for (const x of [volume.minX, volume.maxX]) {
     for (const y of [volume.minY, volume.maxY]) {
       for (const z of [volume.minZ, volume.maxZ]) {
-        const turned = rotate([volume.rotationX, volume.rotationY, volume.rotationZ, volume.rotationW], { x, y, z });
-        corners.push({ x: turned.x + volume.offsetX, y: turned.y + volume.offsetY, z: turned.z + volume.offsetZ });
+        const turned = rotate(
+          [volume.rotationX, volume.rotationY, volume.rotationZ, volume.rotationW],
+          { x, y, z },
+        );
+        corners.push({
+          x: turned.x + volume.offsetX,
+          y: turned.y + volume.offsetY,
+          z: turned.z + volume.offsetZ,
+        });
       }
     }
   }
@@ -74,8 +104,19 @@ export function volumeCorners(volume: VolumeDocument): Box {
 /** A box from its lowest and highest corner, not turned. */
 function plainBox(min: Position, max: Position): Box {
   return volumeCorners({
-    minX: min.x, minY: min.y, minZ: min.z, maxX: max.x, maxY: max.y, maxZ: max.z,
-    rotationX: 0, rotationY: 0, rotationZ: 0, rotationW: 1, offsetX: 0, offsetY: 0, offsetZ: 0,
+    minX: min.x,
+    minY: min.y,
+    minZ: min.z,
+    maxX: max.x,
+    maxY: max.y,
+    maxZ: max.z,
+    rotationX: 0,
+    rotationY: 0,
+    rotationZ: 0,
+    rotationW: 1,
+    offsetX: 0,
+    offsetY: 0,
+    offsetZ: 0,
   });
 }
 
@@ -91,13 +132,20 @@ export function buildingBoxes(
   const local: Box[] = footprint?.volumes?.length
     ? footprint.volumes.map(volumeCorners)
     : footprint
-      ? [plainBox({ x: footprint.minX, y: footprint.minY, z: 0 }, { x: footprint.maxX, y: footprint.maxY, z: FlatFootprintHeight })]
+      ? [
+          plainBox(
+            { x: footprint.minX, y: footprint.minY, z: 0 },
+            { x: footprint.maxX, y: footprint.maxY, z: FlatFootprintHeight },
+          ),
+        ]
       : [plainBox({ x: -100, y: -100, z: 0 }, { x: 100, y: 100, z: 200 })];
 
   const turn = (building.yaw * Math.PI) / 180;
   const [cos, sin] = [Math.cos(turn), Math.sin(turn)];
   const { x, y, z } = building.position;
-  return local.map((box) => box.map((c) => ({ x: x + c.x * cos - c.y * sin, y: y + c.x * sin + c.y * cos, z: z + c.z })));
+  return local.map((box) =>
+    box.map((c) => ({ x: x + c.x * cos - c.y * sin, y: y + c.x * sin + c.y * cos, z: z + c.z })),
+  );
 }
 
 /**
@@ -107,11 +155,13 @@ export function buildingBoxes(
 export function fromAbove(box: Box): Position[] {
   // Andrew's monotone chain over the corners' x and y.
   const points = [...box].sort((a, b) => a.x - b.x || a.y - b.y);
-  const cross = (o: Position, a: Position, b: Position) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const cross = (o: Position, a: Position, b: Position) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
   const half = (sorted: Position[]) => {
     const hull: Position[] = [];
     for (const p of sorted) {
-      while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 1e-9) hull.pop();
+      while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 1e-9)
+        hull.pop();
       hull.push(p);
     }
     return hull.slice(0, -1);
@@ -124,7 +174,10 @@ export function fromAbove(box: Box): Position[] {
  * left-handed; three.js wants y up and is right-handed. Swapping y and z does both, and keeps north at the top when
  * looking down.
  */
-export function toScene(position: Position, middle: { x: number; y: number }): [number, number, number] {
+export function toScene(
+  position: Position,
+  middle: { x: number; y: number },
+): [number, number, number] {
   return [(position.x - middle.x) / 100, position.z / 100, (position.y - middle.y) / 100];
 }
 
@@ -140,8 +193,14 @@ export function sampleCurve3d(curve: CurvePointDocument[]): Position[] {
     const [leave, arrive] = [curve[i].leaveTangent, curve[i + 1].arriveTangent];
     for (let step = 1; step <= StepsPerStretch; step++) {
       const t = step / StepsPerStretch;
-      const [h00, h10, h01, h11] = [2 * t ** 3 - 3 * t ** 2 + 1, t ** 3 - 2 * t ** 2 + t, -2 * t ** 3 + 3 * t ** 2, t ** 3 - t ** 2];
-      const at = (a: 'x' | 'y' | 'z') => h00 * from[a] + h10 * leave[a] + h01 * to[a] + h11 * arrive[a];
+      const [h00, h10, h01, h11] = [
+        2 * t ** 3 - 3 * t ** 2 + 1,
+        t ** 3 - 2 * t ** 2 + t,
+        -2 * t ** 3 + 3 * t ** 2,
+        t ** 3 - t ** 2,
+      ];
+      const at = (a: 'x' | 'y' | 'z') =>
+        h00 * from[a] + h10 * leave[a] + h01 * to[a] + h11 * arrive[a];
       points.push({ x: at('x'), y: at('y'), z: at('z') });
     }
   }

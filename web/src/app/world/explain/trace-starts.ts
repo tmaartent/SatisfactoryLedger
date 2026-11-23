@@ -101,20 +101,33 @@ export function whereItStarts(starts: TraceStart[]): StartRow[] {
     add(row.at, start.at);
     add(row.held, way.held);
     add(row.others, start.others ?? []);
-    if (row.others.size > 0) row.othersLabel = start.cause === 'suppliedByOthers' ? 'Also supplied by' : 'Also taken by';
+    if (row.others.size > 0)
+      row.othersLabel = start.cause === 'suppliedByOthers' ? 'Also supplied by' : 'Also taken by';
   }
-  return [...rows.values()].map((row) => ({ ...row, at: places(row.at), held: places(row.held), others: places(row.others) }));
+  return [...rows.values()].map((row) => ({
+    ...row,
+    at: places(row.at),
+    held: places(row.held),
+    others: places(row.others),
+  }));
 }
 
 function needsOf(more: MoreCapacity): { what: string; perMinute: number } {
-  return { what: more.lines > 1 ? `${more.lines} lines of ${more.tier} side by side` : more.tier, perMinute: more.carriesPerMinute };
+  return {
+    what: more.lines > 1 ? `${more.lines} lines of ${more.tier} side by side` : more.tier,
+    perMinute: more.carriesPerMinute,
+  };
 }
 
 /**
  * The way from the machines asked about to a start: the machines of its last step, which the start holds back first,
  * and the items before the start's own, upstream joined by "←" (made from), downstream by "→" (goes on to).
  */
-function wayTo(start: TraceStart): { heldLabel: string | null; held: TraceBuildings[]; via: string | null } {
+function wayTo(start: TraceStart): {
+  heldLabel: string | null;
+  held: TraceBuildings[];
+  via: string | null;
+} {
   const last = start.path.at(-1);
   if (!last) return { heldLabel: null, held: [], via: null };
   const upstream = last.shortOf !== undefined;
@@ -125,7 +138,12 @@ function wayTo(start: TraceStart): { heldLabel: string | null; held: TraceBuildi
   if (items.at(-1) === start.item) items.pop();
   return {
     heldLabel: upstream ? 'Short of it' : "Can't get it away",
-    held: lastStep(start.path).map((step) => ({ building: step.building, recipe: step.recipe, count: step.machines, ids: step.ids })),
+    held: lastStep(start.path).map((step) => ({
+      building: step.building,
+      recipe: step.recipe,
+      count: step.machines,
+      ids: step.ids,
+    })),
     via: items.length > 0 ? items.join(upstream ? ' ← ' : ' → ') : null,
   };
 }
@@ -150,7 +168,14 @@ function itemOf(step: TraceStep): string {
 function add(places: Map<string, Merged>, groups: TraceBuildings[]): void {
   for (const group of groups) {
     const name = group.recipe ? `${group.building} (${group.recipe})` : group.building;
-    const place = places.get(name) ?? { name, building: group.building, count: 0, perMinute: null, focus: group.ids[0] ?? null, ids: new Set<string>() };
+    const place = places.get(name) ?? {
+      name,
+      building: group.building,
+      count: 0,
+      perMinute: null,
+      focus: group.ids[0] ?? null,
+      ids: new Set<string>(),
+    };
     places.set(name, place);
     const added = group.ids.filter((id) => !place.ids.has(id));
     if (group.ids.length > 0 && added.length === 0) continue;
@@ -161,5 +186,11 @@ function add(places: Map<string, Merged>, groups: TraceBuildings[]): void {
 }
 
 function places(merged: Map<string, Merged>): Place[] {
-  return [...merged.values()].map(({ name, building, count, perMinute, focus }) => ({ name, building, count, perMinute, focus }));
+  return [...merged.values()].map(({ name, building, count, perMinute, focus }) => ({
+    name,
+    building,
+    count,
+    perMinute,
+    focus,
+  }));
 }

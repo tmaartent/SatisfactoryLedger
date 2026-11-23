@@ -32,7 +32,17 @@ beforeEach(() => {
     nothing as CanvasRenderingContext2D,
   );
   // Nor does it lay anything out, so nothing is ever resized: an observer that never calls back.
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {
+        /* never calls back */
+      }
+      disconnect() {
+        /* nothing to stop */
+      }
+    },
+  );
 });
 
 // Leaflet redraws its canvas on the next animation frame. Removed before that frame, the map left it to draw on a
@@ -43,19 +53,40 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
   const answers = new Map<unknown, unknown>([
     [
       getResourceNodes,
-      [{ name: 'BP_ResourceNode1', resource: 'Desc_OreIron_C', purity: 'pure', position: { x: 1000, y: 2000, z: 0 } }],
+      [
+        {
+          name: 'BP_ResourceNode1',
+          resource: 'Desc_OreIron_C',
+          purity: 'pure',
+          position: { x: 1000, y: 2000, z: 0 },
+        },
+      ],
     ],
     [getSnapshot, { id, sessionName: 'Desert Start' }],
     [
       getWorldMap,
       {
         machines: [
-          { id: 'smelter-1', className: 'Build_SmelterMk1_C', recipe: 'Recipe_IngotIron_C', position: { x: 0, y: 0, z: 0 }, yaw: 0 },
+          {
+            id: 'smelter-1',
+            className: 'Build_SmelterMk1_C',
+            recipe: 'Recipe_IngotIron_C',
+            position: { x: 0, y: 0, z: 0 },
+            yaw: 0,
+          },
         ],
         conveyors: [],
         // A miner on the one resource node.
         providers: [
-          { id: 'miner-1', className: 'Build_MinerMk3_C', node: 'BP_ResourceNode1', resource: 'Desc_OreIron_C', purity: 'pure', position: { x: 1000, y: 2000, z: 0 }, yaw: 0 },
+          {
+            id: 'miner-1',
+            className: 'Build_MinerMk3_C',
+            node: 'BP_ResourceNode1',
+            resource: 'Desc_OreIron_C',
+            purity: 'pure',
+            position: { x: 1000, y: 2000, z: 0 },
+            yaw: 0,
+          },
         ],
         logistics: [],
         consumers: [],
@@ -81,11 +112,27 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
       Promise.resolve({
         status: 200,
         body: {
-          machines: [{ id: 'smelter-1', className: 'Build_SmelterMk1_C', recipe: 'Recipe_IngotIron_C', limit: 'starved', utilisation: 0.5, starvedOf: {}, blockedOn: {} }],
+          machines: [
+            {
+              id: 'smelter-1',
+              className: 'Build_SmelterMk1_C',
+              recipe: 'Recipe_IngotIron_C',
+              limit: 'starved',
+              utilisation: 0.5,
+              starvedOf: {},
+              blockedOn: {},
+            },
+          ],
           generators: [],
           bottlenecks: [],
           summary: { machines: 1, running: 0, starved: 1, outputBlocked: 0, noRecipe: 0 },
-          generatorSummary: { generators: 0, running: 0, starved: 0, outputBlocked: 0, fuelUnknown: 0 },
+          generatorSummary: {
+            generators: 0,
+            running: 0,
+            starved: 0,
+            outputBlocked: 0,
+            fuelUnknown: 0,
+          },
           settled: true,
         },
       }),
@@ -99,7 +146,10 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
       {
         provide: CatalogNames,
         // The game's icons, imported: Iron Ore has one.
-        useValue: { icon: (className: string) => (className === 'Desc_OreIron_C' ? '/api/v1/catalog/icons/Desc_OreIron_C' : null), iconOfItemNamed: () => null,
+        useValue: {
+          icon: (className: string) =>
+            className === 'Desc_OreIron_C' ? '/api/v1/catalog/icons/Desc_OreIron_C' : null,
+          iconOfItemNamed: () => null,
           item: (item: string) => item,
           building: (name: string) => name,
           recipe: (r: string) => r,
@@ -143,7 +193,9 @@ describe('the world map with no snapshot loaded', () => {
     const { element } = await render();
 
     const pin = element.querySelector('.node-pin') as HTMLElement | null;
-    expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Desc_OreIron_C');
+    expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe(
+      '/api/v1/catalog/icons/Desc_OreIron_C',
+    );
     // Pure: green, behind the icon.
     expect(pin?.style.getPropertyValue('--purity')).toBe('#43a047');
   });
@@ -167,7 +219,9 @@ describe('the world map with no snapshot loaded', () => {
   it('has the snapshots in the sidebar, and no factories there', async () => {
     const { tabs } = await render();
 
-    expect([...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Snapshots']);
+    expect(
+      [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Snapshots']);
     expect(tabs.querySelector('app-snapshots-sidebar')).not.toBeNull();
   });
 });
@@ -177,14 +231,19 @@ describe('the world map of a snapshot', () => {
     const { element } = await render('s1');
 
     const pin = element.querySelector('.node-pin') as HTMLElement | null;
-    expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Desc_OreIron_C');
+    expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe(
+      '/api/v1/catalog/icons/Desc_OreIron_C',
+    );
   });
 
   it('has no legend entry for the resource nodes: the pins speak for themselves', async () => {
     const { element } = await render('s1');
 
     const legend = element.querySelector('.legend')?.textContent ?? '';
-    expect([legend.includes('Free node'), legend.includes('Resource node')]).toEqual([false, false]);
+    expect([legend.includes('Free node'), legend.includes('Resource node')]).toEqual([
+      false,
+      false,
+    ]);
   });
 
   const names = (element: HTMLElement, selector: string) =>
@@ -193,7 +252,9 @@ describe('the world map of a snapshot', () => {
   it('opens the sidebar on the overview of its findings, with its factories and the snapshots in the tabs after it', async () => {
     const { tabs } = await render('snapshot-1');
 
-    expect([...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Info', 'Factories', 'Snapshots']);
+    expect(
+      [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Info', 'Factories', 'Snapshots']);
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
   });
 
@@ -208,7 +269,10 @@ describe('the world map of a snapshot', () => {
 
   it('marks the count clicked in the overview as shown, and lets go of it when a factory is picked', async () => {
     const { fixture, sidebar, tabs, open } = await render('snapshot-1');
-    const starved = () => [...tabs.querySelectorAll('.info mat-card')].find((card) => card.textContent?.includes('starved')) as HTMLElement;
+    const starved = () =>
+      [...tabs.querySelectorAll('.info mat-card')].find((card) =>
+        card.textContent?.includes('starved'),
+      ) as HTMLElement;
 
     starved().click();
     await fixture.whenStable();
@@ -240,7 +304,9 @@ describe('the world map of a snapshot', () => {
   it('offers to explain a held-back machine of no factory, in its tooltip', async () => {
     const { element } = await render('snapshot-1', null, 'smelter-1');
 
-    expect(element.querySelector('.leaflet-tooltip')?.textContent).toContain('Click to explain why');
+    expect(element.querySelector('.leaflet-tooltip')?.textContent).toContain(
+      'Click to explain why',
+    );
   });
 
   it('offers no factory to highlight that cannot be traced', async () => {

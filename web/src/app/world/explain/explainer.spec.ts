@@ -12,25 +12,45 @@ const local: ChatModel = { key: 'local', model: 'qwen2.5:7b' };
 const answer = (text: string): Explanation => ({
   text,
   model: 'qwen2.5:7b',
-  facts: { tool: 'trace_upstream', arguments: {}, answer: { building: 'Constructor', recipe: 'Iron Plate', machines: 3, traced: 2, starts: [] } },
+  facts: {
+    tool: 'trace_upstream',
+    arguments: {},
+    answer: { building: 'Constructor', recipe: 'Iron Plate', machines: 3, traced: 2, starts: [] },
+  },
   unsupportedNumbers: [],
 });
 
-const plates = { className: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' };
+const plates = {
+  className: 'Build_ConstructorMk1_C',
+  recipe: 'Recipe_IronPlate_C',
+  limit: 'starved',
+};
 const smelters = { className: 'Build_SmelterMk1_C', recipe: null, limit: 'outputBlocked' };
 
 /** Lets the explainer's calls answer: they're promises the test resolves at once. */
 const settled = () => new Promise((resolve) => setTimeout(resolve));
 
 describe('explaining a held-back machine, kept beside every page', () => {
-  function explainer(explain: (request: ExplanationRequest) => Promise<Explanation> = () => Promise.resolve(answer('Too few smelters.'))): Explainer {
+  function explainer(
+    explain: (request: ExplanationRequest) => Promise<Explanation> = () =>
+      Promise.resolve(answer('Too few smelters.')),
+  ): Explainer {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([{ path: '**', children: [] }]),
-        { provide: Assistant, useValue: { models: () => Promise.resolve([local]), explain: vi.fn(explain) } },
+        {
+          provide: Assistant,
+          useValue: { models: () => Promise.resolve([local]), explain: vi.fn(explain) },
+        },
         {
           provide: CatalogNames,
-          useValue: { icon: () => null, iconOfItemNamed: () => null, building: (id: string) => ({ Build_ConstructorMk1_C: 'Constructor', Build_SmelterMk1_C: 'Smelter' })[id] ?? id, recipe: (id: string) => ({ Recipe_IronPlate_C: 'Iron Plate' })[id] ?? id },
+          useValue: {
+            icon: () => null,
+            iconOfItemNamed: () => null,
+            building: (id: string) =>
+              ({ Build_ConstructorMk1_C: 'Constructor', Build_SmelterMk1_C: 'Smelter' })[id] ?? id,
+            recipe: (id: string) => ({ Recipe_IronPlate_C: 'Iron Plate' })[id] ?? id,
+          },
         },
       ],
     });
@@ -40,7 +60,11 @@ describe('explaining a held-back machine, kept beside every page', () => {
   it('explains starved and output-blocked machines, not running ones or ones without a recipe', () => {
     const explain = explainer();
 
-    expect(['starved', 'outputBlocked', 'none', 'noRecipe'].map((limit) => explain.explainable({ limit }))).toEqual([true, true, false, false]);
+    expect(
+      ['starved', 'outputBlocked', 'none', 'noRecipe'].map((limit) =>
+        explain.explainable({ limit }),
+      ),
+    ).toEqual([true, true, false, false]);
   });
 
   it('asks about the machines of its building and recipe, named as the game names them, with the first model', async () => {
@@ -50,10 +74,21 @@ describe('explaining a held-back machine, kept beside every page', () => {
     await settled();
 
     expect(explain.question()).toEqual({
-      finding: { snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' },
+      finding: {
+        snapshotId: 's1',
+        building: 'Build_ConstructorMk1_C',
+        recipe: 'Recipe_IronPlate_C',
+        limit: 'starved',
+      },
       machines: 'Constructor (Iron Plate)',
     });
-    expect(TestBed.inject(Assistant).explain).toHaveBeenCalledWith({ snapshotId: 's1', building: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved', model: 'local' });
+    expect(TestBed.inject(Assistant).explain).toHaveBeenCalledWith({
+      snapshotId: 's1',
+      building: 'Build_ConstructorMk1_C',
+      recipe: 'Recipe_IronPlate_C',
+      limit: 'starved',
+      model: 'local',
+    });
     expect(explain.explanation()?.text).toBe('Too few smelters.');
   });
 
@@ -68,7 +103,9 @@ describe('explaining a held-back machine, kept beside every page', () => {
   it('replaces the explanation with a new question, and drops the answer to the old one when it comes late', async () => {
     let answerPlates: (explanation: Explanation) => void = () => undefined;
     const explain = explainer((request) =>
-      request.building === 'Build_ConstructorMk1_C' ? new Promise((resolve) => (answerPlates = resolve)) : Promise.resolve(answer('Nothing takes the ingots.')),
+      request.building === 'Build_ConstructorMk1_C'
+        ? new Promise((resolve) => (answerPlates = resolve))
+        : Promise.resolve(answer('Nothing takes the ingots.')),
     );
 
     explain.explain(plates, 's1');
@@ -85,8 +122,20 @@ describe('explaining a held-back machine, kept beside every page', () => {
   it("shows the sidebar's Explanation tab, also when the sidebar was collapsed", () => {
     const explain = explainer();
     const sidebar = TestBed.inject(SidebarTabs);
-    sidebar.add({ key: 'info', label: 'Info', icon: 'info', order: 0, template: {} as TemplateRef<unknown> });
-    sidebar.add({ key: 'explanation', label: 'Explanation', icon: 'lightbulb', order: 9, template: {} as TemplateRef<unknown> });
+    sidebar.add({
+      key: 'info',
+      label: 'Info',
+      icon: 'info',
+      order: 0,
+      template: {} as TemplateRef<unknown>,
+    });
+    sidebar.add({
+      key: 'explanation',
+      label: 'Explanation',
+      icon: 'lightbulb',
+      order: 9,
+      template: {} as TemplateRef<unknown>,
+    });
     sidebar.collapsed.set(true);
 
     explain.explain(plates, 's1');

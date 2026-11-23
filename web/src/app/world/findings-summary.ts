@@ -44,7 +44,12 @@ export class FindingsSummary {
       { figure: summary.machines, label: 'machines' },
       { figure: summary.running, label: 'at 100%', tone: 'good', status: of('none') },
       { figure: summary.starved, label: 'starved', tone: 'bad', status: of('starved') },
-      { figure: summary.outputBlocked, label: 'output blocked', tone: 'bad', status: of('outputBlocked') },
+      {
+        figure: summary.outputBlocked,
+        label: 'output blocked',
+        tone: 'bad',
+        status: of('outputBlocked'),
+      },
       { figure: summary.noRecipe, label: 'without a recipe', status: of('noRecipe') },
     ];
   });
@@ -56,7 +61,12 @@ export class FindingsSummary {
       { figure: summary.generators, label: 'generators' },
       { figure: summary.running, label: 'at 100%', tone: 'good', status: of('none') },
       { figure: summary.starved, label: 'starved', tone: 'bad', status: of('starved') },
-      { figure: summary.outputBlocked, label: 'output blocked', tone: 'bad', status: of('outputBlocked') },
+      {
+        figure: summary.outputBlocked,
+        label: 'output blocked',
+        tone: 'bad',
+        status: of('outputBlocked'),
+      },
       // Not shown on the map: a generator whose fuel isn't known has no status there.
       { figure: summary.fuelUnknown, label: 'fuel unknown' },
     ];
@@ -69,7 +79,12 @@ export class FindingsSummary {
 
   protected isShown(count: Count): boolean {
     const shown = this.shown();
-    return !!shown && !!count.status && shown.of === count.status.of && shown.limit === count.status.limit;
+    return (
+      !!shown &&
+      !!count.status &&
+      shown.of === count.status.of &&
+      shown.limit === count.status.limit
+    );
   }
 
   protected toggle(count: Count): void {

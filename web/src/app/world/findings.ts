@@ -31,7 +31,16 @@ import { GameIcon } from '../shared/game-icon';
  * What the world's analysis and a factory's analysis have in common (BR-A9 to A13). Generators (BR-A15) are in both:
  * a factory has those chosen as its machines (BR-W2). Only the world's has drone ports (BR-A16).
  */
-export type Findings = Pick<AnalysisResponse, 'summary' | 'generatorSummary' | 'machines' | 'bottlenecks' | 'unusedSupply' | 'unknownSupply' | 'settled'> & {
+export type Findings = Pick<
+  AnalysisResponse,
+  | 'summary'
+  | 'generatorSummary'
+  | 'machines'
+  | 'bottlenecks'
+  | 'unusedSupply'
+  | 'unknownSupply'
+  | 'settled'
+> & {
   generators?: GeneratorFinding[];
   dronePorts?: DronePortFinding[];
 };
@@ -39,7 +48,8 @@ export type Findings = Pick<AnalysisResponse, 'summary' | 'generatorSummary' | '
 /** The findings of an analysis: a summary, then a tab per kind of finding. The API orders each list worst first. */
 @Component({
   selector: 'app-findings',
-  imports: [GameIcon, 
+  imports: [
+    GameIcon,
     DecimalPipe,
     MatButtonModule,
     MatButtonToggleModule,
@@ -61,7 +71,9 @@ export class FindingsView {
   private readonly explainer = inject(Explainer);
   readonly findings = input.required<Findings>();
   /** The generators tab shows only when there are any: most factories have none. */
-  protected readonly generators = computed(() => (this.findings().generators?.length ? this.findings().generators! : null));
+  protected readonly generators = computed(() =>
+    this.findings().generators?.length ? this.findings().generators! : null,
+  );
   /** The snapshot the findings are of: where they stand links to its map. Without it, positions are plain text. */
   readonly snapshotId = input<string>();
   /**
@@ -75,7 +87,10 @@ export class FindingsView {
   /** Each factory with its colour, the one its machines are edged in on the map and in 3D. */
   protected readonly factoryRows = computed(() => {
     const factories = this.factories() ?? [];
-    return factories.map((factory) => ({ ...factory, colour: factoryColour(factories, factory.factoryId) }));
+    return factories.map((factory) => ({
+      ...factory,
+      colour: factoryColour(factories, factory.factoryId),
+    }));
   });
   private readonly owners = computed(() => machineOwners(this.factories() ?? []));
 
@@ -84,7 +99,9 @@ export class FindingsView {
 
   protected readonly machines = computed(() => {
     const filter = this.limitFilter();
-    return this.findings().machines.filter((machine) => filter === 'all' || machine.limit === filter);
+    return this.findings().machines.filter(
+      (machine) => filter === 'all' || machine.limit === filter,
+    );
   });
   protected readonly machinesOnPage = computed(() => {
     const { pageIndex, pageSize } = this.page();
@@ -99,14 +116,18 @@ export class FindingsView {
   };
 
   protected readonly machineColumns = computed(() =>
-    this.factories() ? ['machine', 'factory', 'recipe', 'utilisation', 'limit', 'position'] : ['machine', 'recipe', 'utilisation', 'limit', 'position'],
+    this.factories()
+      ? ['machine', 'factory', 'recipe', 'utilisation', 'limit', 'position']
+      : ['machine', 'recipe', 'utilisation', 'limit', 'position'],
   );
   protected readonly factoryColumns = ['factory', 'machines', 'makes', 'needs', 'actions'];
   protected readonly bottleneckColumns = ['belt', 'flow', 'offeredMore', 'position'];
   protected readonly unusedColumns = ['source', 'item', 'delivered', 'offered', 'position'];
   protected readonly unknownColumns = ['source', 'delivered', 'stock', 'position'];
   protected readonly generatorColumns = computed(() =>
-    this.factories() ? ['generator', 'factory', 'fuel', 'utilisation', 'limit', 'position'] : ['generator', 'fuel', 'utilisation', 'limit', 'position'],
+    this.factories()
+      ? ['generator', 'factory', 'fuel', 'utilisation', 'limit', 'position']
+      : ['generator', 'fuel', 'utilisation', 'limit', 'position'],
   );
   protected readonly dronePortColumns = ['port', 'fuel', 'burns', 'supplied', 'position'];
 
@@ -135,7 +156,11 @@ export class FindingsView {
 
   /** The items a factory's outputs or inputs carry, each once, by name. */
   protected itemsOf(connections: ConnectionSummary[]): string {
-    return [...new Set(connections.flatMap((connection) => connection.items))].map((item) => this.names.item(item)).join(', ') || '—';
+    return (
+      [...new Set(connections.flatMap((connection) => connection.items))]
+        .map((item) => this.names.item(item))
+        .join(', ') || '—'
+    );
   }
 
   /** Whether a machine is held back in a way the Assistant explains: starved or output blocked (ADR-0030). */

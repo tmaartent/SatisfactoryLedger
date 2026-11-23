@@ -4,16 +4,24 @@ import { CatalogNames } from './catalog-names';
 import { GameIcon } from './game-icon';
 
 describe("the game's icon beside a name", () => {
-  async function render(inputs: { of?: string; itemNamed?: string; buildingNamed?: string; size?: number }) {
+  async function render(inputs: {
+    of?: string;
+    itemNamed?: string;
+    buildingNamed?: string;
+    size?: number;
+  }) {
     TestBed.configureTestingModule({
       imports: [GameIcon],
       providers: [
         {
           provide: CatalogNames,
           useValue: {
-            icon: (className: string) => (className === 'Desc_OreIron_C' ? '/api/v1/catalog/icons/Desc_OreIron_C' : null),
-            iconOfItemNamed: (name: string) => (name === 'Iron Ore' ? '/api/v1/catalog/icons/Desc_OreIron_C' : null),
-            iconOfBuildingNamed: (name: string) => (name === 'Miner Mk.3' ? '/api/v1/catalog/icons/Build_MinerMk3_C' : null),
+            icon: (className: string) =>
+              className === 'Desc_OreIron_C' ? '/api/v1/catalog/icons/Desc_OreIron_C' : null,
+            iconOfItemNamed: (name: string) =>
+              name === 'Iron Ore' ? '/api/v1/catalog/icons/Desc_OreIron_C' : null,
+            iconOfBuildingNamed: (name: string) =>
+              name === 'Miner Mk.3' ? '/api/v1/catalog/icons/Build_MinerMk3_C' : null,
           },
         },
       ],
