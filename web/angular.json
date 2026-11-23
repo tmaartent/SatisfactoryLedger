@@ -3,7 +3,8 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "analytics": false
+    "analytics": false,
+    "schematicCollections": ["angular-eslint"]
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -30,13 +31,8 @@
                 "input": "public"
               }
             ],
-            "styles": [
-              "node_modules/leaflet/dist/leaflet.css",
-              "src/styles.scss"
-            ],
-            "allowedCommonJsDependencies": [
-              "leaflet"
-            ]
+            "styles": ["node_modules/leaflet/dist/leaflet.css", "src/styles.scss"],
+            "allowedCommonJsDependencies": ["leaflet"]
           },
           "configurations": {
             "production": {
@@ -79,6 +75,12 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+          }
         }
       }
     }

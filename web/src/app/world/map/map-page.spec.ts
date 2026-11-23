@@ -32,7 +32,7 @@ beforeEach(() => {
     nothing as CanvasRenderingContext2D,
   );
   // Nor does it lay anything out, so nothing is ever resized: an observer that never calls back.
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('ResizeObserver', class { observe() { /* never calls back */ } disconnect() { /* nothing to stop */ } });
 });
 
 // Leaflet redraws its canvas on the next animation frame. Removed before that frame, the map left it to draw on a
