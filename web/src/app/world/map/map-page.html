@@ -15,9 +15,6 @@
       <mat-icon>view_in_ar</mat-icon>
       Open an area in 3D
     </button>
-    <mat-slide-toggle [checked]="showNodes()" (change)="showNodes.set($event.checked)"
-      >Resource nodes</mat-slide-toggle
-    >
   } @else {
     <span class="muted"
       >The resource nodes; import a save, or pick a snapshot, to see what's built.</span
@@ -69,11 +66,17 @@
           [findings]="findings"
           [selectable]="true"
           [shown]="shownStatus()"
+          [bottlenecks]="findings.bottlenecks.length"
           (show)="showStatus($event)"
         />
         <p class="muted">
           Click a count to show those buildings on the map; click it again to show all.
         </p>
+        <!-- What the snapshot holds, as the findings page says it (asked 2026-11-23). -->
+        @if (snapshot.value(); as shown) {
+          <h3>What it holds</h3>
+          <app-what-it-holds [counts]="shown.counts" />
+        }
       } @else {
         <mat-progress-bar mode="indeterminate" />
         <p class="muted">The analysis service is simulating the world.</p>
@@ -108,7 +111,115 @@
     </nav>
   </ng-template>
 }
-<!-- The import of a save and every snapshot, in the sidebar (asked 2026-11-22): the map gets the width. -->
-<ng-template appSidebarTab="snapshots" label="Snapshots" icon="folder_open" [order]="1">
-  <app-snapshots-sidebar [current]="id()" />
+<!--
+  The resource nodes by kind (asked 2026-11-23): a row per resource, a cell per purity from impure to pure, each the
+  node's pin head. A click hides that kind on the map, or shows it again; a shown kind is edged in its purity's colour.
+-->
+<ng-template appSidebarTab="nodes" label="Resource nodes" icon="landscape" [order]="2">
+  <section class="node-kinds">
+    <div class="all">
+      <button mat-stroked-button type="button" (click)="hiddenNodes.showAll()">Show all</button>
+      <button mat-stroked-button type="button" (click)="hideAllNodes()">Hide all</button>
+    </div>
+    <div class="head">
+      @for (purity of purities; track purity) {
+        <span>{{ purity }}</span>
+      }
+    </div>
+    @for (kind of nodeKinds(); track kind.resource) {
+      <div class="row">
+        @for (purity of purities; track purity) {
+          @if (kind.counts[purity] > 0) {
+            @let shown = !hiddenNodes.hidden().has(nodeKey(kind.resource, purity));
+            <button
+              type="button"
+              class="kind"
+              [class.shown]="shown"
+              [style.--purity]="purityColour(purity)"
+              [attr.aria-pressed]="shown"
+              [attr.aria-label]="nodeKindLabel(kind.resource, purity, kind.counts[purity])"
+              [title]="nodeKindLabel(kind.resource, purity, kind.counts[purity])"
+              (click)="hiddenNodes.toggle(nodeKey(kind.resource, purity))"
+            >
+              <span class="badge" [style.--purity]="purityColour(purity)">
+                @if (resourceIcon(kind.resource); as icon) {
+                  <img [src]="icon" alt="" />
+                }
+              </span>
+            </button>
+          } @else {
+            <span class="none"></span>
+          }
+        }
+      </div>
+    } @empty {
+      <p class="muted">
+        The Catalog has no resource nodes yet: import the map tool's table on the Catalog page.
+      </p>
+    }
+  </section>
 </ng-template>
+@if (id(); as id) {
+  <!-- What the findings page lists of the supply, in the sidebar (asked 2026-11-23); an entry clicked is focused on the map. -->
+  <ng-template appSidebarTab="unused" label="Unused supply" icon="savings" [order]="0.2">
+    <section class="supply">
+      <p class="muted">
+        Miners, extractors and stations that could give more than is taken from them, the most left
+        first.
+      </p>
+      <ul>
+        @for (supply of unusedSupply(); track supply.id) {
+          <li>
+            <a [routerLink]="[]" [queryParams]="{ focus: supply.id }" queryParamsHandling="merge">
+              <app-game-icon [of]="supply.className" [size]="24" />{{
+                buildingName(supply.className)
+              }}
+            </a>
+            <div>
+              <app-game-icon [of]="supply.item" [size]="20" />{{ itemName(supply.item) }}
+              <span class="muted"
+                >· gives {{ perMinute(supply.delivered) }} of {{ perMinute(supply.offered) }}</span
+              >
+            </div>
+          </li>
+        } @empty {
+          <li class="muted">None: every source gives all it can, or the analysis isn't ready.</li>
+        }
+      </ul>
+    </section>
+  </ng-template>
+
+  <ng-template appSidebarTab="unknown" label="Unknown supply" icon="help_outline" [order]="0.4">
+    <section class="supply">
+      <p class="muted">
+        Stations and storage whose rate the save doesn't tell. The analysis assumes they give what
+        is asked of them, up to their belts.
+      </p>
+      <ul>
+        @for (supply of unknownSupply(); track supply.id) {
+          <li>
+            <a [routerLink]="[]" [queryParams]="{ focus: supply.id }" queryParamsHandling="merge">
+              <app-game-icon [of]="supply.className" [size]="24" />{{
+                buildingName(supply.className)
+              }}
+            </a>
+            @if (supply.confirmed) {
+              <span class="muted"> · its stock confirms it can</span>
+            }
+            @for (delivery of deliveries(supply.delivered); track delivery.item) {
+              <div>
+                <app-game-icon [of]="delivery.item" [size]="20" />{{ itemName(delivery.item) }}
+                <span class="muted">· {{ perMinute(delivery.rate) }}</span>
+              </div>
+            }
+            @if (supply.stockMinutes !== null) {
+              <div class="muted">Stock lasts {{ supply.stockMinutes | number: '1.0-0' }} min</div>
+            }
+          </li>
+        } @empty {
+          <li class="muted">None, or the analysis isn't ready.</li>
+        }
+      </ul>
+    </section>
+  </ng-template>
+}

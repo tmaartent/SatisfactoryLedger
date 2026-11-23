@@ -6,7 +6,6 @@ import { Api } from '../../api/api';
 import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
-import { getSnapshots } from '../../api/fn/world/get-snapshots';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FactoryTrace } from '../../api/models/factory-trace';
@@ -62,7 +61,20 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
         },
       ],
     ],
-    [getSnapshot, { id, sessionName: 'Desert Start' }],
+    [
+      getSnapshot,
+      {
+        id,
+        sessionName: 'Desert Start',
+        counts: {
+          machines: 2425,
+          logistics: 38699,
+          providers: 416,
+          consumers: 693,
+          connections: 39228,
+        },
+      },
+    ],
     [
       getWorldMap,
       {
@@ -125,6 +137,29 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
           ],
           generators: [],
           bottlenecks: [],
+          // A miner that could give more, and a freight platform whose rate the save doesn't tell.
+          unusedSupply: [
+            {
+              id: 'miner-1',
+              className: 'Build_MinerMk3_C',
+              item: 'Desc_OreIron_C',
+              delivered: 120,
+              offered: 480,
+              position: { x: 1000, y: 2000, z: 0 },
+              approximate: false,
+            },
+          ],
+          unknownSupply: [
+            {
+              id: 'platform-1',
+              className: 'Build_TrainDockingStation_C',
+              confirmed: true,
+              delivered: { Desc_OreIron_C: 60 },
+              stockMinutes: 12,
+              position: null,
+              approximate: false,
+            },
+          ],
           summary: { machines: 1, running: 0, starved: 1, outputBlocked: 0, noRecipe: 0 },
           generatorSummary: {
             generators: 0,
@@ -138,6 +173,8 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
       }),
     ),
   };
+  // Which kinds of node are hidden is kept in the browser: every test starts with none hidden.
+  localStorage.clear();
   TestBed.configureTestingModule({
     imports: [MapPage],
     providers: [
@@ -165,9 +202,10 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
   await fixture.whenStable();
   await sidebar.whenStable();
   const tabs = sidebar.nativeElement as HTMLElement;
-  /** Opens a tab of the sidebar by its icon on the rail. */
+  /** Opens a tab of the sidebar by its icon on the rail; an open one stays open (a click would collapse it). */
   const open = async (label: string) => {
-    (tabs.querySelector(`.rail button[aria-label="${label}"]`) as HTMLButtonElement).click();
+    const icon = tabs.querySelector(`.rail button[aria-label="${label}"]`) as HTMLButtonElement;
+    if (icon.getAttribute('aria-pressed') !== 'true') icon.click();
     await fixture.whenStable();
     await sidebar.whenStable();
   };
@@ -175,17 +213,66 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
 }
 
 describe('the world map with no snapshot loaded', () => {
-  it('asks for the resource nodes and the snapshots beside it, nothing of a snapshot', async () => {
+  const cells = (tabs: HTMLElement) =>
+    Array.from(tabs.querySelectorAll<HTMLButtonElement>('.node-kinds button.kind'));
+
+  it('has a tab of the resource nodes: a row per resource, a cell per purity from impure to pure', async () => {
+    const { tabs, open } = await render();
+
+    await open('Resource nodes');
+
+    expect(tabs.querySelectorAll('.node-kinds .row')).toHaveLength(1);
+    // Iron Ore has a pure node only: no cell to click for impure or normal.
+    expect(cells(tabs).map((cell) => cell.getAttribute('aria-label'))).toEqual([
+      'Pure Desc_OreIron_C · 1 node',
+    ]);
+    const badge = cells(tabs)[0].querySelector('.badge') as HTMLElement;
+    expect(badge.querySelector('img')?.getAttribute('src')).toBe(
+      '/api/v1/catalog/icons/Desc_OreIron_C',
+    );
+    expect(badge.style.getPropertyValue('--purity')).toBe('#43a047');
+  });
+
+  it('hides that kind of node from the map when its cell is clicked, and shows it again on a second click', async () => {
+    const { fixture, element, tabs, open } = await render();
+    await open('Resource nodes');
+    const cell = cells(tabs)[0];
+    expect(cell.getAttribute('aria-pressed')).toBe('true');
+
+    cell.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).toBeNull();
+    expect(cell.getAttribute('aria-pressed')).toBe('false');
+
+    cell.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).not.toBeNull();
+  });
+
+  it('hides every node at once, and shows them all again', async () => {
+    const { fixture, element, tabs, open } = await render();
+    await open('Resource nodes');
+    const button = (label: string) =>
+      Array.from(tabs.querySelectorAll<HTMLButtonElement>('.node-kinds .all button')).find(
+        (candidate) => candidate.textContent?.trim() === label,
+      ) as HTMLButtonElement;
+
+    button('Hide all').click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).toBeNull();
+
+    button('Show all').click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).not.toBeNull();
+  });
+
+  it('asks for the resource nodes, nothing of a snapshot', async () => {
     const { api } = await render();
 
-    expect(api.invoke.mock.calls.map(([fn]) => fn)).toEqual(
-      expect.arrayContaining([getResourceNodes, getSnapshots]),
+    expect(api.invoke.mock.calls.map(([fn]) => fn)).toContain(getResourceNodes);
+    expect(api.invoke.mock.calls.every(([fn]) => fn === getResourceNodes || fn === getMapArt)).toBe(
+      true,
     );
-    expect(
-      api.invoke.mock.calls.every(
-        ([fn]) => fn === getResourceNodes || fn === getSnapshots || fn === getMapArt,
-      ),
-    ).toBe(true);
     expect(api.invoke$Response).not.toHaveBeenCalled();
   });
 
@@ -216,17 +303,41 @@ describe('the world map with no snapshot loaded', () => {
     expect(element.querySelector('.factories')).toBeNull();
   });
 
-  it('has the snapshots in the sidebar, and no factories there', async () => {
+  it('has the resource nodes in the sidebar, and no factories there', async () => {
     const { tabs } = await render();
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual(['Snapshots']);
-    expect(tabs.querySelector('app-snapshots-sidebar')).not.toBeNull();
+    ).toEqual(['Resource nodes']);
   });
 });
 
 describe('the world map of a snapshot', () => {
+  it('lists the unused supply in a tab: each source, its item, what it gives of what it could, linked to it on the map', async () => {
+    const { tabs, open } = await render('s1');
+
+    await open('Unused supply');
+
+    const entries = [...tabs.querySelectorAll('.supply li')];
+    expect(entries).toHaveLength(1);
+    expect(entries[0].textContent).toContain('Build_MinerMk3_C');
+    expect(entries[0].textContent).toContain('Desc_OreIron_C');
+    expect(entries[0].textContent).toMatch(/120.*of.*480/);
+    expect(entries[0].querySelector('a')?.getAttribute('href')).toContain('focus=miner-1');
+  });
+
+  it('lists the unknown supply in a tab: each source and what it is assumed to give', async () => {
+    const { tabs, open } = await render('s1');
+
+    await open('Unknown supply');
+
+    const entries = [...tabs.querySelectorAll('.supply li')];
+    expect(entries).toHaveLength(1);
+    expect(entries[0].textContent).toContain('Build_TrainDockingStation_C');
+    expect(entries[0].textContent).toMatch(/Desc_OreIron_C.*60/);
+    expect(entries[0].querySelector('a')?.getAttribute('href')).toContain('focus=platform-1');
+  });
+
   it('draws a pin for a resource node a miner stands on too, saying what stands on it', async () => {
     const { element } = await render('s1');
 
@@ -249,13 +360,19 @@ describe('the world map of a snapshot', () => {
   const names = (element: HTMLElement, selector: string) =>
     [...element.querySelectorAll(selector)].map((entry) => entry.textContent?.trim());
 
-  it('opens the sidebar on the overview of its findings, with its factories and the snapshots in the tabs after it', async () => {
+  it('opens the sidebar on the overview of its findings, with its factories and supply in the tabs after it', async () => {
     const { tabs } = await render('snapshot-1');
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual(['Info', 'Factories', 'Snapshots']);
+    ).toEqual(['Info', 'Factories', 'Unused supply', 'Unknown supply', 'Resource nodes']);
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
+  });
+
+  it('says under the overview what the snapshot holds', async () => {
+    const { tabs } = await render('snapshot-1');
+
+    expect(tabs.querySelector('.info app-what-it-holds')?.textContent).toMatch(/2425\s*machines/);
   });
 
   it('lists its factories in the sidebar, not beside the map', async () => {

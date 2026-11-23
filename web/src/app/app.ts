@@ -11,6 +11,7 @@ import { SidebarTab } from './sidebar/sidebar-tab';
 import { SidebarTabs } from './sidebar/sidebar-tabs';
 import { ExplainPanel } from './world/explain/explain-panel';
 import { LastSnapshot } from './world/last-snapshot';
+import { SnapshotPicker } from './world/snapshot-picker';
 
 /**
  * The shell: a toolbar with the two areas, World (its map) and Catalog, the page below it, and on its right the sidebar
@@ -28,6 +29,7 @@ import { LastSnapshot } from './world/last-snapshot';
     Sidebar,
     SidebarTab,
     ExplainPanel,
+    SnapshotPicker,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -51,16 +53,16 @@ export class App {
     return last ? ['/snapshots', last, 'map'] : ['/snapshots'];
   });
 
+  /** The snapshot the page is about, from its URL; null on the World's start and outside the World. */
+  protected readonly snapshotId = computed(
+    () => /^\/snapshots\/([^/?#]+)/.exec(this.url())?.[1] ?? null,
+  );
+
   constructor() {
     // Any page of a snapshot, its map, 3D view or a factory, makes it the one looked at.
     effect(() => {
-      const id = /^\/snapshots\/([^/?#]+)/.exec(this.url())?.[1];
+      const id = this.snapshotId();
       if (id) this.lastSnapshot.remember(id);
     });
-  }
-
-  /** Back to the World, on the Snapshots tab: to pick another one (asked 2026-11-23). */
-  protected goToWorld(): void {
-    this.sidebar.show('snapshots');
   }
 }

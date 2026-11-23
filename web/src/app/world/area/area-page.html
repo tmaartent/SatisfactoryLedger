@@ -48,6 +48,9 @@
       @for (entry of statusLegend; track entry.status) {
         <span><span class="dot" [style.background]="entry.colour"></span>{{ entry.label }}</span>
       }
+      <span
+        ><span class="line" [style.background]="troubleColour"></span>Bottleneck or loose end</span
+      >
     </div>
     @if (dragBox(); as box) {
       <div
@@ -269,6 +272,11 @@
         <p>
           Carries {{ perMinute(bottleneck.flow) }} of {{ perMinute(bottleneck.capacity) }},
           {{ perMinute(bottleneck.offeredMore) }} more offered.
+        </p>
+      }
+      @if (conveyor.looseEnds > 0) {
+        <p class="status bottleneck">
+          {{ conveyor.looseEnds === 1 ? 'One end' : 'Both ends' }} connected to nothing
         </p>
       }
       @if (conveyor.contents) {

@@ -1,34 +1,42 @@
-@if (tabs.current(); as open) {
-  @if (!tabs.collapsed()) {
-    <section class="tab" [attr.aria-label]="open.label">
-      <header>
-        <h2>{{ open.label }}</h2>
+<!-- What the shell puts above the tabs: on a World page, the snapshot they're all about (asked 2026-11-23). -->
+<div class="above">
+  <ng-content />
+</div>
+<div class="panes">
+  @if (tabs.current(); as open) {
+    @if (!tabs.collapsed()) {
+      <section class="tab" [attr.aria-label]="open.label">
+        <!-- The tab's icon and title in a band of its own, so it stands apart from what the tab shows (asked 2026-11-23). -->
+        <header>
+          <mat-icon class="tab-icon">{{ open.icon }}</mat-icon>
+          <h2>{{ open.label }}</h2>
+          <button
+            mat-icon-button
+            (click)="tabs.collapsed.set(true)"
+            aria-label="Collapse the sidebar"
+            title="Collapse"
+          >
+            <mat-icon>chevron_right</mat-icon>
+          </button>
+        </header>
+        <div class="body">
+          <ng-container *ngTemplateOutlet="open.template" />
+        </div>
+      </section>
+    }
+    <nav class="rail" aria-label="Sidebar">
+      @for (tab of tabs.tabs(); track tab) {
         <button
           mat-icon-button
-          (click)="tabs.collapsed.set(true)"
-          aria-label="Collapse the sidebar"
-          title="Collapse"
+          [class.active]="tab === open && !tabs.collapsed()"
+          [attr.aria-pressed]="tab === open && !tabs.collapsed()"
+          [attr.aria-label]="tab.label"
+          [title]="tab.label"
+          (click)="tabs.toggle(tab.key)"
         >
-          <mat-icon>chevron_right</mat-icon>
+          <mat-icon>{{ tab.icon }}</mat-icon>
         </button>
-      </header>
-      <div class="body">
-        <ng-container *ngTemplateOutlet="open.template" />
-      </div>
-    </section>
+      }
+    </nav>
   }
-  <nav class="rail" aria-label="Sidebar">
-    @for (tab of tabs.tabs(); track tab) {
-      <button
-        mat-icon-button
-        [class.active]="tab === open && !tabs.collapsed()"
-        [attr.aria-pressed]="tab === open && !tabs.collapsed()"
-        [attr.aria-label]="tab.label"
-        [title]="tab.label"
-        (click)="tabs.toggle(tab.key)"
-      >
-        <mat-icon>{{ tab.icon }}</mat-icon>
-      </button>
-    }
-  </nav>
-}
+</div>

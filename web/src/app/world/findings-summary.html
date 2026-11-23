@@ -10,6 +10,13 @@
     }
   </div>
 }
+@if (bottleneckCounts().length > 0) {
+  <div class="summary">
+    @for (count of bottleneckCounts(); track count.label) {
+      <ng-container *ngTemplateOutlet="card; context: { $implicit: count }" />
+    }
+  </div>
+}
 @if (!findings().settled) {
   <p class="warning">
     <mat-icon>warning</mat-icon> Part of the network didn't settle: findings marked

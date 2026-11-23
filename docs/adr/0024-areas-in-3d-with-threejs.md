@@ -33,3 +33,12 @@ Everything needed is in a snapshot already: each building's height, belt and pip
 A factory's 3D view showed its rectangle at every height, so the factory on the floor above Concrete Below was drawn with it. Decided by the owner:
 - **A factory's area is a box:** 15 m past its machines' boxes on every side, below and above too. Only what stands inside is drawn, and belts and pipes are cut off at its sides, floor and roof (three.js clipping planes), so a long belt out stops there. An area drawn on the map keeps every height, and its belts run on, as before.
 - **Inside the box, what isn't connected to the factory is faded** (see-through, still clickable, so a neighbouring machine can still be added while editing). Connected (`FactoryDefinition.ConnectedIn`, returned by the factory preview as `connected`): its machines and everything reached from them through logistics, owned or shared, up to the sinks, miners and containers at the lines' ends; the walk stops at another machine. A miner is reached only when nothing but logistics lies between: ore that comes through another factory's smelters stops at those (Reinforced Iron Plates reaches none). And only what's inside the box is drawn. Not only what it owns: a line it shares with another factory, into a sink, is connected too (found on Concrete Below, 2026-11-23).
+
+## Amendment 2026-11-23: bottlenecks and loose ends in red
+Finding a bottleneck went: the map, a rectangle around it, the 3D view, and then looking for the belt. Decided by the owner:
+- **A bottleneck is red in 3D,** as on the map (BR-A12): belt, lift or pipe.
+- **So is a belt, lift or pipe with a loose end**, an end connected to nothing, in the same red: both say *look at this line*, and its Info panel says which (*Bottleneck*, *One end connected to nothing*).
+  - The save stores what each connector is linked to, or that it's linked to nothing; the import used to keep only the links. It now counts each conveyor's loose ends (`SavedLogistics.LooseEnds`), the snapshot keeps them (version 14), and the map response passes them on (`MapConveyor.LooseEnds`). Working them out afterwards from the links kept would have failed on pipes, which the import folds into a network hub (BR-A6).
+  - A snapshot imported before shows none: the save has to be imported again.
+- Tubes are merged per colour, not per kind, so a red belt is its own mesh (`tubeColour`). The legend says what red means.
+

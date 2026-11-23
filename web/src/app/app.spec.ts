@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
-import { TemplateRef } from '@angular/core';
 import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 
+import { Api } from './api/api';
+import { getSnapshots } from './api/fn/world/get-snapshots';
 import { App } from './app';
-import { SidebarTabs } from './sidebar/sidebar-tabs';
 import { CatalogNames } from './shared/catalog-names';
 import { Assistant } from './world/explain/assistant';
 import { Explainer } from './world/explain/explainer';
@@ -25,6 +25,14 @@ describe('App', () => {
           { path: 'snapshots/:id/map', component: EmptyPage },
           { path: 'catalog', component: EmptyPage },
         ]),
+        // The snapshots the picker above the sidebar lists.
+        {
+          provide: Api,
+          useValue: {
+            invoke: (fn: unknown) =>
+              Promise.resolve(fn === getSnapshots ? [{ id: 's1', sessionName: 'Learning' }] : []),
+          },
+        },
         {
           provide: Assistant,
           useValue: {
@@ -109,18 +117,16 @@ describe('App', () => {
     expect(element.querySelector('mat-toolbar nav a')?.getAttribute('href')).toBe('/snapshots');
   });
 
-  it('shows the snapshots in the sidebar when going back to the world', async () => {
-    const { fixture, element } = await render('/catalog');
-    const tabs = TestBed.inject(SidebarTabs);
-
-    (element.querySelector('mat-toolbar nav a') as HTMLElement).click();
+  it("has the snapshot picker above the sidebar's tabs on a World page, naming the snapshot shown", async () => {
+    const { fixture, sidebar } = await render('/snapshots/s1/map');
+    // Its code loads once the page is up (@defer): load it now.
+    for (const deferred of await fixture.getDeferBlocks())
+      await deferred.render(DeferBlockState.Complete);
     await fixture.whenStable();
-    // The map's tabs, as it adds them.
-    const template = {} as TemplateRef<unknown>;
-    tabs.add({ key: 'info', label: 'Info', icon: 'info', order: -1, template });
-    tabs.add({ key: 'snapshots', label: 'Snapshots', icon: 'folder_open', order: 1, template });
 
-    expect(tabs.current()?.key).toBe('snapshots');
+    const picker = sidebar()?.querySelector('app-snapshot-picker');
+    expect(picker?.closest('.tab')).toBeNull();
+    expect(picker?.querySelector('button.current')?.textContent).toContain('Learning');
   });
 
   it('has no sidebar in the Catalog, which has no tabs', async () => {

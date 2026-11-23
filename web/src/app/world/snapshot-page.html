@@ -54,32 +54,7 @@
 
     <mat-tab label="What it holds">
       <div class="tab-body">
-        <mat-list>
-          <mat-list-item
-            ><span matListItemTitle>{{ s.counts.machines }}</span
-            ><span matListItemLine>machines</span></mat-list-item
-          >
-          <mat-list-item
-            ><span matListItemTitle>{{ s.counts.logistics }}</span
-            ><span matListItemLine>belts, pipes, splitters and mergers</span></mat-list-item
-          >
-          <mat-list-item
-            ><span matListItemTitle>{{ s.counts.providers }}</span
-            ><span matListItemLine
-              >providers: miners, extractors and stations that bring items in</span
-            ></mat-list-item
-          >
-          <mat-list-item
-            ><span matListItemTitle>{{ s.counts.consumers }}</span
-            ><span matListItemLine
-              >consumers: sinks, generators and stations that load</span
-            ></mat-list-item
-          >
-          <mat-list-item
-            ><span matListItemTitle>{{ s.counts.connections }}</span
-            ><span matListItemLine>connections</span></mat-list-item
-          >
-        </mat-list>
+        <app-what-it-holds [counts]="s.counts" />
         @if (s.unknownRecipes.length > 0) {
           <h3>Recipes the catalog doesn't know</h3>
           <p class="muted">Import a newer Docs file in the Catalog, then the save again.</p>

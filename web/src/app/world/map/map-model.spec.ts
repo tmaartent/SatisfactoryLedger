@@ -429,6 +429,12 @@ describe('map model', () => {
     it('are none picked when no status is', () => {
       expect(buildingsShown(analysis, null)).toBeNull();
     });
+
+    it('are the bottlenecks, belts and pipes, when those are picked', () => {
+      expect(
+        buildingsShown({ ...analysis, bottlenecks: [{ id: 'belt-1' }] }, { of: 'bottlenecks' }),
+      ).toEqual(new Set(['belt-1']));
+    });
   });
 
   describe("the game's icons on the map", () => {

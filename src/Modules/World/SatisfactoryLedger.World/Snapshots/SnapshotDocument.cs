@@ -53,8 +53,10 @@ internal sealed record SnapshotDocument(
     /// as before.
     /// Version 13 added which pipes touch, to follow a pipe piece by piece through its network (decided 2026-11-18); in a
     /// version 12 snapshot pipes aren't followed.
+    /// Version 14 added the loose ends of belts, lifts and pipes: ends connected to nothing (asked 2026-11-23); a version
+    /// 13 snapshot knows none.
     /// </summary>
-    public const int CurrentVersion = 13;
+    public const int CurrentVersion = 14;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -144,7 +146,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),

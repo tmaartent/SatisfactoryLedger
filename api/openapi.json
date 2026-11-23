@@ -3451,7 +3451,8 @@
           "className",
           "kind",
           "curve",
-          "contents"
+          "contents",
+          "looseEnds"
         ],
         "type": "object",
         "properties": {
@@ -3479,6 +3480,10 @@
               "type": "number",
               "format": "double"
             }
+          },
+          "looseEnds": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

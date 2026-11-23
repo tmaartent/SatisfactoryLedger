@@ -1,0 +1,55 @@
+// The picker fills the space above the sidebar; it's narrow there when the sidebar is collapsed to its rail, and on a
+// narrow screen, where the open tab lies over the page. Then only the icons show (the container query below).
+:host {
+  display: block;
+  container-type: inline-size;
+}
+
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 8px 12px;
+}
+
+.current-holder {
+  flex: 1;
+  min-width: 0;
+}
+
+.current {
+  width: 100%;
+  justify-content: flex-start;
+
+  .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.hint {
+  margin: 0 12px 8px;
+}
+
+// As wide as the rail: the name gives way, and the import stacks under the snapshot's button.
+@container (max-width: 120px) {
+  .picker {
+    flex-direction: column;
+    padding: 8px 0;
+  }
+
+  .current {
+    min-width: 0;
+    padding: 0 8px;
+
+    .name,
+    mat-icon[iconPositionEnd] {
+      display: none;
+    }
+  }
+
+  .hint {
+    display: none;
+  }
+}

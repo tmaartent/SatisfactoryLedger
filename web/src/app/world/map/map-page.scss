@@ -171,3 +171,100 @@
 button.active {
   background: var(--mat-sys-primary-container);
 }
+
+// The Resource nodes tab (asked 2026-11-23): a row per resource, a column per purity, from impure to pure.
+.node-kinds {
+  --cell: 56px;
+
+  display: grid;
+  gap: 8px;
+  padding: 4px 16px 16px;
+
+  .all {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .head,
+  .row {
+    display: grid;
+    grid-template-columns: repeat(3, var(--cell));
+    gap: 8px;
+  }
+
+  .head span {
+    text-align: center;
+    text-transform: capitalize;
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-medium);
+  }
+
+  // A kind of node: grey edged and its badge faded while hidden on the map; while shown, edged and filled in its
+  // purity's colour, the badge standing out on it by its white ring.
+  .kind {
+    display: grid;
+    place-items: center;
+    width: var(--cell);
+    height: var(--cell);
+    padding: 0;
+    border: 2px solid #9e9e9e;
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+
+    &.shown {
+      border-color: var(--purity);
+      background: var(--purity);
+    }
+
+    &:not(.shown) .badge {
+      opacity: 0.35;
+    }
+  }
+
+  // The pin's head, as on the map: the resource's icon on its purity's colour, in a white ring.
+  .badge {
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 40px;
+    height: 40px;
+    padding: 4px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: var(--purity);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 50%);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  // A purity the resource has no node of.
+  .none {
+    width: var(--cell);
+    height: var(--cell);
+  }
+}
+
+// The Unused supply and Unknown supply tabs (asked 2026-11-23): a source per entry, linked to it on the map.
+.supply {
+  padding: 4px 16px 16px;
+
+  ul {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li > a {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+  }
+}

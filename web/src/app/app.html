@@ -2,7 +2,7 @@
   <mat-icon class="logo">factory</mat-icon>
   <span class="title">Satisfactory Ledger</span>
   <nav>
-    <a mat-button [routerLink]="world()" [class.active]="inWorld()" (click)="goToWorld()">World</a>
+    <a mat-button [routerLink]="world()" [class.active]="inWorld()">World</a>
     <a mat-button routerLink="/catalog" routerLinkActive="active">Catalog</a>
   </nav>
 </mat-toolbar>
@@ -20,6 +20,14 @@
     </ng-template>
   }
   @if (sidebar.tabs().length > 0) {
-    <app-sidebar />
+    <app-sidebar>
+      <!-- Above the tabs on every World page: the snapshot they're all about (asked 2026-11-23). Its code, with the
+           menu and dialogs it needs, loads once the page is up, not with the shell. -->
+      @if (inWorld()) {
+        @defer (on idle) {
+          <app-snapshot-picker [current]="snapshotId()" />
+        }
+      }
+    </app-sidebar>
   }
 </div>

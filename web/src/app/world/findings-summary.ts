@@ -36,6 +36,8 @@ export class FindingsSummary {
   /** The status whose buildings are shown, if any. */
   readonly shown = input<ShownStatus | null>(null);
   readonly show = output<ShownStatus | null>();
+  /** How many bottlenecks there are, for a row of their own; none where it isn't given (asked for the map 2026-11-23). */
+  readonly bottlenecks = input<number | null>(null);
 
   protected readonly machines = computed<Count[]>(() => {
     const summary = this.findings().summary;
@@ -72,6 +74,20 @@ export class FindingsSummary {
     ];
   });
 
+  protected readonly bottleneckCounts = computed<Count[]>(() => {
+    const bottlenecks = this.bottlenecks();
+    return bottlenecks === null
+      ? []
+      : [
+          {
+            figure: bottlenecks,
+            label: bottlenecks === 1 ? 'bottleneck' : 'bottlenecks',
+            tone: bottlenecks > 0 ? 'bad' : 'good',
+            status: { of: 'bottlenecks' },
+          },
+        ];
+  });
+
   /** The count's status, when it can be clicked: there's something to show, and something to show it. */
   protected clickable(count: Count): ShownStatus | null {
     return this.selectable() && count.status && count.figure > 0 ? count.status : null;
@@ -79,16 +95,17 @@ export class FindingsSummary {
 
   protected isShown(count: Count): boolean {
     const shown = this.shown();
-    return (
-      !!shown &&
-      !!count.status &&
-      shown.of === count.status.of &&
-      shown.limit === count.status.limit
-    );
+    return !!shown && !!count.status && sameStatus(shown, count.status);
   }
 
   protected toggle(count: Count): void {
     const status = this.clickable(count);
     if (status) this.show.emit(this.isShown(count) ? null : status);
   }
+}
+
+/** Two counts' statuses alike: of the same, and of the same status where it has one. */
+function sameStatus(a: ShownStatus, b: ShownStatus): boolean {
+  if (a.of === 'bottlenecks' || b.of === 'bottlenecks') return a.of === b.of;
+  return a.of === b.of && a.limit === b.limit;
 }
