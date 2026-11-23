@@ -24,9 +24,11 @@ Each World page had its own side panel. The map had the snapshots on its left an
 - **Clicks in the page show the tab that answers them,** opening the sidebar if it was collapsed:
   - a building, belt, pipe or lift clicked in 3D shows Info, with *Explain why* for a held-back machine;
   - starting to define or edit a factory shows Info, with the steps;
+  - saving a factory in the 3D view of an area stays there and shows Factories, with it among the others, so the next one can be defined *(decided 2026-11-23, step 70; it opened the factory's page)*;
   - asking for an explanation shows Explanation.
 - **While defining a factory, its name, Save and Cancel are in the page's header,** as on a factory's own page. Switching tabs can't hide them.
 - **The tab last asked for is remembered across pages:** when the next page has a tab by that key, it's shown; otherwise the page's first tab is.
+- **World in the toolbar goes back to the snapshot last looked at, on the Snapshots tab** *(decided 2026-11-23, step 68)*: any page of a snapshot (its map, 3D view, a factory) makes it the one remembered, in the browser's storage, so it's there when the site is opened again. Deleting it forgets it. Before any snapshot is looked at, World is the map of none, as before.
 
 ## Alternatives considered
 - **A panel per page** (as before): no shared code, but every page takes width its own way, and the responsive version would need each one solved separately.

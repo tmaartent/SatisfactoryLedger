@@ -2,7 +2,15 @@
 @let editor = area();
 @let editing = editor?.defining() ?? false;
 <div class="page-header">
-  <a mat-icon-button [routerLink]="['/snapshots', id()]" aria-label="Snapshot"><mat-icon>arrow_back</mat-icon></a>
+  <!-- Back to the map, the factory highlighted and zoomed to (asked 2026-11-23); no longer the findings. -->
+  <a
+    mat-icon-button
+    [routerLink]="['/snapshots', id(), 'map']"
+    [queryParams]="{ factory: factoryId() }"
+    aria-label="Back to the map"
+    title="Back to the map"
+    ><mat-icon>arrow_back</mat-icon></a
+  >
   @if (editing && editor) {
     <input
       class="name"

@@ -124,6 +124,13 @@ describe("a factory's page", () => {
     expect(api.invoke$Response).toHaveBeenCalled();
   });
 
+  it('goes back to the map with the factory highlighted, not to the findings', async () => {
+    const { element } = await render();
+
+    const back = element.querySelector('.page-header a[aria-label="Back to the map"]');
+    expect(back?.getAttribute('href')).toBe('/snapshots/snapshot-1/map?factory=f-1');
+  });
+
   it('offers editing and deleting the factory at the top, and no way to the map', async () => {
     const { button } = await render();
 

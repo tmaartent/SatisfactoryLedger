@@ -2,7 +2,7 @@
   <mat-icon class="logo">factory</mat-icon>
   <span class="title">Satisfactory Ledger</span>
   <nav>
-    <a mat-button routerLink="/snapshots" routerLinkActive="active">World</a>
+    <a mat-button [routerLink]="world()" [class.active]="inWorld()" (click)="goToWorld()">World</a>
     <a mat-button routerLink="/catalog" routerLinkActive="active">Catalog</a>
   </nav>
 </mat-toolbar>
