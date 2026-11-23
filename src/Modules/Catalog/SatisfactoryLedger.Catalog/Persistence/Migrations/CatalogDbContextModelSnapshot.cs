@@ -474,6 +474,27 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                     b.ToTable("transport_tiers", "catalog");
                 });
 
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Icons.IconSet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("GameVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("game_version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_icon_set");
+
+                    b.ToTable("icon_set", "catalog");
+                });
+
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Import.CatalogImport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -727,6 +748,43 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasName("pk_map_art");
 
                     b.ToTable("map_art", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Icons.IconSet", b =>
+                {
+                    b.OwnsMany("SatisfactoryLedger.Catalog.Domain.Icons.Icon", "Icons", b1 =>
+                        {
+                            b1.Property<int>("IconSetId")
+                                .HasColumnType("integer")
+                                .HasColumnName("icon_set_id");
+
+                            b1.Property<string>("ClassName")
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("class_name");
+
+                            b1.Property<string>("ContentType")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("content_type");
+
+                            b1.Property<byte[]>("Image")
+                                .IsRequired()
+                                .HasColumnType("bytea")
+                                .HasColumnName("image");
+
+                            b1.HasKey("IconSetId", "ClassName")
+                                .HasName("pk_icons");
+
+                            b1.ToTable("icons", "catalog");
+
+                            b1.WithOwner()
+                                .HasForeignKey("IconSetId")
+                                .HasConstraintName("fk_icons_icon_set_icon_set_id");
+                        });
+
+                    b.Navigation("Icons");
                 });
 
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.Map.MapArt", b =>

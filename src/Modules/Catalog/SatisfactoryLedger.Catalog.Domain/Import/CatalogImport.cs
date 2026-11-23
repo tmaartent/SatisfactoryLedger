@@ -83,6 +83,14 @@ public sealed class CatalogImport
         return new CatalogImport(id, CatalogImportSource.MapArt, gameVersion.Trim(), importedAt);
     }
 
+    /// <summary>An import of the game's icons: it replaces the icon set whole and changes no entries (ADR-0032).</summary>
+    public static CatalogImport RecordIcons(CatalogImportId id, string gameVersion, DateTimeOffset importedAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(gameVersion);
+
+        return new CatalogImport(id, CatalogImportSource.Icons, gameVersion.Trim(), importedAt);
+    }
+
     public CatalogImportId Id { get; }
 
     public CatalogImportSource Source { get; }

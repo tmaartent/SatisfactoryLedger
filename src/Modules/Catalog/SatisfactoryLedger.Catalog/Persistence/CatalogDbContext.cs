@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.Catalog.Domain;
 using SatisfactoryLedger.Catalog.Domain.GameObjects;
+using SatisfactoryLedger.Catalog.Domain.Icons;
 using SatisfactoryLedger.Catalog.Domain.Import;
 using SatisfactoryLedger.Catalog.Domain.Map;
 
@@ -39,6 +40,9 @@ internal sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> option
 
     /// <summary>The game's map picture (ADR-0020): one at a time.</summary>
     public DbSet<MapArt> MapArts => Set<MapArt>();
+
+    /// <summary>The game's icons (ADR-0032): one set at a time.</summary>
+    public DbSet<IconSet> IconSets => Set<IconSet>();
 
     public DbSet<CatalogImport> Imports => Set<CatalogImport>();
 

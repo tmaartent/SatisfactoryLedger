@@ -189,6 +189,63 @@
         }
       }
     },
+    "/api/v1/catalog/icon-imports": {
+      "post": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "Import the game's icons the map tool writes (icons.json, ADR-0032)",
+        "description": "Replaces the icon set whole. The game version comes from the file. A file that isn't icons changes nothing.",
+        "operationId": "ImportIcons",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/catalog/imports/{id}": {
       "get": {
         "tags": [
@@ -453,6 +510,54 @@
             "schema": {
               "type": "integer",
               "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/icons": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "The descriptors that have an icon (404 before an import)",
+        "operationId": "GetIcons",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IconsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/catalog/icons/{className}": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "summary": "The icon of an item, a resource or a building (by its class: its descriptor's), as the PNG it is",
+        "operationId": "GetIcon",
+        "parameters": [
+          {
+            "name": "className",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -2119,7 +2224,8 @@
         "enum": [
           "docsFile",
           "resourceNodeTable",
-          "mapArt"
+          "mapArt",
+          "icons"
         ]
       },
       "ConnectionSummary": {
@@ -2865,6 +2971,24 @@
               "items": {
                 "type": "string"
               }
+            }
+          }
+        }
+      },
+      "IconsResponse": {
+        "required": [
+          "gameVersion",
+          "descriptors"
+        ],
+        "type": "object",
+        "properties": {
+          "gameVersion": {
+            "type": "string"
+          },
+          "descriptors": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }

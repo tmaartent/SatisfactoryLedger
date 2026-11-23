@@ -19,6 +19,12 @@ internal static class ImportEndpoints
     public const string InvalidDocsFileCode = "Catalog.InvalidDocsFile";
     public const string InvalidResourceNodeTableCode = "Catalog.InvalidResourceNodeTable";
     public const string InvalidMapArtCode = "Catalog.InvalidMapArt";
+    public const string InvalidIconsCode = "Catalog.InvalidIcons";
+
+    /// <summary>
+    /// The icons file is larger than Kestrel's 30 MB default: the game's 741 icons, each a 256-pixel PNG, as base64.
+    /// </summary>
+    private const long IconsFileLimit = 200L * 1024 * 1024;
 
     public static RouteGroupBuilder MapImportEndpoints(this RouteGroupBuilder catalog)
     {
@@ -43,6 +49,14 @@ internal static class ImportEndpoints
             .WithSummary("Import the game's map picture the map tool writes (map-art.json, ADR-0020)")
             .WithDescription("Replaces the map art whole. The game version comes from the file. A file that isn't map art changes nothing.")
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .DisableAntiforgery();
+
+        catalog.MapPost("/icon-imports", ImportIconsAsync)
+            .WithName("ImportIcons")
+            .WithSummary("Import the game's icons the map tool writes (icons.json, ADR-0032)")
+            .WithDescription("Replaces the icon set whole. The game version comes from the file. A file that isn't icons changes nothing.")
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .WithMetadata(new RequestSizeLimitAttribute(IconsFileLimit), new RequestFormLimitsAttribute { MultipartBodyLengthLimit = IconsFileLimit })
             .DisableAntiforgery();
 
         catalog.MapGet("/imports/{id:guid}", GetAsync)
@@ -144,6 +158,34 @@ internal static class ImportEndpoints
                 detail: e.Message,
                 statusCode: StatusCodes.Status422UnprocessableEntity,
                 extensions: new Dictionary<string, object?> { ["code"] = InvalidMapArtCode });
+        }
+    }
+
+    private static async Task<Results<Created<ImportResponse>, ValidationProblem, ProblemHttpResult>> ImportIconsAsync(
+        IFormFile? file, ImportIconsHandler handler, CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["file"] = ["Upload the icons the map tool writes (icons.json)."]
+            });
+        }
+
+        try
+        {
+            await using Stream icons = file.OpenReadStream();
+            CatalogImport import = await handler.HandleAsync(new ImportIconsCommand(icons), cancellationToken);
+
+            return TypedResults.Created($"/api/v1/catalog/imports/{import.Id.Id}", ImportResponse.From(import));
+        }
+        catch (InvalidIconsException e)
+        {
+            return TypedResults.Problem(
+                title: "The file is not icons the catalog can import",
+                detail: e.Message,
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                extensions: new Dictionary<string, object?> { ["code"] = InvalidIconsCode });
         }
     }
 
