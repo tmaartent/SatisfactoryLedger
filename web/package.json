@@ -11,7 +11,9 @@
     "watch": "ng build --watch --configuration development",
     "pretest": "npm run generate:api",
     "test": "ng test",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "private": true,
   "packageManager": "npm@11.3.0",
