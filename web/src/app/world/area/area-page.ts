@@ -53,8 +53,11 @@ interface AreaBuilding {
   isGenerator?: boolean;
 }
 
-/** How far past a factory's outermost machines its 3D view reaches, in centimetres: its belts in and out. */
+/** How far past a factory's outermost machines its 3D view reaches, in centimetres, below and above too: its belts in and out. */
 const factoryMargin = 1500;
+
+/** How see-through what isn't connected to a factory is drawn in its view: there, but not in the way. */
+const FadedOpacity = 0.18;
 
 /** What a factory's machines can be (BR-W2): a machine, or a generator (decided 2026-11-11). */
 function choosable(building: AreaBuilding | null | undefined): building is AreaBuilding {
@@ -103,10 +106,32 @@ export class AreaPage {
   protected readonly area = computed<Area>(() => {
     const factoryId = this.factory();
     if (factoryId === undefined) return { x0: Number(this.x0()), y0: Number(this.y0()), x1: Number(this.x1()), y1: Number(this.y1()) };
-    const members = new Set(this.factories.value()?.find((trace) => trace.factoryId === factoryId)?.machines.map((m) => m.id));
+    const members = new Set(this.factoryMachines());
     const world = this.world.value();
-    const positions = [...(world?.machines ?? []), ...(world?.consumers ?? [])].filter((b) => members.has(b.id)).map((b) => b.position);
-    return areaAround(positions, factoryMargin) ?? { x0: 0, y0: 0, x1: 0, y1: 0 };
+    const footprints = new Map(world?.footprints.map((footprint) => [footprint.id, footprint] as [string, FootprintDocument]));
+    // Every corner of the machines' boxes, so the area reaches from their feet to their roofs.
+    const corners = [...(world?.machines ?? []), ...(world?.consumers ?? [])].filter((b) => members.has(b.id)).flatMap((b) => buildingBoxes(b, footprints).flat());
+    return areaAround(corners, factoryMargin) ?? { x0: 0, y0: 0, x1: 0, y1: 0 };
+  });
+
+  /** The machines of the factory shown, by id: none when this is an area drawn on the map. */
+  private readonly factoryMachines = computed(() => {
+    const factoryId = this.factory();
+    return factoryId === undefined ? [] : (this.factories.value()?.find((trace) => trace.factoryId === factoryId)?.machines.map((m) => m.id) ?? []);
+  });
+  /** What's connected to the factory shown, as a preview of its own machines traces it. */
+  private readonly factoryParts = resource({
+    params: () => (this.factoryMachines().length > 0 ? { id: this.id(), body: { machines: this.factoryMachines() } } : undefined),
+    loader: ({ params }) => this.api.invoke(previewFactory, params),
+  });
+  /**
+   * In a factory's view, what's connected to it, by id: through its lines, owned or shared, to their ends. The rest is
+   * faded but can still be clicked (asked 2026-11-23). Null in an area drawn on the map, and until it's known: then
+   * nothing is faded.
+   */
+  private readonly connected = computed(() => {
+    const parts = this.factoryParts.value();
+    return parts ? new Set(parts.connected) : null;
   });
 
   protected readonly snapshot = resource({
@@ -225,6 +250,13 @@ export class AreaPage {
   private readonly materials = new Map<string, THREE.MeshLambertMaterial>();
   /** Cuts belts and pipes off above the roof of the highest floor still shown (see applyCutOff). */
   private readonly clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), Infinity);
+  /** Cuts belts and pipes off at the sides, floor and roof of a factory's area (see clipToArea); in a drawn area, nowhere. */
+  private readonly bounds = [
+    new THREE.Vector3(1, 0, 0), new THREE.Vector3(-1, 0, 0),
+    new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0),
+    new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, -1),
+  ].map((normal) => new THREE.Plane(normal, Infinity));
+  private readonly clips = [this.clip, ...this.bounds];
   private framed = false;
 
   constructor() {
@@ -376,24 +408,26 @@ export class AreaPage {
     this.outlineMaterials.forEach((material) => material.dispose());
   }
 
-  /** A line material per factory colour, for the edges of its machines. */
+  /** A line material per factory colour, for the edges of its machines; faded with them. */
   private readonly outlineMaterials = new Map<string, THREE.LineBasicMaterial>();
 
-  private outlineMaterial(colour: string): THREE.LineBasicMaterial {
-    let material = this.outlineMaterials.get(colour);
+  private outlineMaterial(colour: string, faded: boolean): THREE.LineBasicMaterial {
+    const key = `${colour}${faded ? ':faded' : ''}`;
+    let material = this.outlineMaterials.get(key);
     if (!material) {
-      material = new THREE.LineBasicMaterial({ color: colour });
-      this.outlineMaterials.set(colour, material);
+      material = new THREE.LineBasicMaterial({ color: colour, transparent: faded, opacity: faded ? FadedOpacity : 1 });
+      this.outlineMaterials.set(key, material);
     }
     return material;
   }
 
-  /** A material per colour; belts and pipes get their own, cut off by the clipping plane. */
-  private material(colour: string, clipped = false): THREE.MeshLambertMaterial {
-    const key = `${colour}${clipped ? ':clipped' : ''}`;
+  /** A material per colour; belts and pipes get their own, cut off by the clipping planes; what isn't connected, a faded one. */
+  private material(colour: string, clipped = false, faded = false): THREE.MeshLambertMaterial {
+    const key = `${colour}${clipped ? ':clipped' : ''}${faded ? ':faded' : ''}`;
     let material = this.materials.get(key);
     if (!material) {
-      material = new THREE.MeshLambertMaterial({ color: colour, side: THREE.DoubleSide, clippingPlanes: clipped ? [this.clip] : [] });
+      material = new THREE.MeshLambertMaterial({ color: colour, side: THREE.DoubleSide, clippingPlanes: clipped ? this.clips : [] });
+      if (faded) Object.assign(material, { transparent: true, opacity: FadedOpacity, depthWrite: false });
       this.materials.set(key, material);
     }
     return material;
@@ -404,11 +438,14 @@ export class AreaPage {
     const buildings = this.buildings();
     const findings = this.findings();
     const owners = this.owners();
+    const connected = this.connected();
+    const faded = (id: string) => connected !== null && !connected.has(id);
     if (!this.renderer || !world) return;
 
     this.content.clear();
     const area = this.area();
     const middle = { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
+    this.clipToArea(area, middle);
     const footprints = new Map(world.footprints.map((footprint) => [footprint.id, footprint] as [string, FootprintDocument]));
     const at = (p: Position) => new THREE.Vector3(...toScene(p, middle));
 
@@ -417,13 +454,13 @@ export class AreaPage {
       const colour = finding ? statusColours[finding.limit] : building.kind === 'machine' ? statusColours.unknown : building.kind === 'consumer' ? '#ab47bc' : '#78909c';
       const boxes = buildingBoxes(building, footprints);
       const geometry = mergeGeometries(boxes.map((box) => boxGeometry(box, at)));
-      const material = this.material(colour);
+      const material = this.material(colour, false, faded(building.id));
       const mesh = new THREE.Mesh(geometry, material);
       const top = Math.max(...boxes.flat().map((corner) => corner.z)) / 100;
       mesh.userData = { building, material, z: building.position.z / 100, top };
       // A factory's machines are outlined in its colour. As a child of the mesh, the outline hides with it.
       const owner = owners.get(building.id)?.[0];
-      if (owner) mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), this.outlineMaterial(owner.colour)));
+      if (owner) mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geometry), this.outlineMaterial(owner.colour, faded(building.id))));
       this.content.add(mesh);
     }
 
@@ -434,15 +471,15 @@ export class AreaPage {
     for (const conveyor of world.conveyors) {
       if (conveyor.curve.length < 2 || !curveInArea(conveyor.curve, area)) continue;
       const base = Math.floor(Math.min(...sampleCurve3d(conveyor.curve).map((p) => p.z)) / 100);
-      const key = `${conveyor.kind}:${base}`;
+      const key = `${conveyor.kind}:${base}:${faded(conveyor.id)}`;
       const group = tubes.get(key) ?? { conveyors: [], geometries: [] };
       group.conveyors.push(conveyor);
       group.geometries.push(this.tube(conveyor, at, 0));
       tubes.set(key, group);
     }
     for (const [key, { conveyors, geometries }] of tubes) {
-      const [kind, base] = key.split(':') as ['belt' | 'pipe', string];
-      const mesh = new THREE.Mesh(mergeGeometries(geometries), this.material(conveyorColours[kind], true));
+      const [kind, base, fade] = key.split(':') as ['belt' | 'pipe', string, string];
+      const mesh = new THREE.Mesh(mergeGeometries(geometries), this.material(conveyorColours[kind], true, fade === 'true'));
       const starts = pieceStarts(geometries.map((geometry) => geometry.index!.count / 3));
       mesh.userData = { z: Number(base), conveyors, starts };
       this.content.add(mesh);
@@ -532,6 +569,21 @@ export class AreaPage {
     this.clip.constant = limit === null ? Infinity : roof;
   }
 
+  /**
+   * Cuts belts and pipes off where a factory's area ends, at its sides, floor and roof, so a long belt out doesn't run
+   * on across the scene (asked 2026-11-23). An area drawn on the map has no floor or roof: there they run on, as before.
+   */
+  private clipToArea(area: Area, middle: { x: number; y: number }): void {
+    if (area.z0 === undefined || area.z1 === undefined) {
+      this.bounds.forEach((plane) => (plane.constant = Infinity));
+      return;
+    }
+    // A plane keeps what lies on the side its normal points to: normal . p + constant >= 0.
+    const [west, floor, north] = toScene({ x: area.x0, y: area.y0, z: area.z0 }, middle);
+    const [east, roof, south] = toScene({ x: area.x1, y: area.y1, z: area.z1 }, middle);
+    [-west, east, -floor, roof, -north, south].forEach((constant, i) => (this.bounds[i].constant = constant));
+  }
+
   /** Looks at the whole area from the south-east, a little from above. */
   private frame(): void {
     const bounds = new THREE.Box3().setFromObject(this.content);
@@ -555,8 +607,8 @@ export class AreaPage {
       const rect = canvas.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1), this.camera!);
       const shown = this.content.children.filter((o) => o.visible && (o.userData['building'] || o.userData['conveyors']));
-      // The ray passes through what the cut-off clips away: a belt counts only where it's still drawn.
-      const hit = ray.intersectObjects(shown, false).find((h) => !h.object.userData['conveyors'] || h.point.y <= this.clip.constant);
+      // The ray passes through what the cut-off and the area's bounds clip away: a belt counts only where it's still drawn.
+      const hit = ray.intersectObjects(shown, false).find((h) => !h.object.userData['conveyors'] || this.clips.every((plane) => plane.distanceToPoint(h.point) >= 0));
       const building = (hit?.object.userData['building'] as AreaBuilding | undefined) ?? null;
       const conveyors = hit?.object.userData['conveyors'] as MapConveyor[] | undefined;
       this.selected.set(building);
@@ -630,12 +682,12 @@ export class AreaPage {
 
   /** The building looked at glows a little, so it can be found again after turning the view; chosen machines are blue. */
   private readonly highlightMaterial = new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffd54f', emissiveIntensity: 0.6, side: THREE.DoubleSide });
-  private readonly highlightTubeMaterial = new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffd54f', emissiveIntensity: 0.6, side: THREE.DoubleSide, clippingPlanes: [this.clip] });
+  private readonly highlightTubeMaterial = new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffd54f', emissiveIntensity: 0.6, side: THREE.DoubleSide, clippingPlanes: this.clips });
   private readonly chosenMaterial = new THREE.MeshLambertMaterial({ color: '#42a5f5', emissive: '#1565c0', emissiveIntensity: 0.5, side: THREE.DoubleSide });
   /** The preview: what the factory would own in teal, its outputs green and its inputs orange. */
-  private readonly ownedMaterial = new THREE.MeshLambertMaterial({ color: '#26a69a', emissive: '#00695c', emissiveIntensity: 0.5, side: THREE.DoubleSide, clippingPlanes: [this.clip] });
-  private readonly outputMarker = new THREE.MeshLambertMaterial({ color: '#66bb6a', emissive: '#2e7d32', emissiveIntensity: 0.6, clippingPlanes: [this.clip] });
-  private readonly inputMarker = new THREE.MeshLambertMaterial({ color: '#ffa726', emissive: '#e65100', emissiveIntensity: 0.6, clippingPlanes: [this.clip] });
+  private readonly ownedMaterial = new THREE.MeshLambertMaterial({ color: '#26a69a', emissive: '#00695c', emissiveIntensity: 0.5, side: THREE.DoubleSide, clippingPlanes: this.clips });
+  private readonly outputMarker = new THREE.MeshLambertMaterial({ color: '#66bb6a', emissive: '#2e7d32', emissiveIntensity: 0.6, clippingPlanes: this.clips });
+  private readonly inputMarker = new THREE.MeshLambertMaterial({ color: '#ffa726', emissive: '#e65100', emissiveIntensity: 0.6, clippingPlanes: this.clips });
   private readonly markerGeometry = new THREE.SphereGeometry(1.2, 12, 8);
 
   private paint(selectedId: string | null, chosen: ReadonlySet<string>, owned: ReadonlySet<string>): void {

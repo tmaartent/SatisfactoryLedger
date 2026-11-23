@@ -32,8 +32,20 @@ describe('area model', () => {
   });
 
   describe("the area around a factory's machines", () => {
-    it('reaches a margin past the outermost ones on every side', () => {
-      expect(areaAround([{ x: 0, y: 500, z: 0 }, { x: 1000, y: -500, z: 800 }], 100)).toEqual({ x0: -100, y0: -600, x1: 1100, y1: 600 });
+    it('reaches a margin past the outermost ones on every side, below and above too', () => {
+      expect(areaAround([{ x: 0, y: 500, z: 0 }, { x: 1000, y: -500, z: 800 }], 100)).toEqual({ x0: -100, y0: -600, x1: 1100, y1: 600, z0: -100, z1: 900 });
+    });
+
+    const factoryArea: Area = { x0: 0, y0: 0, x1: 1000, y1: 1000, z0: 0, z1: 1000 };
+
+    it('leaves out what stands above or below it, such as a factory on the floor above', () => {
+      expect([inArea({ x: 500, y: 500, z: 500 }, factoryArea), inArea({ x: 500, y: 500, z: 3000 }, factoryArea), inArea({ x: 500, y: 500, z: -10 }, factoryArea)]).toEqual([true, false, false]);
+    });
+
+    it('holds a belt only when one of its points lies inside, height included', () => {
+      const point = (z: number): CurvePointDocument => ({ location: { x: 500, y: 500, z }, arriveTangent: { x: 1, y: 0, z: 0 }, leaveTangent: { x: 1, y: 0, z: 0 } });
+
+      expect([curveInArea([point(2000), point(500)], factoryArea), curveInArea([point(2000), point(3000)], factoryArea)]).toEqual([true, false]);
     });
 
     it('is nothing when none of its machines are in the snapshot', () => {
