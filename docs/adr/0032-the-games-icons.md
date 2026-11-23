@@ -20,7 +20,9 @@ Pages name items and buildings in words only: findings, the factory page, the 3D
   - beside every item and building named in a page: the Catalog's recipes and nodes, the findings, the factory page's inputs and outputs, the 3D view's panel, the snapshot's unsupported buildings, the explanation's starts;
   - in the map's tooltips: a machine, belt, provider, building, a generator's fuel, a node's resource;
   - **every resource node** on the map, free or with a miner or extractor on it, is its resource's icon *(asked; every node, not only the free ones, asked 2026-11-23)*, where a free node was a dashed dot. Its tooltip says what stands on it, or that it's free. It's a pin, as on the game's map: the icon on its purity's colour (green pure, yellow normal, red impure) in a white ring, up and to the left, on a white stick down to a dot where the node lies. The map's other purity marks, the edges of miners on nodes, take the same colours. It grows as the map is zoomed in, half as fast as the map, from 18 to 72 pixels *(both asked 2026-11-23)*.
-  - Not inside sentences (*Not enough Iron Ingot*), nor in the arrangement's tooltips.
+  - in the 3D view's Info panel (on a factory's page too), inside its sentences as well: why a machine runs as it does (*Not enough* [icon] *Iron Ingot (50%)*) and what it holds, waits to leave or carries, each item with its icon, 20 px; the machine's or belt's own icon is 48 px *(asked 2026-11-23)*.
+  - in the explanation panel: the machines asked about beside the question (48 px), and where it starts, each item and each building with its icon (24 px). A trace names buildings as the game does, so their icon is looked up by name (`CatalogNames.iconOfBuildingNamed`), as items' are.
+  - Not inside the findings' and the map tooltips' sentences, nor in the arrangement's tooltips.
 - **Without icons** (before an import) everything shows as before: names, and the nodes as dots.
 
 ## Alternatives considered
