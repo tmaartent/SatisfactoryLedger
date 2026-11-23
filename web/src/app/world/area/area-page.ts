@@ -13,6 +13,7 @@ import {
   signal,
   untracked,
   viewChild,
+  TemplateRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -141,6 +142,11 @@ export class AreaPage {
   readonly factory = input<string>();
   /** Shown inside a factory's page (asked 2026-11-19): no title or way back of its own; the page says what changed. */
   readonly embedded = input(false);
+  /**
+   * What the page around puts at the top of the Info tab: a factory's page, what comes in and what leaves (asked
+   * 2026-11-23). Not while defining, where the tab has the steps.
+   */
+  readonly infoTop = input<TemplateRef<unknown> | null>(null);
   /** A factory saved here, new or edited: its id. */
   readonly saved = output<string>();
 

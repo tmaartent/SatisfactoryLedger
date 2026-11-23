@@ -3,8 +3,8 @@ import { Component, input } from '@angular/core';
 import { SnapshotCounts } from '../api/models/snapshot-counts';
 
 /**
- * What a snapshot holds: how many machines, logistics, providers, consumers and connections, each said in words. On the
- * findings page's tab of that name, and under the overview on the map's Info tab (asked 2026-11-23).
+ * What a snapshot holds: how many machines, logistics, providers, consumers and connections, each said in words. Under
+ * the overview on the map's Info tab (asked 2026-11-23); it was a tab of the findings page, gone since.
  */
 @Component({
   selector: 'app-what-it-holds',

@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 
 import { Api } from '../../api/api';
 import { getMapArt } from '../../api/fn/catalog/get-map-art';
@@ -73,6 +73,9 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
           consumers: 693,
           connections: 39228,
         },
+        // What the import couldn't take in: shown on the Info tab.
+        unknownRecipes: ['Recipe_Alternate_Mystery_C'],
+        unsupported: [{ className: 'Build_SpaceElevator_C', count: 1 }],
       },
     ],
     [
@@ -298,8 +301,7 @@ describe('the world map with no snapshot loaded', () => {
     const { element } = await render();
 
     const text = element.querySelector('.page-header')?.textContent ?? '';
-    expect(text).not.toContain('Findings');
-    expect(text).not.toContain('Open an area in 3D');
+    expect(text).not.toContain('Hold shift');
     expect(element.querySelector('.factories')).toBeNull();
   });
 
@@ -369,6 +371,43 @@ describe('the world map of a snapshot', () => {
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
   });
 
+  it('says how to see an area in 3D, with no button for it, nor a link to the findings', async () => {
+    const { element } = await render('snapshot-1');
+
+    const header = element.querySelector('.page-header') as HTMLElement;
+    expect(header.textContent).toContain('Hold shift and drag to see an area in 3D');
+    expect(header.textContent).not.toContain('Open an area in 3D');
+    expect(header.textContent).not.toContain('Findings');
+  });
+
+  it('opens the area dragged over with shift held in 3D', async () => {
+    const { fixture, element } = await render('snapshot-1');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const map = element.querySelector('.leaflet-container') as HTMLElement;
+    const at = (type: string, x: number, y: number) =>
+      new MouseEvent(type, { bubbles: true, shiftKey: true, button: 0, clientX: x, clientY: y });
+
+    map.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, shiftKey: true, button: 0 }),
+    );
+    map.dispatchEvent(at('mousedown', 10, 10));
+    map.dispatchEvent(at('mousemove', 110, 110));
+    map.dispatchEvent(at('mouseup', 110, 110));
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledWith(['/snapshots', 'snapshot-1', 'area'], expect.anything());
+  });
+
+  it('warns on the Info tab of recipes the catalog does not know and buildings the analysis leaves out', async () => {
+    const { tabs } = await render('snapshot-1');
+
+    const info = tabs.querySelector('.info')?.textContent ?? '';
+    expect(info).toContain("Recipes the catalog doesn't know");
+    expect(info).toContain('Recipe_Alternate_Mystery_C');
+    expect(info).toContain('Buildings the analysis leaves out');
+    expect(info).toMatch(/Build_SpaceElevator_C\s*×\s*1/);
+  });
+
   it('says under the overview what the snapshot holds', async () => {
     const { tabs } = await render('snapshot-1');
 
@@ -416,6 +455,44 @@ describe('the world map of a snapshot', () => {
     await fixture.whenStable();
     await sidebar.whenStable();
     expect(names(tabs, '.factories .highlighted .factory-name')).toEqual([]);
+  });
+
+  /** A click on the map itself, where nothing is drawn. */
+  const clickTheMap = async (
+    element: HTMLElement,
+    fixture: { whenStable: () => Promise<unknown> },
+  ) => {
+    (element.querySelector('.leaflet-container') as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }),
+    );
+    await fixture.whenStable();
+  };
+
+  it('lets go of the factory picked when the map is clicked anywhere else, so nothing is faded', async () => {
+    const { fixture, sidebar, element, tabs, open } = await render('snapshot-1');
+    await open('Factories');
+    (tabs.querySelector('.factories button.factory-name') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    await clickTheMap(element, fixture);
+    await sidebar.whenStable();
+
+    expect(names(tabs, '.factories .highlighted .factory-name')).toEqual([]);
+  });
+
+  it('lets go of the count shown when the map is clicked anywhere else', async () => {
+    const { fixture, sidebar, element, tabs } = await render('snapshot-1');
+    const starved = () =>
+      [...tabs.querySelectorAll('.info mat-card')].find((card) =>
+        card.textContent?.includes('starved'),
+      ) as HTMLElement;
+    starved().click();
+    await fixture.whenStable();
+
+    await clickTheMap(element, fixture);
+    await sidebar.whenStable();
+
+    expect(starved().getAttribute('aria-pressed')).toBe('false');
   });
 
   it('offers to explain a held-back machine of no factory, in its tooltip', async () => {

@@ -89,6 +89,9 @@
 <!-- The building or belt clicked, or the steps of defining a factory: the sidebar's Info tab (asked 2026-11-22). -->
 <ng-template appSidebarTab="info" label="Info" icon="info">
   <div class="panel" aria-live="polite">
+    @if (!defining() && infoTop(); as top) {
+      <ng-container *ngTemplateOutlet="top" />
+    }
     <!-- What something holds, each item with its icon: "Bauxite × 100, Water × 50". -->
     <ng-template #held let-contents>
       @for (entry of entries(contents); track entry.item; let last = $last) {

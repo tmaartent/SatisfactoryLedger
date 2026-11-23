@@ -7,11 +7,8 @@ export const routes: Routes = [
     title: 'World',
     loadComponent: () => import('./world/map/map-page').then((m) => m.MapPage),
   },
-  {
-    path: 'snapshots/:id',
-    title: 'Snapshot',
-    loadComponent: () => import('./world/snapshot-page').then((m) => m.SnapshotPage),
-  },
+  // The findings page is gone (2026-11-23): everything on it is on the map. A link to it lands on the map.
+  { path: 'snapshots/:id', pathMatch: 'full', redirectTo: 'snapshots/:id/map' },
   {
     path: 'snapshots/:id/map',
     title: 'Map',

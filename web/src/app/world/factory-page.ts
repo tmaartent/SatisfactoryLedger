@@ -83,6 +83,31 @@ import { GameIcon } from '../shared/game-icon';
       color: inherit;
       font: var(--mat-sys-headline-small);
     }
+
+    // What comes in and what leaves, at the top of the 3D view's Info tab (asked 2026-11-23). It's drawn there, but the
+    // template is this page's, so these styles reach it.
+    .totals {
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+      h3 {
+        margin: 4px 0;
+        font: var(--mat-sys-title-small);
+      }
+
+      ul {
+        display: grid;
+        gap: 4px;
+        margin: 0 0 8px;
+        padding: 0;
+        list-style: none;
+      }
+
+      .rate {
+        margin-left: 4px;
+        font-weight: 600;
+      }
+    }
   `,
 })
 export class FactoryPage {
