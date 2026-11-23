@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import {
   Component,
   DestroyRef,
@@ -30,6 +31,7 @@ import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { PositionDocument } from '../../api/models/position-document';
+import { GameIcon } from '../../shared/game-icon';
 import { HiddenNodes } from './hidden-nodes';
 import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
@@ -83,6 +85,8 @@ const MinZoom = -4;
   imports: [
     FormsModule,
     RouterLink,
+    GameIcon,
+    DecimalPipe,
     FindingsSummary,
     SnapshotsSidebar,
     SidebarTab,
@@ -651,6 +655,31 @@ export class MapPage {
     return describeContents(contents, (item) => this.names.item(item));
   }
 
+  /** The Unused supply tab (asked 2026-11-23): the sources that could give more, the most left over first. */
+  protected readonly unusedSupply = computed(() =>
+    [...(this.analysis.value()?.unusedSupply ?? [])].sort(
+      (a, b) => b.offered - b.delivered - (a.offered - a.delivered),
+    ),
+  );
+  /** The Unknown supply tab (asked 2026-11-23): the sources whose rate the save doesn't tell, as the analysis gives them. */
+  protected readonly unknownSupply = computed(() => this.analysis.value()?.unknownSupply ?? []);
+  protected readonly perMinute = perMinute;
+
+  /** What an unknown source is assumed to give, per item, the most first. */
+  protected deliveries(delivered: Record<string, number>): { item: string; rate: number }[] {
+    return Object.entries(delivered)
+      .map(([item, rate]) => ({ item, rate }))
+      .sort((a, b) => b.rate - a.rate);
+  }
+
+  protected buildingName(className: string): string {
+    return this.names.building(className);
+  }
+
+  protected itemName(item: string): string {
+    return this.names.item(item);
+  }
+
   /** A cell of the Resource nodes tab, in words: "Impure Iron Ore · 3 nodes". */
   protected nodeKindLabel(resource: string, purity: string, count: number): string {
     return `${purity.charAt(0).toUpperCase() + purity.slice(1)} ${this.names.item(resource)} · ${count} ${count === 1 ? 'node' : 'nodes'}`;
@@ -730,9 +759,16 @@ export class MapPage {
 
     this.shownLayer.clearLayers();
     if (!highlighted || !world) return;
-    const points = [...world.machines, ...world.consumers]
-      .filter((building) => highlighted.has(building.id))
-      .map((building) => toMapPoint(building.position));
+    const points = [
+      ...[...world.machines, ...world.consumers]
+        .filter((building) => highlighted.has(building.id))
+        .map((building) => toMapPoint(building.position)),
+      // The bottlenecks, picked in the overview: belts and pipes, ringed halfway along.
+      ...world.conveyors
+        .filter((conveyor) => highlighted.has(conveyor.id))
+        .map((conveyor) => locate(world, conveyor.id))
+        .filter((point) => point !== null),
+    ];
     // A factory's machines are edged in its colour already; a status's, scattered over the world, are ringed.
     if (this.shownStatus()) {
       for (const point of points)

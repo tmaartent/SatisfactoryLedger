@@ -125,6 +125,29 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
           ],
           generators: [],
           bottlenecks: [],
+          // A miner that could give more, and a freight platform whose rate the save doesn't tell.
+          unusedSupply: [
+            {
+              id: 'miner-1',
+              className: 'Build_MinerMk3_C',
+              item: 'Desc_OreIron_C',
+              delivered: 120,
+              offered: 480,
+              position: { x: 1000, y: 2000, z: 0 },
+              approximate: false,
+            },
+          ],
+          unknownSupply: [
+            {
+              id: 'platform-1',
+              className: 'Build_TrainDockingStation_C',
+              confirmed: true,
+              delivered: { Desc_OreIron_C: 60 },
+              stockMinutes: 12,
+              position: null,
+              approximate: false,
+            },
+          ],
           summary: { machines: 1, running: 0, starved: 1, outputBlocked: 0, noRecipe: 0 },
           generatorSummary: {
             generators: 0,
@@ -282,6 +305,31 @@ describe('the world map with no snapshot loaded', () => {
 });
 
 describe('the world map of a snapshot', () => {
+  it('lists the unused supply in a tab: each source, its item, what it gives of what it could, linked to it on the map', async () => {
+    const { tabs, open } = await render('s1');
+
+    await open('Unused supply');
+
+    const entries = [...tabs.querySelectorAll('.supply li')];
+    expect(entries).toHaveLength(1);
+    expect(entries[0].textContent).toContain('Build_MinerMk3_C');
+    expect(entries[0].textContent).toContain('Desc_OreIron_C');
+    expect(entries[0].textContent).toMatch(/120.*of.*480/);
+    expect(entries[0].querySelector('a')?.getAttribute('href')).toContain('focus=miner-1');
+  });
+
+  it('lists the unknown supply in a tab: each source and what it is assumed to give', async () => {
+    const { tabs, open } = await render('s1');
+
+    await open('Unknown supply');
+
+    const entries = [...tabs.querySelectorAll('.supply li')];
+    expect(entries).toHaveLength(1);
+    expect(entries[0].textContent).toContain('Build_TrainDockingStation_C');
+    expect(entries[0].textContent).toMatch(/Desc_OreIron_C.*60/);
+    expect(entries[0].querySelector('a')?.getAttribute('href')).toContain('focus=platform-1');
+  });
+
   it('draws a pin for a resource node a miner stands on too, saying what stands on it', async () => {
     const { element } = await render('s1');
 
@@ -309,7 +357,14 @@ describe('the world map of a snapshot', () => {
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual(['Info', 'Factories', 'Snapshots', 'Resource nodes']);
+    ).toEqual([
+      'Info',
+      'Factories',
+      'Unused supply',
+      'Unknown supply',
+      'Snapshots',
+      'Resource nodes',
+    ]);
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
   });
 

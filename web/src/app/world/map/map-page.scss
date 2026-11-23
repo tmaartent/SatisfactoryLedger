@@ -249,3 +249,22 @@ button.active {
     height: var(--cell);
   }
 }
+
+// The Unused supply and Unknown supply tabs (asked 2026-11-23): a source per entry, linked to it on the map.
+.supply {
+  padding: 4px 16px 16px;
+
+  ul {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li > a {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+  }
+}

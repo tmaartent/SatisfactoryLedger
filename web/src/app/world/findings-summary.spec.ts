@@ -9,12 +9,13 @@ const findings = {
   settled: true,
 };
 
-async function render(selectable: boolean, shown: ShownStatus | null = null) {
+async function render(selectable: boolean, shown: ShownStatus | null = null, bottlenecks?: number) {
   TestBed.configureTestingModule({ imports: [FindingsSummary] });
   const fixture = TestBed.createComponent(FindingsSummary);
   fixture.componentRef.setInput('findings', findings);
   fixture.componentRef.setInput('selectable', selectable);
   fixture.componentRef.setInput('shown', shown);
+  if (bottlenecks !== undefined) fixture.componentRef.setInput('bottlenecks', bottlenecks);
   const asked: (ShownStatus | null)[] = [];
   fixture.componentInstance.show.subscribe((status) => asked.push(status));
   await fixture.whenStable();
@@ -60,6 +61,21 @@ describe('the overview of the findings', () => {
 
     expect(asked).toEqual([]);
     expect(card('output blocked').getAttribute('role')).toBeNull();
+  });
+
+  it('counts the bottlenecks in a row of their own, when given, and shows them when clicked', async () => {
+    const { asked, card } = await render(true, null, 3);
+
+    expect(card('bottlenecks', 2).textContent).toMatch(/3\s*bottlenecks/);
+    card('bottlenecks', 2).click();
+
+    expect(asked).toEqual([{ of: 'bottlenecks' }]);
+  });
+
+  it('has no bottleneck row where it is not given a count', async () => {
+    const { fixture } = await render(true);
+
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.summary')).toHaveLength(2);
   });
 
   it('offers no count to click where nothing shows them', async () => {

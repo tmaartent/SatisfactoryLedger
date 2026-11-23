@@ -66,6 +66,7 @@
           [findings]="findings"
           [selectable]="true"
           [shown]="shownStatus()"
+          [bottlenecks]="findings.bottlenecks.length"
           (show)="showStatus($event)"
         />
         <p class="muted">
@@ -153,6 +154,70 @@
     }
   </section>
 </ng-template>
+@if (id(); as id) {
+  <!-- What the findings page lists of the supply, in the sidebar (asked 2026-11-23); an entry clicked is focused on the map. -->
+  <ng-template appSidebarTab="unused" label="Unused supply" icon="savings" [order]="0.2">
+    <section class="supply">
+      <p class="muted">
+        Miners, extractors and stations that could give more than is taken from them, the most left
+        first.
+      </p>
+      <ul>
+        @for (supply of unusedSupply(); track supply.id) {
+          <li>
+            <a [routerLink]="[]" [queryParams]="{ focus: supply.id }" queryParamsHandling="merge">
+              <app-game-icon [of]="supply.className" [size]="24" />{{
+                buildingName(supply.className)
+              }}
+            </a>
+            <div>
+              <app-game-icon [of]="supply.item" [size]="20" />{{ itemName(supply.item) }}
+              <span class="muted"
+                >· gives {{ perMinute(supply.delivered) }} of {{ perMinute(supply.offered) }}</span
+              >
+            </div>
+          </li>
+        } @empty {
+          <li class="muted">None: every source gives all it can, or the analysis isn't ready.</li>
+        }
+      </ul>
+    </section>
+  </ng-template>
+
+  <ng-template appSidebarTab="unknown" label="Unknown supply" icon="help_outline" [order]="0.4">
+    <section class="supply">
+      <p class="muted">
+        Stations and storage whose rate the save doesn't tell. The analysis assumes they give what
+        is asked of them, up to their belts.
+      </p>
+      <ul>
+        @for (supply of unknownSupply(); track supply.id) {
+          <li>
+            <a [routerLink]="[]" [queryParams]="{ focus: supply.id }" queryParamsHandling="merge">
+              <app-game-icon [of]="supply.className" [size]="24" />{{
+                buildingName(supply.className)
+              }}
+            </a>
+            @if (supply.confirmed) {
+              <span class="muted"> · its stock confirms it can</span>
+            }
+            @for (delivery of deliveries(supply.delivered); track delivery.item) {
+              <div>
+                <app-game-icon [of]="delivery.item" [size]="20" />{{ itemName(delivery.item) }}
+                <span class="muted">· {{ perMinute(delivery.rate) }}</span>
+              </div>
+            }
+            @if (supply.stockMinutes !== null) {
+              <div class="muted">Stock lasts {{ supply.stockMinutes | number: '1.0-0' }} min</div>
+            }
+          </li>
+        } @empty {
+          <li class="muted">None, or the analysis isn't ready.</li>
+        }
+      </ul>
+    </section>
+  </ng-template>
+}
 <!-- The import of a save and every snapshot, in the sidebar (asked 2026-11-22): the map gets the width. -->
 <ng-template appSidebarTab="snapshots" label="Snapshots" icon="folder_open" [order]="1">
   <app-snapshots-sidebar [current]="id()" />

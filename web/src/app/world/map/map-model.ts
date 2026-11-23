@@ -192,17 +192,23 @@ export function machineStatuses(
   return new Map((findings ?? []).map((machine) => [machine.id, machine.limit]));
 }
 
-/** The ids of the machines or generators of the status picked in the overview (asked 2026-11-23); null when none is picked. */
+/**
+ * The ids of what the count picked in the overview counts (asked 2026-11-23): the machines or generators of a status, or
+ * the bottlenecks, belts and pipes; null when none is picked.
+ */
 export function buildingsShown(
   analysis:
     | {
         machines: { id: string; limit: MachineLimit }[];
         generators: { id: string; limit: MachineLimit }[];
+        bottlenecks?: { id: string }[];
       }
     | undefined,
   shown: ShownStatus | null,
 ): Set<string> | null {
   if (!shown) return null;
+  if (shown.of === 'bottlenecks')
+    return new Set((analysis?.bottlenecks ?? []).map((bottleneck) => bottleneck.id));
   const buildings =
     shown.of === 'machines' ? (analysis?.machines ?? []) : (analysis?.generators ?? []);
   return new Set(
