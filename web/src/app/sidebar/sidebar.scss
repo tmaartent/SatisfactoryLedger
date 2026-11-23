@@ -1,8 +1,22 @@
-// The open tab, then the rail at the window's right edge. The shell holds it below the toolbar (app.scss).
+// What the shell puts above, then the open tab and the rail at the window's right edge. The shell holds it below the
+// toolbar (app.scss).
 :host {
   display: flex;
+  flex-direction: column;
   height: 100%;
   background: var(--mat-sys-surface);
+}
+
+.above:not(:empty) {
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  border-left: 1px solid var(--mat-sys-outline-variant);
+}
+
+.panes {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .tab {
@@ -13,16 +27,21 @@
   border-left: 1px solid var(--mat-sys-outline-variant);
   background: var(--mat-sys-surface);
 
+  // The tab's title in a band of its own, with its icon: apart from the tab's content (asked 2026-11-23).
   header {
     display: flex;
     align-items: center;
-    padding: 4px 4px 0 16px;
+    gap: 8px;
+    padding: 6px 4px 6px 16px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface-container);
+    color: var(--mat-sys-primary);
 
     h2 {
       flex: 1;
       margin: 0;
-      font: var(--mat-sys-title-small);
-      color: var(--mat-sys-on-surface-variant);
+      font: var(--mat-sys-title-medium);
+      font-weight: 600;
     }
   }
 }

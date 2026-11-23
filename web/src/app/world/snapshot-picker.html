@@ -1,0 +1,68 @@
+<input
+  #saveFile
+  type="file"
+  accept=".sav"
+  hidden
+  (change)="import(saveFile.files); saveFile.value = ''"
+/>
+<div class="picker">
+  <!-- A disabled button takes no pointer, so the tooltip saying why is on what holds it. -->
+  <span
+    class="current-holder"
+    [matTooltip]="
+      none()
+        ? 'No snapshots yet: import a save with the button beside this to make the first one. Import the game\'s Docs file in the Catalog first.'
+        : ''
+    "
+  >
+    <button
+      mat-stroked-button
+      class="current"
+      [matMenuTriggerFor]="list"
+      [disabled]="none() || !snapshots.hasValue()"
+      [attr.aria-label]="'Snapshot: ' + (shown()?.sessionName ?? 'none picked')"
+    >
+      <mat-icon>public</mat-icon>
+      <span class="name">{{ shown()?.sessionName ?? 'Pick a snapshot' }}</span>
+      <mat-icon iconPositionEnd>arrow_drop_down</mat-icon>
+    </button>
+  </span>
+  <button
+    mat-icon-button
+    class="import"
+    aria-label="Import a save"
+    matTooltip="Import a save (.sav) as a new snapshot: your world as it was when the game saved it. The game keeps its saves in %LOCALAPPDATA%\FactoryGame\Saved\SaveGames."
+    (click)="saveFile.click()"
+    [disabled]="importing()"
+  >
+    <mat-icon>upload_file</mat-icon>
+  </button>
+</div>
+@if (importing()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+@if (snapshots.error()) {
+  <p class="muted hint">The snapshots couldn't be loaded. Is the API running?</p>
+}
+
+<mat-menu #list="matMenu" class="snapshot-list">
+  @for (snapshot of snapshots.value() ?? []; track snapshot.id) {
+    <div class="row">
+      <a
+        mat-menu-item
+        class="snapshot"
+        [class.current]="snapshot.id === current()"
+        [routerLink]="['/snapshots', snapshot.id, 'map']"
+        >{{ snapshot.sessionName }}</a
+      >
+      <span class="saved">{{ snapshot.savedAt | date: 'd MMM, HH:mm' }}</span>
+      <button
+        mat-icon-button
+        (click)="delete(snapshot)"
+        [attr.aria-label]="'Delete the snapshot of ' + snapshot.sessionName"
+      >
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+  }
+</mat-menu>

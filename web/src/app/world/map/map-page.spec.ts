@@ -6,7 +6,6 @@ import { Api } from '../../api/api';
 import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
-import { getSnapshots } from '../../api/fn/world/get-snapshots';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FactoryTrace } from '../../api/models/factory-trace';
@@ -62,7 +61,20 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
         },
       ],
     ],
-    [getSnapshot, { id, sessionName: 'Desert Start' }],
+    [
+      getSnapshot,
+      {
+        id,
+        sessionName: 'Desert Start',
+        counts: {
+          machines: 2425,
+          logistics: 38699,
+          providers: 416,
+          consumers: 693,
+          connections: 39228,
+        },
+      },
+    ],
     [
       getWorldMap,
       {
@@ -190,9 +202,10 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
   await fixture.whenStable();
   await sidebar.whenStable();
   const tabs = sidebar.nativeElement as HTMLElement;
-  /** Opens a tab of the sidebar by its icon on the rail. */
+  /** Opens a tab of the sidebar by its icon on the rail; an open one stays open (a click would collapse it). */
   const open = async (label: string) => {
-    (tabs.querySelector(`.rail button[aria-label="${label}"]`) as HTMLButtonElement).click();
+    const icon = tabs.querySelector(`.rail button[aria-label="${label}"]`) as HTMLButtonElement;
+    if (icon.getAttribute('aria-pressed') !== 'true') icon.click();
     await fixture.whenStable();
     await sidebar.whenStable();
   };
@@ -253,17 +266,13 @@ describe('the world map with no snapshot loaded', () => {
     expect(element.querySelector('.node-pin')).not.toBeNull();
   });
 
-  it('asks for the resource nodes and the snapshots beside it, nothing of a snapshot', async () => {
+  it('asks for the resource nodes, nothing of a snapshot', async () => {
     const { api } = await render();
 
-    expect(api.invoke.mock.calls.map(([fn]) => fn)).toEqual(
-      expect.arrayContaining([getResourceNodes, getSnapshots]),
+    expect(api.invoke.mock.calls.map(([fn]) => fn)).toContain(getResourceNodes);
+    expect(api.invoke.mock.calls.every(([fn]) => fn === getResourceNodes || fn === getMapArt)).toBe(
+      true,
     );
-    expect(
-      api.invoke.mock.calls.every(
-        ([fn]) => fn === getResourceNodes || fn === getSnapshots || fn === getMapArt,
-      ),
-    ).toBe(true);
     expect(api.invoke$Response).not.toHaveBeenCalled();
   });
 
@@ -294,13 +303,12 @@ describe('the world map with no snapshot loaded', () => {
     expect(element.querySelector('.factories')).toBeNull();
   });
 
-  it('has the snapshots in the sidebar, and no factories there', async () => {
+  it('has the resource nodes in the sidebar, and no factories there', async () => {
     const { tabs } = await render();
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual(['Snapshots', 'Resource nodes']);
-    expect(tabs.querySelector('app-snapshots-sidebar')).not.toBeNull();
+    ).toEqual(['Resource nodes']);
   });
 });
 
@@ -352,20 +360,19 @@ describe('the world map of a snapshot', () => {
   const names = (element: HTMLElement, selector: string) =>
     [...element.querySelectorAll(selector)].map((entry) => entry.textContent?.trim());
 
-  it('opens the sidebar on the overview of its findings, with its factories and the snapshots in the tabs after it', async () => {
+  it('opens the sidebar on the overview of its findings, with its factories and supply in the tabs after it', async () => {
     const { tabs } = await render('snapshot-1');
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual([
-      'Info',
-      'Factories',
-      'Unused supply',
-      'Unknown supply',
-      'Snapshots',
-      'Resource nodes',
-    ]);
+    ).toEqual(['Info', 'Factories', 'Unused supply', 'Unknown supply', 'Resource nodes']);
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
+  });
+
+  it('says under the overview what the snapshot holds', async () => {
+    const { tabs } = await render('snapshot-1');
+
+    expect(tabs.querySelector('.info app-what-it-holds')?.textContent).toMatch(/2425\s*machines/);
   });
 
   it('lists its factories in the sidebar, not beside the map', async () => {

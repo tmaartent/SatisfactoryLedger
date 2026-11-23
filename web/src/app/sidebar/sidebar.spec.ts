@@ -17,7 +17,7 @@ import { SidebarTabs } from './sidebar-tabs';
     <ng-template appSidebarTab="factories" label="Factories" icon="factory" [order]="1"
       ><p class="content">Rubber</p></ng-template
     >
-    <app-sidebar />
+    <app-sidebar><p class="above">Learning</p></app-sidebar>
   `,
 })
 class Page {
@@ -40,6 +40,22 @@ describe('the sidebar', () => {
 
     expect(icons().map((icon) => icon.getAttribute('aria-label'))).toEqual(['Info', 'Factories']);
     expect(content()).toBe('Constructor');
+  });
+
+  it('shows what it is given above the tabs, apart from them', async () => {
+    const { element } = await render();
+
+    const above = element.querySelector('app-sidebar .above');
+    expect(above?.textContent).toBe('Learning');
+    expect(above?.closest('.tab')).toBeNull();
+  });
+
+  it("heads the open tab with its icon and title, to tell it from the tab's content", async () => {
+    const { element } = await render();
+
+    const header = element.querySelector('app-sidebar .tab header') as HTMLElement;
+    expect(header.querySelector('mat-icon')?.textContent?.trim()).toBe('info');
+    expect(header.querySelector('h2')?.textContent?.trim()).toBe('Info');
   });
 
   it("draws a tab with the page's own state, as it changes", async () => {

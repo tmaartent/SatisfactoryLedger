@@ -1,7 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, input, resource, signal } from '@angular/core';
+import { Component, computed, inject, input, resource, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -15,32 +16,38 @@ import { problemMessage } from '../shared/problem';
 import { SnapshotDeletion } from './snapshot-deletion';
 
 /**
- * The map's Snapshots tab in the sidebar (asked 2026-11-22): the import of a new save, and every snapshot by its world's name, newest first,
- * linking to its map, with a delete button.
+ * Which snapshot the World pages show, above the sidebar on every one of them (asked 2026-11-23): the sidebar's tabs are
+ * all about that snapshot, so picking it is apart from them. Its name opens the list of snapshots, newest first, each
+ * linking to its map, with a delete button; beside it, the import of a new save. It was the map's Snapshots tab.
  */
 @Component({
-  selector: 'app-snapshots-sidebar',
+  selector: 'app-snapshot-picker',
   imports: [
     DatePipe,
     RouterLink,
     MatButtonModule,
     MatIconModule,
+    MatMenuModule,
     MatProgressBarModule,
     MatTooltipModule,
   ],
-  templateUrl: './snapshots-sidebar.html',
-  styleUrl: './snapshots-sidebar.scss',
+  templateUrl: './snapshot-picker.html',
+  styleUrl: './snapshot-picker.scss',
 })
-export class SnapshotsSidebar {
+export class SnapshotPicker {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
   private readonly deletion = inject(SnapshotDeletion);
 
-  /** The snapshot whose map is shown; none on the world's start, before there is one. */
-  readonly current = input<string>();
+  /** The snapshot the page shows; null on the World's start, before one is picked. */
+  readonly current = input<string | null>(null);
 
   protected readonly snapshots = resource({ loader: () => this.api.invoke(getSnapshots) });
+  protected readonly shown = computed(
+    () => this.snapshots.value()?.find((snapshot) => snapshot.id === this.current()) ?? null,
+  );
+  protected readonly none = computed(() => this.snapshots.value()?.length === 0);
   protected readonly importing = signal(false);
 
   /** Deletes a snapshot after asking; when it's the one shown, back to the map with no snapshot loaded. */

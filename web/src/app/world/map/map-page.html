@@ -72,6 +72,11 @@
         <p class="muted">
           Click a count to show those buildings on the map; click it again to show all.
         </p>
+        <!-- What the snapshot holds, as the findings page says it (asked 2026-11-23). -->
+        @if (snapshot.value(); as shown) {
+          <h3>What it holds</h3>
+          <app-what-it-holds [counts]="shown.counts" />
+        }
       } @else {
         <mat-progress-bar mode="indeterminate" />
         <p class="muted">The analysis service is simulating the world.</p>
@@ -218,7 +223,3 @@
     </section>
   </ng-template>
 }
-<!-- The import of a save and every snapshot, in the sidebar (asked 2026-11-22): the map gets the width. -->
-<ng-template appSidebarTab="snapshots" label="Snapshots" icon="folder_open" [order]="1">
-  <app-snapshots-sidebar [current]="id()" />
-</ng-template>

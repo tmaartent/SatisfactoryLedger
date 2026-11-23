@@ -67,7 +67,7 @@ import { Explainer, HeldBackMachine } from '../explain/explainer';
 import { LimitFacts, limitText } from '../limit-text';
 import { FindingsSummary } from '../findings-summary';
 import { ShownStatus } from '../shown-status';
-import { SnapshotsSidebar } from '../snapshots-sidebar';
+import { WhatItHolds } from '../what-it-holds';
 
 /** Every kilometre a grid line, over the whole game world (about −3.3 to 4.3 km east, −3.8 to 3.8 km north). */
 const GridStep = 1000;
@@ -88,7 +88,7 @@ const MinZoom = -4;
     GameIcon,
     DecimalPipe,
     FindingsSummary,
-    SnapshotsSidebar,
+    WhatItHolds,
     SidebarTab,
     MatButtonModule,
     MatIconModule,

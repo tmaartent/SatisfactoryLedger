@@ -149,3 +149,28 @@ table.mat-mdc-table {
     object-fit: contain;
   }
 }
+
+// The list of snapshots the picker above the sidebar opens (snapshot-picker.html): an overlay, outside the picker's
+// own styles. Each row is the snapshot's link, when it was saved, and its delete button.
+.snapshot-list {
+  .row {
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+  }
+
+  .snapshot {
+    flex: 1;
+
+    &.current {
+      font-weight: 600;
+      color: var(--mat-sys-primary);
+    }
+  }
+
+  .saved {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-body-small);
+    white-space: nowrap;
+  }
+}

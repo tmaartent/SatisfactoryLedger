@@ -2,7 +2,6 @@ import { DatePipe } from '@angular/common';
 import { Component, effect, inject, input, resource } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { Router, RouterLink } from '@angular/router';
@@ -20,6 +19,8 @@ import { SnapshotDeletion } from './snapshot-deletion';
 import { GameIcon } from '../shared/game-icon';
 
 /** One snapshot: what it holds, and its findings once the analysis is ready, its factories among them. */
+import { WhatItHolds } from './what-it-holds';
+
 @Component({
   selector: 'app-snapshot-page',
   imports: [
@@ -28,7 +29,7 @@ import { GameIcon } from '../shared/game-icon';
     RouterLink,
     MatButtonModule,
     MatIconModule,
-    MatListModule,
+    WhatItHolds,
     MatProgressBarModule,
     MatTabsModule,
     AnalysisStatusChip,
