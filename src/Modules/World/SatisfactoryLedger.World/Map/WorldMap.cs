@@ -37,7 +37,8 @@ internal static class WorldMap
                         conveyor.ClassName,
                         conveyor.Kind == LogisticsKind.Pipe ? MapConveyorKind.Pipe : MapConveyorKind.Belt,
                         conveyor.Curve!,
-                        conveyor.Contents))
+                        conveyor.Contents,
+                        conveyor.LooseEnds ?? 0))
             ],
             [.. Having(BuildableDocumentRole.Logistics).Where(logistics => logistics.Curve is not { Count: > 0 }).Select(buildable => Building(snapshot, buildable))],
             [.. Having(BuildableDocumentRole.Consumer).Select(buildable => Building(snapshot, buildable))],

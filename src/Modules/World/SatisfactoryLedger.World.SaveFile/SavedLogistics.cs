@@ -22,4 +22,10 @@ public sealed record SavedLogistics(
     /// never counted as supply. Null for logistics that carry no items this way (pipes, containers).
     /// </summary>
     public IReadOnlyDictionary<string, decimal>? Contents { get; init; }
+
+    /// <summary>
+    /// How many ends of a belt, lift or pipe are connected to nothing (asked 2026-11-23): items can't go on, or come in,
+    /// there. An end linked to a building the ledger doesn't read counts as connected. 0 for other logistics.
+    /// </summary>
+    public int LooseEnds { get; init; }
 }

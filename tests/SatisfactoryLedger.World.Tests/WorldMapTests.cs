@@ -135,6 +135,14 @@ public class WorldMapTests
     }
 
     [Fact]
+    public void A_belt_on_the_map_says_how_many_of_its_ends_are_connected_to_nothing()
+    {
+        int LooseEnds(string id) => Map.Conveyors.Single(conveyor => conveyor.Id == Id(id)).LooseEnds;
+
+        Assert.Equal((1, 0), (LooseEnds("Build_ConveyorBeltMk6_C_2147274025"), LooseEnds("Build_ConveyorBeltMk1_C_2147303056")));
+    }
+
+    [Fact]
     public void A_splitter_on_the_map_shows_what_is_in_its_buffer()
     {
         MapBuilding splitter = Map.Logistics.Single(buildable => buildable.Id == Id("Build_ConveyorAttachmentSplitter_C_2147304077"));

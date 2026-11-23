@@ -10,6 +10,8 @@ namespace SatisfactoryLedger.World.Snapshots;
 /// <param name="Resource">The item a provider extracts when its class decides it (water); otherwise its node decides.</param>
 /// <param name="Stock">What a station or container holds now, per item; null when the save says nothing about it.</param>
 /// <param name="Burns">The fuel a drone port or truck station burns; null for buildables without a fuel slot.</param>
+/// <param name="LooseEnds">How many ends of a belt, lift or pipe are connected to nothing; null for other buildables, and
+/// in a snapshot from before they were read (version 13).</param>
 internal sealed record BuildableDocument(
     string Id,
     BuildableDocumentRole Role,
@@ -32,12 +34,14 @@ internal sealed record BuildableDocument(
     IReadOnlyDictionary<string, decimal>? OutputContents = null,
     string? Fuel = null,
     bool TakesLeftoversOnly = false,
-    DroneDocument? Drone = null)
+    DroneDocument? Drone = null,
+    int? LooseEnds = null)
 {
     /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
     {
         Contents = (saved as SavedLogistics)?.Contents,
+        LooseEnds = saved is SavedLogistics { Curve: not null } conveyor ? conveyor.LooseEnds : null,
         InputContents = CubicMetres((saved as SavedMachine)?.InputContents ?? (saved as SavedConsumer)?.FuelContents, fluids),
         OutputContents = CubicMetres((saved as SavedMachine)?.OutputContents, fluids),
         Position = saved.Position is { } position ? new PositionDocument(position.X, position.Y, position.Z) : null,

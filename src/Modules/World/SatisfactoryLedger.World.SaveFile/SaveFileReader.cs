@@ -113,6 +113,9 @@ public static class SaveFileReader
                 BuildableRole.Logistics => new SavedLogistics(id, className, GameClasses.LogisticsKindOf(className), SortRulesOf(actor), InputPrioritiesOf(actor))
                 {
                     Curve = GameClasses.LogisticsKindOf(className) == LogisticsKind.Lift ? LiftCurveOf(actor) : CurveOf(actor),
+                    LooseEnds = GameClasses.LogisticsKindOf(className) is LogisticsKind.Belt or LogisticsKind.Lift or LogisticsKind.Pipe
+                        ? ports.Count(port => port.LinkedTo is null)
+                        : 0,
                     Contents = onConveyors.GetValueOrDefault(actor.ObjectReference.PathName) ?? InventoryOf(actor, "mBufferInventory", byPath),
                     Stock = GameClasses.LogisticsKindOf(className) == LogisticsKind.FluidBuffer
                         ? FluidStockOf(actor, byPath, fluidOfNetwork)

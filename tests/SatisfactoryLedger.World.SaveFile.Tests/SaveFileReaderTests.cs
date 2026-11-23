@@ -449,6 +449,20 @@ public class SaveFileReaderTests
         Assert.Equal(90, SaveFileReader.YawOf(quarterTurn), 3);
     }
 
+    // ---- Loose ends: a belt, lift or pipe end connected to nothing (asked 2026-11-23) ----------------------------
+
+    [Fact]
+    public void A_belt_with_an_end_connected_to_nothing_has_a_loose_end()
+    {
+        Assert.Equal(1, Logistics("Build_ConveyorBeltMk6_C_2147274025").LooseEnds);
+    }
+
+    [Fact]
+    public void A_belt_and_a_lift_connected_at_both_ends_have_no_loose_end()
+    {
+        Assert.Equal((0, 0), (Logistics("Build_ConveyorBeltMk1_C_2147303056").LooseEnds, Logistics("Build_ConveyorLiftMk1_C_2147312952").LooseEnds));
+    }
+
     // ---- Contents: what's on a belt, in a splitter, in a machine at save time (not stock: the analysis ignores it) -
 
     [Fact]
