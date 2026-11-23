@@ -1,4 +1,5 @@
-import { Component, input, output, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { Component, TemplateRef, input, output, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 
@@ -10,8 +11,14 @@ import { AreaPage } from './area/area-page';
 import { FactoryPage } from './factory-page';
 
 /** The 3D view, without WebGL (jsdom has none): what the factory page gives it, and what it says back. */
-@Component({ selector: 'app-area-page', template: '' })
+@Component({
+  selector: 'app-area-page',
+  imports: [NgTemplateOutlet],
+  // What the page puts at the top of the 3D view's Info tab.
+  template: '<ng-container *ngTemplateOutlet="infoTop()" />',
+})
 class AreaPageStub {
+  readonly infoTop = input<TemplateRef<unknown> | null>(null);
   readonly id = input<string>();
   readonly factory = input<string>();
   readonly embedded = input(false);
@@ -40,8 +47,21 @@ const rubber: FactoryAnalysisResponse = {
   bottlenecks: [],
   unusedSupply: [],
   unknownSupply: [],
-  input: [],
-  output: [],
+  // Ore comes in and plates leave: the ingots made and taken inside are neither.
+  input: [{ item: 'Desc_OreIron_C', now: 60, atFullSpeed: 120, short: 60, sources: [] }],
+  output: [
+    {
+      item: 'Desc_IronPlate_C',
+      now: 20,
+      atFullSpeed: 40,
+      short: 0,
+      sunk: 0,
+      cannotLeave: 0,
+      receiversNeed: 0,
+      othersBring: 0,
+      destinations: [],
+    },
+  ],
   power: null,
 } as unknown as FactoryAnalysisResponse;
 
@@ -96,6 +116,18 @@ describe("a factory's page", () => {
           : node.textContent?.trim(),
     );
     expect(order).toEqual(['overview', '3D', 'Input', 'Output']);
+  });
+
+  it('sums up at the top of the Info tab what comes in from outside and what leaves, now and at 100%', async () => {
+    const { element } = await render();
+
+    const totals = element.querySelector('app-area-page .totals') as HTMLElement;
+    const rows = (kind: string) =>
+      [...totals.querySelectorAll(`.${kind} li`)].map((row) =>
+        (row.textContent ?? '').replace(/\s+/g, ' ').trim(),
+      );
+    expect(rows('in')).toEqual(['Desc_OreIron_C 60/min · 120/min at 100%']);
+    expect(rows('out')).toEqual(['Desc_IronPlate_C 20/min · 40/min at 100%']);
   });
 
   it('shows how many of its machines are starved, output blocked and without a recipe', async () => {

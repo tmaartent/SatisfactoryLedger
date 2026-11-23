@@ -52,11 +52,44 @@
     </p>
   }
 
+  <!--
+    At the top of the Info tab (asked 2026-11-23): what comes into the factory from outside and what leaves it, per
+    item. Only what crosses its edge: what its machines make and take inside isn't in either.
+  -->
+  <ng-template #totals>
+    <section class="totals">
+      <h3>Comes in</h3>
+      <ul class="in">
+        @for (i of factory.input; track i.item) {
+          <li>
+            <app-game-icon [of]="i.item" [size]="20" />{{ names.item(i.item) }}
+            <span class="rate">{{ perMinute(i.now) }}</span>
+            <span class="muted"> · {{ perMinute(i.atFullSpeed) }} at 100%</span>
+          </li>
+        } @empty {
+          <li class="muted">Nothing</li>
+        }
+      </ul>
+      <h3>Leaves</h3>
+      <ul class="out">
+        @for (o of factory.output; track o.item) {
+          <li>
+            <app-game-icon [of]="o.item" [size]="20" />{{ names.item(o.item) }}
+            <span class="rate">{{ perMinute(o.now) }}</span>
+            <span class="muted"> · {{ perMinute(o.atFullSpeed) }} at 100%</span>
+          </li>
+        } @empty {
+          <li class="muted">Nothing</li>
+        }
+      </ul>
+    </section>
+  </ng-template>
   <app-area-page
     #area
     [id]="id()"
     [factory]="factoryId()"
     [embedded]="true"
+    [infoTop]="totals"
     (saved)="analysis.reload()"
   />
 
