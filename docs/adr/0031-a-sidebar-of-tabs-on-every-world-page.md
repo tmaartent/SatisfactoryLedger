@@ -13,7 +13,7 @@ Each World page had its own side panel. The map had the snapshots on its left an
 
   | Page | Tabs |
   |---|---|
-  | World map | Info *(2026-11-23)*, Factories, Unused supply, Unknown supply *(both 2026-11-23)*, Snapshots, Resource nodes *(2026-11-23)*, Explanation |
+  | World map | Info *(2026-11-23)*, Factories, Unused supply, Unknown supply *(both 2026-11-23)*, Resource nodes *(2026-11-23)*, Explanation; Snapshots until 2026-11-23, now above the tabs |
   | Area in 3D | Info, Factories, Explanation |
   | Factory | Info (its 3D view's), Explanation |
   | Snapshot (findings) | Explanation |
@@ -23,6 +23,9 @@ Each World page had its own side panel. The map had the snapshots on its left an
 - **The map's Info tab counts the bottlenecks too** *(decided 2026-11-23, step 77)*, in a row of their own under the machines and generators: clicked, the map rings them halfway along and zooms to fit them, as for a status. Only the map shows that row; the findings and factory pages don't give the overview a count.
 - **The findings page's Unused supply and Unknown supply are tabs of the map** *(decided 2026-11-23, step 77)*, after Factories: a list rather than a table, as the sidebar is narrow. Each entry is its source with its icon, linked to it on the map (`?focus=`), and its items: what an unused source gives of what it could, the most left over first; what an unknown one is assumed to give, and how long its stock lasts.
 - **The map's Resource nodes tab picks which nodes it shows** *(decided 2026-11-23, step 76)*: a row per resource, a column per purity from impure to pure, each cell the node's pin head (the resource's icon on its purity's colour, in a white ring). A click hides that resource at that purity on the map, or shows it again; a cell is edged and filled in its purity's colour while shown (filled asked too, as only the edge wasn't visible enough), grey edged with its badge faded while hidden. *Show all* and *Hide all* above. What's hidden is kept in the browser, so a resource the game adds shows at first. It replaces the *Resource nodes* switch above the map. The tab is there with or without a snapshot, after Snapshots, so the sidebar still opens on Snapshots without one.
+- **The snapshots are above the tabs, on every World page** *(decided 2026-11-23, step 79)*: every tab is about the snapshot shown, so picking it is apart from them. A picker atop the sidebar names the snapshot shown; it opens the list of snapshots, each linking to its map, with a delete button, and beside it is the import of a save. Both say in a tooltip what they're for, and before there's any snapshot, that there's none yet and how to make one. When the sidebar is collapsed to its rail, or the screen is narrow, only their icons show. The shell puts it there (`<app-sidebar>` takes what goes above, `ng-content`); its code loads once the page is up (`@defer`), so the shell's first load stays as small. It replaces the map's Snapshots tab.
+- **Under the overview, the map's Info tab says what the snapshot holds** *(decided 2026-11-23, step 79)*: the counts of the findings page's *What it holds* (machines, logistics, providers, consumers, connections), one component for both.
+- **A tab's title is a band of its own** *(decided 2026-11-23, step 79)*: its icon and title, larger, in the primary colour, on a band with a line under it, so it stands apart from the tab's content.
 - **A tab is declared in the page's template,** as `<ng-template appSidebarTab="info" label="Info" icon="info">`. Its content keeps the page's bindings and styles. A root service (`SidebarTabs`) holds the tabs, which one is open and whether the sidebar is collapsed.
 - **Clicks in the page show the tab that answers them,** opening the sidebar if it was collapsed:
   - a building, belt, pipe or lift clicked in 3D shows Info, with *Explain why* for a held-back machine;
@@ -31,7 +34,7 @@ Each World page had its own side panel. The map had the snapshots on its left an
   - asking for an explanation shows Explanation.
 - **While defining a factory, its name, Save and Cancel are in the page's header,** as on a factory's own page. Switching tabs can't hide them.
 - **The tab last asked for is remembered across pages:** when the next page has a tab by that key, it's shown; otherwise the page's first tab is.
-- **World in the toolbar goes back to the snapshot last looked at, on the Snapshots tab** *(decided 2026-11-23, step 68)*: any page of a snapshot (its map, 3D view, a factory) makes it the one remembered, in the browser's storage, so it's there when the site is opened again. Deleting it forgets it. Before any snapshot is looked at, World is the map of none, as before.
+- **World in the toolbar goes back to the snapshot last looked at** *(decided 2026-11-23, step 68; it opened the Snapshots tab too, until step 79 put the snapshots above the tabs)*: any page of a snapshot (its map, 3D view, a factory) makes it the one remembered, in the browser's storage, so it's there when the site is opened again. Deleting it forgets it. Before any snapshot is looked at, World is the map of none, as before.
 
 ## Alternatives considered
 - **A panel per page** (as before): no shared code, but every page takes width its own way, and the responsive version would need each one solved separately.
