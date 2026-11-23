@@ -48,6 +48,16 @@
     border-radius: 2px;
     vertical-align: middle;
   }
+
+  // A belt, lift or pipe: a short thick line.
+  .line {
+    display: inline-block;
+    width: 14px;
+    height: 4px;
+    margin-right: 4px;
+    border-radius: 2px;
+    vertical-align: middle;
+  }
 }
 
 .hint {

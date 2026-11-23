@@ -58,6 +58,7 @@ import {
   inArea,
   sampleCurve3d,
   toScene,
+  tubeColour,
 } from './area-model';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
@@ -144,6 +145,8 @@ export class AreaPage {
   readonly saved = output<string>();
 
   /** What the machines' colours mean: how they run (BR-A11). */
+  /** The legend's last entry: what a red belt, lift or pipe means. */
+  protected readonly troubleColour = conveyorColours.bottleneck;
   protected readonly statusLegend = (
     ['none', 'starved', 'outputBlocked', 'noRecipe'] as MachineStatus[]
   ).map((status) => ({
@@ -592,6 +595,7 @@ export class AreaPage {
     // Belts, pipes and lifts, merged per kind and per metre of their lowest point: thousands of meshes would slow a big
     // area down, and one mesh per kind couldn't follow the height cut-off. Each mesh keeps which belt lies where in it,
     // so a click can find the belt it hit.
+    const bottleneckIds = new Set(this.bottlenecks().keys());
     const tubes = new Map<
       string,
       { conveyors: MapConveyor[]; geometries: THREE.BufferGeometry[] }
@@ -599,17 +603,18 @@ export class AreaPage {
     for (const conveyor of world.conveyors) {
       if (conveyor.curve.length < 2 || !curveInArea(conveyor.curve, area)) continue;
       const base = Math.floor(Math.min(...sampleCurve3d(conveyor.curve).map((p) => p.z)) / 100);
-      const key = `${conveyor.kind}:${base}:${faded(conveyor.id)}`;
+      // Per colour rather than kind: a bottleneck or a belt with a loose end is red (asked 2026-11-23).
+      const key = `${tubeColour(conveyor, bottleneckIds)}:${base}:${faded(conveyor.id)}`;
       const group = tubes.get(key) ?? { conveyors: [], geometries: [] };
       group.conveyors.push(conveyor);
       group.geometries.push(this.tube(conveyor, at, 0));
       tubes.set(key, group);
     }
     for (const [key, { conveyors, geometries }] of tubes) {
-      const [kind, base, fade] = key.split(':') as ['belt' | 'pipe', string, string];
+      const [colour, base, fade] = key.split(':');
       const mesh = new THREE.Mesh(
         mergeGeometries(geometries),
-        this.material(conveyorColours[kind], true, fade === 'true'),
+        this.material(colour, true, fade === 'true'),
       );
       const starts = pieceStarts(geometries.map((geometry) => geometry.index!.count / 3));
       mesh.userData = { z: Number(base), conveyors, starts };

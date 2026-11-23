@@ -10,6 +10,7 @@ import {
   inArea,
   sampleCurve3d,
   toScene,
+  tubeColour,
   volumeCorners,
 } from './area-model';
 
@@ -195,5 +196,24 @@ describe('area model', () => {
       [0, 0, 0],
       [1000, 0, 1000],
     ]);
+  });
+
+  describe('the colour of a belt, lift or pipe in 3D', () => {
+    const belt = { id: 'belt', kind: 'belt' as const, looseEnds: 0 };
+
+    it("is its kind's, when nothing is wrong with it", () => {
+      expect([
+        tubeColour(belt, new Set()),
+        tubeColour({ ...belt, kind: 'pipe' }, new Set()),
+      ]).toEqual(['#90a4ae', '#4dd0e1']);
+    });
+
+    it('is red for a bottleneck', () => {
+      expect(tubeColour(belt, new Set(['belt']))).toBe('#ef5350');
+    });
+
+    it('is red for one with an end connected to nothing (asked 2026-11-23)', () => {
+      expect(tubeColour({ ...belt, looseEnds: 1 }, new Set())).toBe('#ef5350');
+    });
   });
 });

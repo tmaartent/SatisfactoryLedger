@@ -11,6 +11,7 @@ describe('factory preview', () => {
       className: 'Build_ConveyorBeltMk1_C',
       kind: 'belt',
       contents: null,
+      looseEnds: 0,
       curve: [from, to].map((x) => ({
         location: at(x),
         arriveTangent: at(0),
