@@ -60,7 +60,7 @@ internal static class FactoryTraces
             .Select(BuildableId.Of)];
         if (chosen.Count == 0)
         {
-            return new FactoryPreview([], [], [], [], [], []);
+            return new FactoryPreview([], [], [], [], [], [], []);
         }
 
         WorldGraph world = snapshot.ToWorldGraph();
@@ -73,7 +73,8 @@ internal static class FactoryTraces
             Summaries(members.Inputs, buildables),
             PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, analysis!).GetValueOrDefault(item.Id), analysis is not null),
             PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, analysis!, members, states), analysis is not null),
-            [.. definition.ConnectedIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)]);
+            [.. definition.ConnectedIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
+            [.. definition.SuppliesIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)]);
     }
 
     /// <summary>Per item over the connections, what crosses now: summed, most first; without rates when they aren't known.</summary>

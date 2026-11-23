@@ -10,10 +10,14 @@ namespace SatisfactoryLedger.World.Factories;
 /// <param name="Leaving">Per item, what leaves over its outputs now, most first.</param>
 /// <param name="Arriving">Per item, what arrives over its inputs now, most first.</param>
 /// <param name="Connected">The ids of what's connected to it, its machines included: the rest is faded in its 3D view.</param>
+/// <param name="Supplies">The ids of what supplies it, upstream only, its machines included: the lines up to the miners,
+/// stations and drone ports and the supplier factories' machines where they start (FactoryDefinition.SuppliesIn). Lit up
+/// before an arrangement.</param>
 internal sealed record FactoryPreview(
     IReadOnlyList<string> Logistics,
     IReadOnlyList<ConnectionSummary> Outputs,
     IReadOnlyList<ConnectionSummary> Inputs,
     IReadOnlyList<PreviewItem> Leaving,
     IReadOnlyList<PreviewItem> Arriving,
-    IReadOnlyList<string> Connected);
+    IReadOnlyList<string> Connected,
+    IReadOnlyList<string> Supplies);
