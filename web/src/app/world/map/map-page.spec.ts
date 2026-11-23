@@ -43,7 +43,7 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
   const answers = new Map<unknown, unknown>([
     [
       getResourceNodes,
-      [{ resource: 'Desc_OreIron_C', purity: 'pure', position: { x: 1000, y: 2000, z: 0 } }],
+      [{ name: 'BP_ResourceNode1', resource: 'Desc_OreIron_C', purity: 'pure', position: { x: 1000, y: 2000, z: 0 } }],
     ],
     [getSnapshot, { id, sessionName: 'Desert Start' }],
     [
@@ -53,7 +53,10 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
           { id: 'smelter-1', className: 'Build_SmelterMk1_C', recipe: 'Recipe_IngotIron_C', position: { x: 0, y: 0, z: 0 }, yaw: 0 },
         ],
         conveyors: [],
-        providers: [],
+        // A miner on the one resource node.
+        providers: [
+          { id: 'miner-1', className: 'Build_MinerMk3_C', node: 'BP_ResourceNode1', resource: 'Desc_OreIron_C', purity: 'pure', position: { x: 1000, y: 2000, z: 0 }, yaw: 0 },
+        ],
         logistics: [],
         consumers: [],
         footprints: [],
@@ -136,13 +139,20 @@ describe('the world map with no snapshot loaded', () => {
     expect(api.invoke$Response).not.toHaveBeenCalled();
   });
 
-  it("draws a resource node as its resource's icon in the ring of its purity", async () => {
+  it("draws a resource node as a pin: its resource's icon on its purity's colour, on a stick to where it lies", async () => {
     const { element } = await render();
 
-    const node = element.querySelector('.node-marker') as HTMLElement | null;
-    expect(node?.querySelector('img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Desc_OreIron_C');
-    // Pure: yellow, as the browser reads the colour back.
-    expect(node?.style.borderColor).toBe('rgb(255, 241, 118)');
+    const pin = element.querySelector('.node-pin') as HTMLElement | null;
+    expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Desc_OreIron_C');
+    // Pure: green, behind the icon.
+    expect(pin?.style.getPropertyValue('--purity')).toBe('#43a047');
+  });
+
+  it('sizes the resource nodes for how far the map is zoomed in', async () => {
+    const { element } = await render();
+
+    const map = element.querySelector('.leaflet-container') as HTMLElement;
+    expect(map.style.getPropertyValue('--node-size')).toMatch(/^\d+px$/);
   });
 
   it('offers nothing that needs a snapshot', async () => {
@@ -163,6 +173,20 @@ describe('the world map with no snapshot loaded', () => {
 });
 
 describe('the world map of a snapshot', () => {
+  it('draws a pin for a resource node a miner stands on too, saying what stands on it', async () => {
+    const { element } = await render('s1');
+
+    const pin = element.querySelector('.node-pin') as HTMLElement | null;
+    expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe('/api/v1/catalog/icons/Desc_OreIron_C');
+  });
+
+  it('has no legend entry for the resource nodes: the pins speak for themselves', async () => {
+    const { element } = await render('s1');
+
+    const legend = element.querySelector('.legend')?.textContent ?? '';
+    expect([legend.includes('Free node'), legend.includes('Resource node')]).toEqual([false, false]);
+  });
+
   const names = (element: HTMLElement, selector: string) =>
     [...element.querySelectorAll(selector)].map((entry) => entry.textContent?.trim());
 

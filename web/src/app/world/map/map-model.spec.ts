@@ -1,10 +1,9 @@
 import { MachineFinding } from '../../api/models/machine-finding';
 import { MapProvider } from '../../api/models/map-provider';
-import { ResourceNodeResponse } from '../../api/models/resource-node-response';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { MapMargin, buildingStyle, buildingsShown, iconTag, nodeMarkerHtml, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, freeNodes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { MapMargin, buildingStyle, buildingsShown, iconTag, nodeTakers, nodeMarkerHtml, nodeMarkerSize, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -48,13 +47,11 @@ describe('map model', () => {
     expect(machineStatuses(undefined).get('smelter') ?? 'unknown').toBe('unknown');
   });
 
-  it('finds the resource nodes no provider stands on', () => {
-    const node = (name: string) => ({ name }) as ResourceNodeResponse;
-    const providers = [{ node: 'BP_ResourceNode35' } as MapProvider, { node: null } as MapProvider];
+  it('knows which provider stands on which resource node; a node none stands on is free', () => {
+    const miner = { id: 'miner', node: 'BP_ResourceNode35' } as MapProvider;
+    const takers = nodeTakers([miner, { id: 'well', node: null } as MapProvider]);
 
-    expect(freeNodes([node('BP_ResourceNode35'), node('BP_ResourceNode36')], providers).map((n: ResourceNodeResponse) => n.name)).toEqual([
-      'BP_ResourceNode36',
-    ]);
+    expect([takers.get('BP_ResourceNode35'), takers.get('BP_ResourceNode36'), takers.size]).toEqual([miner, undefined, 1]);
   });
 
   const point = (x: number, y: number, arrive: [number, number], leave: [number, number]): CurvePointDocument => ({
@@ -148,6 +145,7 @@ describe('map model', () => {
   it('shows fluids in cubic metres, rounded', () => {
     expect(describeContents({ Desc_Water_C: 12.3456 }, name)).toBe('Water × 12.35');
   });
+
 
   describe('finding a buildable to zoom to', () => {
     const building = (id: string, x: number, y: number) => ({ id, className: 'X', position: { x, y, z: 0 }, yaw: 0, contents: null });
@@ -268,10 +266,18 @@ describe('map model', () => {
       expect(iconTag(null)).toBe('');
     });
 
-    it("draws a free node as its resource's icon in a dashed ring of its purity's colour", () => {
+    it("draws a node as a pin: its resource's icon on its purity's colour", () => {
       expect(nodeMarkerHtml('/api/v1/catalog/icons/Desc_OreIron_C', '#fff176')).toBe(
-        '<div class="node-marker" style="border-color: #fff176"><img src="/api/v1/catalog/icons/Desc_OreIron_C" alt=""></div>',
+        '<div class="node-pin" style="--purity: #fff176"><div class="node-marker"><img src="/api/v1/catalog/icons/Desc_OreIron_C" alt=""></div></div>',
       );
+    });
+
+    it('grows as the map is zoomed in, half as fast as the map: a step in is about 1.4 times as big', () => {
+      expect([nodeMarkerSize(-2), nodeMarkerSize(-1), nodeMarkerSize(0)]).toEqual([22, 31, 44]);
+    });
+
+    it('stays big enough to make out when zoomed all the way out, and no bigger than a thumb when zoomed all the way in', () => {
+      expect([nodeMarkerSize(-4), nodeMarkerSize(3)]).toEqual([18, 72]);
     });
   });
 });

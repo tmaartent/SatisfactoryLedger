@@ -15,8 +15,8 @@
       <mat-icon>view_in_ar</mat-icon>
       Open an area in 3D
     </button>
-    <mat-slide-toggle [checked]="showFreeNodes()" (change)="showFreeNodes.set($event.checked)"
-      >Free resource nodes</mat-slide-toggle
+    <mat-slide-toggle [checked]="showNodes()" (change)="showNodes.set($event.checked)"
+      >Resource nodes</mat-slide-toggle
     >
   } @else {
     <span class="muted"
@@ -48,14 +48,11 @@
       <div><span class="line pipe"></span>Pipe</div>
       <div><span class="line bottleneck"></span>Bottleneck</div>
       <div><span class="dot provider"></span>Provider (ring: node purity)</div>
-      <div><span class="dot node"></span>Free node</div>
       <div><span class="dot other"></span>Splitter, lift, storage</div>
       <div>
         <span class="dot consumer"></span>Consumer (sink, loading station; a generator in the
         machines' colours)
       </div>
-    } @else {
-      <div><span class="dot node"></span>Resource node (ring: purity)</div>
     }
     @if (pointer()) {
       <div class="pointer">{{ pointer() }}</div>
