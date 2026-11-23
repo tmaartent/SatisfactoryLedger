@@ -32,6 +32,7 @@ import {
   relatedFactories,
   standsOut,
   pickedAlone,
+  wayHeight,
 } from './arrangement-model';
 
 describe('optimal arrangement', () => {
@@ -824,4 +825,22 @@ describe('optimal arrangement', () => {
     });
   });
 
+  describe('an existing belt outside the area, in 3D', () => {
+    // It comes into the area 12 m up in the game: there it meets the belt floor.
+    const entry = { x: 0, y: 0, z: 1200 };
+
+    it('is drawn at its height as built, from where it comes into the area on the belt floor', () => {
+      expect([
+        wayHeight({ x: 5000, y: 0, z: 2000 }, entry),
+        wayHeight({ x: 9000, y: 0, z: 700 }, entry),
+      ]).toEqual([8, -5]);
+    });
+
+    it("lies on the floor where its heights aren't known, as in runs from before they were kept", () => {
+      expect([
+        wayHeight({ x: 5000, y: 0 }, entry),
+        wayHeight({ x: 5000, y: 0, z: 2000 }, { x: 0, y: 0 }),
+      ]).toEqual([0, 0]);
+    });
+  });
 });

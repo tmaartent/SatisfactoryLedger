@@ -40,3 +40,7 @@ Decided by the owner (step 85), as on the world map:
 - **No switches:** where the factories stand now is never drawn over a run, and the belts and pipes on the floor below always are.
 - **No snapshot picker above the sidebar:** the arrangement is about the snapshot it was opened from.
 - **The map is held to the map picture**, as the world map is (ADR-0020).
+
+## Amendment 2026-11-23: the existing belts outside the area in 3D as built
+In the run's 3D belt floor, an existing belt outside the area (BR-O2's *way*) was a flat line on the ground. Now it's drawn at its heights as built (asked by the owner, step 88): a way's points keep their height from the save's curves and positions (`WorldPoint.Z`, `WayPointDocument.Z`), and in 3D each point is drawn at its height relative to where the way comes into the area, which stays on the belt floor where the routed belt joins it (`wayHeight`). The miner's drum sits at the height the way starts at. A run made before keeps no heights: its ways stay flat until it's run again.
+

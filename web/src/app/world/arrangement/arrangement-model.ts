@@ -682,3 +682,12 @@ export function linesToLabel(
 ): string[][] {
   return lines.filter((line) => line.reduce((sum, id) => sum + lengthOf(id), 0) >= LabelledLine);
 }
+
+/**
+ * How high a point of an existing belt outside the area is drawn in 3D, in metres over the belt floor (asked 2026-11-23:
+ * as built, not flat): its height in the game relative to where it comes into the area, which lies on the floor, where
+ * the routed belt joins it. On the floor where either height isn't known: a run from before heights were kept.
+ */
+export function wayHeight(point: WorldPoint, entry: WorldPoint): number {
+  return point.z != null && entry.z != null ? (point.z - entry.z) / 100 : 0;
+}
