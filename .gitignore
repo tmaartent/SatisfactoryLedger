@@ -484,5 +484,6 @@ docs/resources/en-US.json
 # The step logs (docs/guide/log/) are docs, not log files: the Visual Studio rules above ignore every log/ folder.
 !docs/guide/log/
 
-# The game's map picture, extracted from a local install by the map tool (ADR-0020): Coffee Stain's art, never committed.
+# The game's map picture and icons, extracted from a local install by the map tool (ADR-0020, ADR-0032): Coffee Stain's art, never committed.
 map-art.json
+icons.json

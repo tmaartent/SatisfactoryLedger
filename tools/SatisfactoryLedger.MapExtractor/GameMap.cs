@@ -39,6 +39,9 @@ internal sealed class GameMap(string gameFolder)
     /// <summary>JPEG quality for the map art: small enough to store and serve, sharp enough to read the terrain.</summary>
     private const int JpegQuality = 85;
 
+    /// <summary>The icons' size, in pixels square (asked 2026-11-23): the game's own for many, sharp at any size shown.</summary>
+    private const int IconSize = 256;
+
     private string Paks => Path.Combine(gameFolder, "FactoryGame", "Content", "Paks");
 
     private string TypeMap => Path.Combine(gameFolder, "CommunityResources", "FactoryGame.usmap");
@@ -102,6 +105,58 @@ internal sealed class GameMap(string gameFolder)
         Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
         using SKData jpeg = bitmap.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
         return jpeg.ToArray();
+    }
+
+    /// <summary>
+    /// The game's icons (ADR-0032): each texture the Docs file names, by descriptor, as a PNG at most
+    /// <see cref="IconSize"/> pixels square.
+    /// </summary>
+    public IReadOnlyList<GameIcon> Icons(IReadOnlyDictionary<string, string> textures) => Read(provider =>
+    {
+        List<GameIcon> icons = [];
+        foreach ((string className, string path) in textures)
+        {
+            UTexture2D texture = provider.LoadPackageObject<UTexture2D>(path);
+            icons.Add(new GameIcon(className, Png(className, texture)));
+        }
+
+        return (IReadOnlyList<GameIcon>)icons;
+    });
+
+    /// <summary>
+    /// An icon as PNG: its largest mip, decoded from DXT5 or plain BGRA, the formats the game's icons come in, and
+    /// scaled down to <see cref="IconSize"/> when it's larger (most are 512).
+    /// </summary>
+    private static byte[] Png(string className, UTexture2D texture)
+    {
+        FTexture2DMipMap? mip = texture.GetFirstMip();
+        byte[]? data = mip?.BulkData?.Data;
+        if (mip is null || data is null)
+        {
+            throw new InvalidDataException($"The icon of {className} has no image");
+        }
+
+        byte[] pixels = texture.Format switch
+        {
+            EPixelFormat.PF_DXT5 => Bc3Pixels(data, mip.SizeX, mip.SizeY),
+            EPixelFormat.PF_B8G8R8A8 => data,
+            _ => throw new InvalidDataException($"The icon of {className} is {texture.Format}, not DXT5 or BGRA"),
+        };
+
+        using var bitmap = new SKBitmap(new SKImageInfo(mip.SizeX, mip.SizeY, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        Marshal.Copy(pixels, 0, bitmap.GetPixels(), mip.SizeX * mip.SizeY * 4);
+        int size = Math.Min(IconSize, Math.Max(mip.SizeX, mip.SizeY));
+        using SKBitmap scaled = size == mip.SizeX && size == mip.SizeY
+            ? bitmap.Copy()
+            : bitmap.Resize(new SKImageInfo(size, size, SKColorType.Bgra8888, SKAlphaType.Unpremul), new SKSamplingOptions(SKCubicResampler.Mitchell));
+        using SKData png = scaled.Encode(SKEncodedImageFormat.Png, 100);
+        return png.ToArray();
+    }
+
+    private static byte[] Bc3Pixels(byte[] data, int width, int height)
+    {
+        Bc3.Decompress<ColorBGRA<byte>, byte>(data, width, height, out byte[] pixels);
+        return pixels;
     }
 
     /// <summary>The map's textures are the ones named Map_column-row; the folder holds a test gradient too.</summary>
