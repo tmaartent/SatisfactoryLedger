@@ -4541,6 +4541,13 @@
           "y": {
             "type": "number",
             "format": "double"
+          },
+          "z": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },

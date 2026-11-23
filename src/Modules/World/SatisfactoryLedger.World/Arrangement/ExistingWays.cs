@@ -124,8 +124,8 @@ internal static class ExistingWays
     private static WorldPoint? Middle(IReadOnlyDictionary<string, BuildableDocument> buildables, string id) =>
         buildables.GetValueOrDefault(id) switch
         {
-            { Curve: { Count: > 0 } curve } => new WorldPoint(curve[curve.Count / 2].Location.X, curve[curve.Count / 2].Location.Y),
-            { Position: { } position } => new WorldPoint(position.X, position.Y),
+            { Curve: { Count: > 0 } curve } => new WorldPoint(curve[curve.Count / 2].Location.X, curve[curve.Count / 2].Location.Y, curve[curve.Count / 2].Location.Z),
+            { Position: { } position } => new WorldPoint(position.X, position.Y, position.Z),
             _ => null,
         };
 
@@ -147,7 +147,7 @@ internal static class ExistingWays
         {
             List<WorldPoint> along = building.Curve is { Count: > 0 } curve
                 ? Sampled(curve)
-                : building.Position is { } position ? [new WorldPoint(position.X, position.Y)] : [];
+                : building.Position is { } position ? [new WorldPoint(position.X, position.Y, position.Z)] : [];
             if ((points.Count > 0 ? points[^1] : before) is { } last && along.Count > 1 && Distance(last, along[^1]) < Distance(last, along[0]))
             {
                 along.Reverse();
@@ -169,12 +169,13 @@ internal static class ExistingWays
     private const int StepsPerStretch = 6;
 
     /// <summary>
-    /// A belt's curve seen from above: a cubic Hermite spline from each point to the next, leaving along the one's leave
-    /// tangent and arriving along the other's arrive tangent, as the game lays it and the map draws it.
+    /// A belt's curve: a cubic Hermite spline from each point to the next, leaving along the one's leave tangent and
+    /// arriving along the other's arrive tangent, as the game lays it and the map draws it; heights included, to draw it in
+    /// 3D as built.
     /// </summary>
     private static List<WorldPoint> Sampled(IReadOnlyList<CurvePointDocument> curve)
     {
-        List<WorldPoint> points = [new WorldPoint(curve[0].Location.X, curve[0].Location.Y)];
+        List<WorldPoint> points = [new WorldPoint(curve[0].Location.X, curve[0].Location.Y, curve[0].Location.Z)];
         for (int i = 0; i + 1 < curve.Count; i++)
         {
             (PositionDocument from, PositionDocument to) = (curve[i].Location, curve[i + 1].Location);
@@ -186,7 +187,8 @@ internal static class ExistingWays
                     ((2 * t * t * t) - (3 * t * t) + 1, (t * t * t) - (2 * t * t) + t, (-2 * t * t * t) + (3 * t * t), (t * t * t) - (t * t));
                 points.Add(new WorldPoint(
                     (h00 * from.X) + (h10 * leave.X) + (h01 * to.X) + (h11 * arrive.X),
-                    (h00 * from.Y) + (h10 * leave.Y) + (h01 * to.Y) + (h11 * arrive.Y)));
+                    (h00 * from.Y) + (h10 * leave.Y) + (h01 * to.Y) + (h11 * arrive.Y),
+                    (h00 * from.Z) + (h10 * leave.Z) + (h01 * to.Z) + (h11 * arrive.Z)));
             }
         }
 
@@ -212,6 +214,8 @@ internal static class ExistingWays
             }
         }
 
-        return new WorldPoint(outside.X + (t * dx), outside.Y + (t * dy));
+        // The height in between, where both ends have one.
+        double? z = outside.Z is { } from && inside.Z is { } to ? from + (t * (to - from)) : null;
+        return new WorldPoint(outside.X + (t * dx), outside.Y + (t * dy), z);
     }
 }
