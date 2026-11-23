@@ -24,7 +24,7 @@ describe('CatalogNames', () => {
       [getRecipes, []],
       [
         getBuildables,
-        [{ id: 'Build_TrainDockingStation_C', name: 'Freight Platform', inGame: true }],
+        [{ id: 'Build_TrainDockingStation_C', name: 'Freight Platform', inGame: true }, { id: 'Build_MinerMk3_C', name: 'Miner Mk.3', inGame: true }],
       ],
       [getExtractors, [{ id: 'Build_MinerMk3_C', name: 'Miner Mk.3', form: 'solid' }]],
       [getIcons, { gameVersion: '1.2', descriptors: ['Desc_OreIron_C', 'Desc_MinerMk3_C'] }],
@@ -102,5 +102,12 @@ describe('CatalogNames', () => {
 
     expect(names.iconOfItemNamed('Iron Ore')).toBe('/api/v1/catalog/icons/Desc_OreIron_C');
     expect(names.iconOfItemNamed('Water')).toBeNull();
+  });
+
+  it("finds a building's icon by its name, as a trace names it", async () => {
+    const names = await loaded();
+
+    expect(names.iconOfBuildingNamed('Miner Mk.3')).toBe('/api/v1/catalog/icons/Build_MinerMk3_C');
+    expect(names.iconOfBuildingNamed('Freight Platform')).toBeNull();
   });
 });

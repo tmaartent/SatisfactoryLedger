@@ -16,7 +16,11 @@ header {
   gap: 4px;
   padding: 4px 4px 4px 16px;
 
+  // The machines' icon beside the question, in the middle of its lines.
   h2 {
+    display: flex;
+    align-items: center;
+    gap: 4px;
     flex: 1;
     margin: 8px 0 0;
     font-size: 1.05rem;

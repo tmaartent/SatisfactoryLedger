@@ -3,7 +3,7 @@ import { MapProvider } from '../../api/models/map-provider';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { MapMargin, buildingStyle, buildingsShown, iconTag, nodeTakers, nodeMarkerHtml, nodeMarkerSize, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import { MapMargin, buildingStyle, buildingsShown, iconTag, nodeTakers, nodeMarkerHtml, nodeMarkerSize, contentEntries, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
@@ -146,6 +146,12 @@ describe('map model', () => {
     expect(describeContents({ Desc_Water_C: 12.3456 }, name)).toBe('Water × 12.35');
   });
 
+  it('lists what something holds item by item, most first and rounded, so each can be shown with its icon', () => {
+    expect(contentEntries({ Desc_Water_C: 12.3456, Desc_OreBauxite_C: 100 })).toEqual([
+      { item: 'Desc_OreBauxite_C', count: 100 },
+      { item: 'Desc_Water_C', count: 12.35 },
+    ]);
+  });
 
   describe('finding a buildable to zoom to', () => {
     const building = (id: string, x: number, y: number) => ({ id, className: 'X', position: { x, y, z: 0 }, yaw: 0, contents: null });

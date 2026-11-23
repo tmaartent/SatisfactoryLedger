@@ -59,6 +59,14 @@
 <!-- The building or belt clicked, or the steps of defining a factory: the sidebar's Info tab (asked 2026-11-22). -->
 <ng-template appSidebarTab="info" label="Info" icon="info">
   <div class="panel" aria-live="polite">
+    <!-- What something holds, each item with its icon: "Bauxite × 100, Water × 50". -->
+    <ng-template #held let-contents>
+      @for (entry of entries(contents); track entry.item; let last = $last) {
+        <span class="item"><app-game-icon [of]="entry.item" [size]="20" />{{ names.item(entry.item) }} × {{ entry.count }}</span>{{ last ? '' : ', ' }}
+      } @empty {
+        empty
+      }
+    </ng-template>
     @if (defining()) {
       <section class="factory">
         <h2>{{ editing() ? 'Edit factory' : 'New factory' }}</h2>
@@ -105,14 +113,20 @@
     @if (defining()) {
       <!-- While defining, the panel names the machine clicked and nothing more. -->
     } @else if (selected(); as building) {
-      <h2><app-game-icon [of]="building.className" />{{ names.building(building.className) }}</h2>
+      <h2><app-game-icon [of]="building.className" [size]="48" />{{ names.building(building.className) }}</h2>
       @if (building.recipe) {
         <p class="recipe">{{ names.recipe(building.recipe) }}</p>
       }
       @if (selectedFinding(); as finding) {
         <p class="status {{ finding.limit }}">{{ statusLabel(finding) }} · {{ percent(finding.utilisation) }}</p>
         @if (why(finding); as reason) {
-          <p>{{ reason }}</p>
+          <p>
+            {{ reason.before }}
+            @for (part of reason.items; track part.item; let last = $last) {
+              <span class="item"><app-game-icon [of]="part.item" [size]="20" />{{ names.item(part.item) }}{{ part.share ? ' (' + part.share + ')' : '' }}</span>{{ last ? '' : ', ' }}
+            }
+            {{ reason.after }}
+          </p>
         }
         @if (building.kind === 'machine' && explainer.explainable(finding)) {
           <button mat-stroked-button class="explain" (click)="explainer.explain({ className: building.className, recipe: building.recipe, limit: finding.limit }, id())">
@@ -125,15 +139,15 @@
       <dl>
         @if (building.inputContents) {
           <dt>Holds</dt>
-          <dd>{{ contents(building.inputContents) }}</dd>
+          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: building.inputContents }" /></dd>
         }
         @if (building.outputContents) {
           <dt>Waiting to leave</dt>
-          <dd>{{ contents(building.outputContents) }}</dd>
+          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: building.outputContents }" /></dd>
         }
         @if (building.contents) {
           <dt>Holds</dt>
-          <dd>{{ contents(building.contents) }}</dd>
+          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: building.contents }" /></dd>
         }
         <!-- On a factory's own page, which factory it is, where it stands and the way to the map say nothing new. -->
         @if (selectedOwners().length > 0 && !embedded()) {
@@ -156,7 +170,7 @@
         <a mat-stroked-button [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ focus: building.id }">Show on the map</a>
       }
     } @else if (selectedConveyor(); as conveyor) {
-      <h2><app-game-icon [of]="conveyor.className" />{{ names.building(conveyor.className) }}</h2>
+      <h2><app-game-icon [of]="conveyor.className" [size]="48" />{{ names.building(conveyor.className) }}</h2>
       @if (selectedBottleneck(); as bottleneck) {
         <p class="status bottleneck">Bottleneck</p>
         <p>Carries {{ perMinute(bottleneck.flow) }} of {{ perMinute(bottleneck.capacity) }}, {{ perMinute(bottleneck.offeredMore) }} more offered.</p>
@@ -164,7 +178,7 @@
       @if (conveyor.contents) {
         <dl>
           <dt>On it</dt>
-          <dd>{{ contents(conveyor.contents) }}</dd>
+          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: conveyor.contents }" /></dd>
         </dl>
       }
     } @else {

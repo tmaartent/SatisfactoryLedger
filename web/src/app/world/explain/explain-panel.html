@@ -1,6 +1,6 @@
 @if (explainer.question(); as question) {
   <header>
-    <h2>Why are the {{ question.machines }} machines {{ held() }}?</h2>
+    <h2><app-game-icon [of]="question.finding.building" [size]="48" />Why are the {{ question.machines }} machines {{ held() }}?</h2>
     <button mat-icon-button (click)="explainer.close()" aria-label="Clear the explanation" matTooltip="Clear"><mat-icon>close</mat-icon></button>
   </header>
   <div class="body">
@@ -25,7 +25,7 @@
           <h3>Where it starts</h3>
           @for (row of starts(); track row.cause + row.item + row.via + row.needs?.what) {
             <div class="start">
-              <strong>{{ row.cause }}</strong> · <app-game-icon [itemNamed]="row.item" [size]="18" />{{ row.item }}
+              <strong>{{ row.cause }}</strong> · <app-game-icon [itemNamed]="row.item" [size]="24" />{{ row.item }}
               @if (row.heldLabel) {
                 <span class="label">{{ row.heldLabel }}</span>
                 <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.held }" />
@@ -72,6 +72,7 @@
     <ul>
       @for (place of places; track place.name) {
         <li>
+          <app-game-icon [buildingNamed]="place.building" [size]="24" />
           @if (place.focus) {
             <a [routerLink]="['/snapshots', question.finding.snapshotId, 'map']" [queryParams]="{ focus: place.focus }">{{ place.name }}</a>
           } @else {

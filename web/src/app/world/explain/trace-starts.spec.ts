@@ -21,9 +21,9 @@ describe('where a shortage starts, as the dialog lists it', () => {
         item: 'Dark Matter Residue',
         perMinute: 531.25,
         atLabel: 'Made at full speed by',
-        at: [{ name: 'Converter (Dark Matter Residue)', count: 2, perMinute: null, focus: 'c1' }],
+        at: [{ name: 'Converter (Dark Matter Residue)', building: 'Converter', count: 2, perMinute: null, focus: 'c1' }],
         heldLabel: 'Short of it',
-        held: [{ name: 'Quantum Encoder (Superposition Oscillator)', count: 1, perMinute: null, focus: 'q1' }],
+        held: [{ name: 'Quantum Encoder (Superposition Oscillator)', building: 'Quantum Encoder', count: 1, perMinute: null, focus: 'q1' }],
         via: null,
         othersLabel: null,
         others: [],
@@ -39,7 +39,7 @@ describe('where a shortage starts, as the dialog lists it', () => {
     const [row, ...rest] = whereItStarts([platform('p1'), platform('p2'), platform('p3'), again]);
 
     expect(rest).toEqual([]);
-    expect(row.at).toEqual([{ name: 'Freight Platform', count: 3, perMinute: null, focus: 'p1' }]);
+    expect(row.at).toEqual([{ name: 'Freight Platform', building: 'Freight Platform', count: 3, perMinute: null, focus: 'p1' }]);
     expect(row.perMinute).toBe(0);
   });
 
@@ -55,7 +55,7 @@ describe('where a shortage starts, as the dialog lists it', () => {
 
     const [row] = whereItStarts([rods(), rods()]);
 
-    expect(row.at).toEqual([{ name: 'Assembler (Electromagnetic Control Rod)', count: 20, perMinute: null, focus: 'a0' }]);
+    expect(row.at).toEqual([{ name: 'Assembler (Electromagnetic Control Rod)', building: 'Assembler', count: 20, perMinute: null, focus: 'a0' }]);
   });
 
   it('leaves out the rate of a row whose starts give different rates', () => {
@@ -111,7 +111,7 @@ describe('where a shortage starts, as the dialog lists it', () => {
     const [row] = whereItStarts([start]);
 
     expect(row.othersLabel).toBe('Also taken by');
-    expect(row.others).toEqual([{ name: 'Assembler (Alternate: Crystal Computer)', count: 2, perMinute: 10.1917, focus: 'a1' }]);
+    expect(row.others).toEqual([{ name: 'Assembler (Alternate: Crystal Computer)', building: 'Assembler', count: 2, perMinute: 10.1917, focus: 'a1' }]);
   });
 
   describe('the way from the machines asked about to where it starts', () => {
@@ -135,7 +135,7 @@ describe('where a shortage starts, as the dialog lists it', () => {
       const [row] = whereItStarts([computers]);
 
       expect(row.heldLabel).toBe('Short of it');
-      expect(row.held).toEqual([{ name: 'Manufacturer (Radio Control Unit)', count: 1, perMinute: null, focus: 'rc1' }]);
+      expect(row.held).toEqual([{ name: 'Manufacturer (Radio Control Unit)', building: 'Manufacturer', count: 1, perMinute: null, focus: 'rc1' }]);
     });
 
     it('names the items on the way, so a start further up reads as part of the shortage asked about', () => {
@@ -163,7 +163,7 @@ describe('where a shortage starts, as the dialog lists it', () => {
       const [row, ...rest] = whereItStarts([computers, again]);
 
       expect(rest).toEqual([]);
-      expect(row.held).toEqual([{ name: 'Manufacturer (Radio Control Unit)', count: 1, perMinute: null, focus: 'rc1' }]);
+      expect(row.held).toEqual([{ name: 'Manufacturer (Radio Control Unit)', building: 'Manufacturer', count: 1, perMinute: null, focus: 'rc1' }]);
     });
 
     it('names the machines that cannot get the item away, and the way downstream, for a blockage', () => {

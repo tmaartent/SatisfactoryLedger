@@ -30,10 +30,12 @@ export class GameIcon {
   readonly of = input<string | null>();
   /** Or an item's name, as a trace names items. */
   readonly itemNamed = input<string | null>();
+  /** Or a building's name, as a trace names buildings. */
+  readonly buildingNamed = input<string | null>();
   readonly size = input(20);
 
   protected readonly src = computed(() => {
-    const named = this.itemNamed();
-    return named ? this.names.iconOfItemNamed(named) : this.names.icon(this.of());
+    const [item, building] = [this.itemNamed(), this.buildingNamed()];
+    return item ? this.names.iconOfItemNamed(item) : building ? this.names.iconOfBuildingNamed(building) : this.names.icon(this.of());
   });
 }

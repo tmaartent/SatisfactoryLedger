@@ -184,11 +184,18 @@ export const statusLabels: Record<MachineStatus, string> = {
 /** What's on a belt, lift, splitter or in a machine, at save time: per item, a count (fluids in m³). */
 export type Contents = Record<string, number>;
 
+/** What something holds, item by item, most first, counts rounded to two decimals: for a page to show with icons. */
+export function contentEntries(contents: Contents): { item: string; count: number }[] {
+  return Object.entries(contents)
+    .sort(([, a], [, b]) => b - a)
+    .map(([item, count]) => ({ item, count: Number(count.toFixed(2)) }));
+}
+
 /** "Iron Ore × 7, Iron Ingot × 2", most first; "empty"; or "" when the snapshot doesn't know (older than version 6). */
 export function describeContents(contents: Contents | null | undefined, name: (item: string) => string): string {
   if (!contents) return '';
-  const entries = Object.entries(contents).sort(([, a], [, b]) => b - a);
-  return entries.length === 0 ? 'empty' : entries.map(([item, count]) => `${name(item)} × ${Number(count.toFixed(2))}`).join(', ');
+  const entries = contentEntries(contents);
+  return entries.length === 0 ? 'empty' : entries.map(({ item, count }) => `${name(item)} × ${count}`).join(', ');
 }
 
 /** Belts grey, pipes teal; a bottleneck red and thicker (BR-A12). */
