@@ -138,6 +138,8 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
       }),
     ),
   };
+  // Which kinds of node are hidden is kept in the browser: every test starts with none hidden.
+  localStorage.clear();
   TestBed.configureTestingModule({
     imports: [MapPage],
     providers: [
@@ -175,6 +177,59 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
 }
 
 describe('the world map with no snapshot loaded', () => {
+  const cells = (tabs: HTMLElement) =>
+    Array.from(tabs.querySelectorAll<HTMLButtonElement>('.node-kinds button.kind'));
+
+  it('has a tab of the resource nodes: a row per resource, a cell per purity from impure to pure', async () => {
+    const { tabs, open } = await render();
+
+    await open('Resource nodes');
+
+    expect(tabs.querySelectorAll('.node-kinds .row')).toHaveLength(1);
+    // Iron Ore has a pure node only: no cell to click for impure or normal.
+    expect(cells(tabs).map((cell) => cell.getAttribute('aria-label'))).toEqual([
+      'Pure Desc_OreIron_C · 1 node',
+    ]);
+    const badge = cells(tabs)[0].querySelector('.badge') as HTMLElement;
+    expect(badge.querySelector('img')?.getAttribute('src')).toBe(
+      '/api/v1/catalog/icons/Desc_OreIron_C',
+    );
+    expect(badge.style.getPropertyValue('--purity')).toBe('#43a047');
+  });
+
+  it('hides that kind of node from the map when its cell is clicked, and shows it again on a second click', async () => {
+    const { fixture, element, tabs, open } = await render();
+    await open('Resource nodes');
+    const cell = cells(tabs)[0];
+    expect(cell.getAttribute('aria-pressed')).toBe('true');
+
+    cell.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).toBeNull();
+    expect(cell.getAttribute('aria-pressed')).toBe('false');
+
+    cell.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).not.toBeNull();
+  });
+
+  it('hides every node at once, and shows them all again', async () => {
+    const { fixture, element, tabs, open } = await render();
+    await open('Resource nodes');
+    const button = (label: string) =>
+      Array.from(tabs.querySelectorAll<HTMLButtonElement>('.node-kinds .all button')).find(
+        (candidate) => candidate.textContent?.trim() === label,
+      ) as HTMLButtonElement;
+
+    button('Hide all').click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).toBeNull();
+
+    button('Show all').click();
+    await fixture.whenStable();
+    expect(element.querySelector('.node-pin')).not.toBeNull();
+  });
+
   it('asks for the resource nodes and the snapshots beside it, nothing of a snapshot', async () => {
     const { api } = await render();
 
@@ -221,7 +276,7 @@ describe('the world map with no snapshot loaded', () => {
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual(['Snapshots']);
+    ).toEqual(['Snapshots', 'Resource nodes']);
     expect(tabs.querySelector('app-snapshots-sidebar')).not.toBeNull();
   });
 });
@@ -254,7 +309,7 @@ describe('the world map of a snapshot', () => {
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual(['Info', 'Factories', 'Snapshots']);
+    ).toEqual(['Info', 'Factories', 'Snapshots', 'Resource nodes']);
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
   });
 

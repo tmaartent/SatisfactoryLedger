@@ -15,9 +15,6 @@
       <mat-icon>view_in_ar</mat-icon>
       Open an area in 3D
     </button>
-    <mat-slide-toggle [checked]="showNodes()" (change)="showNodes.set($event.checked)"
-      >Resource nodes</mat-slide-toggle
-    >
   } @else {
     <span class="muted"
       >The resource nodes; import a save, or pick a snapshot, to see what's built.</span
@@ -108,6 +105,54 @@
     </nav>
   </ng-template>
 }
+<!--
+  The resource nodes by kind (asked 2026-11-23): a row per resource, a cell per purity from impure to pure, each the
+  node's pin head. A click hides that kind on the map, or shows it again; a shown kind is edged in its purity's colour.
+-->
+<ng-template appSidebarTab="nodes" label="Resource nodes" icon="landscape" [order]="2">
+  <section class="node-kinds">
+    <div class="all">
+      <button mat-stroked-button type="button" (click)="hiddenNodes.showAll()">Show all</button>
+      <button mat-stroked-button type="button" (click)="hideAllNodes()">Hide all</button>
+    </div>
+    <div class="head">
+      @for (purity of purities; track purity) {
+        <span>{{ purity }}</span>
+      }
+    </div>
+    @for (kind of nodeKinds(); track kind.resource) {
+      <div class="row">
+        @for (purity of purities; track purity) {
+          @if (kind.counts[purity] > 0) {
+            @let shown = !hiddenNodes.hidden().has(nodeKey(kind.resource, purity));
+            <button
+              type="button"
+              class="kind"
+              [class.shown]="shown"
+              [style.--purity]="purityColour(purity)"
+              [attr.aria-pressed]="shown"
+              [attr.aria-label]="nodeKindLabel(kind.resource, purity, kind.counts[purity])"
+              [title]="nodeKindLabel(kind.resource, purity, kind.counts[purity])"
+              (click)="hiddenNodes.toggle(nodeKey(kind.resource, purity))"
+            >
+              <span class="badge" [style.--purity]="purityColour(purity)">
+                @if (resourceIcon(kind.resource); as icon) {
+                  <img [src]="icon" alt="" />
+                }
+              </span>
+            </button>
+          } @else {
+            <span class="none"></span>
+          }
+        }
+      </div>
+    } @empty {
+      <p class="muted">
+        The Catalog has no resource nodes yet: import the map tool's table on the Catalog page.
+      </p>
+    }
+  </section>
+</ng-template>
 <!-- The import of a save and every snapshot, in the sidebar (asked 2026-11-22): the map gets the width. -->
 <ng-template appSidebarTab="snapshots" label="Snapshots" icon="folder_open" [order]="1">
   <app-snapshots-sidebar [current]="id()" />

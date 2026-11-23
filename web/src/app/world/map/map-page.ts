@@ -16,7 +16,6 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 
@@ -31,6 +30,8 @@ import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { PositionDocument } from '../../api/models/position-document';
+import { HiddenNodes } from './hidden-nodes';
+import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
@@ -88,7 +89,6 @@ const MinZoom = -4;
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,
-    MatSlideToggleModule,
   ],
   templateUrl: './map-page.html',
   styleUrl: './map-page.scss',
@@ -143,7 +143,14 @@ export class MapPage {
   /** ?factory=…: the factory highlighted when the map opens; the list beside the map can pick another. */
   readonly factory = input<string>();
   protected readonly factoryId = linkedSignal(() => this.factory() ?? null);
-  protected readonly showNodes = signal(true);
+  /** The kinds of node hidden, picked in the Resource nodes tab (asked 2026-11-23). */
+  protected readonly hiddenNodes = inject(HiddenNodes);
+  /** The tab's rows: a resource each, its nodes counted per purity. */
+  protected readonly nodeKinds = computed(() =>
+    nodeKinds(this.nodes.value() ?? [], (resource) => this.names.item(resource)),
+  );
+  protected readonly purities = Purities;
+  protected readonly nodeKey = nodeKey;
   protected readonly pointer = signal<string>('');
   /** Drawing a rectangle to open in 3D: the map stops panning, and a drag draws instead. */
   protected readonly drawing = signal(false);
@@ -644,9 +651,29 @@ export class MapPage {
     return describeContents(contents, (item) => this.names.item(item));
   }
 
+  /** A cell of the Resource nodes tab, in words: "Impure Iron Ore · 3 nodes". */
+  protected nodeKindLabel(resource: string, purity: string, count: number): string {
+    return `${purity.charAt(0).toUpperCase() + purity.slice(1)} ${this.names.item(resource)} · ${count} ${count === 1 ? 'node' : 'nodes'}`;
+  }
+
+  protected resourceIcon(resource: string): string | null {
+    return this.names.icon(resource);
+  }
+
+  protected purityColour(purity: string): string {
+    return purityColours[purity];
+  }
+
+  /** Hides every kind of node in the tab. */
+  protected hideAllNodes(): void {
+    this.hiddenNodes.hideAll(
+      this.nodeKinds().flatMap((kind) => Purities.map((purity) => nodeKey(kind.resource, purity))),
+    );
+  }
+
   /** Every resource node, as a pin (asked 2026-11-23): free or with a miner or extractor on it, which its tooltip names. */
   private drawNodes(): void {
-    const nodes = this.showNodes() ? (this.nodes.value() ?? []) : [];
+    const nodes = shownNodes(this.nodes.value() ?? [], this.hiddenNodes.hidden());
     const takers = nodeTakers(this.world.value()?.providers ?? []);
     if (!this.map) return;
 
