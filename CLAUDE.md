@@ -31,5 +31,5 @@ This is a **learning project**. The owner's goal is to learn how .NET, ASP.NET C
 dotnet build SatisfactoryLedger.slnx
 dotnet test SatisfactoryLedger.slnx
 dotnet run --project src/SatisfactoryLedger.AppHost
-cd web && npm start | npm test | npm run build
+cd web && npm start | npm test | npm run build | npm run lint | npm run format
 ```
