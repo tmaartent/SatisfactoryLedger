@@ -35,7 +35,10 @@ describe('whenAnalysed', () => {
 
 describe('problemMessage', () => {
   it('tells the reason the API gave', () => {
-    const error = new HttpErrorResponse({ status: 500, error: { title: 'Analysis failed', detail: 'The service ran out of patience' } });
+    const error = new HttpErrorResponse({
+      status: 500,
+      error: { title: 'Analysis failed', detail: 'The service ran out of patience' },
+    });
 
     expect(problemMessage(error)).toBe('The service ran out of patience');
   });

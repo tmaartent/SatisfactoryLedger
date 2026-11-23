@@ -19,7 +19,11 @@ export class SnapshotDeletion {
   private readonly lastSnapshot = inject(LastSnapshot);
 
   /** True once it's deleted; false when the player cancelled or the API refused. */
-  async confirmAndDelete(snapshot: { id: string; sessionName: string; savedAt: string }): Promise<boolean> {
+  async confirmAndDelete(snapshot: {
+    id: string;
+    sessionName: string;
+    savedAt: string;
+  }): Promise<boolean> {
     const data: ConfirmDialogData = {
       title: `Delete this snapshot of ${snapshot.sessionName}?`,
       message:

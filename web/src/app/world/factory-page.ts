@@ -29,17 +29,50 @@ import { GameIcon } from '../shared/game-icon';
  */
 @Component({
   selector: 'app-factory-page',
-  imports: [GameIcon, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, MatTableModule, MatTooltipModule, FindingsSummary, AreaPage],
+  imports: [
+    GameIcon,
+    RouterLink,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressBarModule,
+    MatTableModule,
+    MatTooltipModule,
+    FindingsSummary,
+    AreaPage,
+  ],
   templateUrl: './factory-page.html',
   styles: `
-    .output { margin-bottom: 24px; }
-    .destinations { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; }
-    .destinations li { display: inline-flex; gap: 4px; }
-    .muted { color: var(--mat-sys-on-surface-variant); }
-    .power { margin: 0 0 16px; }
-    app-area-page { display: block; margin-bottom: 24px; }
-    .short { color: var(--mat-sys-error); }
-    .error { color: var(--mat-sys-error); }
+    .output {
+      margin-bottom: 24px;
+    }
+    .destinations {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .destinations li {
+      display: inline-flex;
+      gap: 4px;
+    }
+    .muted {
+      color: var(--mat-sys-on-surface-variant);
+    }
+    .power {
+      margin: 0 0 16px;
+    }
+    app-area-page {
+      display: block;
+      margin-bottom: 24px;
+    }
+    .short {
+      color: var(--mat-sys-error);
+    }
+    .error {
+      color: var(--mat-sys-error);
+    }
     .name {
       flex: 1;
       min-width: 0;
@@ -65,10 +98,21 @@ export class FactoryPage {
   protected readonly analysis = resource({
     params: () => ({ id: this.id(), factoryId: this.factoryId() }),
     // A link can arrive before the analysis is ready: then the API answers 202 until it is.
-    loader: ({ params, abortSignal }) => whenAnalysed(() => this.api.invoke$Response(analyseFactory, params), abortSignal),
+    loader: ({ params, abortSignal }) =>
+      whenAnalysed(() => this.api.invoke$Response(analyseFactory, params), abortSignal),
   });
 
-  protected readonly outputColumns = ['item', 'now', 'atFullSpeed', 'receiversNeed', 'othersBring', 'short', 'sunk', 'cannotLeave', 'destinations'];
+  protected readonly outputColumns = [
+    'item',
+    'now',
+    'atFullSpeed',
+    'receiversNeed',
+    'othersBring',
+    'short',
+    'sunk',
+    'cannotLeave',
+    'destinations',
+  ];
 
   private readonly destinationLabels: Record<OutputDestinationKind, string> = {
     factory: 'Factory',
@@ -111,14 +155,14 @@ export class FactoryPage {
     return destination.factory ?? this.destinationLabels[destination.kind];
   }
 
-
   /** The factory in 3D: its Edit button edits it there. */
   protected readonly area = viewChild<AreaPage>('area');
 
   /** After asking; then there's nothing left to show of it, so back to the map. */
   protected async delete(): Promise<void> {
     const name = this.analysis.value()?.name;
-    if (!name || !(await this.deletion.confirmAndDelete({ factoryId: this.factoryId(), name }))) return;
+    if (!name || !(await this.deletion.confirmAndDelete({ factoryId: this.factoryId(), name })))
+      return;
     await this.router.navigate(['/snapshots', this.id(), 'map']);
   }
 

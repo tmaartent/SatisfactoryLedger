@@ -25,8 +25,22 @@ describe('App', () => {
           { path: 'snapshots/:id/map', component: EmptyPage },
           { path: 'catalog', component: EmptyPage },
         ]),
-        { provide: Assistant, useValue: { models: () => Promise.resolve([]), explain: () => new Promise(() => undefined) } },
-        { provide: CatalogNames, useValue: { icon: () => null, iconOfItemNamed: () => null, building: () => 'Constructor', recipe: () => 'Iron Plate' } },
+        {
+          provide: Assistant,
+          useValue: {
+            models: () => Promise.resolve([]),
+            explain: () => new Promise(() => undefined),
+          },
+        },
+        {
+          provide: CatalogNames,
+          useValue: {
+            icon: () => null,
+            iconOfItemNamed: () => null,
+            building: () => 'Constructor',
+            recipe: () => 'Iron Plate',
+          },
+        },
       ],
     });
     const fixture = TestBed.createComponent(App);
@@ -45,7 +59,9 @@ describe('App', () => {
   it('offers the world and the catalog', async () => {
     const { element } = await render();
 
-    const links = Array.from(element.querySelectorAll('mat-toolbar nav a')).map((a) => a.textContent?.trim());
+    const links = Array.from(element.querySelectorAll('mat-toolbar nav a')).map((a) =>
+      a.textContent?.trim(),
+    );
     expect(links).toEqual(['World', 'Catalog']);
   });
 
@@ -54,18 +70,27 @@ describe('App', () => {
 
     await loadExplanation(fixture);
 
-    expect(sidebar()?.querySelector('.rail button')?.getAttribute('aria-label')).toBe('Explanation');
-    expect(sidebar()?.textContent).toContain('Ask why a starved or output-blocked machine runs as it does');
+    expect(sidebar()?.querySelector('.rail button')?.getAttribute('aria-label')).toBe(
+      'Explanation',
+    );
+    expect(sidebar()?.textContent).toContain(
+      'Ask why a starved or output-blocked machine runs as it does',
+    );
   });
 
   it('shows the question asked in the Explanation tab', async () => {
     const { fixture, sidebar } = await render();
 
-    TestBed.inject(Explainer).explain({ className: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' }, 's1');
+    TestBed.inject(Explainer).explain(
+      { className: 'Build_ConstructorMk1_C', recipe: 'Recipe_IronPlate_C', limit: 'starved' },
+      's1',
+    );
     await fixture.whenStable();
     await loadExplanation(fixture);
 
-    expect(sidebar()?.textContent).toContain('Why are the Constructor (Iron Plate) machines starved?');
+    expect(sidebar()?.textContent).toContain(
+      'Why are the Constructor (Iron Plate) machines starved?',
+    );
   });
 
   it('goes back to the world on the map of the snapshot last looked at', async () => {
@@ -73,7 +98,9 @@ describe('App', () => {
     await TestBed.inject(Router).navigateByUrl('/catalog');
     await fixture.whenStable();
 
-    expect(element.querySelector('mat-toolbar nav a')?.getAttribute('href')).toBe('/snapshots/s1/map');
+    expect(element.querySelector('mat-toolbar nav a')?.getAttribute('href')).toBe(
+      '/snapshots/s1/map',
+    );
   });
 
   it('goes to the world with no snapshot before one is looked at', async () => {

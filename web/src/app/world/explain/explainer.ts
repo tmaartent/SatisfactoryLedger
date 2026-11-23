@@ -60,7 +60,12 @@ export class Explainer {
     if (machine.limit !== 'starved' && machine.limit !== 'outputBlocked') return;
     const recipe = machine.recipe ? ` (${this.names.recipe(machine.recipe)})` : '';
     this.question.set({
-      finding: { snapshotId, building: machine.className, recipe: machine.recipe ?? null, limit: machine.limit },
+      finding: {
+        snapshotId,
+        building: machine.className,
+        recipe: machine.recipe ?? null,
+        limit: machine.limit,
+      },
       machines: `${this.names.building(machine.className)}${recipe}`,
     });
     this.sidebar.show('explanation');
@@ -77,7 +82,9 @@ export class Explainer {
     this.error.set(null);
     this.explanation.set(null);
     try {
-      const explanation = await this.assistant.explain(model ? { ...question.finding, model } : question.finding);
+      const explanation = await this.assistant.explain(
+        model ? { ...question.finding, model } : question.finding,
+      );
       if (asked === this.asked) this.explanation.set(explanation);
     } catch (error) {
       if (asked === this.asked) this.error.set(problemMessage(error));

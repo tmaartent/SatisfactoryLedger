@@ -9,6 +9,8 @@ describe('the pieces of a merged mesh', () => {
   });
 
   it('give a triangle to the piece it lies in', () => {
-    expect([0, 9, 10, 13, 14, 19].map((triangle) => pieceAt(starts, triangle))).toEqual([0, 0, 1, 1, 2, 2]);
+    expect([0, 9, 10, 13, 14, 19].map((triangle) => pieceAt(starts, triangle))).toEqual([
+      0, 0, 1, 1, 2, 2,
+    ]);
   });
 });

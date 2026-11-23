@@ -40,9 +40,7 @@
   <div class="legend">
     @if (id()) {
       @for (entry of legend; track entry.status) {
-        <div>
-          <span class="dot" [style.background]="entry.colour"></span>{{ entry.label }}
-        </div>
+        <div><span class="dot" [style.background]="entry.colour"></span>{{ entry.label }}</div>
       }
       <div><span class="line belt"></span>Belt</div>
       <div><span class="line pipe"></span>Pipe</div>
@@ -73,7 +71,9 @@
           [shown]="shownStatus()"
           (show)="showStatus($event)"
         />
-        <p class="muted">Click a count to show those buildings on the map; click it again to show all.</p>
+        <p class="muted">
+          Click a count to show those buildings on the map; click it again to show all.
+        </p>
       } @else {
         <mat-progress-bar mode="indeterminate" />
         <p class="muted">The analysis service is simulating the world.</p>

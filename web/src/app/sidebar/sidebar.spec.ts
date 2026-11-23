@@ -10,9 +10,13 @@ import { SidebarTabs } from './sidebar-tabs';
   imports: [Sidebar, SidebarTab],
   template: `
     @if (shown()) {
-      <ng-template appSidebarTab="info" label="Info" icon="info"><p class="content">{{ text() }}</p></ng-template>
+      <ng-template appSidebarTab="info" label="Info" icon="info"
+        ><p class="content">{{ text() }}</p></ng-template
+      >
     }
-    <ng-template appSidebarTab="factories" label="Factories" icon="factory" [order]="1"><p class="content">Rubber</p></ng-template>
+    <ng-template appSidebarTab="factories" label="Factories" icon="factory" [order]="1"
+      ><p class="content">Rubber</p></ng-template
+    >
     <app-sidebar />
   `,
 })

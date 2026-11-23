@@ -89,8 +89,12 @@ export class CatalogNames {
    */
   icon(className: string | null | undefined): string | null {
     if (!className || !this.icons.hasValue()) return null;
-    const descriptor = className.startsWith('Build_') ? `Desc_${className.slice('Build_'.length)}` : className;
-    return this.icons.value().has(descriptor) ? `/api/v1/catalog/icons/${encodeURIComponent(className)}` : null;
+    const descriptor = className.startsWith('Build_')
+      ? `Desc_${className.slice('Build_'.length)}`
+      : className;
+    return this.icons.value().has(descriptor)
+      ? `/api/v1/catalog/icons/${encodeURIComponent(className)}`
+      : null;
   }
 
   /** An item's icon by its name, as a trace names items ("Iron Ore"); null when no item is named so, or it has none. */
@@ -101,7 +105,9 @@ export class CatalogNames {
 
   /** A building's icon by its name, as a trace names buildings ("Smelter"); null when no building is named so, or it has none. */
   iconOfBuildingNamed(name: string): string | null {
-    const entry = [...(this.catalog.value()?.buildingNames ?? [])].find(([, buildingName]) => buildingName === name);
+    const entry = [...(this.catalog.value()?.buildingNames ?? [])].find(
+      ([, buildingName]) => buildingName === name,
+    );
     return entry ? this.icon(entry[0]) : null;
   }
 

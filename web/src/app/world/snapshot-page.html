@@ -3,14 +3,22 @@
   <a mat-button routerLink="/snapshots"><mat-icon>arrow_back</mat-icon> World</a>
 } @else if (snapshot.value(); as s) {
   <div class="page-header">
-    <a mat-icon-button [routerLink]="['/snapshots', s.id, 'map']" aria-label="Map"><mat-icon>arrow_back</mat-icon></a>
+    <a mat-icon-button [routerLink]="['/snapshots', s.id, 'map']" aria-label="Map"
+      ><mat-icon>arrow_back</mat-icon></a
+    >
     <h1>{{ s.sessionName }}</h1>
     <span class="muted">saved {{ s.savedAt | date: 'medium' }} · build {{ s.gameBuild }}</span>
     <span class="spacer"></span>
-    <a mat-stroked-button [routerLink]="['/snapshots', s.id, 'map']"><mat-icon>map</mat-icon> Map</a>
-    <a mat-stroked-button [routerLink]="['/snapshots', s.id, 'arrangement']"><mat-icon>auto_fix_high</mat-icon> Optimal arrangement</a>
+    <a mat-stroked-button [routerLink]="['/snapshots', s.id, 'map']"
+      ><mat-icon>map</mat-icon> Map</a
+    >
+    <a mat-stroked-button [routerLink]="['/snapshots', s.id, 'arrangement']"
+      ><mat-icon>auto_fix_high</mat-icon> Optimal arrangement</a
+    >
     <app-analysis-status-chip [status]="s.analysis" />
-    <button mat-icon-button (click)="delete()" aria-label="Delete this snapshot"><mat-icon>delete</mat-icon></button>
+    <button mat-icon-button (click)="delete()" aria-label="Delete this snapshot">
+      <mat-icon>delete</mat-icon>
+    </button>
   </div>
 
   <mat-tab-group animationDuration="0">
@@ -19,14 +27,21 @@
         @switch (s.analysis) {
           @case ('pending') {
             <mat-progress-bar mode="indeterminate" />
-            <p class="muted">The analysis service is simulating the world. A big world takes about ten seconds.</p>
+            <p class="muted">
+              The analysis service is simulating the world. A big world takes about ten seconds.
+            </p>
           }
           @case ('failed') {
             <p>The analysis failed: {{ analysis.error() ? problem(analysis.error()) : '…' }}</p>
           }
           @default {
             @if (analysis.value(); as findings) {
-              <app-findings [findings]="findings" [snapshotId]="id()" [factories]="factories.value()" (deleteFactory)="deleteFactory($event)" />
+              <app-findings
+                [findings]="findings"
+                [snapshotId]="id()"
+                [factories]="factories.value()"
+                (deleteFactory)="deleteFactory($event)"
+              />
             } @else if (analysis.error(); as error) {
               <p>The findings couldn't be loaded: {{ problem(error) }}</p>
             } @else {
@@ -40,18 +55,39 @@
     <mat-tab label="What it holds">
       <div class="tab-body">
         <mat-list>
-          <mat-list-item><span matListItemTitle>{{ s.counts.machines }}</span><span matListItemLine>machines</span></mat-list-item>
-          <mat-list-item><span matListItemTitle>{{ s.counts.logistics }}</span><span matListItemLine>belts, pipes, splitters and mergers</span></mat-list-item>
-          <mat-list-item><span matListItemTitle>{{ s.counts.providers }}</span><span matListItemLine>providers: miners, extractors and stations that bring items in</span></mat-list-item>
-          <mat-list-item><span matListItemTitle>{{ s.counts.consumers }}</span><span matListItemLine>consumers: sinks, generators and stations that load</span></mat-list-item>
-          <mat-list-item><span matListItemTitle>{{ s.counts.connections }}</span><span matListItemLine>connections</span></mat-list-item>
+          <mat-list-item
+            ><span matListItemTitle>{{ s.counts.machines }}</span
+            ><span matListItemLine>machines</span></mat-list-item
+          >
+          <mat-list-item
+            ><span matListItemTitle>{{ s.counts.logistics }}</span
+            ><span matListItemLine>belts, pipes, splitters and mergers</span></mat-list-item
+          >
+          <mat-list-item
+            ><span matListItemTitle>{{ s.counts.providers }}</span
+            ><span matListItemLine
+              >providers: miners, extractors and stations that bring items in</span
+            ></mat-list-item
+          >
+          <mat-list-item
+            ><span matListItemTitle>{{ s.counts.consumers }}</span
+            ><span matListItemLine
+              >consumers: sinks, generators and stations that load</span
+            ></mat-list-item
+          >
+          <mat-list-item
+            ><span matListItemTitle>{{ s.counts.connections }}</span
+            ><span matListItemLine>connections</span></mat-list-item
+          >
         </mat-list>
         @if (s.unknownRecipes.length > 0) {
           <h3>Recipes the catalog doesn't know</h3>
           <p class="muted">Import a newer Docs file in the Catalog, then the save again.</p>
           <ul>
             @for (recipe of s.unknownRecipes; track recipe) {
-              <li>{{ names.recipe(recipe) }} <span class="muted">({{ recipe }})</span></li>
+              <li>
+                {{ names.recipe(recipe) }} <span class="muted">({{ recipe }})</span>
+              </li>
             }
           </ul>
         }
@@ -59,7 +95,10 @@
           <h3>Buildings the analysis leaves out</h3>
           <ul>
             @for (u of s.unsupported; track u.className) {
-              <li><app-game-icon [of]="u.className" />{{ names.building(u.className) }} × {{ u.count }}</li>
+              <li>
+                <app-game-icon [of]="u.className" />{{ names.building(u.className) }} ×
+                {{ u.count }}
+              </li>
             }
           </ul>
         }

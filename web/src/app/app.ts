@@ -18,7 +18,17 @@ import { LastSnapshot } from './world/last-snapshot';
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatToolbarModule, MatButtonModule, MatIconModule, Sidebar, SidebarTab, ExplainPanel],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    MatToolbarModule,
+    MatButtonModule,
+    MatIconModule,
+    Sidebar,
+    SidebarTab,
+    ExplainPanel,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

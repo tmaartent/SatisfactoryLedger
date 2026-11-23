@@ -17,8 +17,16 @@ import { AnalysisStatus } from '../api/models/analysis-status';
     </mat-chip>
   `,
   styles: `
-    .ready { --mat-chip-elevated-container-color: color-mix(in srgb, var(--mat-sys-primary) 25%, transparent); }
-    .failed { --mat-chip-elevated-container-color: var(--mat-sys-error-container); }
+    .ready {
+      --mat-chip-elevated-container-color: color-mix(
+        in srgb,
+        var(--mat-sys-primary) 25%,
+        transparent
+      );
+    }
+    .failed {
+      --mat-chip-elevated-container-color: var(--mat-sys-error-container);
+    }
   `,
 })
 export class AnalysisStatusChip {

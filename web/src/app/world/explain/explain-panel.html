@@ -1,11 +1,23 @@
 @if (explainer.question(); as question) {
   <header>
-    <h2><app-game-icon [of]="question.finding.building" [size]="48" />Why are the {{ question.machines }} machines {{ held() }}?</h2>
-    <button mat-icon-button (click)="explainer.close()" aria-label="Clear the explanation" matTooltip="Clear"><mat-icon>close</mat-icon></button>
+    <h2>
+      <app-game-icon [of]="question.finding.building" [size]="48" />Why are the
+      {{ question.machines }} machines {{ held() }}?
+    </h2>
+    <button
+      mat-icon-button
+      (click)="explainer.close()"
+      aria-label="Clear the explanation"
+      matTooltip="Clear"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
   </header>
   <div class="body">
     @if (explainer.asking()) {
-      <p class="muted">Asking {{ modelName() }}. A local model's first answer can take a while, as it loads.</p>
+      <p class="muted">
+        Asking {{ modelName() }}. A local model's first answer can take a while, as it loads.
+      </p>
       <mat-progress-bar mode="indeterminate" />
     }
     @if (explainer.error(); as error) {
@@ -16,8 +28,9 @@
       @if (explanation.unsupportedNumbers.length > 0) {
         <p class="warning">
           <mat-icon inline>warning</mat-icon>
-          Numbers in the text: {{ explanation.unsupportedNumbers.join(', ') }}. The model was asked for words only and may
-          have pinned them on the wrong things; the list below has the ledger's.
+          Numbers in the text: {{ explanation.unsupportedNumbers.join(', ') }}. The model was asked
+          for words only and may have pinned them on the wrong things; the list below has the
+          ledger's.
         </p>
       }
       @if (starts().length > 0) {
@@ -25,7 +38,8 @@
           <h3>Where it starts</h3>
           @for (row of starts(); track row.cause + row.item + row.via + row.needs?.what) {
             <div class="start">
-              <strong>{{ row.cause }}</strong> · <app-game-icon [itemNamed]="row.item" [size]="24" />{{ row.item }}
+              <strong>{{ row.cause }}</strong> ·
+              <app-game-icon [itemNamed]="row.item" [size]="24" />{{ row.item }}
               @if (row.heldLabel) {
                 <span class="label">{{ row.heldLabel }}</span>
                 <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.held }" />
@@ -42,7 +56,9 @@
               </span>
               <ng-container *ngTemplateOutlet="placesList; context: { $implicit: row.at }" />
               @if (row.needs; as needs) {
-                <span class="label">To carry all that's offered · {{ needs.perMinute | number: '1.0-2' }}/min</span>
+                <span class="label"
+                  >To carry all that's offered · {{ needs.perMinute | number: '1.0-2' }}/min</span
+                >
                 <span class="via">{{ needs.what }}</span>
               }
               @if (row.othersLabel) {
@@ -58,13 +74,20 @@
   </div>
   <footer>
     @if (explainer.models().length > 1) {
-      <mat-button-toggle-group [value]="explainer.model()" (change)="explainer.ask($event.value)" [disabled]="explainer.asking()" hideSingleSelectionIndicator>
+      <mat-button-toggle-group
+        [value]="explainer.model()"
+        (change)="explainer.ask($event.value)"
+        [disabled]="explainer.asking()"
+        hideSingleSelectionIndicator
+      >
         @for (choice of explainer.models(); track choice.key) {
           <mat-button-toggle [value]="choice.key">{{ choice.model }}</mat-button-toggle>
         }
       </mat-button-toggle-group>
     }
-    <button mat-button (click)="explainer.ask()" [disabled]="explainer.asking()">Explain again</button>
+    <button mat-button (click)="explainer.ask()" [disabled]="explainer.asking()">
+      Explain again
+    </button>
   </footer>
 
   <!-- Buildings of one kind each, linked to the map where the trace gives an id, with what they take or give. -->
@@ -74,7 +97,11 @@
         <li>
           <app-game-icon [buildingNamed]="place.building" [size]="24" />
           @if (place.focus) {
-            <a [routerLink]="['/snapshots', question.finding.snapshotId, 'map']" [queryParams]="{ focus: place.focus }">{{ place.name }}</a>
+            <a
+              [routerLink]="['/snapshots', question.finding.snapshotId, 'map']"
+              [queryParams]="{ focus: place.focus }"
+              >{{ place.name }}</a
+            >
           } @else {
             {{ place.name }}
           }
@@ -89,7 +116,7 @@
 } @else {
   <!-- Nothing asked yet: where to ask. -->
   <p class="muted hint">
-    Ask why a starved or output-blocked machine runs as it does: <b>Explain why</b> in the findings or beside a machine
-    clicked in 3D, or click a machine of no factory on the map.
+    Ask why a starved or output-blocked machine runs as it does: <b>Explain why</b> in the findings
+    or beside a machine clicked in 3D, or click a machine of no factory on the map.
   </p>
 }

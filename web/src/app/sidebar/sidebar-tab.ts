@@ -19,7 +19,13 @@ export class SidebarTab implements OnInit {
   readonly order = input(0);
 
   ngOnInit(): void {
-    const tab = { key: this.key(), label: this.label(), icon: this.icon(), order: this.order(), template: this.template };
+    const tab = {
+      key: this.key(),
+      label: this.label(),
+      icon: this.icon(),
+      order: this.order(),
+      template: this.template,
+    };
     this.tabs.add(tab);
     this.destroyRef.onDestroy(() => this.tabs.remove(tab));
   }

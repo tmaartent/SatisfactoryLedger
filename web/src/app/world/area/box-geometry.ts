@@ -4,7 +4,14 @@ import { Position } from '../../shared/display';
 import { Box } from './area-model';
 
 /** The six sides of a box, as corner numbers (see Box): drawn as two triangles each. */
-const SIDES = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]];
+const SIDES = [
+  [0, 1, 3, 2],
+  [4, 6, 7, 5],
+  [0, 4, 5, 1],
+  [2, 3, 7, 6],
+  [0, 2, 6, 4],
+  [1, 5, 7, 3],
+];
 
 /**
  * A box as a three.js geometry, each corner placed in the scene by `at`. Each side faces away from the box's middle,
@@ -13,7 +20,9 @@ const SIDES = [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6,
  */
 export function boxGeometry(box: Box, at: (p: Position) => THREE.Vector3): THREE.BufferGeometry {
   const corners = box.map(at);
-  const middle = corners.reduce((sum, corner) => sum.add(corner), new THREE.Vector3()).divideScalar(corners.length);
+  const middle = corners
+    .reduce((sum, corner) => sum.add(corner), new THREE.Vector3())
+    .divideScalar(corners.length);
   const positions: number[] = [];
   for (const side of SIDES) {
     const [a, b, , d] = side.map((k) => corners[k]);

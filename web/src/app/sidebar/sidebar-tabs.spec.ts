@@ -3,7 +3,13 @@ import { TestBed } from '@angular/core/testing';
 
 import { SidebarTabs, Tab } from './sidebar-tabs';
 
-const tab = (key: string, order = 0): Tab => ({ key, label: key, icon: key, order, template: {} as TemplateRef<unknown> });
+const tab = (key: string, order = 0): Tab => ({
+  key,
+  label: key,
+  icon: key,
+  order,
+  template: {} as TemplateRef<unknown>,
+});
 
 describe('the tabs of the sidebar', () => {
   const tabs = () => TestBed.inject(SidebarTabs);
@@ -21,7 +27,11 @@ describe('the tabs of the sidebar', () => {
     tabs().add(tab('info'));
     tabs().add(tab('factories', 1));
 
-    expect(tabs().tabs().map((t) => t.key)).toEqual(['info', 'factories', 'explanation']);
+    expect(
+      tabs()
+        .tabs()
+        .map((t) => t.key),
+    ).toEqual(['info', 'factories', 'explanation']);
   });
 
   it('shows a tab asked for, and opens the sidebar for it when it was collapsed', () => {

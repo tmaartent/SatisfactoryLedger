@@ -27,7 +27,9 @@
     [attr.role]="clickable(count) ? 'button' : null"
     [attr.tabindex]="clickable(count) ? 0 : null"
     [attr.aria-pressed]="clickable(count) ? isShown(count) : null"
-    [attr.title]="clickable(count) ? (isShown(count) ? 'Show all again' : 'Show them on the map') : null"
+    [attr.title]="
+      clickable(count) ? (isShown(count) ? 'Show all again' : 'Show them on the map') : null
+    "
     (click)="toggle(count)"
     (keydown.enter)="toggle(count)"
     (keydown.space)="$event.preventDefault(); toggle(count)"

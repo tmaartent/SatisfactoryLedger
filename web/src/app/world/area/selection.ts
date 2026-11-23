@@ -23,7 +23,12 @@ export function toggle(selection: ReadonlySet<string>, id: string): Set<string> 
 
 /** The rectangle between where a drag started and where it is now, whichever way it went. */
 export function rectBetween(a: ScreenPoint, b: ScreenPoint): ScreenRect {
-  return { left: Math.min(a.x, b.x), top: Math.min(a.y, b.y), right: Math.max(a.x, b.x), bottom: Math.max(a.y, b.y) };
+  return {
+    left: Math.min(a.x, b.x),
+    top: Math.min(a.y, b.y),
+    right: Math.max(a.x, b.x),
+    bottom: Math.max(a.y, b.y),
+  };
 }
 
 /** A box adds (shift) or takes out (alt) every machine whose middle lies inside it on screen, edges included. */
@@ -35,7 +40,13 @@ export function boxSelect(
 ): Set<string> {
   const next = new Set(selection);
   for (const machine of onScreen) {
-    if (machine.x < box.left || machine.x > box.right || machine.y < box.top || machine.y > box.bottom) continue;
+    if (
+      machine.x < box.left ||
+      machine.x > box.right ||
+      machine.y < box.top ||
+      machine.y > box.bottom
+    )
+      continue;
     if (mode === 'add') next.add(machine.id);
     else next.delete(machine.id);
   }

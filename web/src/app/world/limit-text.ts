@@ -49,13 +49,24 @@ export function limitParts(finding: LimitFacts): LimitParts {
       return { before: 'No recipe set', items: [], after: '' };
     default:
       return finding.onStock
-        ? { before: 'On stock: ', items: one(finding.onStock), after: `, lasts ${Math.round(finding.stockMinutes ?? 0)} min` }
+        ? {
+            before: 'On stock: ',
+            items: one(finding.onStock),
+            after: `, lasts ${Math.round(finding.stockMinutes ?? 0)} min`,
+          }
         : { before: '', items: [], after: '' };
   }
 }
 
 /** Why it runs below 100%, in words (see limitParts): "Not enough Ore (50%), Sulfur (80%)". Empty when it runs on its supply. */
-export function limitText(finding: LimitFacts, name: (item: string | null | undefined) => string): string {
+export function limitText(
+  finding: LimitFacts,
+  name: (item: string | null | undefined) => string,
+): string {
   const { before, items, after } = limitParts(finding);
-  return before + items.map(({ item, share }) => (share ? `${name(item)} (${share})` : name(item))).join(', ') + after;
+  return (
+    before +
+    items.map(({ item, share }) => (share ? `${name(item)} (${share})` : name(item))).join(', ') +
+    after
+  );
 }

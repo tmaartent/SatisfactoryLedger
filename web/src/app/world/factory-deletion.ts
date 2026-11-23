@@ -19,7 +19,8 @@ export class FactoryDeletion {
   async confirmAndDelete(factory: { factoryId: string; name: string }): Promise<boolean> {
     const data: ConfirmDialogData = {
       title: `Delete the factory ${factory.name}?`,
-      message: 'Its definition is deleted in every snapshot of its world. Its machines stay, and belong to no factory again.',
+      message:
+        'Its definition is deleted in every snapshot of its world. Its machines stay, and belong to no factory again.',
       confirm: 'Delete',
     };
     const confirmed = await firstValueFrom(this.dialog.open(ConfirmDialog, { data }).afterClosed());

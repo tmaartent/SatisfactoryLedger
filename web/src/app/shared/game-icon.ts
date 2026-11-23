@@ -36,6 +36,10 @@ export class GameIcon {
 
   protected readonly src = computed(() => {
     const [item, building] = [this.itemNamed(), this.buildingNamed()];
-    return item ? this.names.iconOfItemNamed(item) : building ? this.names.iconOfBuildingNamed(building) : this.names.icon(this.of());
+    return item
+      ? this.names.iconOfItemNamed(item)
+      : building
+        ? this.names.iconOfBuildingNamed(building)
+        : this.names.icon(this.of());
   });
 }

@@ -136,7 +136,11 @@ table.mat-mdc-table {
   // A shadow, so a white ring stands out on light ground too.
   box-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   // As long as Leaflet's zoom animation: the pins grow along with the map.
-  transition: width 0.25s, height 0.25s, left 0.25s, top 0.25s;
+  transition:
+    width 0.25s,
+    height 0.25s,
+    left 0.25s,
+    top 0.25s;
 
   img {
     display: block;

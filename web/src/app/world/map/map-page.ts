@@ -1,4 +1,17 @@
-import { Component, DestroyRef, ElementRef, afterNextRender, computed, effect, inject, input, linkedSignal, resource, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  linkedSignal,
+  resource,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -107,7 +120,8 @@ export class MapPage {
   /** The machines' status: the map shows them grey until the analysis is ready, then colours them. */
   protected readonly analysis = resource({
     params: () => this.snapshotParams(),
-    loader: ({ params, abortSignal }) => whenAnalysed(() => this.api.invoke$Response(analyseSnapshot, params), abortSignal),
+    loader: ({ params, abortSignal }) =>
+      whenAnalysed(() => this.api.invoke$Response(analyseSnapshot, params), abortSignal),
   });
   protected readonly nodes = resource({ loader: () => this.api.invoke(getResourceNodes) });
   /** The game's map picture under everything (ADR-0020); none until it's imported, when the API answers 404. */
@@ -136,18 +150,36 @@ export class MapPage {
 
   private readonly statuses = computed(() => machineStatuses(this.analysis.value()?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
-  private readonly generators = computed(() => new Map((this.analysis.value()?.generators ?? []).map((generator) => [generator.id, generator])));
+  private readonly generators = computed(
+    () =>
+      new Map(
+        (this.analysis.value()?.generators ?? []).map((generator) => [generator.id, generator]),
+      ),
+  );
   private readonly utilisations = computed(
-    () => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine.utilisation])),
+    () =>
+      new Map(
+        (this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine.utilisation]),
+      ),
   );
   /** Each machine's finding, by id: its tooltip says what it's short of or can't get rid of (BR-A11). */
-  private readonly machineFindings = computed(() => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine])));
+  private readonly machineFindings = computed(
+    () => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine])),
+  );
   private readonly bottlenecks = computed(
-    () => new Map((this.analysis.value()?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck])),
+    () =>
+      new Map(
+        (this.analysis.value()?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck]),
+      ),
   );
   /** Each building class's footprint, by class name; a class without one is drawn as a dot. */
   private readonly footprints = computed(
-    () => new Map((this.world.value()?.footprints ?? []).map((footprint) => [footprint.id, footprint] as [string, FootprintDocument])),
+    () =>
+      new Map(
+        (this.world.value()?.footprints ?? []).map(
+          (footprint) => [footprint.id, footprint] as [string, FootprintDocument],
+        ),
+      ),
   );
   private readonly factoryMachines = computed(() => {
     const factory = this.factories.value()?.find((trace) => trace.factoryId === this.factoryId());
@@ -159,22 +191,28 @@ export class MapPage {
    * The buildings stood out, the others dimmed: those of the status picked in the overview, or else the highlighted
    * factory's. Only one at a time: picking either lets go of the other.
    */
-  private readonly highlighted = computed(() => buildingsShown(this.analysis.value(), this.shownStatus()) ?? this.factoryMachines());
+  private readonly highlighted = computed(
+    () => buildingsShown(this.analysis.value(), this.shownStatus()) ?? this.factoryMachines(),
+  );
   /** The factories each machine is in, with their colour: the same edges as in 3D. */
   private readonly owners = computed(() => machineOwners(this.factories.value() ?? []));
   /** The factories to choose from, each with the colour its machines are outlined in. */
   protected readonly factoryOptions = computed(() => {
     const factories = this.factories.value() ?? [];
-    return factories.map((factory) => ({ ...factory, colour: factoryColour(factories, factory.factoryId) }));
+    return factories.map((factory) => ({
+      ...factory,
+      colour: factoryColour(factories, factory.factoryId),
+    }));
   });
 
-  protected readonly legend = (['none', 'starved', 'outputBlocked', 'noRecipe', 'unknown'] as MachineStatus[]).map((status) => ({
+  protected readonly legend = (
+    ['none', 'starved', 'outputBlocked', 'noRecipe', 'unknown'] as MachineStatus[]
+  ).map((status) => ({
     status,
     label: statusLabels[status],
     colour: statusColours[status],
   }));
   protected readonly problem = problemMessage;
-
 
   private readonly container = viewChild.required<ElementRef<HTMLElement>>('map');
   private map?: L.Map;
@@ -229,7 +267,8 @@ export class MapPage {
     this.map.on('resize', () => this.holdToMapArt());
     // The resource nodes' markers read their size from the map (styles.scss): sized again for each zoom, not redrawn. An
     // animated zoom says where it goes as it starts, so they grow along with the map; others end with 'zoom'.
-    const sizeNodes = (zoom = this.map!.getZoom()) => this.container().nativeElement.style.setProperty('--node-size', `${nodeMarkerSize(zoom)}px`);
+    const sizeNodes = (zoom = this.map!.getZoom()) =>
+      this.container().nativeElement.style.setProperty('--node-size', `${nodeMarkerSize(zoom)}px`);
     this.map.on('zoomanim', (event) => sizeNodes((event as L.ZoomAnimEvent).zoom));
     this.map.on('zoom', () => sizeNodes());
     // The map picture first, so everything else lies over it.
@@ -246,7 +285,12 @@ export class MapPage {
     sizeNodes();
     this.listenForArea(this.map);
     this.map.on('mousemove', (event: L.LeafletMouseEvent) =>
-      this.pointer.set(positionInMetres({ x: event.latlng.lng * 100, y: -event.latlng.lat * 100, z: 0 }).replace(/, 0 m$/, ' m')),
+      this.pointer.set(
+        positionInMetres({ x: event.latlng.lng * 100, y: -event.latlng.lat * 100, z: 0 }).replace(
+          /, 0 m$/,
+          ' m',
+        ),
+      ),
     );
     this.drawConveyors();
     this.drawMachines();
@@ -263,7 +307,8 @@ export class MapPage {
     if (!this.map) return;
 
     this.artLayer.clearLayers();
-    for (const tile of mapArtTiles(art)) L.imageOverlay(tile.url, tile.bounds, { interactive: false }).addTo(this.artLayer);
+    for (const tile of mapArtTiles(art))
+      L.imageOverlay(tile.url, tile.bounds, { interactive: false }).addTo(this.artLayer);
     this.holdToMapArt();
   }
 
@@ -274,7 +319,10 @@ export class MapPage {
    */
   private holdToMapArt(): void {
     if (!this.map) return;
-    const extent = mapExtent(this.mapArt.hasValue() ? this.mapArt.value() : null, this.world.hasValue() ? this.world.value() : null);
+    const extent = mapExtent(
+      this.mapArt.hasValue() ? this.mapArt.value() : null,
+      this.world.hasValue() ? this.world.value() : null,
+    );
     if (!extent) {
       this.map.setMaxBounds();
       this.map.setMinZoom(MinZoom);
@@ -313,14 +361,22 @@ export class MapPage {
     map.on('mousedown', (event: L.LeafletMouseEvent) => {
       if (!this.drawing()) return;
       start = event.latlng;
-      rectangle = L.rectangle(L.latLngBounds(start, start), { color: '#ffeb3b', weight: 2, fillOpacity: 0.1, interactive: false }).addTo(map);
+      rectangle = L.rectangle(L.latLngBounds(start, start), {
+        color: '#ffeb3b',
+        weight: 2,
+        fillOpacity: 0.1,
+        interactive: false,
+      }).addTo(map);
     });
     map.on('mousemove', (event: L.LeafletMouseEvent) => {
       if (start && rectangle) rectangle.setBounds(L.latLngBounds(start, event.latlng));
     });
     map.on('mouseup', (event: L.LeafletMouseEvent) => {
       if (!start) return;
-      const area = areaBetween(fromMapPoint(start.lat, start.lng), fromMapPoint(event.latlng.lat, event.latlng.lng));
+      const area = areaBetween(
+        fromMapPoint(start.lat, start.lng),
+        fromMapPoint(event.latlng.lat, event.latlng.lng),
+      );
       rectangle?.remove();
       [start, rectangle] = [null, null];
       // A click without a drag draws nothing.
@@ -334,7 +390,13 @@ export class MapPage {
    * A building as the ground it covers, each of its boxes seen from above, turned the way it faces (ADR-0020); a dot
    * when its class has no footprint, as a lift, or when the snapshot is older than its footprints.
    */
-  private shape(position: PositionDocument, yaw: number, className: string, style: L.PathOptions, dot = 4): L.Path {
+  private shape(
+    position: PositionDocument,
+    yaw: number,
+    className: string,
+    style: L.PathOptions,
+    dot = 4,
+  ): L.Path {
     const footprint = this.footprints().get(className);
     return footprint
       ? L.polygon(
@@ -346,10 +408,27 @@ export class MapPage {
 
   private gridLayer(): L.LayerGroup {
     const grid = L.layerGroup();
-    const style: L.PolylineOptions = { color: '#ffffff', opacity: 0.08, weight: 1, interactive: false };
+    const style: L.PolylineOptions = {
+      color: '#ffffff',
+      opacity: 0.08,
+      weight: 1,
+      interactive: false,
+    };
     for (let metres = GridExtent.from; metres <= GridExtent.to; metres += GridStep) {
-      L.polyline([[GridExtent.from, metres], [GridExtent.to, metres]], style).addTo(grid);
-      L.polyline([[metres, GridExtent.from], [metres, GridExtent.to]], style).addTo(grid);
+      L.polyline(
+        [
+          [GridExtent.from, metres],
+          [GridExtent.to, metres],
+        ],
+        style,
+      ).addTo(grid);
+      L.polyline(
+        [
+          [metres, GridExtent.from],
+          [metres, GridExtent.to],
+        ],
+        style,
+      ).addTo(grid);
     }
     return grid;
   }
@@ -376,7 +455,11 @@ export class MapPage {
       // A held-back machine of no factory: a click explains it; one of a factory opens the factory, which explains it.
       const explains = !owner && finding !== undefined && this.explainer.explainable(finding);
       // A factory's machines are edged in its colour, boldly when it is the one highlighted.
-      const style = buildingStyle(statusColours[status], owner?.colour, highlighted ? inFactory : null);
+      const style = buildingStyle(
+        statusColours[status],
+        owner?.colour,
+        highlighted ? inFactory : null,
+      );
       const shape = this.shape(machine.position, machine.yaw, machine.className, style)
         .bindTooltip(
           `${this.icon(machine.className)}<b>${this.names.building(machine.className)}</b> · ${this.names.recipe(machine.recipe)}<br>` +
@@ -390,7 +473,12 @@ export class MapPage {
         )
         .addTo(this.machineLayer);
       this.opensFactory(shape, owner);
-      if (explains && finding) this.explainsWhy(shape, { className: machine.className, recipe: machine.recipe, limit: finding.limit });
+      if (explains && finding)
+        this.explainsWhy(shape, {
+          className: machine.className,
+          recipe: machine.recipe,
+          limit: finding.limit,
+        });
       this.shapes.set(machine.id, shape);
     }
 
@@ -421,7 +509,8 @@ export class MapPage {
         (bottleneck
           ? `<b>Bottleneck</b> · ${this.icon(conveyor.className)}${this.names.building(conveyor.className)}<br>` +
             `carries ${perMinute(bottleneck.flow)} of ${perMinute(bottleneck.capacity)}, ${perMinute(bottleneck.offeredMore)} more offered`
-          : `${this.icon(conveyor.className)}<b>${this.names.building(conveyor.className)}</b>`) + (carries ? `<br>On it: ${carries}` : ''),
+          : `${this.icon(conveyor.className)}<b>${this.names.building(conveyor.className)}</b>`) +
+          (carries ? `<br>On it: ${carries}` : ''),
       );
       line.addTo(this.conveyorLayer);
       this.shapes.set(conveyor.id, line);
@@ -434,15 +523,23 @@ export class MapPage {
 
     this.providerLayer.clearLayers();
     for (const provider of providers) {
-      const shape = this.shape(provider.position, provider.yaw, provider.className, {
-        color: provider.purity ? purityColours[provider.purity] : '#42a5f5',
-        weight: 2,
-        fillColor: '#42a5f5',
-        fillOpacity: 0.6,
-      }, 5)
+      const shape = this.shape(
+        provider.position,
+        provider.yaw,
+        provider.className,
+        {
+          color: provider.purity ? purityColours[provider.purity] : '#42a5f5',
+          weight: 2,
+          fillColor: '#42a5f5',
+          fillOpacity: 0.6,
+        },
+        5,
+      )
         .bindTooltip(
           `${this.icon(provider.className)}<b>${this.names.building(provider.className)}</b>` +
-            (provider.resource ? ` · ${this.icon(provider.resource)}${this.names.item(provider.resource)}` : '') +
+            (provider.resource
+              ? ` · ${this.icon(provider.resource)}${this.names.item(provider.resource)}`
+              : '') +
             (provider.purity ? ` · ${provider.purity}` : '') +
             `<br>${positionInMetres(provider.position)}`,
         )
@@ -467,7 +564,10 @@ export class MapPage {
       fillColor: consumer ? consumerColour : '#546e7a',
       fillOpacity: 0.5,
     });
-    for (const [buildings, consumer] of [[world?.logistics ?? [], false], [world?.consumers ?? [], true]] as const) {
+    for (const [buildings, consumer] of [
+      [world?.logistics ?? [], false],
+      [world?.consumers ?? [], true],
+    ] as const) {
       for (const building of buildings) {
         // A generator burning a known fuel shows how it runs (BR-A15), in the machines' colours.
         const generator = consumer ? generators.get(building.id) : undefined;
@@ -479,7 +579,11 @@ export class MapPage {
           building.className,
           // A generator of a factory is edged in its colour, as its machines are. Dimmed too while others stand out.
           colour || owner || highlighted
-            ? buildingStyle(colour ?? consumerColour, owner?.colour, highlighted ? highlighted.has(building.id) : null)
+            ? buildingStyle(
+                colour ?? consumerColour,
+                owner?.colour,
+                highlighted ? highlighted.has(building.id) : null,
+              )
             : style(consumer),
           2,
         )
@@ -549,7 +653,9 @@ export class MapPage {
     this.nodeLayer.clearLayers();
     // With no snapshot, nothing else to zoom to: the nodes, the first time.
     if (!this.id() && !this.fitted && nodes.length > 0) {
-      this.map.fitBounds(L.latLngBounds(nodes.map((node) => toMapPoint(node.position))), { padding: [24, 24] });
+      this.map.fitBounds(L.latLngBounds(nodes.map((node) => toMapPoint(node.position))), {
+        padding: [24, 24],
+      });
       this.fitted = true;
     }
     for (const node of nodes) {
@@ -559,12 +665,27 @@ export class MapPage {
       const marker = icon
         ? L.marker(toMapPoint(node.position), {
             // No size of its own: the pin is drawn from the node by CSS, at the map's --node-size.
-            icon: L.divIcon({ html: nodeMarkerHtml(icon, purity), className: '', iconSize: [0, 0], iconAnchor: [0, 0] }),
+            icon: L.divIcon({
+              html: nodeMarkerHtml(icon, purity),
+              className: '',
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+            }),
           })
-        : L.circleMarker(toMapPoint(node.position), { radius: 5, color: purity, weight: 1.5, dashArray: '3 3', fill: false });
+        : L.circleMarker(toMapPoint(node.position), {
+            radius: 5,
+            color: purity,
+            weight: 1.5,
+            dashArray: '3 3',
+            fill: false,
+          });
       // With a snapshot, what stands on it, or that it's free; without one, nothing is known of either.
       const taker = takers.get(node.name);
-      const standing = !this.id() ? '' : taker ? ` · ${this.icon(taker.className)}${this.names.building(taker.className)} on it` : ' · free';
+      const standing = !this.id()
+        ? ''
+        : taker
+          ? ` · ${this.icon(taker.className)}${this.names.building(taker.className)} on it`
+          : ' · free';
       marker
         .bindTooltip(
           `${node.purity.charAt(0).toUpperCase() + node.purity.slice(1)} node · ${iconTag(icon)}${this.names.item(node.resource)}${standing}` +
@@ -582,12 +703,22 @@ export class MapPage {
 
     this.shownLayer.clearLayers();
     if (!highlighted || !world) return;
-    const points = [...world.machines, ...world.consumers].filter((building) => highlighted.has(building.id)).map((building) => toMapPoint(building.position));
+    const points = [...world.machines, ...world.consumers]
+      .filter((building) => highlighted.has(building.id))
+      .map((building) => toMapPoint(building.position));
     // A factory's machines are edged in its colour already; a status's, scattered over the world, are ringed.
     if (this.shownStatus()) {
-      for (const point of points) L.circleMarker(point, { radius: 12, color: '#ffeb3b', weight: 2, fill: false, interactive: false }).addTo(this.shownLayer);
+      for (const point of points)
+        L.circleMarker(point, {
+          radius: 12,
+          color: '#ffeb3b',
+          weight: 2,
+          fill: false,
+          interactive: false,
+        }).addTo(this.shownLayer);
     }
-    if (points.length > 0) this.map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 1 });
+    if (points.length > 0)
+      this.map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 1 });
   }
 
   /** A finding's buildable (?focus=): zoom to it, ring it, and open its tooltip. Nothing when the map doesn't have it. */
@@ -600,7 +731,13 @@ export class MapPage {
     this.focusLayer.clearLayers();
     if (!point) return;
 
-    L.circleMarker(point, { radius: 22, color: '#ffeb3b', weight: 3, fill: false, interactive: false }).addTo(this.focusLayer);
+    L.circleMarker(point, {
+      radius: 22,
+      color: '#ffeb3b',
+      weight: 3,
+      fill: false,
+      interactive: false,
+    }).addTo(this.focusLayer);
     this.map.setView(point, 1);
     // The first fit to all machines would otherwise zoom out again.
     this.fitted = true;

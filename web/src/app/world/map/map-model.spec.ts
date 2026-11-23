@@ -3,12 +3,38 @@ import { MapProvider } from '../../api/models/map-provider';
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { WorldMapResponse } from '../../api/models/world-map-response';
-import { MapMargin, buildingStyle, buildingsShown, iconTag, nodeTakers, nodeMarkerHtml, nodeMarkerSize, contentEntries, describeContents, mapArtExtent, mapExtent, mapArtTiles, escapeHtml, footprintShapes, fromMapPoint, locate, machineStatuses, sampleCurve, toMapPoint } from './map-model';
+import {
+  MapMargin,
+  buildingStyle,
+  buildingsShown,
+  iconTag,
+  nodeTakers,
+  nodeMarkerHtml,
+  nodeMarkerSize,
+  contentEntries,
+  describeContents,
+  mapArtExtent,
+  mapExtent,
+  mapArtTiles,
+  escapeHtml,
+  footprintShapes,
+  fromMapPoint,
+  locate,
+  machineStatuses,
+  sampleCurve,
+  toMapPoint,
+} from './map-model';
 
 describe('map model', () => {
   describe('a building in its factory', () => {
     it("is edged in its factory's colour over the fill of how it runs", () => {
-      expect(buildingStyle('#66bb6a', '#ff4081', null)).toEqual({ color: '#ff4081', weight: 2, fillColor: '#66bb6a', fillOpacity: 0.75, opacity: 1 });
+      expect(buildingStyle('#66bb6a', '#ff4081', null)).toEqual({
+        color: '#ff4081',
+        weight: 2,
+        fillColor: '#66bb6a',
+        fillOpacity: 0.75,
+        opacity: 1,
+      });
     });
 
     it('is edged boldly when its factory is the one highlighted', () => {
@@ -16,11 +42,18 @@ describe('map model', () => {
     });
 
     it('is dimmed when another factory is highlighted', () => {
-      expect(buildingStyle('#66bb6a', '#ff4081', false)).toMatchObject({ weight: 2, fillOpacity: 0.15, opacity: 0.15 });
+      expect(buildingStyle('#66bb6a', '#ff4081', false)).toMatchObject({
+        weight: 2,
+        fillOpacity: 0.15,
+        opacity: 0.15,
+      });
     });
 
     it('of no factory is edged in its own fill', () => {
-      expect(buildingStyle('#66bb6a', undefined, null)).toMatchObject({ color: '#66bb6a', weight: 1 });
+      expect(buildingStyle('#66bb6a', undefined, null)).toMatchObject({
+        color: '#66bb6a',
+        weight: 1,
+      });
     });
   });
 
@@ -51,10 +84,17 @@ describe('map model', () => {
     const miner = { id: 'miner', node: 'BP_ResourceNode35' } as MapProvider;
     const takers = nodeTakers([miner, { id: 'well', node: null } as MapProvider]);
 
-    expect([takers.get('BP_ResourceNode35'), takers.get('BP_ResourceNode36'), takers.size]).toEqual([miner, undefined, 1]);
+    expect([takers.get('BP_ResourceNode35'), takers.get('BP_ResourceNode36'), takers.size]).toEqual(
+      [miner, undefined, 1],
+    );
   });
 
-  const point = (x: number, y: number, arrive: [number, number], leave: [number, number]): CurvePointDocument => ({
+  const point = (
+    x: number,
+    y: number,
+    arrive: [number, number],
+    leave: [number, number],
+  ): CurvePointDocument => ({
     location: { x, y, z: 0 },
     arriveTangent: { x: arrive[0], y: arrive[1], z: 0 },
     leaveTangent: { x: leave[0], y: leave[1], z: 0 },
@@ -63,7 +103,10 @@ describe('map model', () => {
   it('draws a straight belt as a line between its two ends', () => {
     const straight = [point(0, 0, [-1, 0], [-450, 0]), point(-900, 0, [-450, 0], [-1, 0])];
 
-    expect(sampleCurve(straight)).toEqual([toMapPoint({ x: 0, y: 0, z: 0 }), toMapPoint({ x: -900, y: 0, z: 0 })]);
+    expect(sampleCurve(straight)).toEqual([
+      toMapPoint({ x: 0, y: 0, z: 0 }),
+      toMapPoint({ x: -900, y: 0, z: 0 }),
+    ]);
   });
 
   it('follows a bend through the middle of its curve, not the straight line', () => {
@@ -77,15 +120,32 @@ describe('map model', () => {
     expect(line).toContainEqual(toMapPoint({ x: 62.5, y: 37.5, z: 0 }));
   });
 
-  const constructor: FootprintDocument = { id: 'Build_ConstructorMk1_C', minX: -400, minY: -500, maxX: 400, maxY: 500 };
+  const constructor: FootprintDocument = {
+    id: 'Build_ConstructorMk1_C',
+    minX: -400,
+    minY: -500,
+    maxX: 400,
+    maxY: 500,
+  };
   const origin = { x: 0, y: 0, z: 0 };
-  const shapes = (position: { x: number; y: number; z: number }, yaw: number, footprint: FootprintDocument) =>
-    footprintShapes({ className: footprint.id, position, yaw }, new Map([[footprint.id, footprint]]));
+  const shapes = (
+    position: { x: number; y: number; z: number },
+    yaw: number,
+    footprint: FootprintDocument,
+  ) =>
+    footprintShapes(
+      { className: footprint.id, position, yaw },
+      new Map([[footprint.id, footprint]]),
+    );
   // The extent of a building's shapes on the map, in metres: [south, north] and [west, east].
   const extent = (rings: [number, number][][]) => extentOf(rings.flat());
   const extentOf = (corners: [number, number][]) => ({
-    lat: [Math.min(...corners.map((c) => c[0])), Math.max(...corners.map((c) => c[0]))].map((v) => Math.round(v * 100) / 100),
-    lng: [Math.min(...corners.map((c) => c[1])), Math.max(...corners.map((c) => c[1]))].map((v) => Math.round(v * 100) / 100),
+    lat: [Math.min(...corners.map((c) => c[0])), Math.max(...corners.map((c) => c[0]))].map(
+      (v) => Math.round(v * 100) / 100,
+    ),
+    lng: [Math.min(...corners.map((c) => c[1])), Math.max(...corners.map((c) => c[1]))].map(
+      (v) => Math.round(v * 100) / 100,
+    ),
   });
 
   it("draws an unturned constructor's footprint 8 m along x and 10 m along y", () => {
@@ -99,17 +159,43 @@ describe('map model', () => {
 
   it('keeps a footprint that sticks out to one side where it is', () => {
     // A miner covers y −5 to 9 m in its own coordinates; the game's y grows southwards, the map's latitude upwards.
-    const miner: FootprintDocument = { id: 'Build_MinerMk1_C', minX: -300, minY: -500, maxX: 300, maxY: 900 };
+    const miner: FootprintDocument = {
+      id: 'Build_MinerMk1_C',
+      minX: -300,
+      minY: -500,
+      maxX: 300,
+      maxY: 900,
+    };
 
-    expect(extent(shapes({ x: 1000, y: 0, z: 0 }, 0, miner))).toEqual({ lat: [-9, 5], lng: [7, 13] });
+    expect(extent(shapes({ x: 1000, y: 0, z: 0 }, 0, miner))).toEqual({
+      lat: [-9, 5],
+      lng: [7, 13],
+    });
   });
 
-  it('draws each of a building\'s boxes as seen from above, not the rectangle around them', () => {
+  it("draws each of a building's boxes as seen from above, not the rectangle around them", () => {
     // A cross of two boxes: 20 by 4 metres along x, and along y.
-    const box = { minZ: 0, maxZ: 400, rotationX: 0, rotationY: 0, rotationZ: 0, rotationW: 1, offsetX: 0, offsetY: 0, offsetZ: 0 };
+    const box = {
+      minZ: 0,
+      maxZ: 400,
+      rotationX: 0,
+      rotationY: 0,
+      rotationZ: 0,
+      rotationW: 1,
+      offsetX: 0,
+      offsetY: 0,
+      offsetZ: 0,
+    };
     const cross: FootprintDocument = {
-      id: 'Build_Cross_C', minX: -1000, minY: -1000, maxX: 1000, maxY: 1000,
-      volumes: [{ ...box, minX: -1000, maxX: 1000, minY: -200, maxY: 200 }, { ...box, minX: -200, maxX: 200, minY: -1000, maxY: 1000 }],
+      id: 'Build_Cross_C',
+      minX: -1000,
+      minY: -1000,
+      maxX: 1000,
+      maxY: 1000,
+      volumes: [
+        { ...box, minX: -1000, maxX: 1000, minY: -200, maxY: 200 },
+        { ...box, minX: -200, maxX: 200, minY: -1000, maxY: 1000 },
+      ],
     };
 
     expect(shapes(origin, 0, cross).map(extentOf)).toEqual([
@@ -121,8 +207,28 @@ describe('map model', () => {
   it('draws a box tilted up as the ground it covers', () => {
     // 10 m long, 2 m wide and 2 m high, tilted a quarter around its y axis: from above it's 2 by 2 metres.
     const tilted: FootprintDocument = {
-      id: 'Build_Tilted_C', minX: -500, minY: -100, maxX: 500, maxY: 100,
-      volumes: [{ minX: -500, maxX: 500, minY: -100, maxY: 100, minZ: -100, maxZ: 100, rotationX: 0, rotationY: Math.SQRT1_2, rotationZ: 0, rotationW: Math.SQRT1_2, offsetX: 0, offsetY: 0, offsetZ: 0 }],
+      id: 'Build_Tilted_C',
+      minX: -500,
+      minY: -100,
+      maxX: 500,
+      maxY: 100,
+      volumes: [
+        {
+          minX: -500,
+          maxX: 500,
+          minY: -100,
+          maxY: 100,
+          minZ: -100,
+          maxZ: 100,
+          rotationX: 0,
+          rotationY: Math.SQRT1_2,
+          rotationZ: 0,
+          rotationW: Math.SQRT1_2,
+          offsetX: 0,
+          offsetY: 0,
+          offsetZ: 0,
+        },
+      ],
     };
 
     expect(extent(shapes(origin, 0, tilted))).toEqual({ lat: [-1, 1], lng: [-1, 1] });
@@ -131,7 +237,9 @@ describe('map model', () => {
   const name = (id: string) => id.replace('Desc_', '').replace('_C', '');
 
   it('describes what a belt carries, most first', () => {
-    expect(describeContents({ Desc_IronIngot_C: 2, Desc_OreIron_C: 7 }, name)).toBe('OreIron × 7, IronIngot × 2');
+    expect(describeContents({ Desc_IronIngot_C: 2, Desc_OreIron_C: 7 }, name)).toBe(
+      'OreIron × 7, IronIngot × 2',
+    );
   });
 
   it('says a belt with nothing on it is empty', () => {
@@ -154,7 +262,13 @@ describe('map model', () => {
   });
 
   describe('finding a buildable to zoom to', () => {
-    const building = (id: string, x: number, y: number) => ({ id, className: 'X', position: { x, y, z: 0 }, yaw: 0, contents: null });
+    const building = (id: string, x: number, y: number) => ({
+      id,
+      className: 'X',
+      position: { x, y, z: 0 },
+      yaw: 0,
+      contents: null,
+    });
     const world = {
       machines: [{ ...building('smelter', 10000, 20000), recipe: null }],
       providers: [{ ...building('miner', 30000, 0), node: null, resource: null, purity: null }],
@@ -177,7 +291,11 @@ describe('map model', () => {
     });
 
     it('finds providers, logistics and consumers too', () => {
-      expect([locate(world, 'miner'), locate(world, 'splitter'), locate(world, 'drone port')]).toEqual([
+      expect([
+        locate(world, 'miner'),
+        locate(world, 'splitter'),
+        locate(world, 'drone port'),
+      ]).toEqual([
         [-0, 300],
         [-0, 0],
         [-0, -500],
@@ -200,12 +318,28 @@ describe('map model', () => {
       y0: -500,
       x1: 1000,
       y1: 500,
-      tiles: [{ column: 1, row: 0, x0: 0, y0: -500, x1: 1000, y1: 500, url: '/api/v1/catalog/map-art/tiles/1/0' }],
+      tiles: [
+        {
+          column: 1,
+          row: 0,
+          x0: 0,
+          y0: -500,
+          x1: 1000,
+          y1: 500,
+          url: '/api/v1/catalog/map-art/tiles/1/0',
+        },
+      ],
     };
 
-    it("lays each tile over its part of the world, in metres with north up", () => {
+    it('lays each tile over its part of the world, in metres with north up', () => {
       expect(mapArtTiles(art)).toEqual([
-        { url: '/api/v1/catalog/map-art/tiles/1/0', bounds: [[5, 0], [-5, 10]] },
+        {
+          url: '/api/v1/catalog/map-art/tiles/1/0',
+          bounds: [
+            [5, 0],
+            [-5, 10],
+          ],
+        },
       ]);
     });
 
@@ -214,7 +348,10 @@ describe('map model', () => {
     });
 
     it('covers the rectangle of the world it shows, as the corners the map can be held to', () => {
-      expect(mapArtExtent(art)).toEqual([[5, -10], [-5, 10]]);
+      expect(mapArtExtent(art)).toEqual([
+        [5, -10],
+        [-5, 10],
+      ]);
     });
 
     it('holds the map to nothing without map art', () => {
@@ -223,19 +360,42 @@ describe('map model', () => {
 
     describe('with buildings past its edges, as the game allows', () => {
       const building = (x: number, y: number) => ({ id: `b${x}`, position: { x, y, z: 0 } });
-      const off = (buildings: { id: string; position: { x: number; y: number; z: number } }[], conveyors: { location: { x: number; y: number; z: number } }[][] = []) =>
-        ({ machines: [], providers: buildings, logistics: [], consumers: [], conveyors: conveyors.map((curve, i) => ({ id: `c${i}`, curve })) }) as unknown as WorldMapResponse;
+      const off = (
+        buildings: { id: string; position: { x: number; y: number; z: number } }[],
+        conveyors: { location: { x: number; y: number; z: number } }[][] = [],
+      ) =>
+        ({
+          machines: [],
+          providers: buildings,
+          logistics: [],
+          consumers: [],
+          conveyors: conveyors.map((curve, i) => ({ id: `c${i}`, curve })),
+        }) as unknown as WorldMapResponse;
 
       it('reaches as far as the buildings, and a margin past them', () => {
-        expect(mapExtent(art, off([building(3000, 0)]))).toEqual([[-5, -10], [5, 30 + MapMargin]]);
+        expect(mapExtent(art, off([building(3000, 0)]))).toEqual([
+          [-5, -10],
+          [5, 30 + MapMargin],
+        ]);
       });
 
       it('reaches as far as the belts and pipes too', () => {
-        expect(mapExtent(art, off([], [[{ location: { x: 0, y: 0, z: 0 } }, { location: { x: 0, y: 4000, z: 0 } }]]))).toEqual([[-40 - MapMargin, -10], [5, 10]]);
+        expect(
+          mapExtent(
+            art,
+            off([], [[{ location: { x: 0, y: 0, z: 0 } }, { location: { x: 0, y: 4000, z: 0 } }]]),
+          ),
+        ).toEqual([
+          [-40 - MapMargin, -10],
+          [5, 10],
+        ]);
       });
 
       it('stays the map picture when every building is on it', () => {
-        expect(mapExtent(art, off([building(500, -200)]))).toEqual([[-5, -10], [5, 10]]);
+        expect(mapExtent(art, off([building(500, -200)]))).toEqual([
+          [-5, -10],
+          [5, 10],
+        ]);
       });
 
       it('is nothing without map art', () => {
@@ -246,16 +406,24 @@ describe('map model', () => {
 
   describe('the buildings of a status, picked in the overview', () => {
     const analysis = {
-      machines: [{ id: 'a', limit: 'noRecipe' as const }, { id: 'b', limit: 'starved' as const }, { id: 'c', limit: 'noRecipe' as const }],
+      machines: [
+        { id: 'a', limit: 'noRecipe' as const },
+        { id: 'b', limit: 'starved' as const },
+        { id: 'c', limit: 'noRecipe' as const },
+      ],
       generators: [{ id: 'g', limit: 'starved' as const }],
     };
 
     it('are the machines of that status', () => {
-      expect(buildingsShown(analysis, { of: 'machines', limit: 'noRecipe' })).toEqual(new Set(['a', 'c']));
+      expect(buildingsShown(analysis, { of: 'machines', limit: 'noRecipe' })).toEqual(
+        new Set(['a', 'c']),
+      );
     });
 
     it('are the generators of that status, not its machines', () => {
-      expect(buildingsShown(analysis, { of: 'generators', limit: 'starved' })).toEqual(new Set(['g']));
+      expect(buildingsShown(analysis, { of: 'generators', limit: 'starved' })).toEqual(
+        new Set(['g']),
+      );
     });
 
     it('are none picked when no status is', () => {
@@ -265,7 +433,9 @@ describe('map model', () => {
 
   describe("the game's icons on the map", () => {
     it('puts an icon before a name in a tooltip', () => {
-      expect(iconTag('/api/v1/catalog/icons/Desc_OreIron_C')).toBe('<img class="tooltip-icon" src="/api/v1/catalog/icons/Desc_OreIron_C" width="16" height="16" alt="">');
+      expect(iconTag('/api/v1/catalog/icons/Desc_OreIron_C')).toBe(
+        '<img class="tooltip-icon" src="/api/v1/catalog/icons/Desc_OreIron_C" width="16" height="16" alt="">',
+      );
     });
 
     it('puts nothing in a tooltip for what has no icon', () => {

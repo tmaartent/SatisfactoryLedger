@@ -24,7 +24,10 @@ describe('CatalogNames', () => {
       [getRecipes, []],
       [
         getBuildables,
-        [{ id: 'Build_TrainDockingStation_C', name: 'Freight Platform', inGame: true }, { id: 'Build_MinerMk3_C', name: 'Miner Mk.3', inGame: true }],
+        [
+          { id: 'Build_TrainDockingStation_C', name: 'Freight Platform', inGame: true },
+          { id: 'Build_MinerMk3_C', name: 'Miner Mk.3', inGame: true },
+        ],
       ],
       [getExtractors, [{ id: 'Build_MinerMk3_C', name: 'Miner Mk.3', form: 'solid' }]],
       [getIcons, { gameVersion: '1.2', descriptors: ['Desc_OreIron_C', 'Desc_MinerMk3_C'] }],

@@ -35,7 +35,13 @@ describe('the catalog page', () => {
   async function render() {
     const api = {
       invoke: vi.fn((fn: unknown) =>
-        Promise.resolve(fn === importMapArt ? mapArtImport : fn === importIcons ? { ...mapArtImport, source: 'icons' } : []),
+        Promise.resolve(
+          fn === importMapArt
+            ? mapArtImport
+            : fn === importIcons
+              ? { ...mapArtImport, source: 'icons' }
+              : [],
+        ),
       ),
     };
     TestBed.configureTestingModule({
@@ -44,7 +50,9 @@ describe('the catalog page', () => {
         { provide: Api, useValue: api },
         {
           provide: CatalogNames,
-          useValue: { icon: () => null, iconOfItemNamed: () => null,
+          useValue: {
+            icon: () => null,
+            iconOfItemNamed: () => null,
             reload: vi.fn(),
             item: (item: string) => item,
             building: (name: string) => name,

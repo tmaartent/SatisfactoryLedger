@@ -29,7 +29,8 @@ import { GameIcon } from '../shared/game-icon';
 /** The game data (ADR-0005), the resource nodes (ADR-0015) and the map art (ADR-0020): their imports, and what's in them. */
 @Component({
   selector: 'app-catalog-page',
-  imports: [GameIcon, 
+  imports: [
+    GameIcon,
     FormsModule,
     MatButtonModule,
     MatCardModule,
@@ -76,11 +77,18 @@ export class CatalogPage {
     ];
   });
 
-  private readonly matches = (name: string) => name.toLowerCase().includes(this.search().trim().toLowerCase());
-  protected readonly shownItems = computed(() => (this.items.value() ?? []).filter((item) => this.matches(item.name)));
-  protected readonly shownRecipes = computed(() => (this.recipes.value() ?? []).filter((recipe) => this.matches(recipe.name)));
+  private readonly matches = (name: string) =>
+    name.toLowerCase().includes(this.search().trim().toLowerCase());
+  protected readonly shownItems = computed(() =>
+    (this.items.value() ?? []).filter((item) => this.matches(item.name)),
+  );
+  protected readonly shownRecipes = computed(() =>
+    (this.recipes.value() ?? []).filter((recipe) => this.matches(recipe.name)),
+  );
   protected readonly shownNodes = computed(() =>
-    (this.nodes.value() ?? []).filter((node) => this.matches(this.names.item(node.resource)) || this.matches(node.name)),
+    (this.nodes.value() ?? []).filter(
+      (node) => this.matches(this.names.item(node.resource)) || this.matches(node.name),
+    ),
   );
 
   protected readonly itemColumns = ['name', 'form', 'raw', 'id'];
@@ -94,7 +102,10 @@ export class CatalogPage {
 
   protected async importDocs(files: FileList | null): Promise<void> {
     const file = files?.item(0);
-    if (file) await this.run(() => this.api.invoke(importCatalog, { body: { file, gameVersion: this.gameVersion() } }));
+    if (file)
+      await this.run(() =>
+        this.api.invoke(importCatalog, { body: { file, gameVersion: this.gameVersion() } }),
+      );
   }
 
   protected async importNodes(files: FileList | null): Promise<void> {
@@ -118,7 +129,8 @@ export class CatalogPage {
     this.importing.set(true);
     try {
       this.lastImport.set(await importing());
-      for (const list of [this.items, this.recipes, this.tiers, this.extractors, this.nodes]) list.reload();
+      for (const list of [this.items, this.recipes, this.tiers, this.extractors, this.nodes])
+        list.reload();
       this.names.reload();
     } catch (error) {
       this.snackBar.open(`The import failed: ${problemMessage(error)}`, 'Close');

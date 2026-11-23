@@ -3,7 +3,12 @@
 
 <mat-tab-group animationDuration="0">
   <mat-tab [label]="'Machines (' + f.machines.length + ')'">
-    <mat-button-toggle-group class="filter" [value]="limitFilter()" (change)="filterBy($event.value)" hideSingleSelectionIndicator>
+    <mat-button-toggle-group
+      class="filter"
+      [value]="limitFilter()"
+      (change)="filterBy($event.value)"
+      hideSingleSelectionIndicator
+    >
       <mat-button-toggle value="all">All</mat-button-toggle>
       <mat-button-toggle value="starved">Starved</mat-button-toggle>
       <mat-button-toggle value="outputBlocked">Output blocked</mat-button-toggle>
@@ -27,7 +32,9 @@
             @if (factoryOf(m.id); as factory) {
               <span class="swatch" [style.border-color]="factory.colour"></span>
               @if (snapshotId(); as snapshot) {
-                <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{ factory.name }}</a>
+                <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{
+                  factory.name
+                }}</a>
               } @else {
                 {{ factory.name }}
               }
@@ -54,7 +61,13 @@
             <span class="muted">{{ why(m) }}</span>
             @if (snapshotId(); as snapshot) {
               @if (explainable(m)) {
-                <button mat-icon-button class="explain" (click)="explain(m, snapshot)" aria-label="Explain why" matTooltip="Explain why, with the trace">
+                <button
+                  mat-icon-button
+                  class="explain"
+                  (click)="explain(m, snapshot)"
+                  aria-label="Explain why"
+                  matTooltip="Explain why, with the trace"
+                >
                   <mat-icon>lightbulb</mat-icon>
                 </button>
               }
@@ -65,7 +78,12 @@
           <th mat-header-cell *matHeaderCellDef>Where</th>
           <td mat-cell *matCellDef="let m" class="muted">
             @if (snapshotId(); as snapshot) {
-              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: m.id }" matTooltip="Show on the map">{{ position(m.position) }}</a>
+              <a
+                [routerLink]="['/snapshots', snapshot, 'map']"
+                [queryParams]="{ focus: m.id }"
+                matTooltip="Show on the map"
+                >{{ position(m.position) }}</a
+              >
             } @else {
               {{ position(m.position) }}
             }
@@ -87,13 +105,21 @@
   @if (factories()) {
     <mat-tab [label]="'Factories (' + factoryRows().length + ')'">
       <div class="explanation factories-header">
-        <p class="muted">A factory is the machines and generators you choose in 3D (BR-W2), traced in every snapshot of its world.</p>
+        <p class="muted">
+          A factory is the machines and generators you choose in 3D (BR-W2), traced in every
+          snapshot of its world.
+        </p>
         @if (snapshotId(); as snapshot) {
-          <a mat-flat-button [routerLink]="['/snapshots', snapshot, 'map']"><mat-icon>add</mat-icon> Define a factory</a>
+          <a mat-flat-button [routerLink]="['/snapshots', snapshot, 'map']"
+            ><mat-icon>add</mat-icon> Define a factory</a
+          >
         }
       </div>
       @if (factoryRows().length === 0) {
-        <p class="muted">No factories in this world yet. Open an area of the map in 3D to choose a factory's machines.</p>
+        <p class="muted">
+          No factories in this world yet. Open an area of the map in 3D to choose a factory's
+          machines.
+        </p>
       } @else {
         <div class="table-scroll">
           <table mat-table [dataSource]="factoryRows()">
@@ -102,7 +128,9 @@
               <td mat-cell *matCellDef="let factory">
                 <span class="swatch" [style.border-color]="factory.colour"></span>
                 @if (snapshotId(); as snapshot) {
-                  <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{ factory.name }}</a>
+                  <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{
+                    factory.name
+                  }}</a>
                 } @else {
                   {{ factory.name }}
                 }
@@ -110,7 +138,9 @@
             </ng-container>
             <ng-container matColumnDef="machines">
               <th mat-header-cell *matHeaderCellDef class="number">Machines</th>
-              <td mat-cell *matCellDef="let factory" class="number">{{ factory.traceable ? factory.machines.length : '—' }}</td>
+              <td mat-cell *matCellDef="let factory" class="number">
+                {{ factory.traceable ? factory.machines.length : '—' }}
+              </td>
             </ng-container>
             <ng-container matColumnDef="makes">
               <th mat-header-cell *matHeaderCellDef>Makes</th>
@@ -124,12 +154,19 @@
             </ng-container>
             <ng-container matColumnDef="needs">
               <th mat-header-cell *matHeaderCellDef>Needs from outside</th>
-              <td mat-cell *matCellDef="let factory">{{ factory.traceable ? itemsOf(factory.inputs) : '' }}</td>
+              <td mat-cell *matCellDef="let factory">
+                {{ factory.traceable ? itemsOf(factory.inputs) : '' }}
+              </td>
             </ng-container>
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let factory" class="actions">
-                <button mat-icon-button (click)="deleteFactory.emit(factory)" [attr.aria-label]="'Delete ' + factory.name" matTooltip="Delete this factory">
+                <button
+                  mat-icon-button
+                  (click)="deleteFactory.emit(factory)"
+                  [attr.aria-label]="'Delete ' + factory.name"
+                  matTooltip="Delete this factory"
+                >
                   <mat-icon>delete</mat-icon>
                 </button>
               </td>
@@ -143,16 +180,22 @@
   }
 
   <mat-tab [label]="'Bottlenecks (' + f.bottlenecks.length + ')'">
-    <p class="muted explanation">Belts and pipes at their capacity while more is offered to them.</p>
+    <p class="muted explanation">
+      Belts and pipes at their capacity while more is offered to them.
+    </p>
     <div class="table-scroll">
       <table mat-table [dataSource]="f.bottlenecks">
         <ng-container matColumnDef="belt">
           <th mat-header-cell *matHeaderCellDef>Belt or pipe</th>
-          <td mat-cell *matCellDef="let b"><app-game-icon [of]="b.className" />{{ names.building(b.className) }}</td>
+          <td mat-cell *matCellDef="let b">
+            <app-game-icon [of]="b.className" />{{ names.building(b.className) }}
+          </td>
         </ng-container>
         <ng-container matColumnDef="flow">
           <th mat-header-cell *matHeaderCellDef class="number">Carries</th>
-          <td mat-cell *matCellDef="let b" class="number">{{ perMinute(b.flow) }} of {{ perMinute(b.capacity) }}</td>
+          <td mat-cell *matCellDef="let b" class="number">
+            {{ perMinute(b.flow) }} of {{ perMinute(b.capacity) }}
+          </td>
         </ng-container>
         <ng-container matColumnDef="offeredMore">
           <th mat-header-cell *matHeaderCellDef class="number">Offered on top</th>
@@ -162,7 +205,12 @@
           <th mat-header-cell *matHeaderCellDef>Where</th>
           <td mat-cell *matCellDef="let b" class="muted">
             @if (snapshotId(); as snapshot) {
-              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: b.id }" matTooltip="Show on the map">{{ position(b.position) }}</a>
+              <a
+                [routerLink]="['/snapshots', snapshot, 'map']"
+                [queryParams]="{ focus: b.id }"
+                matTooltip="Show on the map"
+                >{{ position(b.position) }}</a
+              >
             } @else {
               {{ position(b.position) }}
             }
@@ -175,16 +223,22 @@
   </mat-tab>
 
   <mat-tab [label]="'Unused supply (' + f.unusedSupply.length + ')'">
-    <p class="muted explanation">Miners, extractors and stations that could deliver more than is taken from them.</p>
+    <p class="muted explanation">
+      Miners, extractors and stations that could deliver more than is taken from them.
+    </p>
     <div class="table-scroll">
       <table mat-table [dataSource]="f.unusedSupply">
         <ng-container matColumnDef="source">
           <th mat-header-cell *matHeaderCellDef>Source</th>
-          <td mat-cell *matCellDef="let u"><app-game-icon [of]="u.className" />{{ names.building(u.className) }}</td>
+          <td mat-cell *matCellDef="let u">
+            <app-game-icon [of]="u.className" />{{ names.building(u.className) }}
+          </td>
         </ng-container>
         <ng-container matColumnDef="item">
           <th mat-header-cell *matHeaderCellDef>Item</th>
-          <td mat-cell *matCellDef="let u"><app-game-icon [of]="u.item" />{{ names.item(u.item) }}</td>
+          <td mat-cell *matCellDef="let u">
+            <app-game-icon [of]="u.item" />{{ names.item(u.item) }}
+          </td>
         </ng-container>
         <ng-container matColumnDef="delivered">
           <th mat-header-cell *matHeaderCellDef class="number">Delivers</th>
@@ -198,7 +252,12 @@
           <th mat-header-cell *matHeaderCellDef>Where</th>
           <td mat-cell *matCellDef="let u" class="muted">
             @if (snapshotId(); as snapshot) {
-              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: u.id }" matTooltip="Show on the map">{{ position(u.position) }}</a>
+              <a
+                [routerLink]="['/snapshots', snapshot, 'map']"
+                [queryParams]="{ focus: u.id }"
+                matTooltip="Show on the map"
+                >{{ position(u.position) }}</a
+              >
             } @else {
               {{ position(u.position) }}
             }
@@ -212,8 +271,8 @@
 
   <mat-tab [label]="'Unknown supply (' + f.unknownSupply.length + ')'">
     <p class="muted explanation">
-      Stations and storage whose rate the save doesn't tell. The analysis assumes they deliver what is asked of them, up to
-      their belts.
+      Stations and storage whose rate the save doesn't tell. The analysis assumes they deliver what
+      is asked of them, up to their belts.
     </p>
     <div class="table-scroll">
       <table mat-table [dataSource]="f.unknownSupply">
@@ -230,7 +289,10 @@
           <th mat-header-cell *matHeaderCellDef>Assumed to deliver</th>
           <td mat-cell *matCellDef="let u">
             @for (delivery of deliveries(u); track delivery.item) {
-              <div><app-game-icon [of]="delivery.item" />{{ names.item(delivery.item) }}: {{ perMinute(delivery.rate) }}</div>
+              <div>
+                <app-game-icon [of]="delivery.item" />{{ names.item(delivery.item) }}:
+                {{ perMinute(delivery.rate) }}
+              </div>
             }
           </td>
         </ng-container>
@@ -248,7 +310,12 @@
           <th mat-header-cell *matHeaderCellDef>Where</th>
           <td mat-cell *matCellDef="let u" class="muted">
             @if (snapshotId(); as snapshot) {
-              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: u.id }" matTooltip="Show on the map">{{ position(u.position) }}</a>
+              <a
+                [routerLink]="['/snapshots', snapshot, 'map']"
+                [queryParams]="{ focus: u.id }"
+                matTooltip="Show on the map"
+                >{{ position(u.position) }}</a
+              >
             } @else {
               {{ position(u.position) }}
             }
@@ -262,7 +329,8 @@
   @if (generators(); as generators) {
     <mat-tab [label]="'Generators (' + generators.length + ')'">
       <p class="muted explanation">
-        Generators burning a known fuel, at full power (BR-A8): what they burn, and why they run below it.
+        Generators burning a known fuel, at full power (BR-A8): what they burn, and why they run
+        below it.
       </p>
       <div class="table-scroll">
         <table mat-table [dataSource]="generators">
@@ -281,7 +349,9 @@
               @if (factoryOf(g.id); as factory) {
                 <span class="swatch" [style.border-color]="factory.colour"></span>
                 @if (snapshotId(); as snapshot) {
-                  <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{ factory.name }}</a>
+                  <a [routerLink]="['/snapshots', snapshot, 'factories', factory.factoryId]">{{
+                    factory.name
+                  }}</a>
                 } @else {
                   {{ factory.name }}
                 }
@@ -292,7 +362,9 @@
           </ng-container>
           <ng-container matColumnDef="fuel">
             <th mat-header-cell *matHeaderCellDef>Burns</th>
-            <td mat-cell *matCellDef="let g"><app-game-icon [of]="g.fuel" />{{ names.item(g.fuel) }}</td>
+            <td mat-cell *matCellDef="let g">
+              <app-game-icon [of]="g.fuel" />{{ names.item(g.fuel) }}
+            </td>
           </ng-container>
           <ng-container matColumnDef="utilisation">
             <th mat-header-cell *matHeaderCellDef>Running at</th>
@@ -311,12 +383,17 @@
           <ng-container matColumnDef="position">
             <th mat-header-cell *matHeaderCellDef>Where</th>
             <td mat-cell *matCellDef="let g" class="muted">
-            @if (snapshotId(); as snapshot) {
-              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: g.id }" matTooltip="Show on the map">{{ position(g.position) }}</a>
-            } @else {
-              {{ position(g.position) }}
-            }
-          </td>
+              @if (snapshotId(); as snapshot) {
+                <a
+                  [routerLink]="['/snapshots', snapshot, 'map']"
+                  [queryParams]="{ focus: g.id }"
+                  matTooltip="Show on the map"
+                  >{{ position(g.position) }}</a
+                >
+              } @else {
+                {{ position(g.position) }}
+              }
+            </td>
           </ng-container>
           <tr mat-header-row *matHeaderRowDef="generatorColumns()"></tr>
           <tr mat-row *matRowDef="let row; columns: generatorColumns()"></tr>
@@ -327,8 +404,8 @@
   @if (f.dronePorts; as dronePorts) {
     <mat-tab [label]="'Drone ports (' + dronePorts.length + ')'">
       <p class="muted explanation">
-        Drone ports where drones refuel (BR-A16): what their drones burn, from each drone's latest trip, and what fuel the
-        belts bring.
+        Drone ports where drones refuel (BR-A16): what their drones burn, from each drone's latest
+        trip, and what fuel the belts bring.
       </p>
       <div class="table-scroll">
         <table mat-table [dataSource]="dronePorts">
@@ -343,7 +420,9 @@
           </ng-container>
           <ng-container matColumnDef="fuel">
             <th mat-header-cell *matHeaderCellDef>Fuel</th>
-            <td mat-cell *matCellDef="let d"><app-game-icon [of]="d.fuel" />{{ names.item(d.fuel) }}</td>
+            <td mat-cell *matCellDef="let d">
+              <app-game-icon [of]="d.fuel" />{{ names.item(d.fuel) }}
+            </td>
           </ng-container>
           <ng-container matColumnDef="burns">
             <th mat-header-cell *matHeaderCellDef>Drones burn</th>
@@ -360,12 +439,17 @@
           <ng-container matColumnDef="position">
             <th mat-header-cell *matHeaderCellDef>Where</th>
             <td mat-cell *matCellDef="let d" class="muted">
-            @if (snapshotId(); as snapshot) {
-              <a [routerLink]="['/snapshots', snapshot, 'map']" [queryParams]="{ focus: d.id }" matTooltip="Show on the map">{{ position(d.position) }}</a>
-            } @else {
-              {{ position(d.position) }}
-            }
-          </td>
+              @if (snapshotId(); as snapshot) {
+                <a
+                  [routerLink]="['/snapshots', snapshot, 'map']"
+                  [queryParams]="{ focus: d.id }"
+                  matTooltip="Show on the map"
+                  >{{ position(d.position) }}</a
+                >
+              } @else {
+                {{ position(d.position) }}
+              }
+            </td>
           </ng-container>
           <tr mat-header-row *matHeaderRowDef="dronePortColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: dronePortColumns"></tr>

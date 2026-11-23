@@ -1,18 +1,32 @@
 <div class="page-header">
   @if (!embedded()) {
-    <a mat-icon-button [routerLink]="['/snapshots', id(), 'map']" aria-label="Map"><mat-icon>arrow_back</mat-icon></a>
+    <a mat-icon-button [routerLink]="['/snapshots', id(), 'map']" aria-label="Map"
+      ><mat-icon>arrow_back</mat-icon></a
+    >
     <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · 3D</h1>
   }
   <span class="spacer"></span>
   @if (!embedded()) {
-    <span class="muted">{{ machineCount() }} machines, {{ buildings().length }} buildings in the area</span>
+    <span class="muted"
+      >{{ machineCount() }} machines, {{ buildings().length }} buildings in the area</span
+    >
     <!-- While defining, the name and Save and Cancel are here, as on a factory's own page (asked 2026-11-22). -->
     @if (defining()) {
-      <input class="name" aria-label="Name" placeholder="Name" [(ngModel)]="factoryName" (keydown.enter)="save()" />
+      <input
+        class="name"
+        aria-label="Name"
+        placeholder="Name"
+        [(ngModel)]="factoryName"
+        (keydown.enter)="save()"
+      />
       <button mat-button type="button" (click)="stopDefining()">Cancel</button>
-      <button mat-flat-button type="button" (click)="save()" [disabled]="!canSave()"><mat-icon>save</mat-icon> Save</button>
+      <button mat-flat-button type="button" (click)="save()" [disabled]="!canSave()">
+        <mat-icon>save</mat-icon> Save
+      </button>
     } @else {
-      <button mat-flat-button (click)="startDefining()"><mat-icon>add</mat-icon> Define a factory</button>
+      <button mat-flat-button (click)="startDefining()">
+        <mat-icon>add</mat-icon> Define a factory
+      </button>
     }
   }
 </div>
@@ -36,13 +50,21 @@
       }
     </div>
     @if (dragBox(); as box) {
-      <div class="drag-box" [style.left.px]="box.left" [style.top.px]="box.top" [style.width.px]="box.right - box.left" [style.height.px]="box.bottom - box.top"></div>
+      <div
+        class="drag-box"
+        [style.left.px]="box.left"
+        [style.top.px]="box.top"
+        [style.width.px]="box.right - box.left"
+        [style.height.px]="box.bottom - box.top"
+      ></div>
     }
     <span class="hint">
       @if (defining()) {
-        Click a machine to add it, click it again to take it out. Shift-drag to add a box of them, alt-drag to take them out.
+        Click a machine to add it, click it again to take it out. Shift-drag to add a box of them,
+        alt-drag to take them out.
       } @else {
-        Drag to turn, scroll to zoom, right-drag to move. Click a machine, belt, pipe or lift to see it.
+        Drag to turn, scroll to zoom, right-drag to move. Click a machine, belt, pipe or lift to see
+        it.
       }
     </span>
   </div>
@@ -50,7 +72,12 @@
     <label class="cut">
       <span>Show up to {{ cutOff() ?? heights().high }} m</span>
       <mat-slider [min]="heights().low" [max]="heights().high" step="1" discrete>
-        <input matSliderThumb [value]="cutOff() ?? heights().high" (valueChange)="cutOff.set($event === heights().high ? null : $event)" aria-label="Height cut-off in metres" />
+        <input
+          matSliderThumb
+          [value]="cutOff() ?? heights().high"
+          (valueChange)="cutOff.set($event === heights().high ? null : $event)"
+          aria-label="Height cut-off in metres"
+        />
       </mat-slider>
     </label>
   }
@@ -62,7 +89,10 @@
     <!-- What something holds, each item with its icon: "Bauxite × 100, Water × 50". -->
     <ng-template #held let-contents>
       @for (entry of entries(contents); track entry.item; let last = $last) {
-        <span class="item"><app-game-icon [of]="entry.item" [size]="20" />{{ names.item(entry.item) }} × {{ entry.count }}</span>{{ last ? '' : ', ' }}
+        <span class="item"
+          ><app-game-icon [of]="entry.item" [size]="20" />{{ names.item(entry.item) }} ×
+          {{ entry.count }}</span
+        >{{ last ? '' : ', ' }}
       } @empty {
         empty
       }
@@ -71,19 +101,37 @@
       <section class="factory">
         <h2>{{ editing() ? 'Edit factory' : 'New factory' }}</h2>
         <ul class="how">
-          <li><b>Click</b> a machine or generator to add it; it turns blue. Click it again to take it out.</li>
+          <li>
+            <b>Click</b> a machine or generator to add it; it turns blue. Click it again to take it
+            out.
+          </li>
           <li>Hold <b>Shift</b> and drag a box to add every one inside it.</li>
           <li>Hold <b>Alt</b> and drag a box to take them out.</li>
-          <li>Machines outlined in colour are another factory's and can't be added{{ editing() ? '; this factory\'s own can be taken out' : '' }}.</li>
-          <li>Sinks, storage containers and stations aren't part of a factory: a factory is its machines and generators.</li>
+          <li>
+            Machines outlined in colour are another factory's and can't be added{{
+              editing() ? "; this factory's own can be taken out" : ''
+            }}.
+          </li>
+          <li>
+            Sinks, storage containers and stations aren't part of a factory: a factory is its
+            machines and generators.
+          </li>
         </ul>
-        <p>{{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators included</p>
+        <p>
+          {{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators
+          included
+        </p>
         @if (preview.value(); as preview) {
           <div class="preview">
             <p><span class="swatch output"></span> Where items leave</p>
             <ul>
               @for (output of preview.leaving; track output.item) {
-                <li><app-game-icon [of]="output.item" />{{ names.item(output.item) }} <span class="muted">{{ output.perMinute === null ? '' : perMinute(output.perMinute) }}</span></li>
+                <li>
+                  <app-game-icon [of]="output.item" />{{ names.item(output.item) }}
+                  <span class="muted">{{
+                    output.perMinute === null ? '' : perMinute(output.perMinute)
+                  }}</span>
+                </li>
               } @empty {
                 <li class="muted">Nothing leaves it</li>
               }
@@ -91,7 +139,12 @@
             <p><span class="swatch input"></span> Where items come in</p>
             <ul>
               @for (input of preview.arriving; track input.item) {
-                <li><app-game-icon [of]="input.item" />{{ names.item(input.item) }} <span class="muted">{{ input.perMinute === null ? '' : perMinute(input.perMinute) }}</span></li>
+                <li>
+                  <app-game-icon [of]="input.item" />{{ names.item(input.item) }}
+                  <span class="muted">{{
+                    input.perMinute === null ? '' : perMinute(input.perMinute)
+                  }}</span>
+                </li>
               } @empty {
                 <li class="muted">Nothing comes in</li>
               }
@@ -113,23 +166,41 @@
     @if (defining()) {
       <!-- While defining, the panel names the machine clicked and nothing more. -->
     } @else if (selected(); as building) {
-      <h2><app-game-icon [of]="building.className" [size]="48" />{{ names.building(building.className) }}</h2>
+      <h2>
+        <app-game-icon [of]="building.className" [size]="48" />{{
+          names.building(building.className)
+        }}
+      </h2>
       @if (building.recipe) {
         <p class="recipe">{{ names.recipe(building.recipe) }}</p>
       }
       @if (selectedFinding(); as finding) {
-        <p class="status {{ finding.limit }}">{{ statusLabel(finding) }} · {{ percent(finding.utilisation) }}</p>
+        <p class="status {{ finding.limit }}">
+          {{ statusLabel(finding) }} · {{ percent(finding.utilisation) }}
+        </p>
         @if (why(finding); as reason) {
           <p>
             {{ reason.before }}
             @for (part of reason.items; track part.item; let last = $last) {
-              <span class="item"><app-game-icon [of]="part.item" [size]="20" />{{ names.item(part.item) }}{{ part.share ? ' (' + part.share + ')' : '' }}</span>{{ last ? '' : ', ' }}
+              <span class="item"
+                ><app-game-icon [of]="part.item" [size]="20" />{{ names.item(part.item)
+                }}{{ part.share ? ' (' + part.share + ')' : '' }}</span
+              >{{ last ? '' : ', ' }}
             }
             {{ reason.after }}
           </p>
         }
         @if (building.kind === 'machine' && explainer.explainable(finding)) {
-          <button mat-stroked-button class="explain" (click)="explainer.explain({ className: building.className, recipe: building.recipe, limit: finding.limit }, id())">
+          <button
+            mat-stroked-button
+            class="explain"
+            (click)="
+              explainer.explain(
+                { className: building.className, recipe: building.recipe, limit: finding.limit },
+                id()
+              )
+            "
+          >
             <mat-icon>lightbulb</mat-icon> Explain why
           </button>
         }
@@ -139,22 +210,35 @@
       <dl>
         @if (building.inputContents) {
           <dt>Holds</dt>
-          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: building.inputContents }" /></dd>
+          <dd>
+            <ng-container
+              *ngTemplateOutlet="held; context: { $implicit: building.inputContents }"
+            />
+          </dd>
         }
         @if (building.outputContents) {
           <dt>Waiting to leave</dt>
-          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: building.outputContents }" /></dd>
+          <dd>
+            <ng-container
+              *ngTemplateOutlet="held; context: { $implicit: building.outputContents }"
+            />
+          </dd>
         }
         @if (building.contents) {
           <dt>Holds</dt>
-          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: building.contents }" /></dd>
+          <dd>
+            <ng-container *ngTemplateOutlet="held; context: { $implicit: building.contents }" />
+          </dd>
         }
         <!-- On a factory's own page, which factory it is, where it stands and the way to the map say nothing new. -->
         @if (selectedOwners().length > 0 && !embedded()) {
           <dt>Factory</dt>
           <dd>
             @for (owner of selectedOwners(); track owner.factoryId; let last = $last) {
-              <a [routerLink]="['/snapshots', id(), 'factories', owner.factoryId]">{{ owner.name }}</a>{{ last ? '' : ' and ' }}
+              <a [routerLink]="['/snapshots', id(), 'factories', owner.factoryId]">{{
+                owner.name
+              }}</a
+              >{{ last ? '' : ' and ' }}
             }
             @if (selectedOwners().length > 1) {
               <span class="error"> · a machine belongs to one factory at most</span>
@@ -167,22 +251,39 @@
         }
       </dl>
       @if (!embedded()) {
-        <a mat-stroked-button [routerLink]="['/snapshots', id(), 'map']" [queryParams]="{ focus: building.id }">Show on the map</a>
+        <a
+          mat-stroked-button
+          [routerLink]="['/snapshots', id(), 'map']"
+          [queryParams]="{ focus: building.id }"
+          >Show on the map</a
+        >
       }
     } @else if (selectedConveyor(); as conveyor) {
-      <h2><app-game-icon [of]="conveyor.className" [size]="48" />{{ names.building(conveyor.className) }}</h2>
+      <h2>
+        <app-game-icon [of]="conveyor.className" [size]="48" />{{
+          names.building(conveyor.className)
+        }}
+      </h2>
       @if (selectedBottleneck(); as bottleneck) {
         <p class="status bottleneck">Bottleneck</p>
-        <p>Carries {{ perMinute(bottleneck.flow) }} of {{ perMinute(bottleneck.capacity) }}, {{ perMinute(bottleneck.offeredMore) }} more offered.</p>
+        <p>
+          Carries {{ perMinute(bottleneck.flow) }} of {{ perMinute(bottleneck.capacity) }},
+          {{ perMinute(bottleneck.offeredMore) }} more offered.
+        </p>
       }
       @if (conveyor.contents) {
         <dl>
           <dt>On it</dt>
-          <dd><ng-container *ngTemplateOutlet="held; context: { $implicit: conveyor.contents }" /></dd>
+          <dd>
+            <ng-container *ngTemplateOutlet="held; context: { $implicit: conveyor.contents }" />
+          </dd>
         </dl>
       }
     } @else {
-      <p class="muted">Click a machine to see its recipe, what it holds, and why it runs as it does; a belt, pipe or lift to see what's on it.</p>
+      <p class="muted">
+        Click a machine to see its recipe, what it holds, and why it runs as it does; a belt, pipe
+        or lift to see what's on it.
+      </p>
     }
   </div>
 </ng-template>
@@ -194,16 +295,32 @@
         @for (factory of factoriesShown(); track factory.factoryId) {
           <li>
             <span class="swatch" [style.border-color]="factory.colour"></span>
-            <a [routerLink]="['/snapshots', id(), 'factories', factory.factoryId]">{{ factory.name }}</a>
+            <a [routerLink]="['/snapshots', id(), 'factories', factory.factoryId]">{{
+              factory.name
+            }}</a>
             @if (!defining()) {
               <span class="legend-actions">
-                <button mat-icon-button (click)="startEditing(factory)" [attr.aria-label]="'Edit ' + factory.name"><mat-icon>edit</mat-icon></button>
-                <button mat-icon-button (click)="deleteFactory(factory)" [attr.aria-label]="'Delete ' + factory.name"><mat-icon>delete</mat-icon></button>
+                <button
+                  mat-icon-button
+                  (click)="startEditing(factory)"
+                  [attr.aria-label]="'Edit ' + factory.name"
+                >
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  (click)="deleteFactory(factory)"
+                  [attr.aria-label]="'Delete ' + factory.name"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
               </span>
             }
           </li>
         } @empty {
-          <li class="muted">No factory has machines here. Define one with <b>Define a factory</b>.</li>
+          <li class="muted">
+            No factory has machines here. Define one with <b>Define a factory</b>.
+          </li>
         }
       </ul>
     </section>
