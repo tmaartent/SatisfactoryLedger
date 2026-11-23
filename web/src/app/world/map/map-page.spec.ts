@@ -418,6 +418,44 @@ describe('the world map of a snapshot', () => {
     expect(names(tabs, '.factories .highlighted .factory-name')).toEqual([]);
   });
 
+  /** A click on the map itself, where nothing is drawn. */
+  const clickTheMap = async (
+    element: HTMLElement,
+    fixture: { whenStable: () => Promise<unknown> },
+  ) => {
+    (element.querySelector('.leaflet-container') as HTMLElement).dispatchEvent(
+      new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }),
+    );
+    await fixture.whenStable();
+  };
+
+  it('lets go of the factory picked when the map is clicked anywhere else, so nothing is faded', async () => {
+    const { fixture, sidebar, element, tabs, open } = await render('snapshot-1');
+    await open('Factories');
+    (tabs.querySelector('.factories button.factory-name') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    await clickTheMap(element, fixture);
+    await sidebar.whenStable();
+
+    expect(names(tabs, '.factories .highlighted .factory-name')).toEqual([]);
+  });
+
+  it('lets go of the count shown when the map is clicked anywhere else', async () => {
+    const { fixture, sidebar, element, tabs } = await render('snapshot-1');
+    const starved = () =>
+      [...tabs.querySelectorAll('.info mat-card')].find((card) =>
+        card.textContent?.includes('starved'),
+      ) as HTMLElement;
+    starved().click();
+    await fixture.whenStable();
+
+    await clickTheMap(element, fixture);
+    await sidebar.whenStable();
+
+    expect(starved().getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('offers to explain a held-back machine of no factory, in its tooltip', async () => {
     const { element } = await render('snapshot-1', null, 'smelter-1');
 

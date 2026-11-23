@@ -276,6 +276,13 @@ export class MapPage {
       attributionControl: false,
     });
     this.map.on('resize', () => this.holdToMapArt());
+    // A click anywhere else on the map lets go of what's stood out, a factory or a count, so nothing is faded (asked
+    // 2026-11-23). A shape that does something when clicked stops its click; drawing an area leaves it be.
+    this.map.on('click', () => {
+      if (this.drawing()) return;
+      this.factoryId.set(null);
+      this.shownStatus.set(null);
+    });
     // The resource nodes' markers read their size from the map (styles.scss): sized again for each zoom, not redrawn. An
     // animated zoom says where it goes as it starts, so they grow along with the map; others end with 'zoom'.
     const sizeNodes = (zoom = this.map!.getZoom()) =>
