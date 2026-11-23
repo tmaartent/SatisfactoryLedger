@@ -21,9 +21,7 @@ import { Router, RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
-import { HttpErrorResponse } from '@angular/common/http';
 
-import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { analyseSnapshot } from '../../api/fn/world/analyse-snapshot';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
@@ -32,6 +30,9 @@ import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { PositionDocument } from '../../api/models/position-document';
 import { GameIcon } from '../../shared/game-icon';
+import { buildingShape } from './building-shape';
+import { holdToExtent } from './hold-to-extent';
+import { MapArt } from './map-art';
 import { HiddenNodes } from './hidden-nodes';
 import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
@@ -45,7 +46,6 @@ import {
   conveyorColours,
   describeContents,
   escapeHtml,
-  footprintShapes,
   fromMapPoint,
   locate,
   buildingsShown,
@@ -128,17 +128,8 @@ export class MapPage {
       whenAnalysed(() => this.api.invoke$Response(analyseSnapshot, params), abortSignal),
   });
   protected readonly nodes = resource({ loader: () => this.api.invoke(getResourceNodes) });
-  /** The game's map picture under everything (ADR-0020); none until it's imported, when the API answers 404. */
-  protected readonly mapArt = resource({
-    loader: async () => {
-      try {
-        return await this.api.invoke(getMapArt);
-      } catch (error) {
-        if (error instanceof HttpErrorResponse && error.status === 404) return null;
-        throw error;
-      }
-    },
-  });
+  /** The game's map picture under everything (ADR-0020), shared with the optimal arrangement's map. */
+  protected readonly mapArt = inject(MapArt).art;
   protected readonly factories = resource({
     params: () => this.snapshotParams(),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
@@ -343,17 +334,7 @@ export class MapPage {
       this.mapArt.hasValue() ? this.mapArt.value() : null,
       this.world.hasValue() ? this.world.value() : null,
     );
-    if (!extent) {
-      this.map.setMaxBounds();
-      this.map.setMinZoom(MinZoom);
-      return;
-    }
-    const size = this.map.getSize();
-    // Not laid out yet: the zoom that fits it is known once the map has a size, and a resize asks again.
-    if (size.x === 0 || size.y === 0) return;
-    const bounds = L.latLngBounds(extent);
-    this.map.setMinZoom(this.map.getBoundsZoom(bounds));
-    this.map.setMaxBounds(bounds);
+    holdToExtent(this.map, extent, MinZoom);
   }
 
   /** A factory picked in the list beside the map is highlighted; picked again, none is (asked 2026-11-19). */
@@ -423,10 +404,7 @@ export class MapPage {
     });
   }
 
-  /**
-   * A building as the ground it covers, each of its boxes seen from above, turned the way it faces (ADR-0020); a dot
-   * when its class has no footprint, as a lift, or when the snapshot is older than its footprints.
-   */
+  /** A building as the ground it covers, or a dot without a footprint: as the optimal arrangement draws it (buildingShape). */
   private shape(
     position: PositionDocument,
     yaw: number,
@@ -434,13 +412,7 @@ export class MapPage {
     style: L.PathOptions,
     dot = 4,
   ): L.Path {
-    const footprint = this.footprints().get(className);
-    return footprint
-      ? L.polygon(
-          footprintShapes({ className, position, yaw }, this.footprints()).map((ring) => [ring]),
-          { ...style, fillRule: 'nonzero' },
-        )
-      : L.circleMarker(toMapPoint(position), { ...style, radius: dot });
+    return buildingShape({ className, position, yaw }, this.footprints(), style, dot);
   }
 
   private gridLayer(): L.LayerGroup {
