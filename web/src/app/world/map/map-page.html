@@ -1,20 +1,11 @@
 <div class="page-header">
   <h1>{{ snapshot.value()?.sessionName ?? 'World' }}</h1>
-  @if (id(); as id) {
-    <a mat-stroked-button [routerLink]="['/snapshots', id]"
-      ><mat-icon>fact_check</mat-icon> Findings</a
-    >
+  @if (id()) {
     <span class="spacer"></span>
-    <button
-      mat-stroked-button
-      type="button"
-      (click)="toggleDrawing()"
-      [class.active]="drawing()"
-      [attr.aria-pressed]="drawing()"
+    <!-- As defining a factory in 3D does: no button (asked 2026-11-23). -->
+    <span class="muted how"
+      ><mat-icon inline>view_in_ar</mat-icon> Hold shift and drag to see an area in 3D</span
     >
-      <mat-icon>view_in_ar</mat-icon>
-      Open an area in 3D
-    </button>
   } @else {
     <span class="muted"
       >The resource nodes; import a save, or pick a snapshot, to see what's built.</span
@@ -32,7 +23,7 @@
 <div class="map-frame">
   <div #map class="map" [class.drawing]="drawing()"></div>
   @if (drawing()) {
-    <div class="drawing-hint">Drag a rectangle around the factory</div>
+    <div class="drawing-hint">Let go to see this area in 3D</div>
   }
   <div class="legend">
     @if (id()) {
@@ -72,10 +63,35 @@
         <p class="muted">
           Click a count to show those buildings on the map; click it again to show all.
         </p>
-        <!-- What the snapshot holds, as the findings page says it (asked 2026-11-23). -->
+        <!-- What the snapshot holds, as the findings page said it before it went (asked 2026-11-23). -->
         @if (snapshot.value(); as shown) {
           <h3>What it holds</h3>
           <app-what-it-holds [counts]="shown.counts" />
+          <!-- What the import couldn't take in, as the findings page warned of it (until 2026-11-23). -->
+          @if (shown.unknownRecipes.length > 0) {
+            <h3>Recipes the catalog doesn't know</h3>
+            <p class="muted">Import a newer Docs file in the Catalog, then the save again.</p>
+            <ul class="warnings">
+              @for (recipe of shown.unknownRecipes; track recipe) {
+                <li>
+                  {{ recipeName(recipe) }} <span class="muted">({{ recipe }})</span>
+                </li>
+              }
+            </ul>
+          }
+          @if (shown.unsupported.length > 0) {
+            <h3>Buildings the analysis leaves out</h3>
+            <ul class="warnings">
+              @for (left of shown.unsupported; track left.className) {
+                <li>
+                  <app-game-icon [of]="left.className" [size]="20" />{{
+                    buildingName(left.className)
+                  }}
+                  × {{ left.count }}
+                </li>
+              }
+            </ul>
+          }
         }
       } @else {
         <mat-progress-bar mode="indeterminate" />
@@ -160,7 +176,7 @@
   </section>
 </ng-template>
 @if (id(); as id) {
-  <!-- What the findings page lists of the supply, in the sidebar (asked 2026-11-23); an entry clicked is focused on the map. -->
+  <!-- The supply the findings page listed before it went, in the sidebar (asked 2026-11-23); an entry clicked is focused on the map. -->
   <ng-template appSidebarTab="unused" label="Unused supply" icon="savings" [order]="0.2">
     <section class="supply">
       <p class="muted">

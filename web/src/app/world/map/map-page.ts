@@ -269,6 +269,8 @@ export class MapPage {
       crs: L.CRS.Simple,
       preferCanvas: true,
       minZoom: MinZoom,
+      // Shift and drag draws an area to see in 3D (listenForArea), not a box to zoom to.
+      boxZoom: false,
       maxZoom: 3,
       zoomSnap: 0.25,
       // Held to the map picture, once there is one: it stops at its edges instead of giving way a little.
@@ -366,16 +368,33 @@ export class MapPage {
     this.shownStatus.set(status);
   }
 
-  protected toggleDrawing(): void {
-    this.drawing.update((on) => !on);
-    if (this.drawing()) this.map?.dragging.disable();
-    else this.map?.dragging.enable();
+  /** Stops drawing an area: the map pans again on a drag. */
+  private stopDrawing(): void {
+    this.drawing.set(false);
+    this.map?.dragging.enable();
   }
 
-  /** While drawing, a drag draws a rectangle; letting go opens what's inside it in 3D. */
+  /**
+   * A drag with shift held draws a rectangle, and letting go opens what's inside it in 3D (asked 2026-11-23, as defining
+   * a factory in 3D does; it was a button). The map listens in the capture phase, so it hears the press before Leaflet's
+   * panning does, and can switch the panning off in time. Leaflet's own shift-drag, zooming to a box, is off.
+   */
   private listenForArea(map: L.Map): void {
     let start: L.LatLng | null = null;
     let rectangle: L.Rectangle | null = null;
+    map.getContainer().addEventListener(
+      'pointerdown',
+      (event) => {
+        if (!this.id() || !event.shiftKey || event.button !== 0) return;
+        this.drawing.set(true);
+        map.dragging.disable();
+      },
+      { capture: true },
+    );
+    // However the press ends, panning comes back: a press on a resource node's pin never reaches the map's mousedown.
+    map.getContainer().addEventListener('pointerup', () => {
+      if (this.drawing()) this.stopDrawing();
+    });
     map.on('mousedown', (event: L.LeafletMouseEvent) => {
       if (!this.drawing()) return;
       start = event.latlng;
@@ -397,9 +416,9 @@ export class MapPage {
       );
       rectangle?.remove();
       [start, rectangle] = [null, null];
+      this.stopDrawing();
       // A click without a drag draws nothing.
       if (area.x1 - area.x0 < 200 || area.y1 - area.y0 < 200) return;
-      this.toggleDrawing();
       void this.router.navigate(['/snapshots', this.id(), 'area'], { queryParams: area });
     });
   }
@@ -677,6 +696,10 @@ export class MapPage {
     return Object.entries(delivered)
       .map(([item, rate]) => ({ item, rate }))
       .sort((a, b) => b.rate - a.rate);
+  }
+
+  protected recipeName(recipe: string): string {
+    return this.names.recipe(recipe);
   }
 
   protected buildingName(className: string): string {
