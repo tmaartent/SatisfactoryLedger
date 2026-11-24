@@ -27,7 +27,8 @@ One workflow, `.github/workflows/ci.yml`, on every PR and push to `main`:
 | **backend** | checkout → setup-dotnet (from `global.json`) → `dotnet restore` → `dotnet build --no-restore` → `dotnet test --no-build` (Testcontainers works on GitHub's Ubuntu runners) → upload test results |
 | **contract** | A step in the **backend** job, right after the build (which regenerates `api/openapi.json`): fail when `git status --porcelain -- api/` isn't empty. `git status` rather than `git diff --exit-code`, because a new, untracked document doesn't show up in `git diff`. |
 | **frontend** | setup-node 22 → `npm ci` → `npm run format:check` → `npm run lint` → `npm test -- --watch=false` (its `pretest` generates the API client) → `npm run build` |
-| **e2e** *(later)* | start the stack → Playwright |
+| **e2e** | setup-node 22 → `npm ci` → `npx playwright install --with-deps chromium webkit` → `npm run e2e` (its `pree2e` generates the API client; Playwright starts `ng serve` on port 4300, and the API's answers come from `web/e2e/fixtures/api.json`) → upload the report when it fails. Step 95, ADR-0008. |
+| **e2e against the stack** *(later, step 96)* | start the stack → Playwright |
 
 Best practices: cache NuGet and npm, run jobs in parallel, keep the pipeline **under ~5 minutes**, and make it a required check on `main`. Add the status badge to the README.
 
