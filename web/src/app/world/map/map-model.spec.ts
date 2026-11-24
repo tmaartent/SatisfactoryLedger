@@ -13,6 +13,7 @@ import {
   nodeMarkerSize,
   contentEntries,
   describeContents,
+  dragColours,
   describeHeadLift,
   describePipeFlow,
   mapArtExtent,
@@ -268,6 +269,10 @@ describe('map model', () => {
 
   it('says how far a pipe climbs above its head lift (BR-A22)', () => {
     expect(describeHeadLift(-4.3)).toBe('4.3 m short: fluid may not get across');
+  });
+
+  it('draws the rectangle for an arrangement blue, and the one for 3D yellow, so it says which page opens (asked 2026-11-24)', () => {
+    expect(dragColours).toEqual({ '3d': '#ffeb3b', arrangement: '#448aff' });
   });
 
   it('says a belt with nothing on it is empty', () => {

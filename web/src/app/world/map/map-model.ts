@@ -273,6 +273,12 @@ export const conveyorColours = {
   headLift: '#ffa726',
 };
 
+/**
+ * The rectangle drawn with a key held: yellow to open in 3D (shift), blue to arrange (ctrl, asked 2026-11-24), so it says
+ * which page opens.
+ */
+export const dragColours = { '3d': '#ffeb3b', arrangement: '#448aff' } as const;
+
 /** A pipe that climbs above the head lift it has, in the model (BR-A22). */
 export function shortOfHeadLift(conveyor: { headLiftToSpare?: number | null }): boolean {
   return (conveyor.headLiftToSpare ?? 0) < 0;

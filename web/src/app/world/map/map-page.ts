@@ -48,6 +48,7 @@ import {
   buildingStyle,
   conveyorColours,
   describeContents,
+  dragColours,
   describeHeadLift,
   describePipeFlow,
   shortOfHeadLift,
@@ -444,11 +445,12 @@ export class MapPage {
       if (this.drawing()) this.stopDrawing();
     });
     map.on('mousedown', (event: L.LeafletMouseEvent) => {
-      if (!this.drawing()) return;
-      opens = this.drawing();
+      const kind = this.drawing();
+      if (!kind) return;
+      opens = kind;
       start = event.latlng;
       rectangle = L.rectangle(L.latLngBounds(start, start), {
-        color: '#ffeb3b',
+        color: dragColours[kind],
         weight: 2,
         fillOpacity: 0.1,
         interactive: false,
