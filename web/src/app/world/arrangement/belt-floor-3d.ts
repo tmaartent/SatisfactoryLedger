@@ -164,6 +164,12 @@ export class BeltFloor3d {
     const stage = this.stage().nativeElement;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // As big as the stage: the styles above don't reach a canvas three.js makes (see AreaPage.start).
+    Object.assign(this.renderer.domElement.style, {
+      display: 'block',
+      width: '100%',
+      height: '100%',
+    });
     stage.append(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 50000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);

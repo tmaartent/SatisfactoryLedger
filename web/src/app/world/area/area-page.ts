@@ -63,6 +63,7 @@ import {
 } from './area-model';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
+import { framingDistance } from './framing';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
 import {
@@ -372,6 +373,8 @@ export class AreaPage {
     this.scene.add(sun);
 
     afterNextRender(() => this.start());
+    // On a phone the sheet of tabs would lie over the view: it starts closed, until something in the view is clicked.
+    this.sidebar.closeOnPhone();
     inject(DestroyRef).onDestroy(() => this.stop());
 
     // Redraw when the world or its analysis arrives; three.js knows nothing about signals.
@@ -484,6 +487,13 @@ export class AreaPage {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.localClippingEnabled = true;
+    // As big as the stage. Its stylesheet can't say so: three.js makes the canvas, so it lacks the attribute Angular
+    // scopes the component's styles by. Unsized, it would show at its pixels' size: twice the stage on a phone's screen.
+    Object.assign(this.renderer.domElement.style, {
+      display: 'block',
+      width: '100%',
+      height: '100%',
+    });
     stage.prepend(this.renderer.domElement);
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 20000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -752,14 +762,22 @@ export class AreaPage {
     );
   }
 
-  /** Looks at the whole area from the south-east, a little from above. */
+  /**
+   * Looks at the whole area from the south-east, a little from above. At its buildings, not at all that's drawn: a belt
+   * out of a factory runs on in the scene, cut off only where the area ends, and would pull the middle its way.
+   */
   private frame(): void {
-    const bounds = new THREE.Box3().setFromObject(this.content);
+    const bounds = new THREE.Box3();
+    for (const object of this.content.children)
+      if (object.userData['building']) bounds.expandByObject(object);
     const middle = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
-    const reach = Math.max(size.x, size.y, size.z, 20);
+    // Seen from a corner, a floor's width across is its diagonal.
+    const across = Math.max(Math.hypot(size.x, size.z), 20);
     this.camera!.position.copy(middle).add(
-      new THREE.Vector3(1, 0.75, 1.15).normalize().multiplyScalar(reach * 1.3),
+      new THREE.Vector3(1, 0.75, 1.15)
+        .normalize()
+        .multiplyScalar(framingDistance({ across, high: size.y }, this.camera!.aspect)),
     );
     this.controls!.target.copy(middle);
   }
