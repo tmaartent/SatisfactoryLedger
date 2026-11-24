@@ -19,6 +19,7 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         item.Property(i => i.IsRawResource);
         item.Property(i => i.StackSize);
         item.Property(i => i.FluidColour).HasMaxLength(7);
+        item.Property(i => i.IsGas);
         item.Property(i => i.IsInGame);
     }
 }

@@ -29,6 +29,7 @@ namespace SatisfactoryLedger.Catalog.GameData.DocsFile.Dto;
 [JsonDerivedType(typeof(FluidBufferGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildablePipeReservoir'")]
 [JsonDerivedType(typeof(FreightPlatformGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableTrainPlatformCargo'")]
 [JsonDerivedType(typeof(TruckStationGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildableDockingStation'")]
+[JsonDerivedType(typeof(PumpGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGBuildablePipelinePump'")]
 [JsonDerivedType(typeof(DepotUploaderGroupDto), typeDiscriminator: "/Script/CoreUObject.Class'/Script/FactoryGame.FGCentralStorageContainer'")]
 internal class GameDataGroupDto
 {

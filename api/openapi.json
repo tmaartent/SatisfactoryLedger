@@ -3049,6 +3049,7 @@
           "dronePorts",
           "storages",
           "buildables",
+          "pumps",
           "resourceNodes",
           "noLongerInGame"
         ],
@@ -3096,6 +3097,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "buildables": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "pumps": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "resourceNodes": {

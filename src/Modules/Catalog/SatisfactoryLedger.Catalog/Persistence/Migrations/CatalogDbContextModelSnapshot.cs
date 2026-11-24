@@ -274,6 +274,10 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasColumnType("character varying(7)")
                         .HasColumnName("fluid_colour");
 
+                    b.Property<bool>("IsGas")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_gas");
+
                     b.Property<bool>("IsInGame")
                         .HasColumnType("boolean")
                         .HasColumnName("is_in_game");
@@ -300,6 +304,31 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                         .HasName("pk_items");
 
                     b.ToTable("items", "catalog");
+                });
+
+            modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.GameObjects.Pump", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("HeadLiftMetres")
+                        .HasColumnType("numeric")
+                        .HasColumnName("head_lift_metres");
+
+                    b.Property<bool>("IsInGame")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_in_game");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_pumps");
+
+                    b.ToTable("pumps", "catalog");
                 });
 
             modelBuilder.Entity("SatisfactoryLedger.Catalog.Domain.GameObjects.Recipe", b =>
@@ -637,6 +666,23 @@ namespace SatisfactoryLedger.Catalog.Persistence.Migrations
                             b1.Property<int>("Updated")
                                 .HasColumnType("integer")
                                 .HasColumnName("items_updated");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Pumps", "SatisfactoryLedger.Catalog.Domain.Import.CatalogImport.Pumps#ImportCounts", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<int>("Added")
+                                .HasColumnType("integer")
+                                .HasColumnName("pumps_added");
+
+                            b1.Property<int>("NoLongerInGame")
+                                .HasColumnType("integer")
+                                .HasColumnName("pumps_no_longer_in_game");
+
+                            b1.Property<int>("Updated")
+                                .HasColumnType("integer")
+                                .HasColumnName("pumps_updated");
                         });
 
                     b.ComplexProperty(typeof(Dictionary<string, object>), "Recipes", "SatisfactoryLedger.Catalog.Domain.Import.CatalogImport.Recipes#ImportCounts", b1 =>

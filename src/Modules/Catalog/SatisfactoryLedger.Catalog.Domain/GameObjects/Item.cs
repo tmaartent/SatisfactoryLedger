@@ -4,7 +4,7 @@ namespace SatisfactoryLedger.Catalog.Domain.GameObjects;
 
 public class Item : ICatalogEntry<Item>
 {
-    private Item(ItemId id, string name, ItemForm itemForm, bool isRawResource, int stackSize, string? fluidColour)
+    private Item(ItemId id, string name, ItemForm itemForm, bool isRawResource, int stackSize, string? fluidColour, bool isGas)
     {
         Id = id;
         Name = name;
@@ -12,15 +12,17 @@ public class Item : ICatalogEntry<Item>
         IsRawResource = isRawResource;
         StackSize = stackSize;
         FluidColour = fluidColour;
+        IsGas = isGas;
     }
 
     /// <param name="stackSize">How many fit in one inventory slot (BR-A7); 0 for a fluid, which doesn't go in slots.</param>
     /// <param name="fluidColour">A fluid's colour in the game, as "#rrggbb"; null for a solid.</param>
-    public static Item Create(ItemId id, string name, ItemForm itemForm, bool isRawResource, int stackSize = 0, string? fluidColour = null)
+    public static Item Create(
+        ItemId id, string name, ItemForm itemForm, bool isRawResource, int stackSize = 0, string? fluidColour = null, bool isGas = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentOutOfRangeException.ThrowIfNegative(stackSize);
-        return new Item(id, name, itemForm, isRawResource, stackSize, fluidColour);
+        return new Item(id, name, itemForm, isRawResource, stackSize, fluidColour, isGas);
     }
     
     private bool Equals(Item other)
@@ -52,6 +54,9 @@ public class Item : ICatalogEntry<Item>
     /// <summary>A fluid's or gas's colour in the game, as "#rrggbb", as its pipes show it; null for a solid.</summary>
     public string? FluidColour { get; private set; }
 
+    /// <summary>A gas (the Docs file's <c>RF_GAS</c>): a fluid that needs no head lift (BR-A22, asked 2026-11-24).</summary>
+    public bool IsGas { get; private set; }
+
     public bool IsInGame { get; private set; } = true;
 
     public void UpdateFromGame(Item fromGame)
@@ -66,6 +71,7 @@ public class Item : ICatalogEntry<Item>
         IsRawResource = fromGame.IsRawResource;
         StackSize = fromGame.StackSize;
         FluidColour = fromGame.FluidColour;
+        IsGas = fromGame.IsGas;
         IsInGame = true;
     }
 

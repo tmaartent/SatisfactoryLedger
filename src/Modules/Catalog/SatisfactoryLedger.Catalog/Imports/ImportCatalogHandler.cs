@@ -33,6 +33,7 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         var dronePorts = CatalogEntries.Reconcile(await db.DronePorts.ToListAsync(cancellationToken), fromGame.DronePorts);
         var storages = CatalogEntries.Reconcile(await db.Storages.ToListAsync(cancellationToken), fromGame.Storages);
         var buildables = CatalogEntries.Reconcile(await db.Buildables.ToListAsync(cancellationToken), fromGame.Buildables);
+        var pumps = CatalogEntries.Reconcile(await db.Pumps.ToListAsync(cancellationToken), fromGame.Pumps);
 
         db.Items.AddRange(items.Added);
         db.Buildings.AddRange(buildings.Added);
@@ -44,9 +45,10 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
         db.DronePorts.AddRange(dronePorts.Added);
         db.Storages.AddRange(storages.Added);
         db.Buildables.AddRange(buildables.Added);
+        db.Pumps.AddRange(pumps.Added);
 
         var import = CatalogImport.RecordDocs(CatalogImportId.New(), command.GameVersion, clock.GetUtcNow(),
-            items, buildings, transportTiers, recipes, extractors, footprints, generators, dronePorts, storages, buildables);
+            items, buildings, transportTiers, recipes, extractors, footprints, generators, dronePorts, storages, buildables, pumps);
         db.Imports.Add(import);
 
         await db.SaveChangesAsync(cancellationToken);
@@ -69,7 +71,8 @@ internal sealed class ImportCatalogHandler(CatalogDbContext db, TimeProvider clo
                 SatisfactoryTranslator.TranslateToGenerators(groups),
                 SatisfactoryTranslator.TranslateToDronePorts(groups),
                 SatisfactoryTranslator.TranslateToStorages(groups),
-                SatisfactoryTranslator.TranslateToBuildables(groups));
+                SatisfactoryTranslator.TranslateToBuildables(groups),
+                SatisfactoryTranslator.TranslateToPumps(groups));
         }
         catch (Exception e) when (e is JsonException or ArgumentException or KeyNotFoundException or FormatException)
         {

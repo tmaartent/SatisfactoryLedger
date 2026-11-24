@@ -27,7 +27,8 @@ public sealed class CatalogImport
         CatalogEntryChanges<Generator> generators,
         CatalogEntryChanges<DronePort> dronePorts,
         CatalogEntryChanges<Storage> storages,
-        CatalogEntryChanges<Buildable> buildables)
+        CatalogEntryChanges<Buildable> buildables,
+        CatalogEntryChanges<Pump> pumps)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameVersion);
 
@@ -42,7 +43,8 @@ public sealed class CatalogImport
             .. generators.NoLongerInGame.Select(generator => generator.Id.Id),
             .. dronePorts.NoLongerInGame.Select(port => port.Id.Id),
             .. storages.NoLongerInGame.Select(storage => storage.Id.Id),
-            .. buildables.NoLongerInGame.Select(buildable => buildable.Id.Id)
+            .. buildables.NoLongerInGame.Select(buildable => buildable.Id.Id),
+            .. pumps.NoLongerInGame.Select(pump => pump.Id.Id)
         ];
 
         return new CatalogImport(id, CatalogImportSource.DocsFile, gameVersion.Trim(), importedAt)
@@ -57,6 +59,7 @@ public sealed class CatalogImport
             DronePorts = dronePorts.Counts,
             Storages = storages.Counts,
             Buildables = buildables.Counts,
+            Pumps = pumps.Counts,
             // A building that left the game takes its footprint with it: one class name, listed once.
             NoLongerInGame = [.. noLongerInGame.Distinct(StringComparer.Ordinal)]
         };
@@ -120,6 +123,9 @@ public sealed class CatalogImport
 
     /// <summary>Everything the player places, by the name the game shows.</summary>
     public ImportCounts Buildables { get; private init; } = new(0, 0, 0);
+
+    /// <summary>Pipeline pumps, and their head lift (asked 2026-11-24).</summary>
+    public ImportCounts Pumps { get; private init; } = new(0, 0, 0);
 
     public ImportCounts ResourceNodes { get; private init; } = new(0, 0, 0);
 
