@@ -47,4 +47,19 @@ public class BeltFloorTests
     {
         Assert.Equal(1, BeltFloor.Of(48, 48, 32, 32, ceilingMetres: 1).Levels);
     }
+
+    [Fact]
+    public void The_levels_a_floor_uses_reach_its_highest_belt_not_its_tallest_stack()
+    {
+        // A belt keeps its level along a straight run, so it may run high over a square with few belts: no square holds
+        // more than 5 belts here, but one runs on level 7, so the floor uses 8 levels (2026-11-24: "stacks up to 5", yet 8
+        // levels in 3D).
+        Assert.Equal(8, BeltFloor.LevelsUsed([[0, 1], [2, 4], [3], [7], [4, 5]]));
+    }
+
+    [Fact]
+    public void A_floor_without_belts_uses_no_levels()
+    {
+        Assert.Equal(0, BeltFloor.LevelsUsed([]));
+    }
 }

@@ -7,7 +7,8 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <param name="CostNow">The belt work of the layout as built: per link, belts times cells between the centres.</param>
 /// <param name="Cost">The belt work of the proposed layout.</param>
 /// <param name="BeltMetres">How long the routed belts and pipes are together, lifts not counted; null without routed belts.</param>
-/// <param name="TallestStack">The most belts stacked on one square of the belt floor.</param>
+/// <param name="LevelsUsed">How many levels of the belt floor its belts use, up to the highest (2026-11-24: not the most
+/// belts on one square, which said 5 where 3D showed 8 levels); null without routed belts or with belts from before levels.</param>
 /// <param name="SupplyLines">Whether its belts were routed as supply lines.</param>
 /// <param name="UnroutedBelts">How many belts and pipes couldn't be routed without crossing.</param>
 internal sealed record ArrangementSummary(
@@ -34,7 +35,7 @@ internal sealed record ArrangementSummary(
     double? Cost,
     ArrangementQuality? Quality,
     double? BeltMetres,
-    int? TallestStack,
+    int? LevelsUsed,
     int? UnroutedBelts)
 {
     public static ArrangementSummary From(StoredArrangement run)
@@ -43,8 +44,13 @@ internal sealed record ArrangementSummary(
         return new ArrangementSummary(
             run.Id, run.SnapshotId, run.World, run.Area, run.Exclusions, run.PlotWidthMetres, run.PlotDepthMetres, run.RoadXMetres, run.RoadYMetres, run.Together, run.SpotWeight, run.CeilingMetres, run.SupplyLines, run.Seconds,
             run.Status, run.RequestedAt, run.ComputedAt, run.Duration, run.Error, proposal?.CostNow, proposal?.Cost, proposal?.Quality,
-            MetresOf(run, proposal), proposal?.TallestStack, proposal?.Unrouted?.Sum(link => link.Belts + link.Pipes));
+            MetresOf(run, proposal), LevelsOf(proposal), proposal?.Unrouted?.Sum(link => link.Belts + link.Pipes));
     }
+
+    private static int? LevelsOf(ArrangementProposalDocument? proposal) =>
+        proposal?.Belts is { Count: > 0 } belts && belts.All(belt => belt.Levels is not null)
+            ? BeltFloor.LevelsUsed(belts.Select(belt => belt.Levels!))
+            : null;
 
     private static double? MetresOf(StoredArrangement run, ArrangementProposalDocument? proposal)
     {

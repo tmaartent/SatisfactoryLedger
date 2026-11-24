@@ -30,6 +30,14 @@ public sealed record BeltFloor(int SquaresPerPlotX, int SquaresPerPlotY, int Roa
     public static double HeightOf(int level) => level * LevelMetres;
 
     /// <summary>
+    /// How many levels of the floor its belts use, given each belt's levels: up to the highest, from 0. Not the most belts
+    /// on one square: a belt keeps its level along a straight run, so it may run high over a square with few belts
+    /// (2026-11-24).
+    /// </summary>
+    public static int LevelsUsed(IEnumerable<IReadOnlyList<int>> belts) =>
+        belts.SelectMany(levels => levels).DefaultIfEmpty(-1).Max() + 1;
+
+    /// <summary>
     /// Whether a belt changing this many levels where it turns needs a lift there: 4 metres or more up or down does; 2
     /// is a ramp (decided 2026-11-18).
     /// </summary>

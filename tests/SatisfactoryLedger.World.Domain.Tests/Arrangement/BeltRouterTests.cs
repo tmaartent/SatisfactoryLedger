@@ -196,7 +196,7 @@ public class BeltRouterTests
             [new ArrangementLink("smelting", "plates", 2), new ArrangementLink("ingots", "rods", 1)]);
 
         Assert.Equal(3, routing.Belts.Count);
-        Assert.Equal(2, routing.TallestStack);
+        Assert.Equal(2, BeltFloor.LevelsUsed(routing.Belts.Select(belt => belt.Levels)));
     }
 
     [Fact]
@@ -235,7 +235,7 @@ public class BeltRouterTests
             levels: 1);
 
         Assert.Equal([new ArrangementLink("smelting", "plates", 1)], routing.Unrouted);
-        Assert.Equal(1, routing.TallestStack);
+        Assert.Equal(1, BeltFloor.LevelsUsed(routing.Belts.Select(belt => belt.Levels)));
     }
 
     [Fact]
@@ -323,7 +323,7 @@ public class BeltRouterTests
             new() { ["water"] = new(0, 0, 1, 2), ["ingots"] = new(2, 0, 1, 1), ["rods"] = new(3, 0, 1, 1), ["refinery"] = new(5, 0, 1, 2) },
             [new ArrangementLink("water", "refinery", Belts: 0, Pipes: 2), new ArrangementLink("ingots", "rods", 1)]);
 
-        Assert.Equal((3, 2), (routing.Belts.Count, routing.TallestStack));
+        Assert.Equal((3, 2), (routing.Belts.Count, BeltFloor.LevelsUsed(routing.Belts.Select(belt => belt.Levels))));
     }
 
     [Fact]
@@ -338,7 +338,7 @@ public class BeltRouterTests
 
         Assert.Equal(2, routing.Belts.Count);
         Assert.Equal(1, Assert.Single(routing.Unrouted).BeltsAndPipes);
-        Assert.Equal(1, routing.TallestStack);
+        Assert.Equal(1, BeltFloor.LevelsUsed(routing.Belts.Select(belt => belt.Levels)));
     }
 
     [Fact]

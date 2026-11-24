@@ -97,7 +97,13 @@
             <td>{{ run.supplyLines ? 'yes' : 'no' }}</td>
             <td class="number">
               @if (run.beltMetres !== null) {
-                {{ run.beltMetres | number: '1.0-0' }} m · stacks up to {{ run.tallestStack }}
+                {{ run.beltMetres | number: '1.0-0' }} m
+                @if (run.levelsUsed !== null) {
+                  · {{ run.levelsUsed }} {{ run.levelsUsed === 1 ? 'level' : 'levels' }} ({{
+                    run.levelsUsed * 2
+                  }}
+                  m)
+                }
                 @if (run.unroutedBelts) {
                   <span class="error">· {{ run.unroutedBelts }} not routed</span>
                 }

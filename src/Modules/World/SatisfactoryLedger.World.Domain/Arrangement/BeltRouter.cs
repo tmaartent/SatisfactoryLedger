@@ -231,7 +231,7 @@ public static class BeltRouter
             List<ArrangementLink> leftOver = [.. unrouted
                 .GroupBy(job => jobs[job].Number)
                 .Select(link => jobs[link.First()].Link with { Belts = link.Count(job => !jobs[job].Pipe), Pipes = link.Count(job => jobs[job].Pipe) })];
-            var routing = new BeltRouting(belts, leftOver, board.TallestStack);
+            var routing = new BeltRouting(belts, leftOver);
 
             // The fewest belts left over, then the fewest joins that fell back to the factory.
             if (best is null || (LeftOver(routing), fallbacks.Count).CompareTo((LeftOver(best), bestFallbacks)) < 0)
@@ -326,8 +326,6 @@ file sealed class Board(int width, int depth, int levels)
     private int laid;
 
     public int Width => width;
-
-    public int TallestStack => stacked.Length == 0 ? 0 : stacked.Max();
 
     /// <summary>
     /// An end on this board: a rectangle on the floor, clipped to it; or, for one wholly off the floor, the rectangle as

@@ -86,6 +86,9 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
         // Each says what it carries.
         Assert.All(ready.Belts, belt => Assert.True(belt.Item is not null && belt.PerMinute > 0, $"{belt.From} → {belt.To} carries {belt.Item} at {belt.PerMinute}"));
         Assert.True(ready.Summary.BeltMetres > 0, $"{ready.Summary.BeltMetres} metres of belt");
+
+        // The levels it says it uses are those the 3D view shows: up to its highest belt.
+        Assert.Equal(ready.Belts.Max(belt => belt.Levels.Max()) + 1, ready.Summary.LevelsUsed);
     }
 
     [Fact]

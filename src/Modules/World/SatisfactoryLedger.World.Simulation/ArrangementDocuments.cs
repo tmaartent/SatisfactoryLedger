@@ -88,8 +88,7 @@ public static class ArrangementDocuments
                 LoadOf(belt),
                 belt.StartsOnBelt,
                 belt.EndsOnBelt)).ToList(),
-            routing?.Unrouted.Select(link => new ArrangementLinkDocument(link.From, link.To, link.Belts, link.WeightPercent, link.Pipes)).ToList(),
-            routing?.TallestStack);
+            routing?.Unrouted.Select(link => new ArrangementLinkDocument(link.From, link.To, link.Belts, link.WeightPercent, link.Pipes)).ToList());
     }
 
     /// <summary>
