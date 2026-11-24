@@ -15,9 +15,18 @@ TDD is a stated goal. Tests must be fast enough to run on every change, and must
 | Module/integration tests | Use case + real database through the HTTP API | WebApplicationFactory + Testcontainers (PostgreSQL) | one or more per use case |
 | Contract check | OpenAPI document unchanged unless committed | CI diff | 1 |
 | Frontend unit tests | Components, signals, services | Vitest + Angular Testing Library | per component |
-| End-to-end | A few critical user journeys | Playwright | a handful |
+| Layout | The pages on a phone (Chromium and WebKit), a tablet and a desktop, against recorded API answers | Playwright | per rule a page keeps |
+| End-to-end | A few critical user journeys, against the real stack | Playwright | a handful |
 
 Rules: don't mock the domain. Mock only at process boundaries, and prefer a real database over a mock. Name tests after business rules (`BR-S4`) and behaviours, not methods.
+
+## Amendment (2026-11-24, step 95): layout tests on recorded answers
+The owner asked how to keep the touch-screen work of steps 90 to 93 from breaking again, and chose:
+- **both** kinds of Playwright test: layout tests against recorded API answers in every CI run, and a few journeys against the real stack (step 96);
+- **assertions**, not screenshot comparisons: what a rule says is measured (no sideways scroll, the canvas as big as its stage, the choices in view), so fonts and rendering that differ between machines don't matter;
+- **four devices:** a Pixel 7 (Chromium), an iPhone 15 (WebKit), an iPad (WebKit) and a 1280 × 800 desktop with a mouse.
+
+The answers are recorded from the running app for the test world (`Development.sav`) by `web/e2e/record.mjs`, into `web/e2e/fixtures/api.json`. Map art and icons, the game's art, aren't recorded; nor are the player's other worlds or their resource-node table. A test fails when a page asks for something not recorded. The recording doesn't follow the API by itself: when an answer's shape changes, record again. That gap is what step 96's tests against the real stack close.
 
 ## Alternatives considered
 - **In-memory EF provider for integration tests:** fast, but behaves differently from PostgreSQL (no real transactions or constraints) and gives false confidence.

@@ -404,8 +404,8 @@ export class AreaPage {
     this.scene.add(sun);
 
     afterNextRender(() => this.start());
-    // On a phone the sheet of tabs would lie over the view: it starts closed, until something in the view is clicked.
-    this.sidebar.closeOnPhone();
+    // Where the open tab would lie over the view, it starts closed, until something in the view is clicked.
+    this.sidebar.closeWhereItCovers();
     inject(DestroyRef).onDestroy(() => this.stop());
 
     // Redraw when the world or its analysis arrives; three.js knows nothing about signals.
@@ -447,11 +447,12 @@ export class AreaPage {
 
   /**
    * The Info tab, where defining shows what the machines chosen make and take: opened where it stands beside the view;
-   * on a phone it would lie over it, so it stays closed until a machine is added or taken out (asked 2026-11-24).
+   * where it would lie over it, on a phone or a tablet, it stays closed until a machine is added or taken out (asked
+   * 2026-11-24).
    */
   private showStepsBeside(): void {
     this.sidebar.show('info');
-    this.sidebar.closeOnPhone();
+    this.sidebar.closeWhereItCovers();
   }
 
   /** Edits a factory by its id, once its machines are known: the factory's page asks this from its Edit button. */

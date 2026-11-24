@@ -22,9 +22,11 @@
   @if (sidebar.tabs().length > 0) {
     <app-sidebar>
       <!-- Above the tabs on every World page: the snapshot they're all about (asked 2026-11-23). Its code, with the
-           menu and dialogs it needs, loads once the page is up, not with the shell. -->
+           menu and dialogs it needs, loads once the page is up, not with the shell: when the browser is idle, or after
+           2 s at the latest. A 3D view draws every frame, so the browser is seldom idle beside it: on a busy phone the
+           picker didn't come (found by the layout tests, 2026-11-25). -->
       @if (picksSnapshot()) {
-        @defer (on idle) {
+        @defer (on idle; on timer(2s)) {
           <app-snapshot-picker [current]="snapshotId()" />
         }
       }

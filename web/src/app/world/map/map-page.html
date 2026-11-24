@@ -22,7 +22,12 @@
 }
 
 <div class="map-frame">
-  <div #map class="map" [class.drawing]="drawing() || selection.selecting()"></div>
+  <div
+    #map
+    class="map"
+    [class.drawing]="drawing() || selection.selecting()"
+    [class.with-intro]="!id()"
+  ></div>
   @if (id()) {
     <!-- On a touch screen, with no keys to hold: select an area to open (asked 2026-11-24, ADR-0033). -->
     <button

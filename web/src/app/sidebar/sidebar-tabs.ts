@@ -53,11 +53,13 @@ export class SidebarTabs {
   }
 
   /**
-   * Before a 3D view (asked 2026-11-24): on a phone the open tab is a sheet over the lower part of the screen, and the
-   * view would lie half under it, so it starts closed. A click on what's in the view opens it again on the Info tab.
+   * Before a 3D view (asked 2026-11-24): where the open tab would lie over the view, it starts closed. On a phone it's a
+   * sheet over the lower part of the screen; up to 960 px wide it lies over the page's right side (sidebar.scss), and on
+   * a tablet over the 3D view's select button (found by the layout tests, 2026-11-24). A click on what's in the view
+   * opens it again on the Info tab.
    */
-  closeOnPhone(): void {
-    if (window.matchMedia?.('(max-width: 599px)').matches) this.collapsed.set(true);
+  closeWhereItCovers(): void {
+    if (window.matchMedia?.('(max-width: 960px)').matches) this.collapsed.set(true);
   }
 
   /** A click on a tab's icon: the open tab collapses; any other opens. */

@@ -97,7 +97,7 @@
   @if (factory.input.length === 0) {
     <p class="muted">Nothing comes into this factory.</p>
   } @else {
-    <div class="table-scroll">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Input">
       <table mat-table [dataSource]="factory.input" class="output">
         <ng-container matColumnDef="item">
           <th mat-header-cell *matHeaderCellDef>Name</th>
@@ -178,7 +178,7 @@
   @if (factory.output.length === 0) {
     <p class="muted">Nothing leaves this factory.</p>
   } @else {
-    <div class="table-scroll">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Output">
       <table mat-table [dataSource]="factory.output" class="output">
         <ng-container matColumnDef="item">
           <th mat-header-cell *matHeaderCellDef>Item</th>

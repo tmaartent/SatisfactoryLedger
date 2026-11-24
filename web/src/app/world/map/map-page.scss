@@ -284,6 +284,12 @@ button.active {
   .map {
     height: calc(100dvh - 232px);
     min-height: 300px;
+
+    // The start map has two lines of intro above it, which push its corners under the picker (found by the layout
+    // sweep, 2026-11-25).
+    &.with-intro {
+      height: calc(100dvh - 288px);
+    }
   }
 
   .legend {

@@ -80,25 +80,35 @@ describe('the tabs of the sidebar', () => {
   });
 
   describe('before a 3D view', () => {
-    const screen = (phone: boolean) =>
+    const screen = (width: number) =>
       vi.stubGlobal(
         'matchMedia',
-        vi.fn((query: string) => ({ matches: phone && query === '(max-width: 599px)' })),
+        vi.fn((query: string) => ({
+          matches: query === '(max-width: 960px)' && width <= 960,
+        })),
       );
     afterEach(() => vi.unstubAllGlobals());
 
     it('closes on a phone, where its sheet would lie over the view', () => {
-      screen(true);
+      screen(412);
 
-      tabs().closeOnPhone();
+      tabs().closeWhereItCovers();
 
       expect(tabs().collapsed()).toBe(true);
     });
 
-    it('stays open on a wider screen, where it stands beside the view', () => {
-      screen(false);
+    it('closes on a tablet, where the open tab lies over the view too (found 2026-11-24)', () => {
+      screen(810);
 
-      tabs().closeOnPhone();
+      tabs().closeWhereItCovers();
+
+      expect(tabs().collapsed()).toBe(true);
+    });
+
+    it('stays open on a wide screen, where it stands beside the view', () => {
+      screen(1280);
+
+      tabs().closeWhereItCovers();
 
       expect(tabs().collapsed()).toBe(false);
     });

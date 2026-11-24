@@ -1,8 +1,7 @@
 # CI for Satisfactory Ledger. See docs/guide/07-quality-and-delivery.md § "CI pipeline".
 # backend and frontend run in parallel. The backend job also checks the OpenAPI contract.
 # Planned jobs that are not here yet:
-#   lint      (ng lint)                            - once angular-eslint is added
-#   e2e       (Playwright)                         - later
+#   e2e against the real stack (step 96)           - later
 name: CI
 
 on:
@@ -103,3 +102,40 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Step 95: the World pages on a phone (Chromium and WebKit), a tablet and a desktop, in real browsers. The API's
+  # answers are recorded (web/e2e/fixtures/api.json), so this job needs neither .NET nor PostgreSQL.
+  e2e:
+    name: Layout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # The browsers, and the Linux libraries they need.
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Test
+        run: npm run e2e
+
+      - name: Upload report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          if-no-files-found: ignore
