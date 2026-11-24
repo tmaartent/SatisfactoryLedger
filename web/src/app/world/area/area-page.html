@@ -51,6 +51,10 @@
       <span
         ><span class="line" [style.background]="troubleColour"></span>Bottleneck or loose end</span
       >
+      <span
+        ><span class="line" [style.background]="headLiftColour"></span>Pipe above its head
+        lift</span
+      >
     </div>
     @if (dragBox(); as box) {
       <div
@@ -329,10 +333,23 @@
       }
       @if (conveyor.contents) {
         <dl>
-          <dt>On it</dt>
+          <dt>{{ conveyor.kind === 'pipe' ? 'In it (m³)' : 'On it' }}</dt>
           <dd>
             <ng-container *ngTemplateOutlet="held; context: { $implicit: conveyor.contents }" />
           </dd>
+        </dl>
+      }
+      <!-- Neither is in the save: the model's flow, and its estimate of head lift (BR-A22). -->
+      @if (selectedPipeFlow(); as flow) {
+        <dl>
+          <dt>In the model</dt>
+          <dd>{{ pipeFlow(flow) }}</dd>
+        </dl>
+      }
+      @if (headLift(conveyor.headLiftToSpare); as text) {
+        <dl>
+          <dt>Head lift in the model</dt>
+          <dd>{{ text }}</dd>
         </dl>
       }
     } @else {

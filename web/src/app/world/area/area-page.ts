@@ -37,6 +37,7 @@ import { FootprintDocument } from '../../api/models/footprint-document';
 import { GeneratorFinding } from '../../api/models/generator-finding';
 import { MachineFinding } from '../../api/models/machine-finding';
 import { MapConveyor } from '../../api/models/map-conveyor';
+import { PipeFlowFinding } from '../../api/models/pipe-flow-finding';
 import { CatalogNames } from '../../shared/catalog-names';
 import { percent, perMinute, Position, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
@@ -45,6 +46,8 @@ import {
   contentEntries,
   Contents,
   conveyorColours,
+  describeHeadLift,
+  describePipeFlow,
   statusColours,
   statusLabels,
   MachineStatus,
@@ -294,6 +297,13 @@ export class AreaPage {
     const conveyor = this.selectedConveyor();
     return conveyor ? this.bottlenecks().get(conveyor.id) : undefined;
   });
+  /** What flows through the pipe looked at, in the model; neither it nor head lift is in the save (asked 2026-11-24). */
+  protected readonly selectedPipeFlow = computed(() => {
+    const conveyor = this.selectedConveyor();
+    const flows = this.analysis.value()?.pipeFlows ?? [];
+    return conveyor ? flows.find((flow) => flow.id === conveyor.id) : undefined;
+  });
+  protected readonly headLiftColour = conveyorColours.headLift;
   /** The building that glows: the one looked at, except while defining, where a click only turns a machine blue or back. */
   private readonly glowing = computed(() =>
     this.defining() ? null : (this.selected()?.id ?? null),
@@ -529,6 +539,16 @@ export class AreaPage {
 
   protected statusLabel(finding: { limit: MachineStatus }): string {
     return statusLabels[finding.limit];
+  }
+
+  /** What flows through a pipe in the model, for the panel. */
+  protected pipeFlow(flow: PipeFlowFinding): string {
+    return describePipeFlow(flow, (item) => this.names.item(item));
+  }
+
+  /** A pipe's head lift in the model; "" for a belt, and a pipe nothing feeds. */
+  protected headLift(toSpare: number | null | undefined): string {
+    return toSpare === null || toSpare === undefined ? '' : describeHeadLift(toSpare);
   }
 
   /** What a machine, belt or container holds, item by item, for the panel to show with icons. */

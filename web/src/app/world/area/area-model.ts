@@ -3,7 +3,7 @@
 import { CurvePointDocument } from '../../api/models/curve-point-document';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { VolumeDocument } from '../../api/models/volume-document';
-import { conveyorColours } from '../map/map-model';
+import { conveyorColours, shortOfHeadLift } from '../map/map-model';
 import { Position } from '../../shared/display';
 
 /**
@@ -210,13 +210,18 @@ export function sampleCurve3d(curve: CurvePointDocument[]): Position[] {
 
 /**
  * A belt's, lift's or pipe's colour in 3D: red when something is wrong with it, a bottleneck (BR-A12) or an end connected
- * to nothing (asked 2026-11-23), so the one to look at stands out; otherwise its kind's.
+ * to nothing (asked 2026-11-23), so the one to look at stands out; orange for a pipe that climbs above its head lift
+ * (BR-A22); otherwise its kind's.
  */
 export function tubeColour(
-  conveyor: { id: string; kind: 'belt' | 'pipe'; looseEnds: number },
+  conveyor: {
+    id: string;
+    kind: 'belt' | 'pipe';
+    looseEnds: number;
+    headLiftToSpare?: number | null;
+  },
   bottlenecks: ReadonlySet<string>,
 ): string {
-  return bottlenecks.has(conveyor.id) || conveyor.looseEnds > 0
-    ? conveyorColours.bottleneck
-    : conveyorColours[conveyor.kind];
+  if (bottlenecks.has(conveyor.id) || conveyor.looseEnds > 0) return conveyorColours.bottleneck;
+  return shortOfHeadLift(conveyor) ? conveyorColours.headLift : conveyorColours[conveyor.kind];
 }
