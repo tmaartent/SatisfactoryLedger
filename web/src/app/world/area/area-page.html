@@ -157,8 +157,15 @@
         </p>
         @if (preview.value(); as preview) {
           <div class="preview">
-            <p><span class="swatch output"></span> Where items leave</p>
+            <!-- Output and input, power among the output, now, as the items (asked 2026-11-24). -->
+            <p><span class="swatch output"></span> Output</p>
             <ul>
+              @if (preview.power; as power) {
+                <li>
+                  <mat-icon class="power-icon">bolt</mat-icon>Power
+                  <span class="muted">{{ megawatts(power.nowMegawatts) }}</span>
+                </li>
+              }
               @for (output of preview.leaving; track output.item) {
                 <li>
                   <app-game-icon [of]="output.item" />{{ names.item(output.item) }}
@@ -167,10 +174,12 @@
                   }}</span>
                 </li>
               } @empty {
-                <li class="muted">Nothing leaves it</li>
+                @if (!preview.power) {
+                  <li class="muted">Nothing leaves it</li>
+                }
               }
             </ul>
-            <p><span class="swatch input"></span> Where items come in</p>
+            <p><span class="swatch input"></span> Input</p>
             <ul>
               @for (input of preview.arriving; track input.item) {
                 <li>

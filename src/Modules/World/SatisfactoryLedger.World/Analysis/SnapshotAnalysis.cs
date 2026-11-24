@@ -62,9 +62,9 @@ internal static class SnapshotAnalysis
     /// <summary>
     /// The power its generators make (decided 2026-11-11): at 100%, each generator's power at its clock speed; now, that
     /// times how fast the flow lets it run. A generator whose fuel isn't known isn't simulated: it counts at 100% only.
-    /// Null for a factory without generators.
+    /// Null for a factory without generators. Also for the preview while choosing a factory's machines (asked 2026-11-24).
     /// </summary>
-    private static FactoryPower? PowerOf(SnapshotDocument snapshot, FactoryMembers members, AnalysisDocument analysis)
+    internal static FactoryPower? PowerOf(SnapshotDocument snapshot, FactoryMembers members, AnalysisDocument analysis)
     {
         Dictionary<string, GeneratorDocument> catalog = (snapshot.Generators ?? []).ToDictionary(generator => generator.Id, StringComparer.Ordinal);
         Dictionary<string, double> utilisation = analysis.Machines.ToDictionary(state => state.Id, state => state.Utilisation, StringComparer.Ordinal);

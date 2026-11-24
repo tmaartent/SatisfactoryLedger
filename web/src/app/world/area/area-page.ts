@@ -39,7 +39,7 @@ import { MachineFinding } from '../../api/models/machine-finding';
 import { MapConveyor } from '../../api/models/map-conveyor';
 import { PipeFlowFinding } from '../../api/models/pipe-flow-finding';
 import { CatalogNames } from '../../shared/catalog-names';
-import { percent, perMinute, Position, positionInMetres } from '../../shared/display';
+import { megawatts, percent, perMinute, Position, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { LimitFacts, LimitParts, limitParts } from '../limit-text';
 import {
@@ -370,6 +370,7 @@ export class AreaPage {
 
   protected readonly percent = percent;
   protected readonly perMinute = perMinute;
+  protected readonly megawatts = megawatts;
   protected readonly position = positionInMetres;
 
   private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');

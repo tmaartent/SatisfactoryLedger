@@ -2681,6 +2681,16 @@
             "items": {
               "type": "string"
             }
+          },
+          "power": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FactoryPower"
+              }
+            ]
           }
         }
       },
