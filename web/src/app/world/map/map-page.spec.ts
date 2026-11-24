@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
 import { getMapArt } from '../../api/fn/catalog/get-map-art';
@@ -11,6 +12,7 @@ import { traceFactories } from '../../api/fn/world/trace-factories';
 import { FactoryTrace } from '../../api/models/factory-trace';
 import { CatalogNames } from '../../shared/catalog-names';
 import { Sidebar } from '../../sidebar/sidebar';
+import { MachineSummary } from '../../api/models/machine-summary';
 import { MapPage } from './map-page';
 
 const factory = (factoryId: string, name: string, traceable = true): FactoryTrace => ({
@@ -48,7 +50,16 @@ beforeEach(() => {
 // canvas that was gone, an error after the test that failed the run: let it draw first.
 afterEach(() => new Promise((drawn) => requestAnimationFrame(drawn)));
 
-async function render(id?: string, mapArt: unknown = null, focus?: string) {
+async function render(
+  id?: string,
+  mapArt: unknown = null,
+  focus?: string,
+  traces: FactoryTrace[] = [
+    factory('f-1', 'Rubber'),
+    factory('f-2', 'Plastic'),
+    factory('f-3', 'Gone', false),
+  ],
+) {
   const answers = new Map<unknown, unknown>([
     [
       getResourceNodes,
@@ -108,10 +119,7 @@ async function render(id?: string, mapArt: unknown = null, focus?: string) {
         footprints: [],
       },
     ],
-    [
-      traceFactories,
-      [factory('f-1', 'Rubber'), factory('f-2', 'Plastic'), factory('f-3', 'Gone', false)],
-    ],
+    [traceFactories, traces],
   ]);
   const api = {
     invoke: vi.fn((fn: unknown) =>
@@ -646,6 +654,88 @@ describe('the world map of a snapshot', () => {
       (button) => button.textContent?.trim() === 'Gone',
     ) as HTMLButtonElement;
     expect(gone.disabled).toBe(true);
+  });
+
+  describe("a factory's building tapped on a touch screen", () => {
+    // The Rubber factory owns the smelter.
+    const owning = [
+      { ...factory('f-1', 'Rubber'), machines: [{ id: 'smelter-1' } as MachineSummary] },
+      factory('f-2', 'Plastic'),
+    ];
+    // A media query list as the browser gives it: Material's breakpoints listen to it too.
+    const screen = (touch: boolean) =>
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({
+          matches: touch && query === '(hover: none)',
+          media: query,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+        })),
+      );
+    afterEach(() => vi.unstubAllGlobals());
+
+    /** A tap on the smelter, as the map's canvas passes it on to its shape once it finds it under the finger. */
+    async function tap(rendered: Awaited<ReturnType<typeof render>>) {
+      const shapes = (
+        rendered.fixture.componentInstance as unknown as { shapes: Map<string, L.Path> }
+      ).shapes;
+      shapes.get('smelter-1')!.fire('click', { originalEvent: new MouseEvent('click') });
+      rendered.fixture.detectChanges();
+      await rendered.fixture.whenStable();
+      return shapes.get('smelter-1')!;
+    }
+
+    it('says what it is and highlights its factory at the first tap, staying on the map', async () => {
+      screen(true);
+      const rendered = await render('snapshot-1', null, undefined, owning);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      const smelter = await tap(rendered);
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(
+        (
+          rendered.fixture.componentInstance as unknown as { factoryId: () => string | null }
+        ).factoryId(),
+      ).toBe('f-1');
+      expect(smelter.isTooltipOpen()).toBe(true);
+      expect(smelter.getTooltip()?.getContent()).toContain(
+        'Factory <b>Rubber</b> · tap again to open',
+      );
+    });
+
+    it("opens the factory's page at a second tap on the same building", async () => {
+      screen(true);
+      const rendered = await render('snapshot-1', null, undefined, owning);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      await tap(rendered);
+      await tap(rendered);
+
+      expect(navigate).toHaveBeenCalledWith(['/snapshots', 'snapshot-1', 'factories', 'f-1']);
+    });
+
+    it("opens the factory's page at a tap on the label the first tap showed", async () => {
+      screen(true);
+      const rendered = await render('snapshot-1', null, undefined, owning);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      const smelter = await tap(rendered);
+      smelter.getTooltip()!.getElement()!.click();
+
+      expect(navigate).toHaveBeenCalledWith(['/snapshots', 'snapshot-1', 'factories', 'f-1']);
+    });
+
+    it("opens the factory's page at the first click with a mouse, whose pointer shows what it is on the way", async () => {
+      screen(false);
+      const rendered = await render('snapshot-1', null, undefined, owning);
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      await tap(rendered);
+
+      expect(navigate).toHaveBeenCalledWith(['/snapshots', 'snapshot-1', 'factories', 'f-1']);
+    });
   });
 
   it('has no switches for colouring belts or hiding layers, and no factory drop-down', async () => {

@@ -1,16 +1,17 @@
 import { DecimalPipe } from '@angular/common';
 import {
-  Component,
-  DestroyRef,
-  ElementRef,
   afterNextRender,
+  Component,
   computed,
+  DestroyRef,
   effect,
+  ElementRef,
   inject,
   input,
   linkedSignal,
   resource,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -210,6 +211,8 @@ export class MapPage {
   });
   /** A count picked in the Info tab's overview: its machines or generators are shown (asked 2026-11-23). */
   protected readonly shownStatus = signal<ShownStatus | null>(null);
+  /** A factory's building tapped once on a touch screen, by id: a second tap on it opens the factory (ADR-0033). */
+  private readonly tapped = signal<string | null>(null);
   /**
    * The buildings stood out, the others dimmed: those of the status picked in the overview, or else the highlighted
    * factory's. Only one at a time: picking either lets go of the other.
@@ -309,6 +312,7 @@ export class MapPage {
     // 2026-11-23). A shape that does something when clicked stops its click; drawing an area leaves it be.
     this.map.on('click', () => {
       if (this.drawing() || this.selection.selecting()) return;
+      this.tapped.set(null);
       this.factoryId.set(null);
       this.shownStatus.set(null);
     });
@@ -538,7 +542,8 @@ export class MapPage {
             positionInMetres(machine.position),
         )
         .addTo(this.machineLayer);
-      this.opensFactory(shape, owner);
+      this.opensFactory(shape, machine.id, owner);
+      this.reopenTapped(machine.id, shape, owner);
       if (explains && finding)
         this.explainsWhy(shape, {
           className: machine.className,
@@ -664,7 +669,8 @@ export class MapPage {
               positionInMetres(building.position),
           )
           .addTo(this.otherLayer);
-        this.opensFactory(shape, owner);
+        this.opensFactory(shape, building.id, owner);
+        this.reopenTapped(building.id, shape, owner);
         this.shapes.set(building.id, shape);
       }
     }
@@ -672,17 +678,55 @@ export class MapPage {
 
   /** The factory a building belongs to, as a tooltip line; empty when it belongs to none. */
   private factoryLine(owner: OutlinedFactory | undefined): string {
-    return owner ? `Factory <b>${escapeHtml(owner.name)}</b> · click to open<br>` : '';
+    // On a touch screen the first tap shows this; a second opens the factory (opensFactory).
+    const open = touchScreen() ? 'tap again to open' : 'click to open';
+    return owner ? `Factory <b>${escapeHtml(owner.name)}</b> · ${open}<br>` : '';
   }
 
-  /** A click on a factory's building opens the factory's page; not while drawing an area for 3D. */
-  private opensFactory(shape: L.Path, owner: OutlinedFactory | undefined): void {
+  /**
+   * A click on a factory's building opens the factory's page; not while drawing an area for 3D. On a touch screen, where
+   * nothing hovers to show what it is first (asked 2026-11-24, ADR-0033): the first tap says what it is, in its tooltip,
+   * and highlights its factory; a second tap on the same building opens the page.
+   */
+  private opensFactory(shape: L.Path, id: string, owner: OutlinedFactory | undefined): void {
     if (!owner) return;
     shape.on('click', (event: L.LeafletMouseEvent) => {
       if (this.drawing() || this.selection.selecting()) return;
       L.DomEvent.stopPropagation(event);
-      void this.router.navigate(['/snapshots', this.id(), 'factories', owner.factoryId]);
+      if (touchScreen() && (this.tapped() !== id || this.factoryId() !== owner.factoryId)) {
+        this.shownStatus.set(null);
+        this.factoryId.set(owner.factoryId);
+        this.tapped.set(id);
+        this.openLabel(shape, owner);
+        return;
+      }
+      this.openFactory(owner);
     });
+  }
+
+  /** The building tapped once on a touch screen: its label open again when the map is drawn anew, as it highlights. */
+  private reopenTapped(id: string, shape: L.Path, owner: OutlinedFactory | undefined): void {
+    if (owner && untracked(this.tapped) === id) this.openLabel(shape, owner);
+  }
+
+  /**
+   * A factory's building's tooltip, opened by a tap: a tap on it opens the factory too, as a second tap on the building
+   * does (asked 2026-11-24: "tap again to open" invites one). Leaflet's tooltips take no pointer; this one does.
+   */
+  private openLabel(shape: L.Path, owner: OutlinedFactory): void {
+    shape.openTooltip();
+    const label = shape.getTooltip()?.getElement();
+    if (!label) return;
+    label.style.pointerEvents = 'auto';
+    label.onclick = (event) => {
+      // Not on to the map, whose click lets go of the highlight.
+      event.stopPropagation();
+      this.openFactory(owner);
+    };
+  }
+
+  private openFactory(owner: OutlinedFactory): void {
+    void this.router.navigate(['/snapshots', this.id(), 'factories', owner.factoryId]);
   }
 
   /** A click on a held-back machine of no factory asks why, in the sidebar (asked 2026-11-22); not while drawing. */
@@ -898,4 +942,9 @@ export class MapPage {
 /** The area between two corners on the map, in the world's centimetres. */
 function toArea(from: L.LatLng, to: L.LatLng): Area {
   return areaBetween(fromMapPoint(from.lat, from.lng), fromMapPoint(to.lat, to.lng));
+}
+
+/** A touch screen: nothing hovers, as the stylesheets ask with `@media (hover: none)`. */
+function touchScreen(): boolean {
+  return window.matchMedia?.('(hover: none)').matches ?? false;
 }
