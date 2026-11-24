@@ -21,7 +21,16 @@
   width: 100%;
   justify-content: flex-start;
 
+  // The label takes the room between the icons, so the arrow stands at the right (asked 2026-11-24). It's in
+  // Material's own template: out of this stylesheet's reach without ::ng-deep.
+  ::ng-deep .mdc-button__label {
+    flex: 1;
+    min-width: 0;
+    text-align: start;
+  }
+
   .name {
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
