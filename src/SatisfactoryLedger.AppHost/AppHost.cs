@@ -57,7 +57,11 @@ if (!string.IsNullOrEmpty(builder.Configuration["Parameters:anthropic-api-key"])
 // services__api__https__0. "start" first generates the API client from api/openapi.json.
 // It also reaches the Assistant (services__assistant__http__0), without waiting for it: a first model download
 // shouldn't hold up the app, only its explanations.
+// It listens on every network the PC is on, not only on localhost, so a phone or tablet on the same network can open it
+// at the PC's address (asked 2026-11-24, ADR-0033); it alone needs to, as it passes /api on to the API itself. The "--"
+// is npm's: Aspire runs `npm run start <args>` without it, and npm would take --host as its own setting (tried 2026-11-24).
 builder.AddJavaScriptApp("web", "../../web", "start")
+    .WithRunScript("start", ["--", "--host", "0.0.0.0"])
     .WithReference(api)
     .WithReference(assistant)
     .WaitFor(api)

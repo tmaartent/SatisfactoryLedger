@@ -68,4 +68,29 @@ describe('the tabs of the sidebar', () => {
     tabs().add(tab('info'));
     expect(tabs().current()?.key).toBe('info');
   });
+
+  describe('before a 3D view', () => {
+    const screen = (phone: boolean) =>
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({ matches: phone && query === '(max-width: 599px)' })),
+      );
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('closes on a phone, where its sheet would lie over the view', () => {
+      screen(true);
+
+      tabs().closeOnPhone();
+
+      expect(tabs().collapsed()).toBe(true);
+    });
+
+    it('stays open on a wider screen, where it stands beside the view', () => {
+      screen(false);
+
+      tabs().closeOnPhone();
+
+      expect(tabs().collapsed()).toBe(false);
+    });
+  });
 });

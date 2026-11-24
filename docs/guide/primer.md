@@ -287,6 +287,19 @@ An Angular service such as `shared/catalog-names.ts` looks like a Spring `@Servi
 - **Signals:** the machine filter in `world/findings.ts` is a `computed()` over `findings()` and `limitFilter()`. React would run the component again and use `useMemo` to keep that cheap.
 - **One toolchain:** the CLI, `HttpClient` and Angular Material came as one set. With React you'd choose a bundler, router, data library and component library separately.
 
+### Phones and touch screens in CSS
+
+Java has no counterpart for this part: in a browser, the layout follows the screen through CSS, not code.
+
+- **`@media (max-width: 599px)`** applies rules only on narrow screens (`app.scss`, `sidebar/sidebar.scss`, `world/map/map-page.scss`). Jsdom, which the tests run in, has no screen and applies none of them: test the behaviour, and look at the layout in a browser.
+- **`@media (hover: none)`** asks about the input, not the size: true where nothing can hover, as on a phone or a tablet (`world/map/map-page.scss`, the shift and ctrl hint). A narrow desktop window still has a mouse.
+- **`dvh`, not `vh`.** `100vh` on a phone's browser is the screen's height *including* the address bar, so the page's bottom is cut off; `100dvh` is the height actually shown (`app.scss`).
+- **A host binding** (`host: { '[class.closed]': 'tabs.collapsed()' }` in `sidebar/sidebar.ts`) sets a class on the component's own element, which its stylesheet reaches with `:host(.closed)`. Like an attribute a JSP tag writes on its own element, but kept up to date.
+- **`setPointerCapture`** (`sidebar/sidebar.ts`, `grab`) sends a finger's later moves and its lifting to the element it went down on, even once it has left it: a swipe that ends beside the handle still counts.
+- **`window.matchMedia(query)`** asks the same question from code (`sidebar/sidebar-tabs.ts`, `closeOnPhone`): `.matches` is true when the media query applies now. Jsdom has no `matchMedia`, so the code calls it with `?.()` and the test stubs it with `vi.stubGlobal`.
+- **A three.js camera's `fov` is its upright angle of view.** How much fits across follows from the width-to-height ratio (`aspect`): on a screen higher than wide, less than fits from top to bottom. Framing for a phone means standing further back (`world/area/framing.ts`).
+- **A component's styles don't reach elements made in code.** Angular scopes a component's CSS by an attribute it puts on every element of its template (`_ngcontent-…`); a `<canvas>` that three.js creates and appends lacks it, so `.stage canvas { width: 100% }` never applies. Style it inline (`AreaPage.start`). The miss only showed on a phone: an unstyled canvas shows at its pixels' size, which equals its CSS size only at a pixel ratio of 1.
+
 ## Architecture & DDD
 
 | Term | What it is | In this project |

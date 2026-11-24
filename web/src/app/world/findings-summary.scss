@@ -1,11 +1,17 @@
 .summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+
+  // Compact (asked 2026-11-24: they took a lot of room, on a phone above all): the figure, and its label below it.
+  mat-card-content {
+    padding: 8px 12px;
+    font: var(--mat-sys-body-small);
+  }
 
   .figure {
-    font: var(--mat-sys-display-small);
+    font: var(--mat-sys-headline-small);
   }
 
   .good .figure {

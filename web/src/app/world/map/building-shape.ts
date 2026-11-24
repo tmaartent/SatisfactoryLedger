@@ -2,6 +2,7 @@ import * as L from 'leaflet';
 
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { Position } from '../../shared/display';
+import { BuildingOutline } from './building-outline';
 import { footprintShapes, toMapPoint } from './map-model';
 
 /**
@@ -16,7 +17,7 @@ export function buildingShape(
   dot = 4,
 ): L.Path {
   return footprints.has(building.className)
-    ? L.polygon(
+    ? new BuildingOutline(
         footprintShapes(building, footprints).map((ring) => [ring]),
         { ...style, fillRule: 'nonzero' },
       )

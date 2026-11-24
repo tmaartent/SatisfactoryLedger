@@ -54,11 +54,12 @@ export class App {
   });
 
   /**
-   * Whether the page has the snapshot picker above its tabs: every World page but the optimal arrangement, which is
-   * about the snapshot it was opened from, so picking another means nothing there (asked 2026-11-23).
+   * Whether the page has the snapshot picker above its tabs: every World page but those about one part of the snapshot
+   * they were opened from, where picking another means nothing: the optimal arrangement (asked 2026-11-23) and a
+   * factory's page (asked 2026-11-24).
    */
   protected readonly picksSnapshot = computed(
-    () => this.inWorld() && !/^\/snapshots\/[^/?#]+\/arrangement/.test(this.url()),
+    () => this.inWorld() && !/^\/snapshots\/[^/?#]+\/(arrangement|factories)\b/.test(this.url()),
   );
 
   /** The snapshot the page is about, from its URL; null on the World's start and outside the World. */

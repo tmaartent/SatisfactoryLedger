@@ -96,4 +96,49 @@ describe('the sidebar', () => {
     expect(icons().map((icon) => icon.getAttribute('aria-label'))).toEqual(['Factories']);
     expect(content()).toBe('Rubber');
   });
+
+  describe('on a phone, as a sheet over the map', () => {
+    /** A finger on the open tab's handle, moved this many pixels down (up when less than 0) and lifted. */
+    async function swipe(
+      fixture: { whenStable: () => Promise<unknown> },
+      element: HTMLElement,
+      down: number,
+    ) {
+      const handle = element.querySelector('app-sidebar .handle') as HTMLElement;
+      handle.dispatchEvent(new MouseEvent('pointerdown', { clientY: 300, bubbles: true }));
+      handle.dispatchEvent(new MouseEvent('pointerup', { clientY: 300 + down, bubbles: true }));
+      await fixture.whenStable();
+    }
+
+    it('stands at half height at first, and at full height once its handle is swiped up', async () => {
+      const { fixture, element } = await render();
+      const tab = () => element.querySelector('app-sidebar .tab') as HTMLElement;
+      expect(tab().classList).not.toContain('full');
+
+      await swipe(fixture, element, -100);
+
+      expect(tab().classList).toContain('full');
+    });
+
+    it('closes to the bar of tabs when swiped down from half height', async () => {
+      const { fixture, element, icons } = await render();
+
+      await swipe(fixture, element, 100);
+
+      expect(element.querySelector('app-sidebar .tab')).toBeNull();
+      expect(icons()).toHaveLength(2);
+    });
+
+    it('opens at half height again, after being closed from full height', async () => {
+      const { fixture, element, icons } = await render();
+      await swipe(fixture, element, -100);
+      await swipe(fixture, element, 100);
+      await swipe(fixture, element, 100);
+
+      icons()[0].click();
+      await fixture.whenStable();
+
+      expect(element.querySelector('app-sidebar .tab')?.classList).not.toContain('full');
+    });
+  });
 });

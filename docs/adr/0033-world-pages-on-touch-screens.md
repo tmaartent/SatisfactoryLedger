@@ -1,0 +1,38 @@
+# ADR-0033: The World pages on phones and tablets
+
+- **Status:** Accepted
+- **Date:** 2026-11-24
+
+## Context
+The World pages were made for a mouse and a wide screen:
+- **Areas need keys:** holding shift and dragging opens an area in 3D, ctrl and dragging arranges it. A touch screen has neither key, and a one-finger drag pans the map.
+- **What a building is shows on hover only.** A tooltip opens when the mouse is over a building, belt or node. A touch screen has no hover, and a tap already highlights a factory.
+- **The sidebar is too wide for a phone:** its open tab is 340 pixels, and the rail beside it 48. On a phone (about 360 to 430 pixels wide) an open tab covers the whole map.
+- **The page is cut off at the bottom:** heights were set in `vh`, which on a phone's browser includes the space behind the address bar.
+
+## Decision
+*(Decided by the owner 2026-11-24.)*
+- **A phone** is a screen narrower than 600 pixels, where Angular Material's toolbar turns mobile. **A touch screen** is one where nothing hovers (`@media (hover: none)`). The two are apart: a tablet is wide but has no keys, and a narrow desktop window has them.
+- **On a phone, the sidebar is a bar of tabs along the bottom** *(asked: bottom sheet)*. Its open tab is a sheet above that bar, over the map, at half the screen's height or all of it:
+  - a swipe up on its handle raises it to full height, but never over the toolbar;
+  - a swipe down lowers it to half height, or from there closes it;
+  - a tap on the handle switches between half and full height;
+  - what the shell puts above the tabs (the snapshot picker) stays above the bar with no tab open *(amended 2026-11-24, asked: it was hidden then, but the snapshot is worth seeing always)*; the map ends above the two.
+
+  Tablets keep the sidebar on the right, its open tab over the map below 960 pixels (ADR-0031).
+- **On a phone, the legend is folded behind a button** in the map's corner, as it covers much of the map; elsewhere it's always open.
+- **On a touch screen, the hint about shift and ctrl doesn't show.**
+- **A 3D view on a phone opens with the tab closed** *(asked 2026-11-24)*: a sheet over it would hide half of it. A click on something in the view opens the Info tab, as everywhere.
+- **The 3D view's hint, on a touch screen:** "Drag to look, pinch to zoom, two-finger drag to move. Click any object to inspect it." *(asked 2026-11-24)*. With a mouse it keeps its words for the wheel and the right button.
+- **Heights in `dvh`**, the height the browser shows, not `vh`.
+- **Picking an area on a touch screen: a select button on the map** *(asked; not a long press, and not desktop only)*. It turns on a select mode, where a one-finger drag draws the area instead of panning. On letting go, **3D** and **Arrange** say where it opens. *(Step 91.)*
+- **A tap on a building highlights its factory, as now, and shows what it is** *(asked)*, as its tooltip says on hover; a tap elsewhere clears both. *(Step 92.)*
+
+## Alternatives considered
+- **Keep the sidebar on the right on a phone, only narrower:** the least work, but the map is hidden while a tab is open.
+- **A full-screen tab on a phone:** simpler than a sheet, but the map and a tab can't be seen together.
+- **A long press, then a drag, to pick an area:** no button, but hard to find.
+- **No areas on touch screens:** phones and tablets would only look.
+
+## Consequences
+- The layout's breakpoints are in CSS. Tests in jsdom can't apply them: what they check is the behaviour (the sheet's swipes, the legend's button). The layout was looked at in headless Chrome at a phone's and a tablet's size, with touch emulated; it needs a look on a real phone.

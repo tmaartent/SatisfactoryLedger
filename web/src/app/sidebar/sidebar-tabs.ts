@@ -1,5 +1,7 @@
 import { computed, Injectable, signal, TemplateRef } from '@angular/core';
 
+import { SheetHeight } from './sheet';
+
 /** A tab of the sidebar: its icon on the rail, and what it shows, a template the page declares (see SidebarTab). */
 export interface Tab {
   key: string;
@@ -29,6 +31,11 @@ export class SidebarTabs {
     () => this.tabs().find((tab) => tab.key === this.chosen()) ?? this.tabs()[0] ?? null,
   );
   readonly collapsed = signal(false);
+  /**
+   * How high the open tab stands as a sheet on a phone (asked 2026-11-24); elsewhere it fills the sidebar's height. Here,
+   * not in the sidebar, as the map centres what it zooms to on what the tab leaves in view.
+   */
+  readonly sheet = signal<SheetHeight>('half');
 
   add(tab: Tab): void {
     this.added.update((tabs) => [...tabs, tab]);
@@ -42,6 +49,14 @@ export class SidebarTabs {
   show(key: string): void {
     this.chosen.set(key);
     this.collapsed.set(false);
+  }
+
+  /**
+   * Before a 3D view (asked 2026-11-24): on a phone the open tab is a sheet over the lower part of the screen, and the
+   * view would lie half under it, so it starts closed. A click on what's in the view opens it again on the Info tab.
+   */
+  closeOnPhone(): void {
+    if (window.matchMedia?.('(max-width: 599px)').matches) this.collapsed.set(true);
   }
 
   /** A click on a tab's icon: the open tab collapses; any other opens. */

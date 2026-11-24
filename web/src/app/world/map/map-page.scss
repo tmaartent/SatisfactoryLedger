@@ -13,12 +13,13 @@
   position: relative;
 }
 
-// The Info tab of the sidebar: the overview of the findings, in a column of two cards (asked 2026-11-23).
+// The Info tab of the sidebar: the overview of the findings, in rows of three compact cards (asked 2026-11-23; three
+// and compact 2026-11-24).
 .info {
   padding: 0 16px 16px;
 
   ::ng-deep .summary {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     margin-bottom: 8px;
   }
@@ -69,7 +70,7 @@
 }
 
 .map {
-  height: calc(100vh - 190px);
+  height: calc(100dvh - 190px);
 
   &.drawing {
     cursor: crosshair;
@@ -266,5 +267,49 @@ button.active {
     display: inline-flex;
     align-items: center;
     font-weight: 500;
+  }
+}
+
+// Elsewhere the legend is always open, without its button.
+.legend-toggle {
+  display: none;
+}
+
+// A phone (asked 2026-11-24): the map takes what the page has left above the snapshot picker and the bar of tabs,
+// and the legend is folded
+// behind a button in its corner, as it would cover much of the map.
+@media (max-width: 599px) {
+  .map {
+    height: calc(100dvh - 232px);
+    min-height: 300px;
+  }
+
+  .legend {
+    left: 8px;
+    bottom: 8px;
+    padding: 0;
+
+    &.open {
+      padding: 0 12px 8px 0;
+    }
+
+    &:not(.open) .entries {
+      display: none;
+    }
+
+    .entries {
+      padding-left: 12px;
+    }
+  }
+
+  .legend-toggle {
+    display: inline-flex;
+  }
+}
+
+// No keys to hold without a keyboard and mouse: the hint about shift and ctrl only shows where something hovers.
+@media (hover: none) {
+  .how {
+    display: none;
   }
 }
