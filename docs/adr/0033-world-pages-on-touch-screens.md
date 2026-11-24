@@ -25,7 +25,7 @@ The World pages were made for a mouse and a wide screen:
 - **A 3D view on a phone opens with the tab closed** *(asked 2026-11-24)*: a sheet over it would hide half of it. A click on something in the view opens the Info tab, as everywhere.
 - **The 3D view's hint, on a touch screen:** "Drag to look, pinch to zoom, two-finger drag to move. Click any object to inspect it." *(asked 2026-11-24)*. With a mouse it keeps its words for the wheel and the right button.
 - **Heights in `dvh`**, the height the browser shows, not `vh`.
-- **Picking an area on a touch screen: a select button on the map** *(asked; not a long press, and not desktop only)*. It turns on a select mode, where a one-finger drag draws the area instead of panning. On letting go, **3D** and **Arrange** say where it opens. *(Step 91.)*
+- **Picking an area on a touch screen: a select button on the map** *(asked; not a long press, and not desktop only)*. It turns on a select mode, where a one-finger drag draws the area instead of panning. On letting go, **3D** and **Arrange** say where it opens. *(Step 91.)* The optimal arrangement has the same button *(2026-11-24)*: there **Area** makes the rectangle the area to arrange, and **Keep out**, once there is an area, a part where no factory may stand; selecting goes on after a choice, so the next part can be drawn at once. The button shows only on a touch screen; with a mouse, shift and ctrl stay as they are.
 - **A tap on a building highlights its factory, as now, and shows what it is** *(asked)*, as its tooltip says on hover; a tap elsewhere clears both. *(Step 92.)*
 
 ## Alternatives considered
