@@ -66,7 +66,7 @@ import {
 } from './area-model';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
-import { framingDistance } from './framing';
+import { framingDistance, pointsToFrame } from './framing';
 import { coveredSides } from '../map/visible-part';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
@@ -711,8 +711,8 @@ export class AreaPage {
       this.content.add(mesh);
     }
 
-    if (!this.framed && buildings.length) {
-      this.frame();
+    if (!this.framed && this.content.children.length) {
+      this.frame(world.conveyors, area, at);
       this.framed = true;
     }
 
@@ -838,12 +838,19 @@ export class AreaPage {
 
   /**
    * Looks at the whole area from the south-east, a little from above. At its buildings, not at all that's drawn: a belt
-   * out of a factory runs on in the scene, cut off only where the area ends, and would pull the middle its way.
+   * out of a factory runs on in the scene, cut off only where the area ends, and would pull the middle its way. An area
+   * with no buildings, only belts and pipes, is framed at them where they lie in it.
    */
-  private frame(): void {
+  private frame(conveyors: MapConveyor[], area: Area, at: (p: Position) => THREE.Vector3): void {
     const bounds = new THREE.Box3();
     for (const object of this.content.children)
       if (object.userData['building']) bounds.expandByObject(object);
+    if (bounds.isEmpty())
+      for (const point of pointsToFrame(
+        conveyors.map((conveyor) => conveyor.curve),
+        area,
+      ))
+        bounds.expandByPoint(at(point));
     const middle = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
     // Seen from a corner, a floor's width across is its diagonal.
