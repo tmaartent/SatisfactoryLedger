@@ -80,3 +80,79 @@
     box-shadow: var(--mat-sys-level3);
   }
 }
+
+.handle {
+  display: none;
+}
+
+// A phone (asked 2026-11-24), below where Angular Material's toolbar turns mobile: the rail is a bar of tabs along the
+// bottom, and the open tab a sheet above it, at half the screen's height or all of it; the map stays above a half one.
+// The shell holds it to the bottom of the window (app.scss).
+@media (max-width: 599px) {
+  :host {
+    height: auto;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+    box-shadow: var(--mat-sys-level3);
+  }
+
+  .above:not(:empty) {
+    border-left: none;
+  }
+
+  .above,
+  .rail {
+    flex-shrink: 0;
+  }
+
+  .panes {
+    flex-direction: column;
+  }
+
+  .tab {
+    position: static;
+    width: auto;
+    height: 45dvh;
+    border-left: none;
+    box-shadow: none;
+
+    // As high as the screen, less what the sidebar can't take: it shrinks to what's left below the toolbar.
+    &.full {
+      flex-shrink: 1;
+      height: 100dvh;
+      min-height: 0;
+    }
+
+    // Collapsing lowers the sheet.
+    header button mat-icon {
+      transform: rotate(90deg);
+    }
+  }
+
+  // A bar to grab, wide enough for a thumb.
+  .handle {
+    display: block;
+    flex-shrink: 0;
+    height: 20px;
+    touch-action: none;
+    cursor: grab;
+
+    &::after {
+      content: '';
+      display: block;
+      width: 36px;
+      height: 4px;
+      margin: 8px auto;
+      border-radius: 2px;
+      background: var(--mat-sys-outline);
+    }
+  }
+
+  .rail {
+    flex-direction: row;
+    justify-content: space-around;
+    width: auto;
+    padding: 4px;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+    border-left: none;
+  }
+}

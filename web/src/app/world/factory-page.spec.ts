@@ -139,6 +139,16 @@ describe("a factory's page", () => {
     expect(text).toContain('1 without a recipe');
   });
 
+  it('lets its tables scroll sideways, rather than widen the page past a phone screen', async () => {
+    const { element } = await render();
+
+    const tables = [...element.querySelectorAll('table')];
+    expect(tables.length).toBeGreaterThan(0);
+    expect(tables.every((table) => table.parentElement?.classList.contains('table-scroll'))).toBe(
+      true,
+    );
+  });
+
   it("no longer lists the factory's findings at the bottom", async () => {
     const { element } = await render();
 

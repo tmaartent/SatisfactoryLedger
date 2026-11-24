@@ -37,5 +37,30 @@ app-sidebar {
   top: var(--mat-toolbar-standard-height, 64px);
   z-index: 1100;
   flex-shrink: 0;
-  height: calc(100vh - var(--mat-toolbar-standard-height, 64px));
+  // The height a phone's browser shows, its address bar left out (dvh; vh counts the screen behind it).
+  height: calc(100dvh - var(--mat-toolbar-standard-height, 64px));
+}
+
+// A phone (asked 2026-11-24): the sidebar is a bar of tabs held to the bottom of the window, its open tab a sheet over
+// the page (sidebar.scss); the page leaves room for the bar, and the toolbar its logo without the title.
+@media (max-width: 599px) {
+  .title {
+    display: none;
+  }
+
+  // Room for the bar of tabs and, on a World page, the snapshot picker above it, which stays when the tab is closed.
+  main {
+    padding: 12px 8px 116px;
+  }
+
+  app-sidebar {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: auto;
+    // Never over the toolbar: a sheet at full height takes what's left below it.
+    max-height: calc(100dvh - var(--mat-toolbar-mobile-height, 56px));
+  }
 }

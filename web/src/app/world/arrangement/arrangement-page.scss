@@ -92,7 +92,7 @@
     cursor: crosshair;
   }
 
-  height: calc(100vh - 360px);
+  height: calc(100dvh - 360px);
   min-height: 400px;
   border-radius: 12px;
   background: var(--mat-sys-surface-container-lowest);

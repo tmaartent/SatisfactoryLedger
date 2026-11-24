@@ -359,6 +359,27 @@ describe('the world map of a snapshot', () => {
     ]);
   });
 
+  it('folds the legend behind a button, which opens and closes it: on a phone it covers the map', async () => {
+    const { fixture, element } = await render('s1');
+    const legend = () => element.querySelector('.legend') as HTMLElement;
+    const button = element.querySelector('.legend-toggle') as HTMLButtonElement;
+    expect([legend().classList.contains('open'), button.getAttribute('aria-expanded')]).toEqual([
+      false,
+      'false',
+    ]);
+
+    button.click();
+    await fixture.whenStable();
+    expect([legend().classList.contains('open'), button.getAttribute('aria-expanded')]).toEqual([
+      true,
+      'true',
+    ]);
+
+    button.click();
+    await fixture.whenStable();
+    expect(legend().classList.contains('open')).toBe(false);
+  });
+
   const names = (element: HTMLElement, selector: string) =>
     [...element.querySelectorAll(selector)].map((entry) => entry.textContent?.trim());
 

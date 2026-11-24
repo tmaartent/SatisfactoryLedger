@@ -31,6 +31,7 @@ import { FootprintDocument } from '../../api/models/footprint-document';
 import { PositionDocument } from '../../api/models/position-document';
 import { GameIcon } from '../../shared/game-icon';
 import { buildingShape } from './building-shape';
+import { coveredSides } from './visible-part';
 import { holdToExtent } from './hold-to-extent';
 import { MapArt } from './map-art';
 import { HiddenNodes } from './hidden-nodes';
@@ -63,6 +64,7 @@ import {
   toMapPoint,
 } from './map-model';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
+import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { Explainer, HeldBackMachine } from '../explain/explainer';
 import { LimitFacts, limitText } from '../limit-text';
 import { FindingsSummary } from '../findings-summary';
@@ -147,6 +149,8 @@ export class MapPage {
   protected readonly purities = Purities;
   protected readonly nodeKey = nodeKey;
   protected readonly pointer = signal<string>('');
+  /** Whether the legend is unfolded: on a phone it's folded behind a button, as it covers the map (asked 2026-11-24). */
+  protected readonly legendOpen = signal(false);
   /**
    * Drawing a rectangle, to open in 3D (shift held) or to arrange its factories (ctrl held): the map stops panning, and
    * a drag draws instead. Null while not drawing.
@@ -233,6 +237,14 @@ export class MapPage {
   /** Every drawn buildable's shape, by id: to open the tooltip of the one in focus. */
   private readonly shapes = new Map<string, L.Path>();
   private fitted = false;
+  private readonly sidebar = inject(SidebarTabs);
+  /**
+   * What the map last zoomed to, to zoom to it again when the open tab folds, opens or changes height (asked
+   * 2026-11-24); forgotten once the player drags or zooms the map, or lets go of what's highlighted.
+   */
+  private lastFit: { bounds: L.LatLngBounds; margin: number; maxZoom?: number } | null = null;
+  /** Zooming to something: the zoom that starts is the map's, not the player's. */
+  private fitting = false;
 
   constructor() {
     afterNextRender(() => this.createMap());
@@ -256,6 +268,13 @@ export class MapPage {
     effect(() => this.fitToHighlighted());
     // Last, so the shapes it opens a tooltip on are drawn.
     effect(() => this.focusOnBuildable());
+    // The open tab folded, opened or changed height: what was zoomed to, centred again in what's left in view, once the
+    // page has its new layout.
+    effect(() => {
+      this.sidebar.collapsed();
+      this.sidebar.sheet();
+      setTimeout(() => this.fitAgain());
+    });
   }
 
   private createMap(): void {
@@ -283,6 +302,12 @@ export class MapPage {
     // animated zoom says where it goes as it starts, so they grow along with the map; others end with 'zoom'.
     const sizeNodes = (zoom = this.map!.getZoom()) =>
       this.container().nativeElement.style.setProperty('--node-size', `${nodeMarkerSize(zoom)}px`);
+    // The player moves the map: what was zoomed to is theirs to find again.
+    this.map.on('dragstart', () => (this.lastFit = null));
+    this.map.on('zoomstart', () => {
+      if (!this.fitting) this.lastFit = null;
+    });
+    this.map.on('moveend', () => (this.fitting = false));
     this.map.on('zoomanim', (event) => sizeNodes((event as L.ZoomAnimEvent).zoom));
     this.map.on('zoom', () => sizeNodes());
     // The map picture first, so everything else lies over it.
@@ -502,7 +527,7 @@ export class MapPage {
 
     // The first time there's something to show, zoom to it.
     if (!this.fitted && points.length > 0) {
-      this.map.fitBounds(L.latLngBounds(points), { padding: [24, 24] });
+      this.fitVisible(L.latLngBounds(points), 24);
       this.fitted = true;
     }
   }
@@ -720,9 +745,7 @@ export class MapPage {
     this.nodeLayer.clearLayers();
     // With no snapshot, nothing else to zoom to: the nodes, the first time.
     if (!this.id() && !this.fitted && nodes.length > 0) {
-      this.map.fitBounds(L.latLngBounds(nodes.map((node) => toMapPoint(node.position))), {
-        padding: [24, 24],
-      });
+      this.fitVisible(L.latLngBounds(nodes.map((node) => toMapPoint(node.position))), 24);
       this.fitted = true;
     }
     for (const node of nodes) {
@@ -769,6 +792,7 @@ export class MapPage {
     if (!this.map) return;
 
     this.shownLayer.clearLayers();
+    if (!highlighted) this.lastFit = null;
     if (!highlighted || !world) return;
     const points = [
       ...[...world.machines, ...world.consumers]
@@ -791,8 +815,37 @@ export class MapPage {
           interactive: false,
         }).addTo(this.shownLayer);
     }
-    if (points.length > 0)
-      this.map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 1 });
+    if (points.length > 0) this.fitVisible(L.latLngBounds(points), 48, 1);
+  }
+
+  /**
+   * Zooms to what's within these bounds, this many pixels in from the edges, and centres it in the part of the map the
+   * open tab leaves in view (asked 2026-11-24): above a sheet on a phone, left of a tab lying over the map.
+   */
+  private fitVisible(bounds: L.LatLngBounds, margin: number, maxZoom?: number): void {
+    if (!this.map) return;
+    // The sidebar is the shell's, beside the page: where its open tab lies, as the browser has laid it out.
+    const tab = document.querySelector('app-sidebar .tab');
+    const covered = coveredSides(
+      this.container().nativeElement.getBoundingClientRect(),
+      tab?.getBoundingClientRect() ?? null,
+    );
+    this.lastFit = { bounds, margin, maxZoom };
+    this.fitting = true;
+    this.map.fitBounds(bounds, {
+      paddingTopLeft: [margin + covered.left, margin + covered.top],
+      paddingBottomRight: [margin + covered.right, margin + covered.bottom],
+      maxZoom,
+    });
+  }
+
+  /** What was zoomed to last, again, in what's now in view; nothing once the player has moved the map. */
+  private fitAgain(): void {
+    if (!this.map || !this.lastFit) return;
+    // Beside the page, the sidebar changes the map's size too: Leaflet's own idea of it first.
+    this.map.invalidateSize({ pan: false });
+    const { bounds, margin, maxZoom } = this.lastFit;
+    this.fitVisible(bounds, margin, maxZoom);
   }
 
   /** A finding's buildable (?focus=): zoom to it, ring it, and open its tooltip. Nothing when the map doesn't have it. */
@@ -812,7 +865,7 @@ export class MapPage {
       fill: false,
       interactive: false,
     }).addTo(this.focusLayer);
-    this.map.setView(point, 1);
+    this.fitVisible(L.latLngBounds([point, point]), 0, 1);
     // The first fit to all machines would otherwise zoom out again.
     this.fitted = true;
     this.shapes.get(id)?.openTooltip(point);

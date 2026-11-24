@@ -24,6 +24,7 @@ describe('App', () => {
           { path: 'snapshots/:id', component: EmptyPage },
           { path: 'snapshots/:id/map', component: EmptyPage },
           { path: 'snapshots/:id/arrangement', component: EmptyPage },
+          { path: 'snapshots/:id/factories/:factoryId', component: EmptyPage },
           { path: 'catalog', component: EmptyPage },
         ]),
         // The snapshots the picker above the sidebar lists.
@@ -132,6 +133,15 @@ describe('App', () => {
 
   it('has no snapshot picker on the optimal arrangement, which is about the snapshot it was opened from', async () => {
     const { fixture, sidebar } = await render('/snapshots/s1/arrangement');
+    for (const deferred of await fixture.getDeferBlocks())
+      await deferred.render(DeferBlockState.Complete);
+    await fixture.whenStable();
+
+    expect(sidebar()?.querySelector('app-snapshot-picker')).toBeNull();
+  });
+
+  it("has no snapshot picker on a factory's page, which is about one factory of its snapshot", async () => {
+    const { fixture, sidebar } = await render('/snapshots/s1/factories/f1');
     for (const deferred of await fixture.getDeferBlocks())
       await deferred.render(DeferBlockState.Complete);
     await fixture.whenStable();

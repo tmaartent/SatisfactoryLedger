@@ -5,7 +5,16 @@
 <div class="panes">
   @if (tabs.current(); as open) {
     @if (!tabs.collapsed()) {
-      <section class="tab" [attr.aria-label]="open.label">
+      <section class="tab" [class.full]="tabs.sheet() === 'full'" [attr.aria-label]="open.label">
+        <!-- On a phone, what the sheet is moved by: swiped up or down, or tapped (asked 2026-11-24). -->
+        <div
+          class="handle"
+          role="button"
+          [attr.aria-label]="tabs.sheet() === 'full' ? 'Half height' : 'Full height'"
+          (pointerdown)="grab($event)"
+          (pointerup)="letGo($event)"
+          (pointercancel)="letGo($event)"
+        ></div>
         <!-- The tab's icon and title in a band of its own, so it stands apart from what the tab shows (asked 2026-11-23). -->
         <header>
           <mat-icon class="tab-icon">{{ open.icon }}</mat-icon>

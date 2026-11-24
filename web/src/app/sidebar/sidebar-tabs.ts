@@ -1,5 +1,7 @@
 import { computed, Injectable, signal, TemplateRef } from '@angular/core';
 
+import { SheetHeight } from './sheet';
+
 /** A tab of the sidebar: its icon on the rail, and what it shows, a template the page declares (see SidebarTab). */
 export interface Tab {
   key: string;
@@ -29,6 +31,11 @@ export class SidebarTabs {
     () => this.tabs().find((tab) => tab.key === this.chosen()) ?? this.tabs()[0] ?? null,
   );
   readonly collapsed = signal(false);
+  /**
+   * How high the open tab stands as a sheet on a phone (asked 2026-11-24); elsewhere it fills the sidebar's height. Here,
+   * not in the sidebar, as the map centres what it zooms to on what the tab leaves in view.
+   */
+  readonly sheet = signal<SheetHeight>('half');
 
   add(tab: Tab): void {
     this.added.update((tabs) => [...tabs, tab]);
