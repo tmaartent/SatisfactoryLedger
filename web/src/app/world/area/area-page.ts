@@ -64,6 +64,7 @@ import {
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { framingDistance } from './framing';
+import { coveredSides } from '../map/visible-part';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
 import {
@@ -74,7 +75,17 @@ import {
 } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
 import { pieceAt, pieceStarts } from './merged-pieces';
-import { boxSelect, rectBetween, ScreenPoint, ScreenRect, toggle } from './selection';
+import {
+  boxSelect,
+  choicesTop,
+  ClickReach,
+  isTap,
+  rectBetween,
+  ScreenPoint,
+  ScreenRect,
+  SeenRange,
+  toggle,
+} from './selection';
 import { GameIcon } from '../../shared/game-icon';
 
 /** A building in the area, with what the panel shows about it. */
@@ -335,8 +346,17 @@ export class AreaPage {
   private readonly previewLayer = new THREE.Group();
   /** The belt, pipe or lift looked at, drawn again over itself, glowing. */
   private readonly selectionLayer = new THREE.Group();
-  /** The box being dragged, on screen, while shift or alt is held. */
+  /** The box being dragged, on screen, while shift or alt is held, or while boxing on a touch screen. */
   protected readonly dragBox = signal<ScreenRect | null>(null);
+  /**
+   * Boxing machines on a touch screen, with no keys to hold (asked 2026-11-24, ADR-0033): while defining, a button turns
+   * it on; the view stops turning, and a one-finger drag draws a box instead.
+   */
+  protected readonly boxing = signal(false);
+  /** The box drawn while boxing, once let go: its machines to add or take out. */
+  protected readonly drawnBox = signal<ScreenRect | null>(null);
+  /** Where the choices for the box drawn stand, from the view's top: beside the box (choicesTop). */
+  protected readonly choicesAt = signal(0);
 
   protected readonly percent = percent;
   protected readonly perMinute = perMinute;
@@ -394,7 +414,7 @@ export class AreaPage {
 
   /** Defining a factory shows the Info tab, which has the steps; the name and Save are in the page's header. */
   protected startDefining(): void {
-    this.sidebar.show('info');
+    this.showStepsBeside();
     this.defining.set(true);
     this.settled.set([]);
     this.saveError.set(null);
@@ -410,8 +430,17 @@ export class AreaPage {
     this.factoryName.set(factory.name);
     this.settled.set([]);
     this.saveError.set(null);
-    this.sidebar.show('info');
+    this.showStepsBeside();
     this.defining.set(true);
+  }
+
+  /**
+   * The Info tab, where defining shows what the machines chosen make and take: opened where it stands beside the view;
+   * on a phone it would lie over it, so it stays closed until a machine is added or taken out (asked 2026-11-24).
+   */
+  private showStepsBeside(): void {
+    this.sidebar.show('info');
+    this.sidebar.closeOnPhone();
   }
 
   /** Edits a factory by its id, once its machines are known: the factory's page asks this from its Edit button. */
@@ -427,7 +456,32 @@ export class AreaPage {
     this.factories.reload();
   }
 
+  /** The select button while defining: boxing starts, and the view no longer turns; or it stops, letting go of a box. */
+  protected toggleBoxing(): void {
+    const on = !this.boxing();
+    this.boxing.set(on);
+    this.letGoOfBox();
+    if (this.controls) this.controls.enabled = !on;
+  }
+
+  /** Adds or takes out every machine in the box drawn. Boxing goes on, so the next box can be drawn at once. */
+  protected useBox(mode: 'add' | 'remove'): void {
+    const box = this.drawnBox();
+    if (!box) return;
+    const stage = this.stage().nativeElement;
+    this.chosen.update((chosen) => boxSelect(chosen, this.machinesOnScreen(stage), box, mode));
+    this.letGoOfBox();
+    // What they make and take now, in the Info tab, as after a tap on a machine.
+    this.sidebar.show('info');
+  }
+
+  protected letGoOfBox(): void {
+    this.drawnBox.set(null);
+    this.dragBox.set(null);
+  }
+
   stopDefining(): void {
+    if (this.boxing()) this.toggleBoxing();
     this.defining.set(false);
     this.editing.set(null);
     this.chosen.set(new Set());
@@ -794,7 +848,7 @@ export class AreaPage {
       (event) => (down = { x: event.clientX, y: event.clientY }),
     );
     canvas.addEventListener('pointerup', (event) => {
-      if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > 4) return;
+      if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > ClickReach) return;
       const rect = canvas.getBoundingClientRect();
       ray.setFromCamera(
         new THREE.Vector2(
@@ -833,10 +887,14 @@ export class AreaPage {
    * While defining a factory, a drag with shift or alt draws a box instead of turning the view: on release, every
    * machine shown whose middle lies inside it is added (shift) or taken out (alt). The stage listens in the capture
    * phase, so it hears the press before OrbitControls on the canvas does, and can switch the controls off in time.
+   *
+   * While boxing on a touch screen, a one-finger drag draws the box too, and on release it stays, for the page to offer
+   * to add or take out its machines. A tap draws none: the click on the machine under it adds or takes it out. The
+   * pointer isn't captured then: a touch stays with the canvas it pressed, whose click listens for the release.
    */
   private listenForBoxes(stage: HTMLElement): void {
     let start: ScreenPoint | null = null;
-    let mode: 'add' | 'remove' = 'add';
+    let mode: 'add' | 'remove' | 'offer' = 'add';
     const at = (event: PointerEvent): ScreenPoint => {
       const rect = stage.getBoundingClientRect();
       return { x: event.clientX - rect.left, y: event.clientY - rect.top };
@@ -844,27 +902,69 @@ export class AreaPage {
     stage.addEventListener(
       'pointerdown',
       (event) => {
-        if (!this.defining() || event.button !== 0 || !(event.shiftKey || event.altKey)) return;
+        if (!this.defining() || event.button !== 0) return;
+        if (event.shiftKey || event.altKey) {
+          mode = event.altKey ? 'remove' : 'add';
+          this.controls!.enabled = false;
+          stage.setPointerCapture(event.pointerId);
+          event.preventDefault();
+        } else if (this.boxing() && event.isPrimary && event.target === this.renderer?.domElement) {
+          // On the canvas only: a press on the choices or the select button, which lie over it, would let go of the box
+          // before the button's click comes to use it (asked 2026-11-24: Add did nothing).
+          mode = 'offer';
+          this.letGoOfBox();
+        } else return;
         start = at(event);
-        mode = event.altKey ? 'remove' : 'add';
-        this.controls!.enabled = false;
-        stage.setPointerCapture(event.pointerId);
-        event.preventDefault();
       },
       { capture: true },
     );
     stage.addEventListener('pointermove', (event) => {
-      if (start) this.dragBox.set(rectBetween(start, at(event)));
+      if (start && event.isPrimary) this.dragBox.set(rectBetween(start, at(event)));
     });
-    stage.addEventListener('pointerup', (event) => {
-      if (!start) return;
+    const letGo = (event: PointerEvent) => {
+      if (!start || !event.isPrimary) return;
       const box = rectBetween(start, at(event));
       start = null;
+      if (mode === 'offer') {
+        if (isTap(box)) this.letGoOfBox();
+        else {
+          this.choicesAt.set(choicesTop(box, this.seenRange(stage)));
+          this.drawnBox.set(box);
+        }
+        return;
+      }
+      // A const, as the callback below can't rely on a narrowed outer variable.
+      const keyed = mode;
       this.dragBox.set(null);
       this.controls!.enabled = true;
       stage.releasePointerCapture(event.pointerId);
-      this.chosen.update((chosen) => boxSelect(chosen, this.machinesOnScreen(stage), box, mode));
-    });
+      this.chosen.update((chosen) => boxSelect(chosen, this.machinesOnScreen(stage), box, keyed));
+    };
+    stage.addEventListener('pointerup', letGo);
+    stage.addEventListener('pointercancel', letGo);
+  }
+
+  /**
+   * The part of the stage in sight, from its top: inside the window, below the toolbar, which the page scrolls under, and
+   * clear of the sidebar where it lies over the stage, as the bar of tabs and the sheet do on a phone.
+   */
+  private seenRange(stage: HTMLElement): SeenRange {
+    const rect = stage.getBoundingClientRect();
+    const toolbar = document.querySelector('.toolbar')?.getBoundingClientRect().bottom ?? 0;
+    const shown = {
+      left: rect.left,
+      right: rect.right,
+      top: Math.max(rect.top, toolbar),
+      bottom: Math.min(rect.bottom, window.innerHeight),
+    };
+    const covered = coveredSides(
+      shown,
+      document.querySelector('app-sidebar')?.getBoundingClientRect() ?? null,
+    );
+    return {
+      top: shown.top + covered.top - rect.top,
+      bottom: shown.bottom - covered.bottom - rect.top,
+    };
   }
 
   /**

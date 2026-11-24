@@ -16,6 +16,28 @@
   touch-action: none;
 }
 
+// The select button above the canvas only: the maps lift it over Leaflet's panes, but here that would put it over the
+// toolbar when the view is scrolled under it.
+.stage button.area-select {
+  z-index: 1;
+}
+
+// The choices for a box drawn stand beside it, where the finger let go (choicesAt), not at the top or the bottom of the
+// view as on the maps: on a phone the view is higher than what's in sight, and they could lie off the screen.
+.stage .area-choices {
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+// While defining on a touch screen, the legend leaves room for the select button in the top right corner.
+@media (hover: none) {
+  .status-legend {
+    right: 64px;
+  }
+}
+
 // Inside a factory's page, the overview above it and its input and output below.
 .stage.embedded {
   height: 65dvh;
@@ -95,6 +117,11 @@
     margin: 0;
     padding-left: 18px;
     font: var(--mat-sys-body-medium);
+
+    // With a mouse only; on a touch screen the hint in the view says how (asked 2026-11-24).
+    @media (hover: none) {
+      display: none;
+    }
   }
 
   .clicked {

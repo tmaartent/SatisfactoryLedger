@@ -61,10 +61,44 @@
         [style.height.px]="box.bottom - box.top"
       ></div>
     }
+    @if (defining()) {
+      <!-- On a touch screen, with no keys to hold: box machines, then say what to do with them (asked 2026-11-24). -->
+      <button
+        mat-mini-fab
+        class="area-select"
+        [attr.aria-pressed]="boxing()"
+        aria-label="Select a box of machines"
+        title="Select a box of machines"
+        (click)="toggleBoxing()"
+      >
+        <mat-icon>{{ boxing() ? 'close' : 'highlight_alt' }}</mat-icon>
+      </button>
+      @if (drawnBox()) {
+        <div class="area-choices" [style.top.px]="choicesAt()">
+          <button mat-flat-button type="button" (click)="useBox('add')">
+            <mat-icon>add</mat-icon> Add
+          </button>
+          <button mat-flat-button type="button" (click)="useBox('remove')">
+            <mat-icon>remove</mat-icon> Take out
+          </button>
+          <button mat-button type="button" (click)="letGoOfBox()">Cancel</button>
+        </div>
+      }
+    }
     <span class="hint">
       @if (defining()) {
-        Click a machine to add it, click it again to take it out. Shift-drag to add a box of them,
-        alt-drag to take them out.
+        <span class="mouse"
+          >Click a machine to add it, click it again to take it out. Shift-drag to add a box of
+          them, alt-drag to take them out.</span
+        >
+        <span class="touch">
+          @if (boxing()) {
+            Drag a box over machines, or tap one to add or take it out.
+          } @else {
+            Tap a machine to add it, tap it again to take it out. The button at the top right
+            selects a box of them.
+          }
+        </span>
       } @else {
         <!-- With a mouse, or on a touch screen, which has neither a wheel nor a right button (asked 2026-11-24). -->
         <span class="mouse"
@@ -113,23 +147,6 @@
     @if (defining()) {
       <section class="factory">
         <h2>{{ editing() ? 'Edit factory' : 'New factory' }}</h2>
-        <ul class="how">
-          <li>
-            <b>Click</b> a machine or generator to add it; it turns blue. Click it again to take it
-            out.
-          </li>
-          <li>Hold <b>Shift</b> and drag a box to add every one inside it.</li>
-          <li>Hold <b>Alt</b> and drag a box to take them out.</li>
-          <li>
-            Machines outlined in colour are another factory's and can't be added{{
-              editing() ? "; this factory's own can be taken out" : ''
-            }}.
-          </li>
-          <li>
-            Sinks, storage containers and stations aren't part of a factory: a factory is its
-            machines and generators.
-          </li>
-        </ul>
         <p>
           {{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators
           included
@@ -174,6 +191,27 @@
             }
           </p>
         }
+        <!--
+          How, below what the machines chosen make and take: with a mouse only. On a touch screen the hint in the view
+          says it, and the tab stays short (asked 2026-11-24).
+        -->
+        <ul class="how">
+          <li>
+            <b>Click</b> a machine or generator to add it; it turns blue. Click it again to take it
+            out.
+          </li>
+          <li>Hold <b>Shift</b> and drag a box to add every one inside it.</li>
+          <li>Hold <b>Alt</b> and drag a box to take them out.</li>
+          <li>
+            Machines outlined in colour are another factory's and can't be added{{
+              editing() ? "; this factory's own can be taken out" : ''
+            }}.
+          </li>
+          <li>
+            Sinks, storage containers and stations aren't part of a factory: a factory is its
+            machines and generators.
+          </li>
+        </ul>
       </section>
     }
     @if (defining()) {
