@@ -39,4 +39,20 @@ public class NumberCheckTests
 
         Assert.Equal(["6"], NumberCheck.Unsupported("The 6 machines wait on one Conveyor Belt Mk.6.", facts));
     }
+
+    [Fact]
+    public void A_tier_mark_is_part_of_a_name_also_where_the_facts_give_none_as_the_belt_to_rebuild_as()
+    {
+        JsonElement facts = Facts("""{ "at": [{ "building": "Conveyor Belt Mk.4" }] }""");
+
+        Assert.Empty(NumberCheck.Unsupported("Rebuild the Conveyor Belt Mk.4 as a Mk.5, or as a Mk 6.", facts));
+    }
+
+    [Fact]
+    public void A_number_after_a_tier_mark_is_still_flagged()
+    {
+        JsonElement facts = Facts("""{ }""");
+
+        Assert.Equal(["2"], NumberCheck.Unsupported("Rebuild them as Mk.5 belts, 2 of them.", facts));
+    }
 }
