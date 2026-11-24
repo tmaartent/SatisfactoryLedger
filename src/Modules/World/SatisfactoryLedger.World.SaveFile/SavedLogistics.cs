@@ -18,8 +18,9 @@ public sealed record SavedLogistics(
     public IReadOnlyList<SavedCurvePoint>? Curve { get; init; }
 
     /// <summary>
-    /// What's on a belt or lift, or in a splitter's or merger's buffer, now: per item class name. Unlike stock it's
-    /// never counted as supply. Null for logistics that carry no items this way (pipes, containers).
+    /// What's on a belt or lift, or in a splitter's or merger's buffer, or the fluid in a pipe, pump or junction in m³,
+    /// now: per item class name. Unlike stock it's never counted as supply. Null for logistics that carry nothing this
+    /// way (containers, fluid buffers).
     /// </summary>
     public IReadOnlyDictionary<string, decimal>? Contents { get; init; }
 
@@ -28,4 +29,7 @@ public sealed record SavedLogistics(
     /// there. An end linked to a building the ledger doesn't read counts as connected. 0 for other logistics.
     /// </summary>
     public int LooseEnds { get; init; }
+
+    /// <summary>For a pump, the pipe piece it pushes fluid into (BR-A22); null for other logistics, and when it's linked to nothing there.</summary>
+    public BuildableId? PumpsInto { get; init; }
 }

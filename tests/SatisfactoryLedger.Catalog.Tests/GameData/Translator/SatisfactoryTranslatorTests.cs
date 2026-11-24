@@ -190,6 +190,30 @@ public class SatisfactoryTranslatorTests
         Assert.Equal("#7ab0d4", water.FluidColour);
     }
 
+    [Theory]
+    [InlineData("Desc_RocketFuel_C")]
+    [InlineData("Desc_NitrogenGas_C")]
+    [InlineData("Desc_QuantumEnergy_C")]
+    [InlineData("Desc_DarkEnergy_C")]
+    [InlineData("Desc_IonizedFuel_C")]
+    public async Task A_gas_from_the_game_file_is_a_gas(string gas)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.True(Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), item => item.Id.Id == gas).IsGas);
+    }
+
+    [Theory]
+    [InlineData("Desc_Water_C")]
+    [InlineData("Desc_LiquidTurboFuel_C")]
+    [InlineData("Desc_OreIron_C")]
+    public async Task A_liquid_or_solid_from_the_game_file_is_no_gas(string item)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.False(Assert.Single(SatisfactoryTranslator.TranslateToItems(resources), found => found.Id.Id == item).IsGas);
+    }
+
     // Every solid has a white fluid colour in the Docs file; it means none.
     [Fact]
     public async Task An_ore_from_the_game_file_has_no_fluid_colour()
@@ -510,6 +534,24 @@ public class SatisfactoryTranslatorTests
         var resources = await DocsFixture.Import("Fixtures/en-US.json");
 
         Assert.Equal(cubicMetres, SatisfactoryTranslator.TranslateToStorages(resources).Single(storage => storage.Id == StorageId.Of(building)).FluidCubicMetres);
+    }
+
+    [Theory]
+    [InlineData("Build_PipelinePump_C", 20)]
+    [InlineData("Build_PipelinePumpMk2_C", 50)]
+    public async Task A_pump_from_the_game_file_lifts_fluid_by_its_design_pressure(string pump, int metres)
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.Equal(metres, SatisfactoryTranslator.TranslateToPumps(resources).Single(found => found.Id == PumpId.Of(pump)).HeadLiftMetres);
+    }
+
+    [Fact]
+    public async Task A_valve_from_the_game_file_is_no_pump()
+    {
+        var resources = await DocsFixture.Import("Fixtures/en-US.json");
+
+        Assert.DoesNotContain(SatisfactoryTranslator.TranslateToPumps(resources), found => found.Id == PumpId.Of("Build_Valve_C"));
     }
 
     [Theory]

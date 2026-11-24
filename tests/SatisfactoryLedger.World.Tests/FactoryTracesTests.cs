@@ -136,6 +136,7 @@ public class FactoryTracesTests
     public void A_preview_says_per_item_what_leaves_and_arrives_now_by_the_stored_analysis()
     {
         FactoryPreview preview = FactoryTraces.Preview(Document, [SmelterA, SmelterB, ConstructorC], TestWorldAnalysis);
+        Assert.Null(preview.Power);
 
         Assert.Equal([new PreviewItem("Desc_IronPlate_C", 15)], preview.Leaving);
         Assert.Equal("Desc_OreIron_C", Assert.Single(preview.Arriving).Item);

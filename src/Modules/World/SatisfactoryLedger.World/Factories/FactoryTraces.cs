@@ -74,7 +74,8 @@ internal static class FactoryTraces
             PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, analysis!).GetValueOrDefault(item.Id), analysis is not null),
             PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, analysis!, members, states), analysis is not null),
             [.. definition.ConnectedIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
-            [.. definition.SuppliesIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)]);
+            [.. definition.SuppliesIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
+            analysis is null ? null : SnapshotAnalysis.PowerOf(snapshot, members, analysis));
     }
 
     /// <summary>Per item over the connections, what crosses now: summed, most first; without rates when they aren't known.</summary>

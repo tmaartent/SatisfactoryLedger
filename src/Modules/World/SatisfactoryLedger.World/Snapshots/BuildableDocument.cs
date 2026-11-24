@@ -12,6 +12,8 @@ namespace SatisfactoryLedger.World.Snapshots;
 /// <param name="Burns">The fuel a drone port or truck station burns; null for buildables without a fuel slot.</param>
 /// <param name="LooseEnds">How many ends of a belt, lift or pipe are connected to nothing; null for other buildables, and
 /// in a snapshot from before they were read (version 13).</param>
+/// <param name="PumpsInto">For a pump, the pipe piece it pushes fluid into (BR-A22); null for everything else, and in a
+/// snapshot from before version 15.</param>
 internal sealed record BuildableDocument(
     string Id,
     BuildableDocumentRole Role,
@@ -35,13 +37,15 @@ internal sealed record BuildableDocument(
     string? Fuel = null,
     bool TakesLeftoversOnly = false,
     DroneDocument? Drone = null,
-    int? LooseEnds = null)
+    int? LooseEnds = null,
+    string? PumpsInto = null)
 {
     /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
     {
         Contents = (saved as SavedLogistics)?.Contents,
         LooseEnds = saved is SavedLogistics { Curve: not null } conveyor ? conveyor.LooseEnds : null,
+        PumpsInto = (saved as SavedLogistics)?.PumpsInto?.Id,
         InputContents = CubicMetres((saved as SavedMachine)?.InputContents ?? (saved as SavedConsumer)?.FuelContents, fluids),
         OutputContents = CubicMetres((saved as SavedMachine)?.OutputContents, fluids),
         Position = saved.Position is { } position ? new PositionDocument(position.X, position.Y, position.Z) : null,
@@ -108,7 +112,10 @@ internal sealed record BuildableDocument(
                 InputPriorities)
             {
                 Inventory = InventoryOf(catalog),
-                Carrying = (Contents ?? new Dictionary<string, decimal>()).ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
+                // The fluid in a pipe only shows on the map: the model goes by belts, as before pipes had any (step 94).
+                Carrying = Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction
+                    ? new Dictionary<ItemId, decimal>()
+                    : (Contents ?? new Dictionary<string, decimal>()).ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
             },
             _ => throw new JsonException($"Buildable {Id} has an unknown role"),
         };

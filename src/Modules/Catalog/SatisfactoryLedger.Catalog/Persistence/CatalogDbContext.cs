@@ -36,6 +36,8 @@ internal sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> option
 
     public DbSet<Buildable> Buildables => Set<Buildable>();
 
+    public DbSet<Pump> Pumps => Set<Pump>();
+
     public DbSet<ResourceNode> ResourceNodes => Set<ResourceNode>();
 
     /// <summary>The game's map picture (ADR-0020): one at a time.</summary>

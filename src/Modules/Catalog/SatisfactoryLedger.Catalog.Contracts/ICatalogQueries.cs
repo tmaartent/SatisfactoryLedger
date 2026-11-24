@@ -35,4 +35,7 @@ public interface ICatalogQueries
 
     /// <summary>What the given buildings with an inventory hold (BR-A7). Unknown classes are left out.</summary>
     Task<IReadOnlyList<CatalogStorage>> GetStoragesAsync(IReadOnlyCollection<string> storageIds, CancellationToken cancellationToken);
+
+    /// <summary>The pumps with these class names that the Catalog knows, with their head lift. Unknown ids, such as valves, are left out.</summary>
+    Task<IReadOnlyList<CatalogPump>> GetPumpsAsync(IReadOnlyCollection<string> pumpIds, CancellationToken cancellationToken);
 }

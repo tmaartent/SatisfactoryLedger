@@ -62,6 +62,34 @@ A drone's latest trip (BR-A16) is one sample: a drone that waited docked for hou
 
 Generators are assumed to run at full power (ADR-0021). In the game they throttle down to what their power grid demands. The save has the power circuits; their demand would give each generator its real load, and so its real fuel burn and waste.
 
+## Pipes
+
+### Fluid behaviour and pipe design checks, from the Pipeline Manual
+*Raised 2026-11-24, step 94; on the maybe pile.*
+
+**What:** use the community [Pipeline Manual](https://static.wikia.nocookie.net/satisfactory_gamepedia_en/images/3/39/Pipeline_Manual.pdf) (v1.4, 2022, Update 5/6, by McGalleon) to find pipe issues in a save. Step 94 already follows it where it overlaps: 10 m from machines and freight platforms, pumps 20/50 m that don't stack and don't pass fluid back, no head lift for gas, head lift that doesn't decline along pipes (BR-A22).
+
+**Fluid behaviour** the estimate could add:
+- **The tolerance** (p. 5): head lift may go about 12% over design (12 / 22 / 55 m, the Docs file's `mMaxPressure`) before "the Flow Rate will be reduced to 0". Two levels: *at the limit* above `mDesignPressure`, *no flow* above `mMaxPressure`. In the owner's world: 3 water pipes at the limit, 1 oil pipe with no flow.
+- **Unpowered pumps** set the head lift on their exit side to 0 m (p. 7).
+- **Fluid buffers** (p. 9): head lift by fill, up to 8 m (small) or 12 m (industrial); filling one takes a reach up to its top; it outputs at full rate only above 1.5 m of fill (75 / 300 m³).
+- **Valves** (p. 10) are one-way and don't block head lift; their `mUserFlowLimit` could be their capacity in the model.
+- **The save as evidence** ("Full pipes are happy pipes", p. 3): a pipe the model says carries fluid but that's empty in the save points at a problem.
+
+**Design checks** (pp. 7–17), from the geometry the snapshot holds:
+- *easy:* a pump that adds nothing over the reach coming in ("leave vertical distance between them"); buffers in series (they slosh); a pump on a gas line; a pipe at full Mk.2 capacity (600 m³/min loses flow at the first junction);
+- *medium:* a feed pipeline below the machine inputs it feeds; a byproduct fed back into its own supply line, which clogs the producer;
+- *hard, a model change rather than a check:* the lowest input goes first (pipes fill from the bottom), where BR-A6 now shares evenly.
+
+**Why:** pipe problems are hard to find in the game, and the snapshot now has what a checker needs: pipe pieces and how they touch, heights, ports, pump direction, fill, and the model's flow.
+
+**What it would take:**
+- A **probe** first, no UI: count and list each check's hits on the owner's world; the owner checks a sample in the game; checks with false positives are fixed or dropped.
+- Then the checks that hold up as findings: a *Pipe design* tab on the map, each naming its rule and the manual's page, a `PipeCheck` per rule in the domain.
+- Checking in the save first: a pump's power state, each pipe's volume (to tell how full it is), a valve's direction.
+- Not possible: the behaviour over time (filling, sloshing, the backflow at a full junction). The model is a steady state, and a save is one moment.
+- The manual is a community guide from before 1.0: its numbers match the current Docs file, but every rule taken from it is the owner's call.
+
 ## World map
 
 ### Buildings drawn as their outline, box by box

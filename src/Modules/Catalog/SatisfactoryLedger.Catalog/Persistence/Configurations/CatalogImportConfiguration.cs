@@ -27,6 +27,7 @@ internal sealed class CatalogImportConfiguration : IEntityTypeConfiguration<Cata
         import.ComplexProperty(i => i.DronePorts);
         import.ComplexProperty(i => i.Storages);
         import.ComplexProperty(i => i.Buildables);
+        import.ComplexProperty(i => i.Pumps);
         import.ComplexProperty(i => i.ResourceNodes);
 
         // A list of strings becomes a PostgreSQL text[] column.

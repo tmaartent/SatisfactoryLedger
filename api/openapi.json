@@ -1540,7 +1540,8 @@
           "unusedSupply",
           "unknownSupply",
           "generators",
-          "dronePorts"
+          "dronePorts",
+          "pipeFlows"
         ],
         "type": "object",
         "properties": {
@@ -1593,6 +1594,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DronePortFinding"
+            }
+          },
+          "pipeFlows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipeFlowFinding"
             }
           }
         }
@@ -2674,6 +2681,16 @@
             "items": {
               "type": "string"
             }
+          },
+          "power": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FactoryPower"
+              }
+            ]
           }
         }
       },
@@ -3049,6 +3066,7 @@
           "dronePorts",
           "storages",
           "buildables",
+          "pumps",
           "resourceNodes",
           "noLongerInGame"
         ],
@@ -3096,6 +3114,9 @@
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "buildables": {
+            "$ref": "#/components/schemas/ImportCountsResponse"
+          },
+          "pumps": {
             "$ref": "#/components/schemas/ImportCountsResponse"
           },
           "resourceNodes": {
@@ -3491,6 +3512,13 @@
           "looseEnds": {
             "type": "integer",
             "format": "int32"
+          },
+          "headLiftToSpare": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
@@ -3666,6 +3694,37 @@
           "storage",
           "nowhere"
         ]
+      },
+      "PipeFlowFinding": {
+        "required": [
+          "id",
+          "perMinute",
+          "ofNetwork",
+          "capacity"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "perMinute": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "ofNetwork": {
+            "type": "boolean"
+          },
+          "capacity": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          }
+        }
       },
       "PositionDocument": {
         "required": [

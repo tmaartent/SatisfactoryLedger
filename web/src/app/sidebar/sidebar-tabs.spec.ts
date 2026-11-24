@@ -14,7 +14,17 @@ const tab = (key: string, order = 0): Tab => ({
 describe('the tabs of the sidebar', () => {
   const tabs = () => TestBed.inject(SidebarTabs);
 
-  it('starts open, on the first tab the page gives', () => {
+  it('starts collapsed on a touch screen, where the open tab would lie over the page (asked 2026-11-24)', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query === '(hover: none)' })),
+    );
+
+    expect(tabs().collapsed()).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('starts open with a mouse, on the first tab the page gives', () => {
     tabs().add(tab('factories'));
     tabs().add(tab('snapshots', 1));
 

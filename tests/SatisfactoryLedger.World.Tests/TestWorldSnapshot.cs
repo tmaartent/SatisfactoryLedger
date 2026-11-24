@@ -58,7 +58,8 @@ internal static class TestWorldSnapshot
             new("Build_GeneratorFuel_C", 250, 0,
                 [new("Desc_LiquidFuel_C", 750, null, null, 0), new("Desc_LiquidTurboFuel_C", 2000, null, null, 0)]),
         ],
-        Storages: [new("Build_StorageContainerMk2_C", 48, 0), new("Build_TrainDockingStation_C", 48, 0), new("Build_PipeStorageTank_C", 0, 400)]);
+        Storages: [new("Build_StorageContainerMk2_C", 48, 0), new("Build_TrainDockingStation_C", 48, 0), new("Build_PipeStorageTank_C", 0, 400)],
+        Pumps: [new("Build_PipelinePumpMk2_C", 50)]);
 
     public static readonly SavedWorld Saved = Read();
 

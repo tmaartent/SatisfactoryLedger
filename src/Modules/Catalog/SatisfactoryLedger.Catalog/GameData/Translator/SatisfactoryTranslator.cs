@@ -24,7 +24,8 @@ internal class SatisfactoryTranslator
                     itemForm,
                     dto is ResourceItemGroupDto,
                     StackSizeOf(itemDto.StackSize),
-                    itemDto.IsFluid ? ColourOf(itemDto.FluidColor) : null
+                    itemDto.IsFluid ? ColourOf(itemDto.FluidColor) : null,
+                    itemDto.Form == "RF_GAS"
                 );
             })
         ));
@@ -203,6 +204,22 @@ internal class SatisfactoryTranslator
                 ParseGameDecimal(dto.TripPowerCost),
                 ParseGameDecimal(dto.TripPowerPerMeterCost),
                 fuels))
+        ];
+    }
+
+    /// <summary>
+    /// The pipeline pumps and their head lift (asked 2026-11-24): the <c>mDesignPressure</c> of each, as their descriptions
+    /// give it (the owner chose it over <c>mMaxPressure</c>). The valve is in their
+    /// section with none: it's no pump.
+    /// </summary>
+    public static List<Pump> TranslateToPumps(List<GameDataGroupDto> dataList)
+    {
+        return
+        [
+            .. dataList.OfType<PumpGroupDto>().SelectMany(dto => dto.Pumps)
+                .Where(dto => ParseGameDecimal(dto.DesignPressure) > 0)
+                .DistinctBy(dto => dto.ClassName, StringComparer.Ordinal)
+                .Select(dto => Pump.Create(PumpId.Of(dto.ClassName), dto.DisplayName, ParseGameDecimal(dto.DesignPressure)))
         ];
     }
 

@@ -13,6 +13,9 @@ import {
   nodeMarkerSize,
   contentEntries,
   describeContents,
+  dragColours,
+  describeHeadLift,
+  describePipeFlow,
   mapArtExtent,
   mapExtent,
   mapArtTiles,
@@ -240,6 +243,36 @@ describe('map model', () => {
     expect(describeContents({ Desc_IronIngot_C: 2, Desc_OreIron_C: 7 }, name)).toBe(
       'OreIron × 7, IronIngot × 2',
     );
+  });
+
+  it('describes what flows through a pipe in the model, against what it carries at most', () => {
+    expect(
+      describePipeFlow(
+        { id: 'pipe', perMinute: { Desc_Water_C: 60 }, ofNetwork: false, capacity: 300 },
+        name,
+      ),
+    ).toBe('Water 60 of 300 m³/min');
+  });
+
+  it('describes what the network of a pipe inside it takes in, as the model takes a network as one', () => {
+    expect(
+      describePipeFlow(
+        { id: 'pipe', perMinute: { Desc_Water_C: 300 }, ofNetwork: true, capacity: 600 },
+        name,
+      ),
+    ).toBe('its network takes in Water 300 m³/min');
+  });
+
+  it('says how much head lift a pipe has to spare (BR-A22)', () => {
+    expect(describeHeadLift(5.7)).toBe('5.7 m to spare');
+  });
+
+  it('says how far a pipe climbs above its head lift (BR-A22)', () => {
+    expect(describeHeadLift(-4.3)).toBe('4.3 m short: fluid may not get across');
+  });
+
+  it('draws the rectangle for an arrangement blue, and the one for 3D yellow, so it says which page opens (asked 2026-11-24)', () => {
+    expect(dragColours).toEqual({ '3d': '#ffeb3b', arrangement: '#448aff' });
   });
 
   it('says a belt with nothing on it is empty', () => {

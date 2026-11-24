@@ -51,6 +51,10 @@
       <span
         ><span class="line" [style.background]="troubleColour"></span>Bottleneck or loose end</span
       >
+      <span
+        ><span class="line" [style.background]="headLiftColour"></span>Pipe above its head
+        lift</span
+      >
     </div>
     @if (dragBox(); as box) {
       <div
@@ -153,8 +157,15 @@
         </p>
         @if (preview.value(); as preview) {
           <div class="preview">
-            <p><span class="swatch output"></span> Where items leave</p>
+            <!-- Output and input, power among the output, now, as the items (asked 2026-11-24). -->
+            <p><span class="swatch output"></span> Output</p>
             <ul>
+              @if (preview.power; as power) {
+                <li>
+                  <mat-icon class="power-icon">bolt</mat-icon>Power
+                  <span class="muted">{{ megawatts(power.nowMegawatts) }}</span>
+                </li>
+              }
               @for (output of preview.leaving; track output.item) {
                 <li>
                   <app-game-icon [of]="output.item" />{{ names.item(output.item) }}
@@ -163,10 +174,12 @@
                   }}</span>
                 </li>
               } @empty {
-                <li class="muted">Nothing leaves it</li>
+                @if (!preview.power) {
+                  <li class="muted">Nothing leaves it</li>
+                }
               }
             </ul>
-            <p><span class="swatch input"></span> Where items come in</p>
+            <p><span class="swatch input"></span> Input</p>
             <ul>
               @for (input of preview.arriving; track input.item) {
                 <li>
@@ -329,10 +342,23 @@
       }
       @if (conveyor.contents) {
         <dl>
-          <dt>On it</dt>
+          <dt>{{ conveyor.kind === 'pipe' ? 'In it (m³)' : 'On it' }}</dt>
           <dd>
             <ng-container *ngTemplateOutlet="held; context: { $implicit: conveyor.contents }" />
           </dd>
+        </dl>
+      }
+      <!-- Neither is in the save: the model's flow, and its estimate of head lift (BR-A22). -->
+      @if (selectedPipeFlow(); as flow) {
+        <dl>
+          <dt>In the model</dt>
+          <dd>{{ pipeFlow(flow) }}</dd>
+        </dl>
+      }
+      @if (headLift(conveyor.headLiftToSpare); as text) {
+        <dl>
+          <dt>Head lift in the model</dt>
+          <dd>{{ text }}</dd>
         </dl>
       }
     } @else {

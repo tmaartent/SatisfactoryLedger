@@ -39,5 +39,6 @@ An ADR records **one** significant decision: its context, the decision, and its 
 | [0031](0031-a-sidebar-of-tabs-on-every-world-page.md) | A sidebar of tabs on the right of every World page | Accepted |
 | [0032](0032-the-games-icons.md) | The game's icons, from the player's install | Accepted |
 | [0033](0033-world-pages-on-touch-screens.md) | The World pages on phones and tablets | Accepted |
+| [0034](0034-head-lift-estimated-to-show.md) | Head lift estimated, to show only | Proposed |
 
 *Proposed* ADRs are yours to decide. Read them, challenge them, then accept or change them before you start the step that needs them.

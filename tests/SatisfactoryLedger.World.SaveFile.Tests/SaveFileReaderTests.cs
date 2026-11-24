@@ -264,6 +264,29 @@ public class SaveFileReaderTests
     }
 
     [Fact]
+    public void A_pipe_holds_the_fluid_of_its_pipe_network_in_cubic_metres()
+    {
+        Dictionary<string, decimal> contents = new(Get<SavedLogistics>(Pipeline).Contents!);
+
+        Assert.Equal(["Desc_Water_C"], contents.Keys);
+        Assert.Equal(92.66m, contents["Desc_Water_C"], 2);
+    }
+
+    [Fact]
+    public void A_pump_pushes_into_what_its_second_connection_is_linked_to()
+    {
+        SavedLogistics pump = Save.Buildables.OfType<SavedLogistics>().Single(logistics => logistics.ClassName == "Build_PipelinePumpMk2_C");
+
+        Assert.Equal(Id("Build_PipelineMK2_C_2147409670"), pump.PumpsInto);
+    }
+
+    [Fact]
+    public void A_pipe_pushes_into_nothing()
+    {
+        Assert.Null(Get<SavedLogistics>(Pipeline).PumpsInto);
+    }
+
+    [Fact]
     public void The_sink_is_a_consumer()
     {
         Assert.Equal("Build_ResourceSink_C", Get<SavedConsumer>(Sink).ClassName);

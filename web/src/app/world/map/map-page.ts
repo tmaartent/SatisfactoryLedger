@@ -48,6 +48,10 @@ import {
   buildingStyle,
   conveyorColours,
   describeContents,
+  dragColours,
+  describeHeadLift,
+  describePipeFlow,
+  shortOfHeadLift,
   escapeHtml,
   fromMapPoint,
   locate,
@@ -190,6 +194,11 @@ export class MapPage {
   private readonly machineFindings = computed(
     () => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine])),
   );
+  /** What flows through each pipe in the model, by id (asked 2026-11-24). */
+  private readonly pipeFlows = computed(
+    () => new Map((this.analysis.value()?.pipeFlows ?? []).map((flow) => [flow.id, flow])),
+  );
+  protected readonly headLiftColour = conveyorColours.headLift;
   private readonly bottlenecks = computed(
     () =>
       new Map(
@@ -436,11 +445,12 @@ export class MapPage {
       if (this.drawing()) this.stopDrawing();
     });
     map.on('mousedown', (event: L.LeafletMouseEvent) => {
-      if (!this.drawing()) return;
-      opens = this.drawing();
+      const kind = this.drawing();
+      if (!kind) return;
+      opens = kind;
       start = event.latlng;
       rectangle = L.rectangle(L.latLngBounds(start, start), {
-        color: '#ffeb3b',
+        color: dragColours[kind],
         weight: 2,
         fillOpacity: 0.1,
         interactive: false,
@@ -564,24 +574,38 @@ export class MapPage {
   private drawConveyors(): void {
     const conveyors = this.world.value()?.conveyors ?? [];
     const bottlenecks = this.bottlenecks();
+    const flows = this.pipeFlows();
     if (!this.map) return;
 
     this.conveyorLayer.clearLayers();
     for (const conveyor of conveyors) {
       const bottleneck = bottlenecks.get(conveyor.id);
-      const colour = bottleneck ? conveyorColours.bottleneck : conveyorColours[conveyor.kind];
+      const short = shortOfHeadLift(conveyor);
+      const colour = bottleneck
+        ? conveyorColours.bottleneck
+        : short
+          ? conveyorColours.headLift
+          : conveyorColours[conveyor.kind];
       const line = L.polyline(sampleCurve(conveyor.curve), {
         color: colour,
-        weight: bottleneck ? 4 : conveyor.kind === 'pipe' ? 2.5 : 1.5,
-        opacity: bottleneck ? 1 : 0.6,
+        weight: bottleneck ? 4 : short ? 3.5 : conveyor.kind === 'pipe' ? 2.5 : 1.5,
+        opacity: bottleneck || short ? 1 : 0.6,
       });
       const carries = this.contents(conveyor.contents);
+      const flow = flows.get(conveyor.id);
       line.bindTooltip(
         (bottleneck
           ? `<b>Bottleneck</b> · ${this.icon(conveyor.className)}${this.names.building(conveyor.className)}<br>` +
             `carries ${perMinute(bottleneck.flow)} of ${perMinute(bottleneck.capacity)}, ${perMinute(bottleneck.offeredMore)} more offered`
           : `${this.icon(conveyor.className)}<b>${this.names.building(conveyor.className)}</b>`) +
-          (carries ? `<br>On it: ${carries}` : ''),
+          (carries ? `<br>${conveyor.kind === 'pipe' ? 'In it (m³)' : 'On it'}: ${carries}` : '') +
+          // Neither is in the save: the model's flow, and its estimate of head lift (BR-A22).
+          (flow
+            ? `<br>In the model: ${describePipeFlow(flow, (item) => this.names.item(item))}`
+            : '') +
+          (conveyor.headLiftToSpare != null
+            ? `<br>Head lift in the model: ${describeHeadLift(conveyor.headLiftToSpare)}`
+            : ''),
       );
       line.addTo(this.conveyorLayer);
       this.shapes.set(conveyor.id, line);

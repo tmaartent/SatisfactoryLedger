@@ -1,6 +1,7 @@
 using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Map;
 using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -144,6 +145,22 @@ public class SnapshotDocumentTests
     }
 
     [Fact]
+    public void A_snapshot_from_before_pipes_held_fluid_can_still_be_read_and_estimates_no_head_lift()
+    {
+        SnapshotDocument version14 = TestWorldSnapshot.Document with
+        {
+            Version = 14,
+            Buildables = [.. TestWorldSnapshot.Document.Buildables.Select(buildable => buildable with { PumpsInto = null })],
+            Pumps = null,
+        };
+
+        SnapshotDocument read = SnapshotDocument.FromJson(version14.ToJson());
+
+        Assert.Equal(15, read.Version);
+        Assert.All(WorldMap.For(read).Conveyors, conveyor => Assert.Null(conveyor.HeadLiftToSpare));
+    }
+
+    [Fact]
     public void A_snapshot_from_before_loose_ends_were_read_can_still_be_read_and_knows_none()
     {
         SnapshotDocument version13 = TestWorldSnapshot.Document with
@@ -154,7 +171,7 @@ public class SnapshotDocumentTests
 
         SnapshotDocument read = SnapshotDocument.FromJson(version13.ToJson());
 
-        Assert.Equal(14, read.Version);
+        Assert.Equal(15, read.Version);
         Assert.All(read.Buildables, buildable => Assert.Null(buildable.LooseEnds));
     }
 
@@ -204,7 +221,7 @@ public class SnapshotDocumentTests
 
         SnapshotDocument read = SnapshotDocument.FromJson(withoutContents.ToJson());
 
-        Assert.Equal(14, read.Version);
+        Assert.Equal(15, read.Version);
         Assert.All(read.Buildables, buildable => Assert.Null(buildable.Contents));
     }
 
@@ -254,36 +271,36 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_from_before_pipe_links_can_still_be_read_and_follows_no_pipes()
     {
-        string version12 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":14", "\"version\":12", StringComparison.Ordinal);
+        string version12 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":15", "\"version\":12", StringComparison.Ordinal);
 
         SnapshotDocument read = SnapshotDocument.FromJson(version12);
 
-        Assert.Equal(14, read.Version);
+        Assert.Equal(15, read.Version);
         Assert.Empty((read with { PipeLinks = null }).PipeNeighbours());
     }
 
     [Fact]
     public void A_snapshot_from_before_inventories_can_still_be_read_and_takes_everything()
     {
-        string version11 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":14", "\"version\":11", StringComparison.Ordinal);
+        string version11 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":15", "\"version\":11", StringComparison.Ordinal);
 
-        Assert.Equal(14, SnapshotDocument.FromJson(version11).Version);
+        Assert.Equal(15, SnapshotDocument.FromJson(version11).Version);
     }
 
     [Fact]
     public void A_snapshot_from_before_lifts_had_a_curve_can_still_be_read()
     {
-        string version10 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":14", "\"version\":10", StringComparison.Ordinal);
+        string version10 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":15", "\"version\":10", StringComparison.Ordinal);
 
-        Assert.Equal(14, SnapshotDocument.FromJson(version10).Version);
+        Assert.Equal(15, SnapshotDocument.FromJson(version10).Version);
     }
 
     [Fact]
     public void A_snapshot_from_before_volumes_can_still_be_read()
     {
-        string version9 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":14", "\"version\":9", StringComparison.Ordinal);
+        string version9 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":15", "\"version\":9", StringComparison.Ordinal);
 
-        Assert.Equal(14, SnapshotDocument.FromJson(version9).Version);
+        Assert.Equal(15, SnapshotDocument.FromJson(version9).Version);
     }
 
     [Fact]
@@ -297,14 +314,14 @@ public class SnapshotDocumentTests
 
         SnapshotDocument read = SnapshotDocument.FromJson(withoutCurves.ToJson());
 
-        Assert.Equal(14, read.Version);
+        Assert.Equal(15, read.Version);
         Assert.All(read.Buildables, buildable => Assert.Null(buildable.Curve));
     }
 
     [Fact]
     public void A_snapshot_document_says_which_version_of_the_format_it_is()
     {
-        Assert.Equal(14, Stored().Version);
+        Assert.Equal(15, Stored().Version);
     }
 
     [Fact]
@@ -402,32 +419,32 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_snapshot_from_before_stock_was_read_can_still_be_read()
     {
-        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":14", "\"version\":2", StringComparison.Ordinal);
+        string version2 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":15", "\"version\":2", StringComparison.Ordinal);
 
-        Assert.Equal(14, SnapshotDocument.FromJson(version2).Version);
+        Assert.Equal(15, SnapshotDocument.FromJson(version2).Version);
     }
 
     [Fact]
     public void A_snapshot_from_before_drones_were_read_can_still_be_read()
     {
-        string version7 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":14", "\"version\":7", StringComparison.Ordinal);
+        string version7 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":15", "\"version\":7", StringComparison.Ordinal);
 
-        Assert.Equal(14, SnapshotDocument.FromJson(version7).Version);
+        Assert.Equal(15, SnapshotDocument.FromJson(version7).Version);
     }
 
     [Fact]
     public void A_snapshot_from_before_pipe_networks_can_still_be_read()
     {
-        string version8 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":14", "\"version\":8", StringComparison.Ordinal);
+        string version8 = TestWorldSnapshot.Document.ToJson().Replace("\"version\":15", "\"version\":8", StringComparison.Ordinal);
 
-        Assert.Equal(14, SnapshotDocument.FromJson(version8).Version);
+        Assert.Equal(15, SnapshotDocument.FromJson(version8).Version);
     }
 
     [Fact]
     public void A_snapshot_imported_before_rates_were_copied_can_still_be_read_and_traced()
     {
         string version1 = TestWorldSnapshot.Document.ToJson()
-            .Replace("\"version\":14", "\"version\":1", StringComparison.Ordinal);
+            .Replace("\"version\":15", "\"version\":1", StringComparison.Ordinal);
 
         WorldGraph world = SnapshotDocument.FromJson(version1).ToWorldGraph();
 

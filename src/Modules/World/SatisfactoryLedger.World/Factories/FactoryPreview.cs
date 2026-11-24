@@ -1,3 +1,5 @@
+using SatisfactoryLedger.World.Analysis;
+
 namespace SatisfactoryLedger.World.Factories;
 
 /// <summary>
@@ -13,6 +15,8 @@ namespace SatisfactoryLedger.World.Factories;
 /// <param name="Supplies">The ids of what supplies it, upstream only, its machines included: the lines up to the miners,
 /// stations and drone ports and the supplier factories' machines where they start (FactoryDefinition.SuppliesIn). Lit up
 /// before an arrangement.</param>
+/// <param name="Power">The power its generators make, now and at 100%, as on the factory's page; null without generators,
+/// or before the snapshot's analysis is ready.</param>
 internal sealed record FactoryPreview(
     IReadOnlyList<string> Logistics,
     IReadOnlyList<ConnectionSummary> Outputs,
@@ -20,4 +24,5 @@ internal sealed record FactoryPreview(
     IReadOnlyList<PreviewItem> Leaving,
     IReadOnlyList<PreviewItem> Arriving,
     IReadOnlyList<string> Connected,
-    IReadOnlyList<string> Supplies);
+    IReadOnlyList<string> Supplies,
+    FactoryPower? Power = null);

@@ -18,7 +18,7 @@ export interface Tab {
 /**
  * The sidebar on the right of every World page (asked 2026-11-22): a rail of icons, one per tab, and the tab open beside
  * it. Each page brings its own tabs and takes them away when it leaves; the explanation stays across pages. Open by
- * default; collapsed, only the rail is left and the page gets its width back.
+ * default, collapsed on a touch screen; collapsed, only the rail is left and the page gets its width back.
  */
 @Injectable({ providedIn: 'root' })
 export class SidebarTabs {
@@ -30,7 +30,8 @@ export class SidebarTabs {
   readonly current = computed(
     () => this.tabs().find((tab) => tab.key === this.chosen()) ?? this.tabs()[0] ?? null,
   );
-  readonly collapsed = signal(false);
+  /** Collapsed from the start on a touch screen (asked 2026-11-24), where the open tab lies over the page; a tap opens it. */
+  readonly collapsed = signal(window.matchMedia?.('(hover: none)').matches ?? false);
   /**
    * How high the open tab stands as a sheet on a phone (asked 2026-11-24); elsewhere it fills the sidebar's height. Here,
    * not in the sidebar, as the map centres what it zooms to on what the tab leaves in view.

@@ -12,4 +12,5 @@ internal sealed record CatalogCopy(
     IReadOnlyCollection<CatalogFootprint> Footprints,
     IReadOnlyCollection<CatalogGenerator> Generators,
     IReadOnlyCollection<CatalogDronePort>? DronePorts = null,
-    IReadOnlyCollection<CatalogStorage>? Storages = null);
+    IReadOnlyCollection<CatalogStorage>? Storages = null,
+    IReadOnlyCollection<CatalogPump>? Pumps = null);

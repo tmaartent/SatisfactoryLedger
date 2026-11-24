@@ -37,14 +37,17 @@ import { FootprintDocument } from '../../api/models/footprint-document';
 import { GeneratorFinding } from '../../api/models/generator-finding';
 import { MachineFinding } from '../../api/models/machine-finding';
 import { MapConveyor } from '../../api/models/map-conveyor';
+import { PipeFlowFinding } from '../../api/models/pipe-flow-finding';
 import { CatalogNames } from '../../shared/catalog-names';
-import { percent, perMinute, Position, positionInMetres } from '../../shared/display';
+import { megawatts, percent, perMinute, Position, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { LimitFacts, LimitParts, limitParts } from '../limit-text';
 import {
   contentEntries,
   Contents,
   conveyorColours,
+  describeHeadLift,
+  describePipeFlow,
   statusColours,
   statusLabels,
   MachineStatus,
@@ -63,7 +66,7 @@ import {
 } from './area-model';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
-import { framingDistance } from './framing';
+import { framingDistance, pointsToFrame } from './framing';
 import { coveredSides } from '../map/visible-part';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
@@ -294,6 +297,13 @@ export class AreaPage {
     const conveyor = this.selectedConveyor();
     return conveyor ? this.bottlenecks().get(conveyor.id) : undefined;
   });
+  /** What flows through the pipe looked at, in the model; neither it nor head lift is in the save (asked 2026-11-24). */
+  protected readonly selectedPipeFlow = computed(() => {
+    const conveyor = this.selectedConveyor();
+    const flows = this.analysis.value()?.pipeFlows ?? [];
+    return conveyor ? flows.find((flow) => flow.id === conveyor.id) : undefined;
+  });
+  protected readonly headLiftColour = conveyorColours.headLift;
   /** The building that glows: the one looked at, except while defining, where a click only turns a machine blue or back. */
   private readonly glowing = computed(() =>
     this.defining() ? null : (this.selected()?.id ?? null),
@@ -360,6 +370,7 @@ export class AreaPage {
 
   protected readonly percent = percent;
   protected readonly perMinute = perMinute;
+  protected readonly megawatts = megawatts;
   protected readonly position = positionInMetres;
 
   private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
@@ -531,6 +542,16 @@ export class AreaPage {
     return statusLabels[finding.limit];
   }
 
+  /** What flows through a pipe in the model, for the panel. */
+  protected pipeFlow(flow: PipeFlowFinding): string {
+    return describePipeFlow(flow, (item) => this.names.item(item));
+  }
+
+  /** A pipe's head lift in the model; "" for a belt, and a pipe nothing feeds. */
+  protected headLift(toSpare: number | null | undefined): string {
+    return toSpare === null || toSpare === undefined ? '' : describeHeadLift(toSpare);
+  }
+
   /** What a machine, belt or container holds, item by item, for the panel to show with icons. */
   protected entries(contents: Contents): { item: string; count: number }[] {
     return contentEntries(contents);
@@ -691,8 +712,8 @@ export class AreaPage {
       this.content.add(mesh);
     }
 
-    if (!this.framed && buildings.length) {
-      this.frame();
+    if (!this.framed && this.content.children.length) {
+      this.frame(world.conveyors, area, at);
       this.framed = true;
     }
 
@@ -818,12 +839,19 @@ export class AreaPage {
 
   /**
    * Looks at the whole area from the south-east, a little from above. At its buildings, not at all that's drawn: a belt
-   * out of a factory runs on in the scene, cut off only where the area ends, and would pull the middle its way.
+   * out of a factory runs on in the scene, cut off only where the area ends, and would pull the middle its way. An area
+   * with no buildings, only belts and pipes, is framed at them where they lie in it.
    */
-  private frame(): void {
+  private frame(conveyors: MapConveyor[], area: Area, at: (p: Position) => THREE.Vector3): void {
     const bounds = new THREE.Box3();
     for (const object of this.content.children)
       if (object.userData['building']) bounds.expandByObject(object);
+    if (bounds.isEmpty())
+      for (const point of pointsToFrame(
+        conveyors.map((conveyor) => conveyor.curve),
+        area,
+      ))
+        bounds.expandByPoint(at(point));
     const middle = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
     // Seen from a corner, a floor's width across is its diagonal.

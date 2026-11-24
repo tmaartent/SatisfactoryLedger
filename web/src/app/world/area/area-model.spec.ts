@@ -215,5 +215,13 @@ describe('area model', () => {
     it('is red for one with an end connected to nothing (asked 2026-11-23)', () => {
       expect(tubeColour({ ...belt, looseEnds: 1 }, new Set())).toBe('#ef5350');
     });
+
+    it('is orange for a pipe that climbs above its head lift (BR-A22)', () => {
+      expect(tubeColour({ ...belt, kind: 'pipe', headLiftToSpare: -2 }, new Set())).toBe('#ffa726');
+    });
+
+    it("is a pipe's with head lift to spare", () => {
+      expect(tubeColour({ ...belt, kind: 'pipe', headLiftToSpare: 2 }, new Set())).toBe('#4dd0e1');
+    });
   });
 });

@@ -6,6 +6,7 @@ import { buildingBoxes, fromAbove } from '../area/area-model';
 import { MachineFinding } from '../../api/models/machine-finding';
 import { MachineLimit } from '../../api/models/machine-limit';
 import { MapProvider } from '../../api/models/map-provider';
+import { PipeFlowFinding } from '../../api/models/pipe-flow-finding';
 import { WorldMapResponse } from '../../api/models/world-map-response';
 import { Position } from '../../shared/display';
 import { ShownStatus } from '../shown-status';
@@ -264,8 +265,39 @@ export function describeContents(
     : entries.map(({ item, count }) => `${name(item)} × ${count}`).join(', ');
 }
 
-/** Belts grey, pipes teal; a bottleneck red and thicker (BR-A12). */
-export const conveyorColours = { belt: '#90a4ae', pipe: '#4dd0e1', bottleneck: '#ef5350' };
+/** Belts grey, pipes teal; a bottleneck red and thicker (BR-A12); a pipe above its head lift orange (BR-A22). */
+export const conveyorColours = {
+  belt: '#90a4ae',
+  pipe: '#4dd0e1',
+  bottleneck: '#ef5350',
+  headLift: '#ffa726',
+};
+
+/**
+ * The rectangle drawn with a key held: yellow to open in 3D (shift), blue to arrange (ctrl, asked 2026-11-24), so it says
+ * which page opens.
+ */
+export const dragColours = { '3d': '#ffeb3b', arrangement: '#448aff' } as const;
+
+/** A pipe that climbs above the head lift it has, in the model (BR-A22). */
+export function shortOfHeadLift(conveyor: { headLiftToSpare?: number | null }): boolean {
+  return (conveyor.headLiftToSpare ?? 0) < 0;
+}
+
+/** What flows through a pipe in the model: "Water 60 of 300 m³/min"; inside a network, what the network takes in (BR-A6). */
+export function describePipeFlow(flow: PipeFlowFinding, name: (item: string) => string): string {
+  const fluids = contentEntries(flow.perMinute)
+    .map(({ item, count }) => `${name(item)} ${count}`)
+    .join(', ');
+  return flow.ofNetwork
+    ? `its network takes in ${fluids} m³/min`
+    : `${fluids}${flow.capacity ? ` of ${flow.capacity}` : ''} m³/min`;
+}
+
+/** A pipe's head lift in the model (BR-A22): "5.7 m to spare", or how far it climbs above it. */
+export function describeHeadLift(toSpare: number): string {
+  return toSpare >= 0 ? `${toSpare} m to spare` : `${-toSpare} m short: fluid may not get across`;
+}
 
 /** Node purities, by how much they give: impure ×0.5, normal ×1, pure ×2 (BR-W9). */
 export const purityColours: Record<string, string> = {

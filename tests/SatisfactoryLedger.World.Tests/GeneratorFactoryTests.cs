@@ -41,6 +41,16 @@ public class GeneratorFactoryTests
     }
 
     [Fact]
+    public void Its_preview_while_choosing_says_what_power_it_makes_as_an_output()
+    {
+        // Asked 2026-11-24: power is what a generator puts out, beside the items that leave.
+        FactoryPreview preview = FactoryTraces.Preview(
+            WithGenerators, [NuclearPlant], AnalysisDocument.FromJson(AnalysisDocument.Compute(WithGenerators.ToFlowNetwork()).ToJson()));
+
+        Assert.Equal(new FactoryPower(2500, 2500), preview.Power);
+    }
+
+    [Fact]
     public void It_says_what_power_it_makes_now_and_at_100_percent()
     {
         // A nuclear plant makes 2500 MW at 100% clock; this one runs at full power.

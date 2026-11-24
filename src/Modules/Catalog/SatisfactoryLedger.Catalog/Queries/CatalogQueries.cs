@@ -34,7 +34,7 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
         return await db.Items.AsNoTracking()
             .Where(item => ids.Contains(item.Id))
             .OrderBy(item => item.Name)
-            .Select(item => new CatalogItem(item.Id.Id, item.Name, item.ItemForm == ItemForm.Fluid, item.StackSize))
+            .Select(item => new CatalogItem(item.Id.Id, item.Name, item.ItemForm == ItemForm.Fluid, item.StackSize, item.IsGas))
             .ToListAsync(cancellationToken);
     }
 
@@ -141,6 +141,16 @@ internal sealed class CatalogQueries(CatalogDbContext db) : ICatalogQueries
             .Where(storage => ids.Contains(storage.Id))
             .OrderBy(storage => storage.Id)
             .Select(storage => new CatalogStorage(storage.Id.Id, storage.Slots, storage.FluidCubicMetres))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CatalogPump>> GetPumpsAsync(IReadOnlyCollection<string> pumpIds, CancellationToken cancellationToken)
+    {
+        List<PumpId> ids = [.. pumpIds.Select(PumpId.Of)];
+        return await db.Pumps.AsNoTracking()
+            .Where(pump => ids.Contains(pump.Id))
+            .OrderBy(pump => pump.Id)
+            .Select(pump => new CatalogPump(pump.Id.Id, pump.HeadLiftMetres))
             .ToListAsync(cancellationToken);
     }
 

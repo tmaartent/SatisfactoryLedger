@@ -274,6 +274,15 @@
     padding-left: 20px;
   }
 
+  // As high as an item's icon beside it.
+  .power-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    vertical-align: middle;
+    color: #ffca28;
+  }
+
   .swatch {
     display: inline-block;
     width: 10px;

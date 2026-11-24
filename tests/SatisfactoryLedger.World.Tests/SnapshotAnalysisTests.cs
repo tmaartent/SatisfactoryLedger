@@ -20,6 +20,30 @@ public class SnapshotAnalysisTests
     }
 
     [Fact]
+    public void A_pipe_an_output_feeds_carries_its_own_flow_in_the_model()
+    {
+        PipeFlowFinding pipe = Assert.Single(Analysis.PipeFlows, flow => flow.Id == Id("Build_Pipeline_C_2147257932"));
+
+        // From the water extractor to the packager, which takes 60 m³ a minute.
+        Assert.Equal((false, 60.0, 300.0), (pipe.OfNetwork, pipe.PerMinute["Desc_Water_C"], pipe.Capacity));
+    }
+
+    [Fact]
+    public void A_pipe_inside_a_network_shows_what_its_network_takes_in_in_the_model()
+    {
+        PipeFlowFinding pipe = Assert.Single(Analysis.PipeFlows, flow => flow.Id == Id("Build_PipelineMK2_C_2147409670"));
+
+        // Past the pump: its network takes in 300 m³ a minute, over the pipe before the pump.
+        Assert.Equal((true, 300.0), (pipe.OfNetwork, pipe.PerMinute["Desc_Water_C"]));
+    }
+
+    [Fact]
+    public void A_belt_has_no_pipe_flow()
+    {
+        Assert.DoesNotContain(Analysis.PipeFlows, flow => flow.Id.Contains("ConveyorBelt", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void The_test_world_settles_so_nothing_is_approximate()
     {
         Assert.True(Analysis.Settled);
