@@ -147,6 +147,12 @@ internal static class GameClasses
     public static bool StocksLitres(string className) =>
         className is "Build_TrainDockingStationLiquid_C" or "Build_FluidTruckStation_C";
 
+    /// <summary>The port a pump pushes fluid out of (BR-A22); it takes fluid in at <c>Connection0</c>.</summary>
+    public const string PumpOutletPort = "Connection1";
+
+    /// <summary>A pipeline pump: it lifts fluid (BR-A22). A valve has the same ports, but lifts nothing.</summary>
+    public static bool IsPump(string className) => className is "Build_PipelinePump_C" or "Build_PipelinePumpMk2_C";
+
     /// <summary>The item a provider extracts when its class decides it, not its node: a water extractor pumps water.</summary>
     public static string? FixedResourceOf(string className) => className == "Build_WaterPump_C" ? "Desc_Water_C" : null;
 

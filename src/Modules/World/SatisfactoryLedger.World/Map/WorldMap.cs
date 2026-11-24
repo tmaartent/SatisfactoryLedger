@@ -14,6 +14,7 @@ internal static class WorldMap
         Dictionary<string, ResourceNodeDocument> nodes = snapshot.ResourceNodes.ToDictionary(node => node.Name, StringComparer.Ordinal);
         List<BuildableDocument> placed = [.. snapshot.Buildables.Where(buildable => buildable.Position is not null)];
         IEnumerable<BuildableDocument> Having(BuildableDocumentRole role) => placed.Where(buildable => buildable.Role == role);
+        IReadOnlyDictionary<string, double> toSpare = PipeHeadLifts.ToSpare(snapshot);
 
         return new WorldMapResponse(
             [
@@ -38,7 +39,8 @@ internal static class WorldMap
                         conveyor.Kind == LogisticsKind.Pipe ? MapConveyorKind.Pipe : MapConveyorKind.Belt,
                         conveyor.Curve!,
                         conveyor.Contents,
-                        conveyor.LooseEnds ?? 0))
+                        conveyor.LooseEnds ?? 0,
+                        toSpare.TryGetValue(conveyor.Id, out double spare) ? spare : null))
             ],
             [.. Having(BuildableDocumentRole.Logistics).Where(logistics => logistics.Curve is not { Count: > 0 }).Select(buildable => Building(snapshot, buildable))],
             [.. Having(BuildableDocumentRole.Consumer).Select(buildable => Building(snapshot, buildable))],

@@ -71,6 +71,70 @@ public class WorldMapTests
     }
 
     [Fact]
+    public void A_pipe_shows_the_fluid_in_it_in_cubic_metres()
+    {
+        MapConveyor pipe = Assert.Single(Map.Conveyors, conveyor => conveyor.Id == Id("Build_Pipeline_C_2147257932"));
+
+        Assert.Equal(92.66m, pipe.Contents!["Desc_Water_C"], 2);
+    }
+
+    [Fact]
+    public void A_pipe_the_water_extractor_feeds_has_head_lift_to_spare()
+    {
+        MapConveyor pipe = Assert.Single(Map.Conveyors, conveyor => conveyor.Id == Id("Build_Pipeline_C_2147257932"));
+
+        // It climbs 4.3 m above its end at the extractor, which lifts water 10 m.
+        Assert.Equal(5.7, pipe.HeadLiftToSpare!.Value, 1);
+    }
+
+    [Fact]
+    public void A_pipe_of_a_network_carrying_gas_has_no_head_lift()
+    {
+        // As if water were a gas: gas needs no head lift (asked 2026-11-24).
+        CatalogCopy waterAsGas = TestWorldSnapshot.Catalog with
+        {
+            Items = [.. TestWorldSnapshot.Catalog.Items.Select(item => item.Id == "Desc_Water_C" ? item with { IsGas = true } : item)],
+        };
+
+        WorldMapResponse map = WorldMap.For(Stored(waterAsGas));
+
+        Assert.Null(Assert.Single(map.Conveyors, conveyor => conveyor.Id == Id("Build_Pipeline_C_2147257932")).HeadLiftToSpare);
+    }
+
+    [Fact]
+    public void A_pipe_a_machine_feeds_has_head_lift_while_its_recipe_makes_a_fluid()
+    {
+        Assert.All(PipesFedBy(WithGenerators, TurbofuelPackager), pipe => Assert.NotNull(pipe.HeadLiftToSpare));
+    }
+
+    [Fact]
+    public void A_machine_whose_recipe_makes_no_fluid_lifts_nothing_into_the_pipe_on_its_fluid_port()
+    {
+        // As an all-purpose blueprint's refinery on Pure Iron Ingot: its fluid output stays empty (asked 2026-11-24). Packaging
+        // water, already in the world, makes no fluid.
+        SnapshotDocument packagingWater = WithGenerators with
+        {
+            Buildables = [.. WithGenerators.Buildables.Select(buildable => buildable.Id == TurbofuelPackager ? buildable with { Recipe = PackagedWater.Id } : buildable)],
+        };
+
+        Assert.All(PipesFedBy(packagingWater, TurbofuelPackager), pipe => Assert.Null(pipe.HeadLiftToSpare));
+    }
+
+    private static List<MapConveyor> PipesFedBy(SnapshotDocument snapshot, string machine)
+    {
+        HashSet<string> fed = [.. snapshot.Connections.Where(connection => connection.From == machine).Select(connection => connection.To)];
+        List<MapConveyor> pipes = [.. WorldMap.For(snapshot).Conveyors.Where(conveyor => conveyor.Kind == MapConveyorKind.Pipe && fed.Contains(conveyor.Id))];
+        Assert.NotEmpty(pipes);
+        return pipes;
+    }
+
+    [Fact]
+    public void A_belt_has_no_head_lift()
+    {
+        Assert.All(Map.Conveyors.Where(conveyor => conveyor.Kind == MapConveyorKind.Belt), belt => Assert.Null(belt.HeadLiftToSpare));
+    }
+
+    [Fact]
     public void Splitters_and_mergers_are_not_drawn_as_conveyors()
     {
         // They have no curve: a splitter is a point on a belt.

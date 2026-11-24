@@ -31,7 +31,9 @@ internal sealed record SnapshotDocument(
     IReadOnlyList<StorageDocument>? Storages = null,
     IReadOnlyDictionary<string, int>? StackSizes = null,
     IReadOnlyDictionary<string, decimal>? DepotStock = null,
-    IReadOnlyList<PipeLinkDocument>? PipeLinks = null)
+    IReadOnlyList<PipeLinkDocument>? PipeLinks = null,
+    IReadOnlyList<PumpDocument>? Pumps = null,
+    IReadOnlyList<string>? Gases = null)
 {
     /// <summary>
     /// Version 2 added extractors, transport tiers, resource nodes and fluids; a version 1 snapshot has none of them.
@@ -55,8 +57,10 @@ internal sealed record SnapshotDocument(
     /// version 12 snapshot pipes aren't followed.
     /// Version 14 added the loose ends of belts, lifts and pipes: ends connected to nothing (asked 2026-11-23); a version
     /// 13 snapshot knows none.
+    /// Version 15 added the fluid in pipes, pumps and junctions, which way each pump pushes, the Catalog's pumps and which
+    /// fluids are gases, to estimate head lift (BR-A22); a version 14 snapshot knows none of them, and has no estimate.
     /// </summary>
-    public const int CurrentVersion = 14;
+    public const int CurrentVersion = 15;
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -109,7 +113,10 @@ internal sealed record SnapshotDocument(
             catalog.Items.Where(item => (held.Contains(item.Id) || items.Contains(item.Id)) && item.StackSize > 0)
                 .ToDictionary(item => item.Id, item => item.StackSize, StringComparer.Ordinal),
             saved.DepotStock.Count > 0 ? saved.DepotStock : null,
-            saved.PipeLinks.Count > 0 ? [.. saved.PipeLinks.Select(link => new PipeLinkDocument(link.A.Id, link.B.Id))] : null);
+            saved.PipeLinks.Count > 0 ? [.. saved.PipeLinks.Select(link => new PipeLinkDocument(link.A.Id, link.B.Id))] : null,
+            [.. (catalog.Pumps ?? []).Where(pump => classes.Contains(pump.Id)).OrderBy(pump => pump.Id, StringComparer.Ordinal)
+                .Select(pump => new PumpDocument(pump.Id, pump.HeadLiftMetres))],
+            [.. catalog.Items.Where(item => item.IsGas && items.Contains(item.Id)).Select(item => item.Id).Order(StringComparer.Ordinal)]);
     }
 
     /// <summary>Per pipe (or junction, pump or buffer), the ones it touches, both ways; none in snapshots from before them.</summary>
@@ -146,7 +153,7 @@ internal sealed record SnapshotDocument(
         {
             CurrentVersion => document,
             // Imported before stock, splitter rules and ports, or curves were read: everything else is the same.
-            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 => document with { Version = CurrentVersion },
+            2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 => document with { Version = CurrentVersion },
             // Imported before rates were copied: it traces as before, but the flow analysis knows no rates.
             1 => document with { Version = CurrentVersion, Extractors = [], TransportTiers = [], ResourceNodes = [], Fluids = [] },
             _ => throw new NotSupportedException($"Snapshot document version {document.Version} is not supported"),

@@ -116,7 +116,10 @@ public static class SaveFileReader
                     LooseEnds = GameClasses.LogisticsKindOf(className) is LogisticsKind.Belt or LogisticsKind.Lift or LogisticsKind.Pipe
                         ? ports.Count(port => port.LinkedTo is null)
                         : 0,
-                    Contents = onConveyors.GetValueOrDefault(actor.ObjectReference.PathName) ?? InventoryOf(actor, "mBufferInventory", byPath),
+                    Contents = GameClasses.LogisticsKindOf(className) is LogisticsKind.Pipe or LogisticsKind.PipeJunction
+                        ? FluidStockOf(actor, byPath, fluidOfNetwork)
+                        : onConveyors.GetValueOrDefault(actor.ObjectReference.PathName) ?? InventoryOf(actor, "mBufferInventory", byPath),
+                    PumpsInto = GameClasses.IsPump(className) ? PumpOutletOf(ports) : null,
                     Stock = GameClasses.LogisticsKindOf(className) == LogisticsKind.FluidBuffer
                         ? FluidStockOf(actor, byPath, fluidOfNetwork)
                         : inventory is null ? null : StockOf(actor, inventory, byPath),
@@ -224,8 +227,18 @@ public static class SaveFileReader
     }
 
     /// <summary>
-    /// What a fluid buffer holds: its <c>mFluidBox</c>, in m³, of the fluid of the pipe network its ends are on. Empty
-    /// when it holds nothing or the network's fluid isn't known.
+    /// What a pump pushes into (BR-A22): what its <c>Connection1</c> is linked to. In a save of the owner's, 199 pumps had a
+    /// fluid extractor on the side of <c>Connection0</c> and machines on that of <c>Connection1</c>; 16 the other way round.
+    /// Null when it's linked to nothing.
+    /// </summary>
+    private static BuildableId? PumpOutletOf(List<(string Path, string Port, string? LinkedTo)> ports) =>
+        ports.FirstOrDefault(port => port.Port == GameClasses.PumpOutletPort).LinkedTo is { } linked
+            ? BuildableId.Of(linked[..linked.LastIndexOf('.')])
+            : null;
+
+    /// <summary>
+    /// What a fluid buffer, pipe, pump or junction holds: its <c>mFluidBox</c>, in m³, of the fluid of the pipe network
+    /// its ends are on. Empty when it holds nothing or the network's fluid isn't known.
     /// </summary>
     private static Dictionary<string, decimal> FluidStockOf(ActorObject actor, Dictionary<string, ComponentObject> byPath, Dictionary<int, string> fluidOfNetwork)
     {

@@ -198,7 +198,8 @@ internal static class SnapshotAnalysis
                         Stock(generator).Item,
                         Stock(generator).Minutes))
             ],
-            wholeWorld ? DronePorts(world, snapshot, analysis, buildables, approximate) : []);
+            wholeWorld ? DronePorts(world, snapshot, analysis, buildables, approximate) : [],
+            wholeWorld ? PipeFlows.Of(snapshot, analysis) : []);
     }
 
     /// <summary>What reaches a buildable of an item per minute: what flows into the belts and pipes that end at it.</summary>
