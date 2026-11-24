@@ -275,7 +275,7 @@ export const conveyorColours = {
 
 /**
  * The rectangle drawn with a key held: yellow to open in 3D (shift), blue to arrange (ctrl, asked 2026-11-24), so it says
- * which page opens.
+ * which page opens. The arrangement page draws its area in the same blue.
  */
 export const dragColours = { '3d': '#ffeb3b', arrangement: '#448aff' } as const;
 

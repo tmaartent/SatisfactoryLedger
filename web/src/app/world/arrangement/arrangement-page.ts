@@ -51,6 +51,7 @@ import { buildingShape } from '../map/building-shape';
 import { holdToExtent } from '../map/hold-to-extent';
 import { MapArt } from '../map/map-art';
 import {
+  dragColours,
   footprintShapes,
   mapArtTiles,
   mapExtent,
@@ -95,7 +96,8 @@ import {
 /** How far out the map zooms without a map picture to hold it to. */
 const LeastZoom = -4;
 
-const areaStyle: L.PathOptions = { color: '#ffeb3b', weight: 2, fillOpacity: 0.05 };
+/** The area to arrange: blue, as the rectangle drawn with ctrl on the world map (asked 2026-11-24). */
+const areaStyle: L.PathOptions = { color: dragColours.arrangement, weight: 2, fillOpacity: 0.05 };
 const exclusionStyle: L.PathOptions = {
   color: '#ef5350',
   weight: 2,
@@ -742,7 +744,7 @@ export class ArrangementPage {
 
     if (arrangement.summary.area) {
       L.rectangle(L.latLngBounds(mapBounds(arrangement.summary.area)), {
-        color: '#ffeb3b',
+        color: dragColours.arrangement,
         weight: 1,
         dashArray: '6 6',
         fill: false,
