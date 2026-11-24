@@ -20,7 +20,7 @@
       class="current"
       [matMenuTriggerFor]="list"
       [disabled]="none() || !snapshots.hasValue()"
-      [attr.aria-label]="'Snapshot: ' + (shown()?.sessionName ?? 'none picked')"
+      [attr.aria-label]="'Snapshot: ' + (shown()?.sessionName ?? 'Pick a snapshot')"
     >
       <mat-icon>public</mat-icon>
       <span class="name">{{ shown()?.sessionName ?? 'Pick a snapshot' }}</span>

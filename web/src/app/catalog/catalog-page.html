@@ -135,7 +135,7 @@
 
 <mat-tab-group animationDuration="0">
   <mat-tab [label]="'Items (' + shownItems().length + ')'">
-    <div class="table-scroll">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Items">
       <table mat-table [dataSource]="shownItems()">
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Item</th>
@@ -160,7 +160,7 @@
   </mat-tab>
 
   <mat-tab [label]="'Recipes (' + shownRecipes().length + ')'">
-    <div class="table-scroll">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Recipes">
       <table mat-table [dataSource]="shownRecipes()">
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Recipe</th>
@@ -206,7 +206,7 @@
   </mat-tab>
 
   <mat-tab label="Belts and pipes">
-    <div class="table-scroll">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Belts and pipes">
       <table mat-table [dataSource]="tiers.value() ?? []">
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Tier</th>
@@ -227,7 +227,7 @@
   </mat-tab>
 
   <mat-tab label="Extractors">
-    <div class="table-scroll">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Extractors">
       <table mat-table [dataSource]="extractors.value() ?? []">
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef>Extractor</th>
@@ -252,7 +252,7 @@
   </mat-tab>
 
   <mat-tab [label]="'Resource nodes (' + shownNodes().length + ')'">
-    <div class="table-scroll">
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Resource nodes">
       <table mat-table [dataSource]="shownNodes()">
         <ng-container matColumnDef="resource">
           <th mat-header-cell *matHeaderCellDef>Resource</th>

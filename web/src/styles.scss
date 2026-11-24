@@ -66,6 +66,8 @@ table.mat-mdc-table {
   width: 100%;
 }
 
+// A wide table scrolls sideways on a phone. The templates give it tabindex="0", a role and a name, so a keyboard can
+// reach it to scroll (axe: scrollable-region-focusable, found by the layout sweep 2026-11-25).
 .table-scroll {
   overflow-x: auto;
 }
