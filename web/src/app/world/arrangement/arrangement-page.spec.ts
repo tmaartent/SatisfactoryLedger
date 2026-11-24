@@ -144,12 +144,36 @@ describe('the optimal arrangement', () => {
       map.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
       await fixture.whenStable();
     };
+    /** On a touch screen: the select button on, a finger's drag, and one of the choices offered once let go. */
+    const select = async (from: number, to: number, choice: string) => {
+      const map = element.querySelector('.leaflet-container') as HTMLElement;
+      const pointer = (type: string, x: number) =>
+        new PointerEvent(type, {
+          bubbles: true,
+          isPrimary: true,
+          button: 0,
+          clientX: x,
+          clientY: x,
+        });
+      const button = element.querySelector('button.area-select') as HTMLButtonElement;
+      if (button.getAttribute('aria-pressed') !== 'true') button.click();
+      fixture.detectChanges();
+      map.dispatchEvent(pointer('pointerdown', from));
+      map.dispatchEvent(pointer('pointermove', to));
+      map.dispatchEvent(pointer('pointerup', to));
+      fixture.detectChanges();
+      const offered = [...element.querySelectorAll<HTMLButtonElement>('.area-choices button')];
+      offered.find((b) => b.textContent?.includes(choice))?.click();
+      await fixture.whenStable();
+      return offered.map((b) => b.textContent?.trim());
+    };
     return {
       fixture,
       sidebar,
       element,
       tabs: sidebar.nativeElement as HTMLElement,
       drag,
+      select,
       api: api!,
     };
   }
@@ -191,6 +215,39 @@ describe('the optimal arrangement', () => {
     await drag('shiftKey', 10, 300);
     await drag('ctrlKey', 20, 100);
     expect(element.textContent).toContain('1 kept out');
+  });
+
+  describe('on a touch screen, with no keys to hold', () => {
+    it('draws the area to arrange with the select button and a drag', async () => {
+      const { element, select } = await render();
+
+      await select(10, 200, 'Area');
+
+      expect(arrange(element)?.disabled).toBe(false);
+    });
+
+    it('offers to keep a part out only once there is an area', async () => {
+      const { element, select } = await render();
+
+      expect(await select(20, 100, 'Cancel')).not.toContainEqual(
+        expect.stringContaining('Keep out'),
+      );
+
+      await select(10, 300, 'Area');
+      await select(20, 100, 'Keep out');
+      expect(element.textContent).toContain('1 kept out');
+    });
+
+    it('stays selecting after a choice, so the next part can be drawn at once', async () => {
+      const { element, select } = await render();
+
+      await select(10, 300, 'Area');
+
+      expect(element.querySelector('button.area-select')?.getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      expect(element.querySelector('.area-choices')).toBeNull();
+    });
   });
 
   it('has its settings and Arrange on the page, not in the sidebar', async () => {

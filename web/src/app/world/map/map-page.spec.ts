@@ -392,7 +392,7 @@ describe('the world map of a snapshot', () => {
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
   });
 
-  it('says how to see an area in 3D, with no button for it, nor a link to the findings', async () => {
+  it('says how to see an area in 3D, with no button for it in the header, nor a link to the findings', async () => {
     const { element } = await render('snapshot-1');
 
     const header = element.querySelector('.page-header') as HTMLElement;
@@ -400,6 +400,98 @@ describe('the world map of a snapshot', () => {
     expect(header.textContent).toContain('ctrl to arrange its factories');
     expect(header.textContent).not.toContain('Open an area in 3D');
     expect(header.textContent).not.toContain('Findings');
+  });
+
+  describe('on a touch screen, with no keys to hold', () => {
+    const pointer = (type: string, x: number, y: number) =>
+      new PointerEvent(type, { bubbles: true, isPrimary: true, button: 0, clientX: x, clientY: y });
+
+    async function selectArea() {
+      const rendered = await render('snapshot-1');
+      const map = rendered.element.querySelector('.leaflet-container') as HTMLElement;
+      (rendered.element.querySelector('button.area-select') as HTMLButtonElement).click();
+      rendered.fixture.detectChanges();
+      map.dispatchEvent(pointer('pointerdown', 10, 10));
+      map.dispatchEvent(pointer('pointermove', 110, 110));
+      map.dispatchEvent(pointer('pointerup', 110, 110));
+      rendered.fixture.detectChanges();
+      await rendered.fixture.whenStable();
+      return rendered;
+    }
+    const choice = (element: HTMLElement, label: string) =>
+      [...element.querySelectorAll<HTMLButtonElement>('.area-choices button')].find((button) =>
+        button.textContent?.includes(label),
+      );
+
+    it('has a button to select an area, which a drag then draws instead of moving the map', async () => {
+      const { fixture, element } = await render('snapshot-1');
+      const select = element.querySelector('button.area-select') as HTMLButtonElement;
+
+      select.click();
+      fixture.detectChanges();
+
+      expect(select.getAttribute('aria-pressed')).toBe('true');
+      expect(element.querySelector('.drawing-hint')?.textContent).toContain('Drag over an area');
+    });
+
+    it('offers to open the area drawn in 3D or to arrange it, once let go', async () => {
+      const { element } = await selectArea();
+
+      expect(choice(element, '3D')).toBeTruthy();
+      expect(choice(element, 'Arrange')).toBeTruthy();
+    });
+
+    it('opens the area drawn in 3D', async () => {
+      const { fixture, element } = await selectArea();
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      choice(element, '3D')!.click();
+      await fixture.whenStable();
+
+      expect(navigate).toHaveBeenCalledWith(
+        ['/snapshots', 'snapshot-1', 'area'],
+        expect.objectContaining({
+          queryParams: expect.objectContaining({ x0: expect.any(Number) }),
+        }),
+      );
+    });
+
+    it('opens the optimal arrangement of the area drawn', async () => {
+      const { fixture, element } = await selectArea();
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      choice(element, 'Arrange')!.click();
+      await fixture.whenStable();
+
+      expect(navigate).toHaveBeenCalledWith(
+        ['/snapshots', 'snapshot-1', 'arrangement'],
+        expect.anything(),
+      );
+    });
+
+    it('lets go of the area drawn on Cancel, and of selecting', async () => {
+      const { fixture, element } = await selectArea();
+
+      choice(element, 'Cancel')!.click();
+      fixture.detectChanges();
+
+      expect(element.querySelector('.area-choices')).toBeNull();
+      expect(element.querySelector('button.area-select')?.getAttribute('aria-pressed')).toBe(
+        'false',
+      );
+    });
+
+    it('offers nothing for a tap without a drag', async () => {
+      const { fixture, element } = await render('snapshot-1');
+      const map = element.querySelector('.leaflet-container') as HTMLElement;
+      (element.querySelector('button.area-select') as HTMLButtonElement).click();
+
+      map.dispatchEvent(pointer('pointerdown', 10, 10));
+      map.dispatchEvent(pointer('pointerup', 10, 10));
+      fixture.detectChanges();
+
+      expect(element.querySelector('.area-choices')).toBeNull();
+    });
   });
 
   it('opens the area dragged over with shift held in 3D', async () => {

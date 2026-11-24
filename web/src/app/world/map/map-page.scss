@@ -72,8 +72,10 @@
 .map {
   height: calc(100dvh - 190px);
 
+  // A finger's drag draws, so the browser mustn't take it to pan the page either.
   &.drawing {
     cursor: crosshair;
+    touch-action: none;
   }
 
   min-height: 400px;
