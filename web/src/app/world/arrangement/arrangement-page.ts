@@ -46,6 +46,7 @@ import { CatalogNames } from '../../shared/catalog-names';
 import { MatDialog } from '@angular/material/dialog';
 import { previewFactory } from '../../api/fn/world/preview-factory';
 import { MapConveyor } from '../../api/models/map-conveyor';
+import { AreaSelection } from '../map/area-selection';
 import { buildingShape } from '../map/building-shape';
 import { holdToExtent } from '../map/hold-to-extent';
 import { MapArt } from '../map/map-art';
@@ -172,6 +173,27 @@ export class ArrangementPage {
    * 2026-11-23; they were buttons); or nothing, and the map pans.
    */
   protected readonly drawing = signal<'area' | 'exclusion' | null>(null);
+  /**
+   * Selecting on a touch screen, with no keys to hold (asked 2026-11-24, ADR-0033): a drag draws a rectangle, which the
+   * page then offers as the area or, inside one, as a part kept out. As small as with a key held is a tap.
+   */
+  protected readonly selection = new AreaSelection(({ from, to }) => {
+    const area = areaBetween([from.lat, from.lng], [to.lat, to.lng]);
+    return area.x1 - area.x0 >= 1000 && area.y1 - area.y0 >= 1000;
+  }, areaStyle);
+
+  /**
+   * The rectangle selected becomes the area, or a part kept out. Selecting goes on, so the next part can be drawn at
+   * once; the select button ends it.
+   */
+  protected useSelected(as: 'area' | 'exclusion'): void {
+    const drawn = this.selection.drawn();
+    if (!drawn) return;
+    const area = areaBetween([drawn.from.lat, drawn.from.lng], [drawn.to.lat, drawn.to.lng]);
+    if (as === 'area') this.area.set(area);
+    else this.exclusions.update((exclusions) => [...exclusions, area]);
+    this.selection.clear();
+  }
 
   /** Back to the start: no area, no exclusions, no run shown; the settings stay. */
   protected reset(): void {
@@ -348,6 +370,7 @@ export class ArrangementPage {
         layer.addTo(this.map);
       this.map.setView([0, 0], -3);
       this.listenForArea(this.map);
+      this.selection.attach(this.map);
       this.map.on('resize', () => this.holdToMapArt());
       this.drawMapArt();
       this.drawWorld();
@@ -665,7 +688,7 @@ export class ArrangementPage {
         .bindTooltip(owner?.name ?? 'No factory')
         // A click on a factory picks it alone (asked 2026-11-23): what supplies it lights up.
         .on('click', (event: L.LeafletMouseEvent) => {
-          if (!owner || this.drawing()) return;
+          if (!owner || this.drawing() || this.selection.selecting()) return;
           L.DomEvent.stopPropagation(event);
           this.toggleFocus(owner.factoryId);
         })

@@ -188,3 +188,52 @@ table.mat-mdc-table {
   color: #fff;
   font-size: 11px;
 }
+
+// Selecting an area on a touch screen, the world map's and the optimal arrangement's (AreaSelection, ADR-0033). Here,
+// not in each page's styles: one copy for both.
+
+// The select button, in the map's top right corner: only on a touch screen, where no key can be held. With its element,
+// to outrank Material's own position for the button, whose styles come after these.
+button.area-select {
+  display: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+
+  @media (hover: none) {
+    display: inline-flex;
+  }
+}
+
+// What to do with the rectangle drawn, where the hint stood while drawing it.
+.area-choices {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--mat-sys-surface-container) 90%, transparent);
+  white-space: nowrap;
+
+  // A phone: too narrow between the zoom buttons and the select button. At the bottom, clear of a button in the
+  // bottom left corner, in words only.
+  @media (max-width: 599px) {
+    top: auto;
+    bottom: 12px;
+    left: 64px;
+    right: 12px;
+    transform: none;
+    justify-content: center;
+    gap: 4px;
+
+    // Past a Material button's own rule for its icon.
+    button .mat-icon {
+      display: none;
+    }
+  }
+}

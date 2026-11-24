@@ -88,12 +88,32 @@
 }
 
 .map {
+  // A finger's drag draws, so the browser mustn't take it to pan the page either.
   &.drawing {
     cursor: crosshair;
+    touch-action: none;
   }
 
   height: calc(100dvh - 360px);
   min-height: 400px;
   border-radius: 12px;
   background: var(--mat-sys-surface-container-lowest);
+}
+
+// No keys to hold without a keyboard and mouse: the hint about shift and ctrl only shows where something hovers, as on
+// the world map. The select button on the map takes its place.
+// The introduction says how in either way: with keys, or with the select button on a touch screen.
+.touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .how,
+  .keys {
+    display: none;
+  }
+
+  .touch {
+    display: inline;
+  }
 }

@@ -39,7 +39,8 @@ import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
-import { areaBetween } from '../area/area-model';
+import { Area, areaBetween } from '../area/area-model';
+import { AreaSelection } from './area-selection';
 import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
 import {
   MachineStatus,
@@ -156,6 +157,19 @@ export class MapPage {
    * a drag draws instead. Null while not drawing.
    */
   protected readonly drawing = signal<'3d' | 'arrangement' | null>(null);
+  /** Selecting an area on a touch screen, with no keys to hold (asked 2026-11-24, ADR-0033). */
+  protected readonly selection = new AreaSelection(
+    ({ from, to }) => {
+      const area = toArea(from, to);
+      return area.x1 - area.x0 >= 200 && area.y1 - area.y0 >= 200;
+    },
+    { color: '#ffeb3b', weight: 2, fillOpacity: 0.1 },
+  );
+  /** The area selected, once let go: to open in 3D or to arrange. */
+  protected readonly selected = computed(() => {
+    const drawn = this.selection.drawn();
+    return drawn ? toArea(drawn.from, drawn.to) : null;
+  });
 
   private readonly statuses = computed(() => machineStatuses(this.analysis.value()?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
@@ -294,7 +308,7 @@ export class MapPage {
     // A click anywhere else on the map lets go of what's stood out, a factory or a count, so nothing is faded (asked
     // 2026-11-23). A shape that does something when clicked stops its click; drawing an area leaves it be.
     this.map.on('click', () => {
-      if (this.drawing()) return;
+      if (this.drawing() || this.selection.selecting()) return;
       this.factoryId.set(null);
       this.shownStatus.set(null);
     });
@@ -323,6 +337,7 @@ export class MapPage {
     this.map.setView([0, 0], -3);
     sizeNodes();
     this.listenForArea(this.map);
+    this.selection.attach(this.map);
     this.map.on('mousemove', (event: L.LeafletMouseEvent) =>
       this.pointer.set(
         positionInMetres({ x: event.latlng.lng * 100, y: -event.latlng.lat * 100, z: 0 }).replace(
@@ -375,6 +390,14 @@ export class MapPage {
   protected showStatus(status: ShownStatus | null): void {
     this.factoryId.set(null);
     this.shownStatus.set(status);
+  }
+
+  /** Opens the area selected: in 3D, or in the optimal arrangement. */
+  protected openSelected(page: 'area' | 'arrangement'): void {
+    const area = this.selected();
+    if (!area) return;
+    this.selection.toggle();
+    void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
   }
 
   /** Stops drawing an area: the map pans again on a drag. */
@@ -656,7 +679,7 @@ export class MapPage {
   private opensFactory(shape: L.Path, owner: OutlinedFactory | undefined): void {
     if (!owner) return;
     shape.on('click', (event: L.LeafletMouseEvent) => {
-      if (this.drawing()) return;
+      if (this.drawing() || this.selection.selecting()) return;
       L.DomEvent.stopPropagation(event);
       void this.router.navigate(['/snapshots', this.id(), 'factories', owner.factoryId]);
     });
@@ -665,7 +688,7 @@ export class MapPage {
   /** A click on a held-back machine of no factory asks why, in the sidebar (asked 2026-11-22); not while drawing. */
   private explainsWhy(shape: L.Path, machine: HeldBackMachine): void {
     shape.on('click', (event: L.LeafletMouseEvent) => {
-      if (this.drawing()) return;
+      if (this.drawing() || this.selection.selecting()) return;
       L.DomEvent.stopPropagation(event);
       this.explainer.explain(machine, this.id()!);
     });
@@ -870,4 +893,9 @@ export class MapPage {
     this.fitted = true;
     this.shapes.get(id)?.openTooltip(point);
   }
+}
+
+/** The area between two corners on the map, in the world's centimetres. */
+function toArea(from: L.LatLng, to: L.LatLng): Area {
+  return areaBetween(fromMapPoint(from.lat, from.lng), fromMapPoint(to.lat, to.lng));
 }
