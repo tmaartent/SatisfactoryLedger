@@ -1972,7 +1972,7 @@
           "cost",
           "quality",
           "beltMetres",
-          "tallestStack",
+          "levelsUsed",
           "unroutedBelts"
         ],
         "type": "object",
@@ -2097,7 +2097,7 @@
             ],
             "format": "double"
           },
-          "tallestStack": {
+          "levelsUsed": {
             "type": [
               "null",
               "integer"

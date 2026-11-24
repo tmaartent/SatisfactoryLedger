@@ -1,4 +1,5 @@
 using SatisfactoryLedger.World.Contracts.Arrangement;
+using SatisfactoryLedger.World.Domain.Arrangement;
 
 namespace SatisfactoryLedger.World.Simulation.Tests;
 
@@ -43,7 +44,7 @@ public class ArrangementDocumentsTests
 
         Assert.Equal(2, proposal.Belts?.Count);
         Assert.Empty(proposal.Unrouted ?? [new ArrangementLinkDocument("?", "?", 0)]);
-        Assert.Equal(1, proposal.TallestStack);
+        Assert.Equal(1, BeltFloor.LevelsUsed(proposal.Belts!.Select(belt => belt.Levels!)));
     }
 
     [Fact]
