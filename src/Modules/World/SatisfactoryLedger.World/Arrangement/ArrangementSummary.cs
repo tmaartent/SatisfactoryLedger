@@ -10,6 +10,7 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <param name="LevelsUsed">How many levels of the belt floor its belts use, up to the highest (2026-11-24: not the most
 /// belts on one square, which said 5 where 3D showed 8 levels); null without routed belts or with belts from before levels.</param>
 /// <param name="SupplyLines">Whether its belts were routed as supply lines.</param>
+/// <param name="Footprints">Whether its factories took their footprints instead of one plot each.</param>
 /// <param name="UnroutedBelts">How many belts and pipes couldn't be routed, not even with last-resort crossings.</param>
 /// <param name="Placements">How many placements were tried: more than one when belts were left unrouted or needed
 /// last-resort crossings (steps 101 and 102).</param>
@@ -29,6 +30,7 @@ internal sealed record ArrangementSummary(
     double SpotWeight,
     double CeilingMetres,
     bool SupplyLines,
+    bool Footprints,
     int Seconds,
     ArrangementRunStatus Status,
     DateTimeOffset RequestedAt,
@@ -48,7 +50,7 @@ internal sealed record ArrangementSummary(
     {
         ArrangementProposalDocument? proposal = run.Proposal is { } json ? ArrangementProposalDocument.FromJson(json) : null;
         return new ArrangementSummary(
-            run.Id, run.SnapshotId, run.World, run.Area, run.Exclusions, run.PlotWidthMetres, run.PlotDepthMetres, run.RoadXMetres, run.RoadYMetres, run.Together, run.SpotWeight, run.CeilingMetres, run.SupplyLines, run.Seconds,
+            run.Id, run.SnapshotId, run.World, run.Area, run.Exclusions, run.PlotWidthMetres, run.PlotDepthMetres, run.RoadXMetres, run.RoadYMetres, run.Together, run.SpotWeight, run.CeilingMetres, run.SupplyLines, run.Footprints, run.Seconds,
             run.Status, run.RequestedAt, run.ComputedAt, run.Duration, run.Error, proposal?.CostNow, proposal?.Cost, proposal?.Quality,
             MetresOf(run, proposal), LevelsOf(proposal), proposal?.Unrouted?.Sum(link => link.Belts + link.Pipes), proposal?.Placements,
             CrossingsOf(proposal));

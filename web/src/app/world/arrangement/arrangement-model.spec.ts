@@ -269,6 +269,7 @@ describe('optimal arrangement', () => {
       roadYMetres: 32,
       ceilingMetres: 64,
       supplyLines: false,
+      footprints: false,
       seconds: 60,
       spotWeight: 1,
       together: 0,
@@ -292,6 +293,12 @@ describe('optimal arrangement', () => {
 
     it('sums it up in one line: its plots and roads, the belt work it saves and how it ended', () => {
       expect(runSummary(run)).toBe('6 × 6 · roads 4 · 4 · −34% · Optimal');
+    });
+
+    it('says footprints instead of a plot size when its factories take their footprints', () => {
+      expect(runSummary({ ...run, footprints: true })).toBe(
+        'footprints · roads 4 · 4 · −34% · Optimal',
+      );
     });
 
     it('says when it routes supply lines, and how many belts it left unrouted', () => {

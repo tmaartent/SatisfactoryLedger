@@ -18,8 +18,8 @@ public sealed record ArrangementProblem(
     int GapY,
     int Together)
 {
-    /// <summary>The plots of the area no fixed place blocks: where factories may stand.</summary>
-    public int FreePlots
+    /// <summary>The cells of the area no fixed place blocks: where factories may stand. A cell is a plot, or on footprints a foundation.</summary>
+    public int FreeCells
     {
         get
         {
@@ -39,8 +39,8 @@ public sealed record ArrangementProblem(
         }
     }
 
-    /// <summary>Whether the factories could fit at all: there are at least as many free plots as they take.</summary>
-    public bool HasRoom => Factories.Sum(factory => factory.Now.Width * factory.Now.Depth) <= FreePlots;
+    /// <summary>Whether the factories could fit at all: there are at least as many free cells as they take.</summary>
+    public bool HasRoom => Factories.Sum(factory => factory.Now.Width * factory.Now.Depth) <= FreeCells;
 
     /// <summary>What the layout as it stands costs.</summary>
     public double CostNow => CostOf(Factories.ToDictionary(factory => factory.Id, factory => factory.Now));

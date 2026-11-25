@@ -88,11 +88,11 @@ public class ArrangementProblemTests
             GapY: 0,
             Together: 0);
 
-        Assert.Equal(100 - 4 - 3 - 1, problem.FreePlots);
+        Assert.Equal(100 - 4 - 3 - 1, problem.FreeCells);
     }
 
     [Fact]
-    public void Factories_have_no_room_when_there_are_fewer_free_plots_than_they_take()
+    public void Factories_have_no_room_when_there_are_fewer_free_cells_than_they_take()
     {
         var problem = new ArrangementProblem(
             [new ArrangedFactory("smelting", new GridRectangle(0, 0, 1, 1)), new ArrangedFactory("plates", new GridRectangle(1, 0, 1, 1))],

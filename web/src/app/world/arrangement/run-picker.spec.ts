@@ -20,6 +20,7 @@ const older: ArrangementSummary = {
   roadYMetres: 32,
   ceilingMetres: 64,
   supplyLines: false,
+  footprints: false,
   seconds: 60,
   spotWeight: 1,
   together: 0,

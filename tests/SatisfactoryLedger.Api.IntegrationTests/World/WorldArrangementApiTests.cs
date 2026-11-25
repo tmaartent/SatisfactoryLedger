@@ -112,6 +112,20 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
     }
 
     [Fact]
+    public async Task On_footprints_the_factories_are_arranged_on_the_foundations_their_machines_cover()
+    {
+        ArrangementSummary requested = (await (await RequestAsync(new { roadXMetres = 8, roadYMetres = 8, footprints = true, seconds = 5 }))
+            .Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+
+        Arrangement ready = await ReadyAsync(requested.Id);
+
+        Assert.Equal("ready", ready.Summary.Status);
+        Assert.True(ready.Summary.Footprints);
+        Assert.Equal(0, ready.Summary.UnroutedBelts);
+        Assert.All(ready.Factories, factory => Assert.NotNull(factory.Proposed));
+    }
+
+    [Fact]
     public async Task The_machines_of_a_runs_factories_come_with_their_footprints_as_they_stand_now()
     {
         ArrangementSummary requested = (await (await RequestAsync(new { plotWidthMetres = 16, plotDepthMetres = 16, roadXMetres = 8, roadYMetres = 8, seconds = 5 }))

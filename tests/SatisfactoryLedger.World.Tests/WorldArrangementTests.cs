@@ -63,6 +63,48 @@ public class WorldArrangementTests
         Assert.True(Math.Abs(x - (plot.X + 0.5)) <= 1 && Math.Abs(y - (plot.Y + 0.5)) <= 1, $"middle ({x}, {y}) far from {plot}");
     }
 
+    /// <summary>Factories on their footprints, with roads of 8 metres (one foundation) along x and 16 (two) along y.</summary>
+    private static MadeArrangement OnFootprints(params StoredFactory[] factories) =>
+        WorldArrangement.Of(
+            Document,
+            TestWorldAnalysis,
+            factories,
+            new ArrangementSettings(null, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 16, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, [], Footprints: true));
+
+    [Fact]
+    public void On_footprints_a_factory_takes_the_whole_foundations_its_machines_cover()
+    {
+        // Constructor C stands 21 metres from smelter A: more than one foundation of 8 metres, whatever the plots.
+        StoredFactory ironPlates = Factory("Iron plates", SmelterA, SmelterB, ConstructorC);
+        MadeArrangement made = OnFootprints(ironPlates);
+
+        GridRectangle footprint = Assert.Single(made.Problem.Factories).Now;
+        WorldRectangle ground = made.Grid.WorldOf(new GridRectangleDocument(footprint.X, footprint.Y, footprint.Width, footprint.Depth));
+        Assert.Equal((800.0, 800.0), (made.Grid.PitchX, made.Grid.PitchY));
+        Assert.True(footprint.Width * footprint.Depth > 1, $"{footprint} is one foundation");
+        Assert.All([SmelterA, SmelterB, ConstructorC], machine =>
+        {
+            PositionDocument at = PositionOf(machine);
+            Assert.True(at.X > ground.X0 && at.X < ground.X1 && at.Y > ground.Y0 && at.Y < ground.Y1, $"{machine} at ({at.X}, {at.Y}) outside {ground}");
+        });
+    }
+
+    [Fact]
+    public void On_footprints_the_roads_are_the_gaps_between_factories_in_foundations()
+    {
+        ArrangementProblem problem = OnFootprints(Smelting, Plates).Problem;
+
+        Assert.Equal((1, 2), (problem.GapX, problem.GapY));
+    }
+
+    [Fact]
+    public void On_footprints_the_belt_floor_is_one_square_a_foundation_with_no_roads_of_its_own()
+    {
+        var settings = new ArrangementSettings(null, PlotWidthMetres: 48, PlotDepthMetres: 48, RoadXMetres: 32, RoadYMetres: 32, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, [], Footprints: true);
+
+        Assert.Equal(new BeltFloor(1, 1, 0, 0, 16), settings.Floor);
+    }
+
     [Fact]
     public void Only_the_factories_inside_the_area_are_arranged_the_others_stay_and_take_their_plots()
     {

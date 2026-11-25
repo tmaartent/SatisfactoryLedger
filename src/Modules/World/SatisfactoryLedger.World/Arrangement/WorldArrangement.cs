@@ -14,7 +14,8 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <item>The area: the rectangle drawn on the map (everything built when none is), divided into plots in rows and
 /// columns with roads between them; a cell of the problem is a plot and its road.</item>
 /// <item>The factories inside it (their machines' middle): each on one plot, where its machines' middle is (decided
-/// 2026-11-18: every factory is built to fit a plot).</item>
+/// 2026-11-18: every factory is built to fit a plot); or, on footprints (decided 2026-11-25), on the whole foundations
+/// its machines cover, with the roads kept between factories as gaps.</item>
 /// <item>Their links: what inputs bring now (<see cref="FactoryInputs"/>, BR-A19) from another factory, to or from a
 /// factory inside, each item weighing the belts (or, for a fluid, pipes) it needs: its rate over the top tier's
 /// capacity, rounded up.
@@ -174,7 +175,7 @@ internal static class WorldArrangement
             string to = factory.Id.ToString();
             if (chosen.Contains(to))
             {
-                arranged.Add(new ArrangedFactory(to, grid.PlotOf(outline)));
+                arranged.Add(new ArrangedFactory(to, settings.Footprints ? grid.PlotsTouching(outline) : grid.PlotOf(outline)));
             }
             else
             {
@@ -353,14 +354,15 @@ internal static class WorldArrangement
             })];
         }
 
-        // The roads come with the plots: no gap besides them.
+        // On plots the roads come with them: no gap besides them. On footprints the roads are the gaps.
+        (int gapX, int gapY) = settings.Gaps;
         var problem = new ArrangementProblem(
             arranged,
             [.. fixedPlaces.Values],
             [.. LinksOf(factoryRates, 100), .. LinksOf(spotRates, (int)Math.Round(settings.SpotWeight * 100))],
             new GridRectangle(0, 0, plotsX, plotsY),
-            GapX: 0,
-            GapY: 0,
+            gapX,
+            gapY,
             settings.Together);
         return new MadeArrangement(problem, grid, spots, loads, lines, entries);
 

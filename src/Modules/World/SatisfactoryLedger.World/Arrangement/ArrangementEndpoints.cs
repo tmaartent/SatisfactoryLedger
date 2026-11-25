@@ -144,6 +144,7 @@ internal static class ArrangementEndpoints
             SpotWeight = spotWeight,
             CeilingMetres = ceiling,
             SupplyLines = request.SupplyLines ?? false,
+            Footprints = request.Footprints ?? false,
             Exclusions = exclusions,
             Seconds = seconds,
             Status = ArrangementRunStatus.Pending,
@@ -155,7 +156,7 @@ internal static class ArrangementEndpoints
         ArrangementProblem problem = await ArrangementProblems.PlacingAsync(db, run, snapshot, cancellationToken);
         if (!problem.HasRoom)
         {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["area"] = [ArrangementProblems.NoRoom(problem)] });
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["area"] = [ArrangementProblems.NoRoom(problem, run.Footprints)] });
         }
 
         // The run and the message to the analysis service in one transaction (the transactional outbox, ADR-0018).

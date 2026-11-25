@@ -43,6 +43,9 @@ internal sealed class StoredArrangement
     /// <summary>Whether belts are routed as supply lines (BR-O2); not in runs from before them.</summary>
     public bool SupplyLines { get; init; }
 
+    /// <summary>Whether each factory takes its footprint instead of one plot (BR-O1); not in runs from before it.</summary>
+    public bool Footprints { get; init; }
+
     /// <summary>Where no factory may stand, in the game's centimetres; none in runs from before they existed.</summary>
     public List<WorldRectangle> Exclusions { get; init; } = [];
 
@@ -75,7 +78,7 @@ internal sealed class StoredArrangement
     /// <summary>The area drawn, or null for everything built.</summary>
     public WorldRectangle? Area => AreaX0 is { } x0 && AreaY0 is { } y0 && AreaX1 is { } x1 && AreaY1 is { } y1 ? new WorldRectangle(x0, y0, x1, y1) : null;
 
-    public ArrangementSettings Settings => new(Area, PlotWidthMetres, PlotDepthMetres, RoadXMetres, RoadYMetres, Together, SpotWeight, CeilingMetres, Exclusions, SupplyLines);
+    public ArrangementSettings Settings => new(Area, PlotWidthMetres, PlotDepthMetres, RoadXMetres, RoadYMetres, Together, SpotWeight, CeilingMetres, Exclusions, SupplyLines, Footprints);
 
     /// <summary>The plots its problem was made on; null until it's made.</summary>
     public ArrangementGrid? Grid => GridOriginX is { } x && GridOriginY is { } y ? ArrangementGrid.Of(x, y, Settings) : null;

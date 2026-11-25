@@ -9,7 +9,8 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 /// <param name="Levels">How many belts a stack holds: one per 2 metres of ceiling, the stackable pole's step.</param>
 public sealed record BeltFloor(int SquaresPerPlotX, int SquaresPerPlotY, int RoadSquaresX, int RoadSquaresY, int Levels)
 {
-    private const double FoundationMetres = 8;
+    /// <summary>A foundation's side: what plots, roads and footprints are laid out in.</summary>
+    public const double FoundationMetres = 8;
     private const double LevelMetres = 2;
     private const double LiftFromMetres = 4;
 
@@ -54,6 +55,7 @@ public sealed record BeltFloor(int SquaresPerPlotX, int SquaresPerPlotY, int Roa
         (plots.Width * SquaresPerPlotX) - RoadSquaresX,
         (plots.Depth * SquaresPerPlotY) - RoadSquaresY);
 
+    /// <summary>Metres in whole foundations of 8 metres, a half rounded up.</summary>
     // Away from zero: .NET rounds a half to even by default, so 2.5 foundations would be 2.
-    private static int Foundations(double metres) => (int)Math.Round(metres / FoundationMetres, MidpointRounding.AwayFromZero);
+    public static int Foundations(double metres) => (int)Math.Round(metres / FoundationMetres, MidpointRounding.AwayFromZero);
 }

@@ -1891,6 +1891,12 @@
               "integer"
             ],
             "format": "int32"
+          },
+          "footprints": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -1969,6 +1975,7 @@
           "spotWeight",
           "ceilingMetres",
           "supplyLines",
+          "footprints",
           "seconds",
           "status",
           "requestedAt",
@@ -2042,6 +2049,9 @@
             "format": "double"
           },
           "supplyLines": {
+            "type": "boolean"
+          },
+          "footprints": {
             "type": "boolean"
           },
           "seconds": {

@@ -6,11 +6,14 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <summary>
 /// The plots laid over the world (decided 2026-11-12), in the game's centimetres: from the area's lowest corner, a plot
 /// and its road every <see cref="PitchX"/> along x and <see cref="PitchY"/> along y. A cell of the arrangement is one
-/// plot with the road after it, so factories on neighbouring cells have a road between them.
+/// plot with the road after it, so factories on neighbouring cells have a road between them. On footprints (decided
+/// 2026-11-25) a cell is one foundation and the grid has no roads: the roads are the problem's gaps.
 /// </summary>
 internal sealed record ArrangementGrid(double OriginX, double OriginY, double PitchX, double PitchY, double RoadX, double RoadY)
 {
-    public static ArrangementGrid Of(double originX, double originY, ArrangementSettings settings) => new(
+    public static ArrangementGrid Of(double originX, double originY, ArrangementSettings settings) => settings.Footprints
+        ? new(originX, originY, BeltFloor.FoundationMetres * 100, BeltFloor.FoundationMetres * 100, 0, 0)
+        : new(
         originX,
         originY,
         (settings.PlotWidthMetres + settings.RoadXMetres) * 100,
