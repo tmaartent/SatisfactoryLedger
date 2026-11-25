@@ -16,6 +16,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -40,9 +41,8 @@ import { WorldRectangle } from '../../api/models/world-rectangle';
 import { problemMessage } from '../../shared/problem';
 import { TracedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
 import { ArrangementDeletion } from './arrangement-deletion';
-import { BeltFloor3dDialog, BeltFloor3dDialogData } from './belt-floor-3d-dialog';
+import { BeltFloor3d } from './belt-floor-3d';
 import { CatalogNames } from '../../shared/catalog-names';
-import { MatDialog } from '@angular/material/dialog';
 import { previewFactory } from '../../api/fn/world/preview-factory';
 import { MapConveyor } from '../../api/models/map-conveyor';
 import { AreaSelection } from '../map/area-selection';
@@ -65,6 +65,8 @@ import {
 import {
   areaBetween,
   beltEnds,
+  beltLevels,
+  shownLevels,
   beltLine,
   beltTooltip,
   factoryTooltip,
@@ -133,12 +135,14 @@ const stationClasses = new Set([
     RouterLink,
     MatButtonModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatProgressBarModule,
     MatSlideToggleModule,
     MatTooltipModule,
+    BeltFloor3d,
     RunPicker,
     SidebarTab,
   ],
@@ -218,17 +222,41 @@ export class ArrangementPage {
     this.exclusions.set([]);
   }
 
-  /** The shown run's belt floor in 3D, over the page. */
-  protected open3d(): void {
-    const arrangement = loaded(this.arrangement);
-    if (!arrangement) return;
-    const data: BeltFloor3dDialogData = {
-      arrangement,
-      colourOf: this.colourOf(),
-      machines: loaded(this.machines) ?? null,
-      focused: this.focused,
-    };
-    this.dialog.open(BeltFloor3dDialog, { data, width: '95vw', maxWidth: '95vw', height: '90vh' });
+  /**
+   * The map, or the shown run's belt floor in 3D in its place (asked 2026-11-25: in the page, as the area's 3D view, not
+   * over it). Switching to 3D opens the Levels tab with a mouse, and closes the tabs on a touch screen (asked 2026-11-25).
+   */
+  protected readonly view = signal<'map' | '3d'>('map');
+
+  /** Whether the shown run has belts to show in 3D. */
+  protected readonly hasBelts = computed(() => (loaded(this.arrangement)?.belts.length ?? 0) > 0);
+
+  /** Whether the 3D view shows: asked for, with belts to show. */
+  protected readonly shows3d = computed(() => this.view() === '3d' && this.hasBelts());
+
+  protected showView(view: 'map' | '3d'): void {
+    this.view.set(view);
+    if (view === '3d') this.sidebar.showBeside3d('levels');
+  }
+
+  /** Every level the shown run's belts run on: the Levels tab's list. */
+  protected readonly allLevels = computed(() => beltLevels(loaded(this.arrangement)?.belts ?? []));
+
+  /** The levels ticked in the Levels tab; every one for each run shown. */
+  protected readonly ticked = linkedSignal(() => this.allLevels());
+
+  /** The levels shown in 3D: null while every one is ticked, so every factory shows too. */
+  protected readonly levels = computed(() => shownLevels(this.allLevels(), this.ticked()));
+
+  /** Whether the factories' machines show in 3D; only the flat slabs when not. */
+  protected readonly showMachines = signal(true);
+
+  protected readonly emptyPicks: ReadonlySet<string> = new Set();
+
+  protected tick(level: number, on: boolean): void {
+    this.ticked.update((ticked) =>
+      on ? [...ticked, level] : ticked.filter((other) => other !== level),
+    );
   }
 
   /** Deletes a run after asking; the list shows the newest left. */
@@ -297,7 +325,7 @@ export class ArrangementPage {
    * The shown run's machines as they stand now, to draw moved with their factories as the map draws machines: asked
    * once the run is ready, since they're read from its snapshot.
    */
-  private readonly machines = resource({
+  protected readonly machines = resource({
     params: () => {
       const summary = loaded(this.arrangement)?.summary;
       return summary?.status === 'ready' ? { id: summary.id } : undefined;
@@ -350,13 +378,21 @@ export class ArrangementPage {
   });
 
   private readonly names = inject(CatalogNames);
-  private readonly dialog = inject(MatDialog);
   private readonly deletion = inject(ArrangementDeletion);
   private readonly sidebar = inject(SidebarTabs);
   /** A factory's colour, as the map draws it. */
   protected readonly colourOf = computed(() => {
     const traces = loaded(this.factories) ?? [];
     return (factoryId: string) => factoryColour(traces, factoryId);
+  });
+
+  /**
+   * The factory a machine belongs to, with its colour: where a line ends at a machine outside the arranged factories,
+   * one of a factory outside the area, or of none, an undefined factory (asked 2026-11-25).
+   */
+  protected readonly ownerOf = computed(() => {
+    const owners = machineOwners(loaded(this.factories) ?? []);
+    return (machine: string) => owners.get(machine)?.[0];
   });
   /** The factories picked in the side bar or on the map: they, their belts and the factories linked to them stand out. */
   protected readonly focused = signal<ReadonlySet<string>>(new Set());
@@ -979,6 +1015,7 @@ export class ArrangementPage {
       building: (name: string) => this.names.building(name),
       extractorForm: (name: string) => this.names.extractorForm(name),
       fluidColour: (item: string) => this.names.fluidColour(item),
+      ownerOf: this.ownerOf(),
     };
     const shown = suppliedBelts(arrangement.belts, focused);
     for (const belt of arrangement.belts) {
@@ -1011,7 +1048,17 @@ export class ArrangementPage {
       const mark = spotMark(belt, factories, spotNames);
       for (const lift of lifts) {
         const atSpot = lift === spot;
-        if (atSpot && mark)
+        if (atSpot && mark?.kind === 'station')
+          L.circleMarker(lift, {
+            radius: picked ? 3 : 2,
+            weight: 1,
+            color: '#212121',
+            fillColor: mark.colour,
+            fillOpacity: dimmed ? 0.25 : 1,
+          })
+            .bindTooltip(mark.tooltip)
+            .addTo(this.beltLayer);
+        else if (atSpot && mark)
           L.circleMarker(lift, {
             radius: picked ? 6 : 5,
             weight: 1.5,

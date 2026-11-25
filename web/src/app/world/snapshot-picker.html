@@ -50,9 +50,9 @@
         class="snapshot"
         [class.current]="snapshot.id === current()"
         [routerLink]="['/snapshots', snapshot.id, 'map']"
-        >{{ snapshot.sessionName }}</a
+        ><span class="name">{{ snapshot.sessionName }}</span
+        ><span class="saved">{{ snapshot.savedAt | date: 'd MMM, HH:mm' }}</span></a
       >
-      <span class="saved">{{ snapshot.savedAt | date: 'd MMM, HH:mm' }}</span>
       <button
         mat-icon-button
         (click)="delete(snapshot)"

@@ -1,6 +1,9 @@
 import { ArrangementSummary } from '../../api/models/arrangement-summary';
 import {
   areaBetween,
+  beltLevels,
+  floorDistance,
+  shownLevels,
   beltsToLabel,
   halfway,
   suppliedBelts,
@@ -600,18 +603,27 @@ describe('optimal arrangement', () => {
     });
   });
 
-  describe('where a line starts at a miner or an extractor', () => {
+  describe('where a line starts: at a miner, an extractor, a station or machines', () => {
     const factories = new Set(['f']);
+    const caterium = 'Persistent_Level:PersistentLevel.Build_SmelterMk1_C_1';
     const names = {
       item: (item: string) =>
         ({ Desc_OreCopper_C: 'Copper Ore', Desc_Water_C: 'Water' })[item] ?? item,
       building: (className: string) =>
-        ({ Build_MinerMk3_C: 'Miner Mk.3', Build_WaterPump_C: 'Water Extractor' })[className] ??
-        className,
+        (
+          ({
+            Build_MinerMk3_C: 'Miner Mk.3',
+            Build_WaterPump_C: 'Water Extractor',
+            Build_SmelterMk1_C: 'Smelter',
+            Build_DroneStation_C: 'Drone Port',
+          }) as Record<string, string>
+        )[className] ?? className,
       extractorForm: (className: string) =>
         ({ Build_MinerMk3_C: 'solid' as const, Build_WaterPump_C: 'fluid' as const })[className] ??
         null,
       fluidColour: (item: string) => (item === 'Desc_Water_C' ? '#7ab0d4' : null),
+      ownerOf: (machine: string) =>
+        machine === caterium ? { name: 'Caterium Ingots', colour: '#eeff41' } : undefined,
     };
     const fromMiner = {
       from: 'Persistent_Level:PersistentLevel.Build_MinerMk3_C_2147327191+2',
@@ -655,12 +667,41 @@ describe('optimal arrangement', () => {
       expect(spotMark(fromPump, factories, names)?.colour).toBe('#1e88e5');
     });
 
-    it('marks nothing at a station or drone port', () => {
-      const fromStation = {
+    it("marks a station or drone port with the map's dark dot, saying what it is", () => {
+      const fromPort = {
         ...fromMiner,
-        from: 'Persistent_Level:PersistentLevel.Build_TrainDockingStation_C_2147000001',
+        from: 'Persistent_Level:PersistentLevel.Build_DroneStation_C_2147000001',
       };
-      expect(spotMark(fromStation, factories, names)).toBeNull();
+      expect(spotMark(fromPort, factories, names)).toEqual({
+        kind: 'station',
+        end: 'start',
+        colour: '#37474f',
+        tooltip: '<b>Drone Port</b><br>Copper Ore · 1074/min',
+      });
+    });
+
+    it("marks a machine of a factory outside the area in that factory's colour, by its name", () => {
+      // Step 108: a factory outside the area is reached at its machine nearest the factory it feeds.
+      expect(spotMark({ ...fromMiner, from: caterium }, factories, names)).toEqual({
+        kind: 'factory',
+        end: 'start',
+        colour: '#eeff41',
+        tooltip:
+          '<b>Caterium Ingots</b> · factory outside the area<br>Smelter<br>Copper Ore · 1074/min',
+      });
+    });
+
+    it('marks machines no factory owns grey, as an undefined factory (asked 2026-11-25)', () => {
+      const fromSmelters = {
+        ...fromMiner,
+        from: 'Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2+3>f',
+      };
+      expect(spotMark(fromSmelters, factories, names)).toEqual({
+        kind: 'undefined',
+        end: 'start',
+        colour: '#90a4ae',
+        tooltip: '<b>Undefined factory</b><br>Smelter and 3 more<br>Copper Ore · 1074/min',
+      });
     });
 
     it('marks nothing where the belt leaves the floor to join the belt from the miner outside the area', () => {
@@ -672,16 +713,24 @@ describe('optimal arrangement', () => {
     });
   });
 
-  describe('where an existing belt outside the area starts at a miner or an extractor', () => {
+  describe('where an existing belt outside the area starts', () => {
+    const caterium = 'Persistent_Level:PersistentLevel.Build_SmelterMk1_C_1';
     const names = {
       item: (item: string) => ({ Desc_Stone_C: 'Limestone', Desc_Water_C: 'Water' })[item] ?? item,
       building: (className: string) =>
-        ({ Build_MinerMk2_C: 'Miner Mk.2', Build_WaterPump_C: 'Water Extractor' })[className] ??
-        className,
+        (
+          ({
+            Build_MinerMk2_C: 'Miner Mk.2',
+            Build_WaterPump_C: 'Water Extractor',
+            Build_SmelterMk1_C: 'Smelter',
+          }) as Record<string, string>
+        )[className] ?? className,
       extractorForm: (className: string) =>
         ({ Build_MinerMk2_C: 'solid' as const, Build_WaterPump_C: 'fluid' as const })[className] ??
         null,
       fluidColour: (item: string) => (item === 'Desc_Water_C' ? '#7ab0d4' : null),
+      ownerOf: (machine: string) =>
+        machine === caterium ? { name: 'Caterium Ingots', colour: '#eeff41' } : undefined,
     };
     const miner = 'Persistent_Level:PersistentLevel.Build_MinerMk2_C_2147339296';
     const way = {
@@ -721,9 +770,23 @@ describe('optimal arrangement', () => {
       ).toBe('#7ab0d4');
     });
 
-    it('marks nothing at a station', () => {
-      const station = 'Persistent_Level:PersistentLevel.Build_TrainDockingStation_C_2147000001';
-      expect(wayMark({ ...way, spotId: station }, [{ ...belt, from: station }], names)).toBeNull();
+    it("marks the smelter of a factory outside the area in that factory's colour, by its name", () => {
+      expect(
+        wayMark({ ...way, spotId: caterium }, [{ ...belt, from: caterium }], names),
+      ).toMatchObject({
+        kind: 'factory',
+        at: { x: -5000, y: 0 },
+        colour: '#eeff41',
+        tooltip:
+          '<b>Caterium Ingots</b> · factory outside the area<br>Smelter<br>Limestone · 600/min',
+      });
+    });
+
+    it('marks a smelter no factory owns grey, as an undefined factory', () => {
+      const smelter = 'Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2';
+      expect(
+        wayMark({ ...way, spotId: smelter }, [{ ...belt, from: smelter }], names),
+      ).toMatchObject({ kind: 'undefined', colour: '#90a4ae' });
     });
 
     it('marks nothing where no routed belt joins it', () => {
@@ -1138,6 +1201,34 @@ describe('optimal arrangement', () => {
         wayHeight({ x: 5000, y: 0 }, entry),
         wayHeight({ x: 5000, y: 0, z: 2000 }, { x: 0, y: 0 }),
       ]).toEqual([0, 0]);
+    });
+  });
+
+  describe('the levels picked in 3D, in the Levels tab', () => {
+    it('lists every level a belt runs on, from the floor up, each once', () => {
+      expect(beltLevels([{ levels: [2, 0] }, { levels: [0, 1] }, { levels: [2] }])).toEqual([
+        0, 1, 2,
+      ]);
+    });
+
+    it('shows every level and factory while every level is ticked', () => {
+      expect(shownLevels([0, 1, 2], [2, 0, 1])).toBeNull();
+    });
+
+    it('shows only the levels ticked otherwise', () => {
+      expect(shownLevels([0, 1, 2], [1])).toEqual(new Set([1]));
+      expect(shownLevels([0, 1, 2], [])).toEqual(new Set());
+    });
+  });
+
+  describe('how far back the 3D view of the floor stands', () => {
+    it('as before on a screen as wide as high, or wider', () => {
+      expect(floorDistance(100, 1)).toBeCloseTo(90);
+      expect(floorDistance(100, 2)).toBeCloseTo(90);
+    });
+
+    it('as much further back as a phone is narrower than high, so the floor fits across', () => {
+      expect(floorDistance(100, 0.5)).toBeCloseTo(180);
     });
   });
 });

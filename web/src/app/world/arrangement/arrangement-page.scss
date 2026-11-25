@@ -73,8 +73,14 @@
 .about {
   padding: 0 16px 16px;
 
-  p:first-child {
-    margin-top: 0;
+  // Room under the tab's header, as the other tabs have.
+  ul {
+    margin: 12px 0 0;
+    padding-left: 18px;
+  }
+
+  li + li {
+    margin-top: 6px;
   }
 }
 
@@ -114,6 +120,53 @@
   position: relative;
   flex: 1;
   min-height: 0;
+}
+
+// The belt floor in 3D, over the map it takes the place of (asked 2026-11-25).
+.floor-3d {
+  position: absolute;
+  inset: 0;
+  // Above Leaflet's panes and controls (up to 1000).
+  z-index: 1001;
+  overflow: hidden;
+  border-radius: 12px;
+  // The site's colours behind the scene, as the area's 3D view and the map frame have.
+  --scene: var(--mat-sys-surface-container-lowest);
+
+  app-belt-floor-3d {
+    height: 100%;
+  }
+}
+
+// As the area's 3D view says how, at its bottom left.
+.hint-3d {
+  position: absolute;
+  left: 12px;
+  bottom: 8px;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+  pointer-events: none;
+}
+
+.levels {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 16px 16px;
+
+  > button {
+    margin-top: 12px;
+  }
+
+  h3 {
+    margin: 16px 0 8px;
+  }
+}
+
+.level-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .drawing-hint {

@@ -113,4 +113,34 @@ describe('the tabs of the sidebar', () => {
       expect(tabs().collapsed()).toBe(false);
     });
   });
+
+  describe("before the arrangement's 3D view (asked 2026-11-25)", () => {
+    const touchScreen = (touch: boolean) =>
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn((query: string) => ({ matches: query === '(hover: none)' && touch })),
+      );
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("shows the view's own tab with a mouse, opening the sidebar for it", () => {
+      touchScreen(false);
+      tabs().add(tab('info'));
+      tabs().add(tab('levels'));
+      tabs().collapsed.set(true);
+
+      tabs().showBeside3d('levels');
+
+      expect([tabs().current()?.key, tabs().collapsed()]).toEqual(['levels', false]);
+    });
+
+    it('closes on a touch screen, so the view can be seen', () => {
+      touchScreen(true);
+      tabs().add(tab('info'));
+      tabs().show('info');
+
+      tabs().showBeside3d('levels');
+
+      expect(tabs().collapsed()).toBe(true);
+    });
+  });
 });

@@ -117,12 +117,17 @@ describe('the snapshot picker above the sidebar', () => {
     await openList();
 
     const links = [...menu().querySelectorAll('a.snapshot')];
-    expect(links.map((link) => link.textContent?.trim())).toEqual(['Desert Start', 'Development']);
+    expect(links.map((link) => link.querySelector('.name')?.textContent?.trim())).toEqual([
+      'Desert Start',
+      'Development',
+    ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/snapshots/snapshot-2/map',
       '/snapshots/snapshot-1/map',
     ]);
-    expect(menu().querySelector('a.snapshot.current')?.textContent?.trim()).toBe('Desert Start');
+    expect(menu().querySelector('a.snapshot.current .name')?.textContent?.trim()).toBe(
+      'Desert Start',
+    );
   });
 
   it('deletes a snapshot once the player confirms, staying on the map shown', async () => {

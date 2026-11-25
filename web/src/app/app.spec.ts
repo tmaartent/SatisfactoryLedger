@@ -137,7 +137,13 @@ describe('App', () => {
       await deferred.render(DeferBlockState.Complete);
     await fixture.whenStable();
 
-    expect(sidebar()?.querySelector('app-snapshot-picker')).toBeNull();
+    expect(sidebar()?.querySelector('app-snapshot-picker') ?? null).toBeNull();
+  });
+
+  it('has no Explanation tab on the optimal arrangement, which has no findings to explain (asked 2026-11-25)', async () => {
+    const { sidebar } = await render('/snapshots/s1/arrangement');
+
+    expect(sidebar()?.querySelector('button[aria-label="Explanation"]') ?? null).toBeNull();
   });
 
   it("has no snapshot picker on a factory's page, which is about one factory of its snapshot", async () => {
