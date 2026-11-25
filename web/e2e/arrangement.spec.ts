@@ -312,3 +312,101 @@ test.describe('the optimal arrangement and its runs', () => {
     }
   });
 });
+
+/** A miner outside the area, whose existing belt comes into the area at its west edge. */
+const miner = 'Persistent_Level:PersistentLevel.Build_MinerMk2_C_1';
+
+/**
+ * A run with one supply line of iron ore: from the miner outside the area to Smelting, on the floor, and running on from
+ * a splitter under Smelting to Iron Plates. Iron Plates is the second factory on the line.
+ */
+async function answerLine(page: Page): Promise<void> {
+  const run = { id: 'run-line', area: runs.near.area };
+  const at = (x: number) => ({ x, y: -196000, z: 0 });
+  const plot = (x: number) => ({ x0: x - 1000, y0: -197000, x1: x + 1000, y1: -195000 });
+  const belt = (from: string, to: string, corners: number[], more: object) => ({
+    from,
+    to,
+    corners: corners.map(at),
+    pipe: false,
+    heights: [0],
+    lifts: [],
+    levels: [0],
+    item: 'Desc_OreIron_C',
+    perMinute: 240,
+    injection: false,
+    overflow: false,
+    startsOnBelt: false,
+    endsOnBelt: false,
+    leavesFloor: false,
+    lastResortCrossings: [],
+    ...more,
+  });
+  await page.route('**/api/v1/world/arrangements?world=Development', (route) =>
+    route.fulfill({ json: [summary(run, '2026-11-25T15:00:00Z')] }),
+  );
+  await page.route(`**/api/v1/world/arrangements/${run.id}`, (route) =>
+    route.fulfill({
+      json: {
+        summary: summary(run, '2026-11-25T15:00:00Z'),
+        factories: [
+          { factoryId: 'smelting', name: 'Smelting', now: plot(247000), proposed: plot(247000) },
+          { factoryId: factory, name: 'Iron Plates', now: plot(251000), proposed: plot(251000) },
+        ],
+        fixed: [],
+        links: [],
+        belts: [
+          belt(miner, 'smelting', [244000, 247000], { leavesFloor: true }),
+          belt('smelting', factory, [247000, 251000], { startsOnBelt: true }),
+        ],
+        unrouted: [],
+        ways: [{ spotId: miner, points: [at(200000), at(243000)] }],
+      },
+    }),
+  );
+  await page.route(`**/api/v1/world/arrangements/${run.id}/machines`, (route) =>
+    route.fulfill({ json: { footprints: [], machines: [] } }),
+  );
+}
+
+/** How strongly the map draws the existing belt outside the area, dotted; null while there's none. */
+function wayOpacity(page: Page): Promise<number | null> {
+  return page.evaluate(() => {
+    const maps = (
+      window as unknown as {
+        maps: { eachLayer(each: (layer: { options?: Record<string, unknown> }) => void): void }[];
+      }
+    ).maps;
+    if (maps.length === 0) return null;
+    let opacity: number | null = null;
+    maps[maps.length - 1].eachLayer((layer) => {
+      if (layer.options?.['dashArray'] === '2 4') opacity = layer.options['opacity'] as number;
+    });
+    return opacity;
+  });
+}
+
+/**
+ * Step 106 (asked 2026-11-25): a factory picked lights up its sources outside the area too, along the existing belts
+ * there, not only its belts on the floor up to the area's edge.
+ */
+test.describe('the optimal arrangement, its sources outside the area', () => {
+  test.beforeEach(async ({ page }) => {
+    await catchMaps(page);
+    await answerLine(page);
+  });
+
+  test('lights the way outside the area to the source of a factory picked further along its line', async ({
+    page,
+  }) => {
+    await page.goto(`/snapshots/${snapshot}/arrangement?run=run-line`);
+    await expect.poll(() => wayOpacity(page)).toBe(0.8);
+
+    await page.getByRole('button', { name: 'Factories', exact: true }).click();
+    await page.locator('.factories .factory', { hasText: 'Iron Plates' }).click();
+
+    // Picked: its name shows on the map.
+    await expect(page.locator('.factory-label.picked')).toContainText('Iron Plates');
+    await expect.poll(() => wayOpacity(page)).toBe(0.8);
+  });
+});

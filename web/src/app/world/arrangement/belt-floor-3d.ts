@@ -37,7 +37,6 @@ import {
   shownFactories,
   movedMetres,
   relatedFactories,
-  standsOut,
   suppliedBelts,
   jointColours,
   spotMark,
@@ -331,13 +330,12 @@ export class BeltFloor3d {
           ),
           new THREE.LineBasicMaterial({ color: colourOf(way.factory) ?? '#e0e0e0' }),
         );
-        const joining = arrangement.belts.filter(
-          (belt) => belt.leavesFloor && (belt.from === spot.spotId || belt.to === spot.spotId),
-        );
-        // What it is when pointed at, as on the map; found before the plots, as a belt.
+        const joining = way.joining;
+        // What it is when pointed at, as on the map; found before the plots, as a belt. Lit with the belts joining it
+        // (step 106).
         line.userData['tooltip'] = way.tooltip;
         line.userData['belt'] = true;
-        line.userData['ends'] = [way.factory];
+        line.userData['joins'] = joining;
         this.levelled(line, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
         this.content.add(line);
 
@@ -347,7 +345,7 @@ export class BeltFloor3d {
           const drum = this.drum(mark, middle);
           // At the height the way starts at, as built.
           drum.position.y += wayHeight(way.points[0] ?? way.entry, way.entry);
-          drum.userData['ends'] = [way.factory];
+          drum.userData['joins'] = joining;
           this.levelled(drum, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
           this.content.add(drum);
         }
@@ -467,11 +465,11 @@ export class BeltFloor3d {
     // The belts the factories picked stand out with: what supplies them, back to the source, and what they make.
     const supplied = suppliedBelts(arrangement.belts, focused);
     for (const object of this.content.children) {
-      const { own, belt, ends, routed, factory, full, faded } = object.userData as {
+      const { own, belt, routed, joins, factory, full, faded } = object.userData as {
         own?: number[];
         belt?: number[];
-        ends?: string[];
         routed?: RoutedBeltResponse;
+        joins?: RoutedBeltResponse[];
         factory?: string;
         full?: THREE.Material;
         faded?: THREE.Material;
@@ -482,8 +480,8 @@ export class BeltFloor3d {
         object.visible = shown !== 'hidden';
         fade = shown === 'faded';
       }
-      if (ends && !standsOut(focused, ends)) fade = true;
       if (routed && !supplied.has(routed)) fade = true;
+      if (joins && !joins.some((joined) => supplied.has(joined))) fade = true;
       if (factory) {
         object.visible =
           (factories === null || factories.has(factory)) &&

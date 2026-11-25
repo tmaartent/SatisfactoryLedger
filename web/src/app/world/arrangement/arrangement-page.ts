@@ -79,7 +79,6 @@ import {
   placedMachines,
   movedMetres,
   relatedFactories,
-  standsOut,
   jointColours,
   spotMark,
   wayMark,
@@ -1044,16 +1043,18 @@ export class ArrangementPage {
     // Outside the area, the existing belts the routed ones join where they come into the area (decided 2026-11-18):
     // dotted, in the colour of the factory they serve, from the building to a yellow circle on the area's edge. The
     // routed belts run on across the strip of the area off the floor to it, at right angles. At a miner or extractor,
-    // its circle, as inside the area (asked 2026-11-19).
+    // its circle, as inside the area (asked 2026-11-19). With factories picked, those lit with the belts joining them, so
+    // a source outside the area shows where the line starts (step 106).
     for (const spot of arrangement.ways)
       for (const way of joinedWays([spot], arrangement.belts, factories, spotNames)) {
         const colour = factoryColour(traces, way.factory) ?? '#e0e0e0';
-        const dimmed = !standsOut(focused, [way.factory]);
+        const dimmed = !way.joining.some((belt) => shown.has(belt));
+        const weight = focused.size > 0 && !dimmed ? 3 : 1.5;
         const entry = toMapPoint({ ...way.entry, z: 0 });
         const line = way.points.map((point) => toMapPoint({ ...point, z: 0 }));
         L.polyline(line, {
           color: colour,
-          weight: 1.5,
+          weight,
           opacity: dimmed ? 0.25 : 0.8,
           dashArray: '2 4',
           interactive: false,
@@ -1066,7 +1067,7 @@ export class ArrangementPage {
             link.map((point) => toMapPoint({ ...point, z: 0 })),
             {
               color: colour,
-              weight: 1.5,
+              weight,
               opacity: dimmed ? 0.25 : 0.9,
               interactive: false,
             },

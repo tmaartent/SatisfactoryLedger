@@ -252,12 +252,13 @@ export function beltEnds(
  * The existing belts outside the area that routed belts join where they leave the floor (decided 2026-11-18): each with
  * where it comes into the area (its last point, on the area's edge); how each belt joining it gets there from its end
  * on the floor's edge, across the strip of the area that isn't floor and then along the area's edge, at right angles;
- * the factory of one of them for its colour; what it says when pointed at; and the levels the belts joining it run on
- * there, to show it with them. One no routed belt joins is left out.
+ * the factory of one of them for its colour; what it says when pointed at; the levels the belts joining it run on
+ * there, to show it with them; and those belts, so it lights up when they do (step 106: it stood dimmed by the factory
+ * of its colour, the first on a supply line, while the line was lit for a factory further on). One no routed belt
+ * joins is left out.
  */
-export function joinedWays(
-  ways: readonly { spotId: string; points: WorldPoint[] }[],
-  belts: readonly Pick<
+export function joinedWays<
+  Belt extends Pick<
     RoutedBeltResponse,
     | 'from'
     | 'to'
@@ -268,7 +269,10 @@ export function joinedWays(
     | 'perMinute'
     | 'pipe'
     | 'injection'
-  >[],
+  >,
+>(
+  ways: readonly { spotId: string; points: WorldPoint[] }[],
+  belts: readonly Belt[],
   factories: ReadonlySet<string>,
   names: { item: (item: string) => string; building: (className: string) => string },
 ): {
@@ -278,6 +282,7 @@ export function joinedWays(
   links: WorldPoint[][];
   tooltip: string;
   levels: number[];
+  joining: Belt[];
 }[] {
   return ways.flatMap((way) => {
     const joining = belts.filter(
@@ -313,6 +318,7 @@ export function joinedWays(
             ),
           ),
         ],
+        joining,
       },
     ];
   });
@@ -455,11 +461,6 @@ export function shownFactories(
  */
 export function pickedAlone(focused: ReadonlySet<string>, factoryId: string): ReadonlySet<string> {
   return focused.has(factoryId) && focused.size === 1 ? new Set() : new Set([factoryId]);
-}
-
-/** Whether a belt (by its ends) or a factory stands out: when nothing is picked, or one of them is. */
-export function standsOut(focused: ReadonlySet<string>, ends: readonly string[]): boolean {
-  return focused.size === 0 || ends.some((end) => focused.has(end));
 }
 
 /**

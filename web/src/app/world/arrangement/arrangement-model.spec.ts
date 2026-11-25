@@ -39,7 +39,6 @@ import {
   spotMark,
   wayMark,
   relatedFactories,
-  standsOut,
   pickedAlone,
   wayHeight,
 } from './arrangement-model';
@@ -382,14 +381,6 @@ describe('optimal arrangement', () => {
 
   it('lets go of the factory picked when it is clicked again', () => {
     expect([...pickedAlone(new Set(['a']), 'a')]).toEqual([]);
-  });
-
-  it('lets a belt stand out when one of its ends is picked, or nothing is', () => {
-    expect([
-      standsOut(new Set(['a']), ['a', 'b']),
-      standsOut(new Set(['a']), ['b', 'c']),
-      standsOut(new Set(), ['b', 'c']),
-    ]).toEqual([true, false, true]);
   });
 
   it('gives the solver a quarter of a minute, a minute or ten minutes', () => {
@@ -853,8 +844,15 @@ describe('optimal arrangement', () => {
           ],
           tooltip: '<b>Existing belt</b> from Miner Mk.2<br>Limestone · 600/min',
           levels: [2],
+          joining: [belt],
         },
       ]);
+    });
+
+    it('name the routed belts that join them, so a way lights up with them (step 106)', () => {
+      const other = { ...belt, from: 'elsewhere' };
+
+      expect(joinedWays([way], [other, belt], factories, names)[0].joining).toEqual([belt]);
     });
 
     it("are reached across the strip off the floor at right angles: across it, then along the area's edge", () => {
