@@ -108,6 +108,10 @@ namespace SatisfactoryLedger.World.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("exclusions");
 
+                    b.Property<bool>("Footprints")
+                        .HasColumnType("boolean")
+                        .HasColumnName("footprints");
+
                     b.Property<double?>("GridOriginX")
                         .HasColumnType("double precision")
                         .HasColumnName("grid_origin_x");

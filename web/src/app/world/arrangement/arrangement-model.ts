@@ -134,14 +134,14 @@ export function runStatus(run: ArrangementSummary): string {
 }
 
 /**
- * A run in one line, as the list of runs shows it under when it was asked for (asked 2026-11-25): its plots and roads
- * in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, its last-resort
+ * A run in one line, as the list of runs shows it under when it was asked for (asked 2026-11-25): its plots, or
+ * footprints when its factories take those, and roads in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, its last-resort
  * crossings (step 102), how many placements that took when more than one (step 101), how it ended.
  */
 export function runSummary(run: ArrangementSummary): string {
   const size = (metres: number) => String(Math.round(foundations(metres) * 10) / 10);
   const parts = [
-    `${size(run.plotWidthMetres)} × ${size(run.plotDepthMetres)}`,
+    run.footprints ? 'footprints' : `${size(run.plotWidthMetres)} × ${size(run.plotDepthMetres)}`,
     `roads ${size(run.roadXMetres)} · ${size(run.roadYMetres)}`,
   ];
   if (run.supplyLines) parts.push('supply lines');

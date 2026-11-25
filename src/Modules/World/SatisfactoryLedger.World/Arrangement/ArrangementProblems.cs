@@ -27,10 +27,20 @@ internal static class ArrangementProblems
             .OrderBy(factory => factory.Id)
             .ToListAsync(cancellationToken);
 
-    /// <summary>Why factories can't fit: how many there are against the free plots, and what to change.</summary>
-    public static string NoRoom(ArrangementProblem problem)
+    /// <summary>
+    /// Why factories can't fit: how many there are against the free plots, or on footprints the foundations they cover
+    /// against the free ones, and what to change.
+    /// </summary>
+    public static string NoRoom(ArrangementProblem problem, bool footprints)
     {
-        int free = problem.FreePlots;
+        int free = problem.FreeCells;
+        if (footprints)
+        {
+            int needed = problem.Factories.Sum(factory => factory.Now.Width * factory.Now.Depth);
+            return $"{problem.Factories.Count} factories cover {needed} foundations but {free} are free in the area: "
+                + "make the area larger or keep less out.";
+        }
+
         return $"{problem.Factories.Count} factories but {free} free {(free == 1 ? "plot" : "plots")} in the area: "
             + "make the plots or roads smaller, the area larger, or keep less out.";
     }

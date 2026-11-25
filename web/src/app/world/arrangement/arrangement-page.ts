@@ -170,6 +170,11 @@ export class ArrangementPage {
   protected readonly roadY = signal(4);
   /** The ceiling of the belt floor below the factories, in foundation heights of 4 metres (BR-O2). */
   protected readonly ceiling = signal(8);
+  /**
+   * Whether each factory takes the foundations its machines cover instead of one plot (decided 2026-11-25): the roads
+   * are then kept between factories, staggered, and the plot sizes don't count.
+   */
+  protected readonly footprints = signal(false);
   /** Whether belts are routed as supply lines, topped up by priority mergers (BR-O2). */
   protected readonly supplyLines = signal(false);
   /** How long the solver looks for a better layout: a minute when nothing else is picked. */
@@ -471,6 +476,7 @@ export class ArrangementPage {
       this.roadY.set(foundations(run.roadYMetres));
       this.ceiling.set(ceilingHeights(run.ceilingMetres));
       this.supplyLines.set(run.supplyLines);
+      this.footprints.set(run.footprints);
       this.solverTime.set(solverTimeOf(run.seconds));
     });
 
@@ -510,6 +516,7 @@ export class ArrangementPage {
           roadYMetres: metres(this.roadY()),
           ceilingMetres: ceilingMetres(this.ceiling()),
           supplyLines: this.supplyLines(),
+          footprints: this.footprints(),
           // The server's: 2 for keeping together, 0.5 for nodes and stations (owner, 2026-11-19).
           together: null,
           spotWeight: null,

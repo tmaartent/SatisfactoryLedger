@@ -63,6 +63,48 @@ public class WorldArrangementTests
         Assert.True(Math.Abs(x - (plot.X + 0.5)) <= 1 && Math.Abs(y - (plot.Y + 0.5)) <= 1, $"middle ({x}, {y}) far from {plot}");
     }
 
+    /// <summary>Factories on their footprints, with roads of 8 metres (one foundation) along x and 16 (two) along y.</summary>
+    private static MadeArrangement OnFootprints(params StoredFactory[] factories) =>
+        WorldArrangement.Of(
+            Document,
+            TestWorldAnalysis,
+            factories,
+            new ArrangementSettings(null, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 16, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, [], Footprints: true));
+
+    [Fact]
+    public void On_footprints_a_factory_takes_the_whole_foundations_its_machines_cover()
+    {
+        // Constructor C stands 21 metres from smelter A: more than one foundation of 8 metres, whatever the plots.
+        StoredFactory ironPlates = Factory("Iron plates", SmelterA, SmelterB, ConstructorC);
+        MadeArrangement made = OnFootprints(ironPlates);
+
+        GridRectangle footprint = Assert.Single(made.Problem.Factories).Now;
+        WorldRectangle ground = made.Grid.WorldOf(new GridRectangleDocument(footprint.X, footprint.Y, footprint.Width, footprint.Depth));
+        Assert.Equal((800.0, 800.0), (made.Grid.PitchX, made.Grid.PitchY));
+        Assert.True(footprint.Width * footprint.Depth > 1, $"{footprint} is one foundation");
+        Assert.All([SmelterA, SmelterB, ConstructorC], machine =>
+        {
+            PositionDocument at = PositionOf(machine);
+            Assert.True(at.X > ground.X0 && at.X < ground.X1 && at.Y > ground.Y0 && at.Y < ground.Y1, $"{machine} at ({at.X}, {at.Y}) outside {ground}");
+        });
+    }
+
+    [Fact]
+    public void On_footprints_the_roads_are_the_gaps_between_factories_in_foundations()
+    {
+        ArrangementProblem problem = OnFootprints(Smelting, Plates).Problem;
+
+        Assert.Equal((1, 2), (problem.GapX, problem.GapY));
+    }
+
+    [Fact]
+    public void On_footprints_the_belt_floor_is_one_square_a_foundation_with_no_roads_of_its_own()
+    {
+        var settings = new ArrangementSettings(null, PlotWidthMetres: 48, PlotDepthMetres: 48, RoadXMetres: 32, RoadYMetres: 32, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, [], Footprints: true);
+
+        Assert.Equal(new BeltFloor(1, 1, 0, 0, 16), settings.Floor);
+    }
+
     [Fact]
     public void Only_the_factories_inside_the_area_are_arranged_the_others_stay_and_take_their_plots()
     {
@@ -84,6 +126,55 @@ public class WorldArrangementTests
         Assert.Contains(new ArrangementLink(Miner, Smelting.Id.ToString(), Belts: 1, WeightPercent: 50), problem.Links);
         Assert.Contains(problem.Fixed, place => place.Id == Miner && !place.Blocks);
         Assert.True(spots.ContainsKey(Miner));
+    }
+
+    [Fact]
+    public void Ingots_from_a_smelter_no_factory_owns_come_from_a_spot_where_it_stands_like_a_miners_ore()
+    {
+        // Constructor C takes 12.5 ingots a minute from Smelting (smelter A) and 10 from smelter B, which no factory owns.
+        MadeArrangement made = Made(null, [], Smelting, Plates);
+
+        Assert.Contains(new ArrangementLink(SmelterB, Plates.Id.ToString(), Belts: 1, WeightPercent: 50), made.Problem.Links);
+        Assert.True(made.Spots.ContainsKey(SmelterB));
+    }
+
+    [Fact]
+    public void Of_the_machines_no_factory_owns_that_bring_an_item_the_spot_is_at_the_one_nearest_the_factory()
+    {
+        // Neither smelter belongs to a factory: one spot, at the one nearest constructor C, bringing all 22.5 a minute.
+        PositionDocument constructor = PositionOf(ConstructorC);
+        string nearest = new[] { SmelterA, SmelterB }.MinBy(smelter =>
+            Math.Pow(PositionOf(smelter).X - constructor.X, 2) + Math.Pow(PositionOf(smelter).Y - constructor.Y, 2))!;
+
+        MadeArrangement made = Made(null, [], Plates);
+
+        ArrangementLink ingots = Assert.Single(made.Problem.Links, link => link.To == Plates.Id.ToString());
+        Assert.Equal((nearest, 1, 50), (ingots.From, ingots.Belts, ingots.WeightPercent));
+        Assert.Equal([22.5], made.Loads[(nearest, Plates.Id.ToString())].Select(load => load.PerMinute));
+    }
+
+    [Fact]
+    public void A_machine_no_factory_owns_takes_its_ground_like_a_station()
+    {
+        ArrangementProblem problem = Made(null, [], Plates).Problem;
+
+        Assert.Contains(problem.Fixed, place => place.Id == SmelterB && place.Blocks);
+    }
+
+    [Fact]
+    public void Ingots_from_a_factory_outside_the_area_come_from_a_spot_at_its_machine_nearest_like_a_miners_ore()
+    {
+        // An area of 20 metres around constructor C: smelter A, Smelting's only machine, stands 21 metres from it.
+        PositionDocument constructor = PositionOf(ConstructorC);
+        var around = new WorldRectangle(constructor.X - 1000, constructor.Y - 1000, constructor.X + 1000, constructor.Y + 1000);
+
+        MadeArrangement made = Made(around, [], Smelting, Plates);
+
+        // Smelter B, which no factory owns, stands with it and brings the same ingots: one belt from both, as two miners'.
+        ArrangementLink ingots = Assert.Single(made.Problem.Links, link => link.To == Plates.Id.ToString());
+        Assert.Equal((SmelterA, 1, 50), (ingots.From[..SmelterA.Length], ingots.Belts, ingots.WeightPercent));
+        Assert.DoesNotContain(made.Problem.Links, link => link.From == Smelting.Id.ToString());
+        Assert.True(made.Spots.ContainsKey(ingots.From));
     }
 
     [Fact]
@@ -109,8 +200,9 @@ public class WorldArrangementTests
         MadeArrangement made = Made(null, [], supplyLines: true, Smelting, Plates);
 
         ItemSupplyDocument ingots = Assert.Single(made.Supplies!, supply => supply.Item == "Desc_IronIngot_C");
-        Assert.Equal([new SupplyEndDocument(Smelting.Id.ToString(), 12.5)], ingots.Sources);
-        Assert.Equal([new SupplyEndDocument(Plates.Id.ToString(), 12.5)], ingots.Consumers);
+        // Smelter B, which no factory owns, brings the rest from its spot (decided 2026-11-25).
+        Assert.Equal([new SupplyEndDocument(Smelting.Id.ToString(), 12.5), new SupplyEndDocument(SmelterB, 10)], ingots.Sources);
+        Assert.Equal([new SupplyEndDocument(Plates.Id.ToString(), 22.5)], ingots.Consumers);
         Assert.Equal((false, 1200.0), (ingots.Pipe, ingots.Capacity));
     }
 
@@ -222,7 +314,9 @@ public class WorldArrangementTests
             Document, [Smelting, Plates], new ArrangementSettings(null, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, []));
 
         Assert.Equal(whole.Factories, placing.Factories);
-        Assert.Equal(whole.Fixed.Where(place => place.Blocks), placing.Fixed.Where(place => place.Blocks));
+        Assert.Equal(
+            whole.Fixed.Where(place => place.Blocks).OrderBy(place => place.Id, StringComparer.Ordinal),
+            placing.Fixed.Where(place => place.Blocks).OrderBy(place => place.Id, StringComparer.Ordinal));
         Assert.Equal((whole.Area, 0), (placing.Area, placing.Links.Count));
     }
 

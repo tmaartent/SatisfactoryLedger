@@ -21,6 +21,9 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// plots they touch are kept free.</param>
 /// <param name="SupplyLines">Whether belts are routed as supply lines (decided 2026-11-18): what brings an item runs past
 /// the factories that take it, topped up by priority mergers, instead of a belt from each source to each.</param>
+/// <param name="Footprints">Whether each factory takes the whole foundations its machines cover instead of one plot
+/// (decided 2026-11-25): the cells are foundations, and the roads are the gaps kept between factories, so they stagger
+/// instead of running in rows and columns. The plot sizes don't count then.</param>
 internal sealed record ArrangementSettings(
     WorldRectangle? Area,
     double PlotWidthMetres,
@@ -31,8 +34,20 @@ internal sealed record ArrangementSettings(
     double SpotWeight,
     double CeilingMetres,
     IReadOnlyList<WorldRectangle> Exclusions,
-    bool SupplyLines = false)
+    bool SupplyLines = false,
+    bool Footprints = false)
 {
-    /// <summary>The floor below the plots where the belts are routed, in squares of one foundation.</summary>
-    public BeltFloor Floor => BeltFloor.Of(PlotWidthMetres, PlotDepthMetres, RoadXMetres, RoadYMetres, CeilingMetres);
+    /// <summary>
+    /// The floor below the plots where the belts are routed, in squares of one foundation. On footprints a cell is one
+    /// square, with no road of its own.
+    /// </summary>
+    public BeltFloor Floor => Footprints
+        ? BeltFloor.Of(BeltFloor.FoundationMetres, BeltFloor.FoundationMetres, 0, 0, CeilingMetres)
+        : BeltFloor.Of(PlotWidthMetres, PlotDepthMetres, RoadXMetres, RoadYMetres, CeilingMetres);
+
+    /// <summary>
+    /// The cells kept free between two factories: on footprints the roads, in foundations; on plots none, since they
+    /// bring their roads.
+    /// </summary>
+    public (int X, int Y) Gaps => Footprints ? (BeltFloor.Foundations(RoadXMetres), BeltFloor.Foundations(RoadYMetres)) : (0, 0);
 }

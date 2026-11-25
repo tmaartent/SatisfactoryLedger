@@ -153,6 +153,7 @@ function summary(run: { id: string; area: WorldRectangle }, requestedAt: string)
     spotWeight: 1,
     ceilingMetres: 64,
     supplyLines: false,
+    footprints: false,
     seconds: 60,
     status: 'ready',
     requestedAt,

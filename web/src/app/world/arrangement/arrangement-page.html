@@ -15,14 +15,33 @@
 <ng-template appSidebarTab="settings" label="Settings" icon="tune">
   <form id="settings" class="settings" (ngSubmit)="request()">
     <p class="muted">Sizes in foundations, of 8 m each.</p>
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>Plot E–W</mat-label>
-      <input matInput type="number" min="1" name="plotWidth" [(ngModel)]="plotWidth" />
-    </mat-form-field>
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>Plot N–S</mat-label>
-      <input matInput type="number" min="1" name="plotDepth" [(ngModel)]="plotDepth" />
-    </mat-form-field>
+    <mat-button-toggle-group
+      name="footprints"
+      aria-label="What a factory takes"
+      hideSingleSelectionIndicator
+      [(ngModel)]="footprints"
+    >
+      <mat-button-toggle
+        [value]="false"
+        matTooltip="Each factory on one plot of the size below, the roads in rows and columns between the plots"
+        >Plots</mat-button-toggle
+      >
+      <mat-button-toggle
+        [value]="true"
+        matTooltip="Each factory on the foundations its machines cover, a road's width kept free beside it: the roads stagger"
+        >Footprints</mat-button-toggle
+      >
+    </mat-button-toggle-group>
+    @if (!footprints()) {
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Plot E–W</mat-label>
+        <input matInput type="number" min="1" name="plotWidth" [(ngModel)]="plotWidth" />
+      </mat-form-field>
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Plot N–S</mat-label>
+        <input matInput type="number" min="1" name="plotDepth" [(ngModel)]="plotDepth" />
+      </mat-form-field>
+    }
     <mat-form-field subscriptSizing="dynamic">
       <mat-label>Road E–W</mat-label>
       <input matInput type="number" min="0" name="roadX" [(ngModel)]="roadX" />

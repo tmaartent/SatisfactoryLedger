@@ -30,6 +30,9 @@ internal static class FactoryInputs
         Dictionary<string, double> now = new(StringComparer.Ordinal);
         Dictionary<string, List<BuildableId>> startsOf = new(StringComparer.Ordinal);
         Dictionary<string, Dictionary<(InputSourceKind Kind, StoredFactory? Factory, string? Building, string? Id), double>> sources = new(StringComparer.Ordinal);
+
+        // Per item and source, the machines and generators it starts at.
+        Dictionary<(string Item, (InputSourceKind, StoredFactory?, string?, string?) Source), SortedSet<string>> startMachines = [];
         foreach (FactoryConnection input in members.Inputs)
         {
             BuildableId start = input.Outside ?? input.Inside;
@@ -47,6 +50,10 @@ internal static class FactoryInputs
                 {
                     var key = Source(source);
                     from[key] = from.GetValueOrDefault(key) + perMinute;
+                    if (key.Item1 is InputSourceKind.Factory or InputSourceKind.NoFactory)
+                    {
+                        (startMachines.TryGetValue((item.Id, key), out SortedSet<string>? machines) ? machines : startMachines[(item.Id, key)] = new(StringComparer.Ordinal)).Add(source.Id);
+                    }
                 }
             }
         }
@@ -80,7 +87,14 @@ internal static class FactoryInputs
                     [
                         .. from.Where(entry => SnapshotAnalysis.Round(entry.Value) > 0)
                             .OrderByDescending(entry => entry.Value)
-                            .Select(entry => new InputSource(entry.Key.Kind, entry.Key.Factory?.Id, entry.Key.Factory?.Name, entry.Key.Building, entry.Key.Id, SnapshotAnalysis.Round(entry.Value)))
+                            .Select(entry => new InputSource(
+                                entry.Key.Kind,
+                                entry.Key.Factory?.Id,
+                                entry.Key.Factory?.Name,
+                                entry.Key.Building,
+                                entry.Key.Id,
+                                SnapshotAnalysis.Round(entry.Value),
+                                startMachines.TryGetValue((item, entry.Key), out SortedSet<string>? machines) ? [.. machines] : null))
                     ]);
             })
         ];

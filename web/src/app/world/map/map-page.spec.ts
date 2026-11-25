@@ -70,6 +70,7 @@ const run = (id: string, requestedAt: string, unroutedBelts = 0): ArrangementSum
   roadYMetres: 32,
   ceilingMetres: 64,
   supplyLines: false,
+  footprints: false,
   seconds: 60,
   spotWeight: 1,
   together: 0,

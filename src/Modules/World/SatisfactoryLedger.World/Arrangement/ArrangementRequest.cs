@@ -14,6 +14,8 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <param name="CeilingMetres">How high the floor below the factories is, where their belts are routed; 32 (8
 /// foundations of 4 metres) when not given.</param>
 /// <param name="SupplyLines">Whether belts are routed as supply lines, topped up by priority mergers; not when not given.</param>
+/// <param name="Footprints">Whether each factory takes the foundations its machines cover, with the roads as gaps
+/// between factories, instead of one plot; not when not given.</param>
 /// <param name="Seconds">How long the solver may take; 60 when not given.</param>
 internal sealed record ArrangementRequest(
-    WorldRectangle? Area, double? PlotWidthMetres, double? PlotDepthMetres, double? RoadXMetres, double? RoadYMetres, IReadOnlyList<WorldRectangle>? Exclusions, int? Together, double? SpotWeight, double? CeilingMetres, bool? SupplyLines, int? Seconds);
+    WorldRectangle? Area, double? PlotWidthMetres, double? PlotDepthMetres, double? RoadXMetres, double? RoadYMetres, IReadOnlyList<WorldRectangle>? Exclusions, int? Together, double? SpotWeight, double? CeilingMetres, bool? SupplyLines, int? Seconds, bool? Footprints = null);

@@ -94,6 +94,17 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 - Not possible: the behaviour over time (filling, sloshing, the backflow at a full junction). The model is a steady state, and a save is one moment.
 - The manual is a community guide from before 1.0: its numbers match the current Docs file, but every rule taken from it is the owner's call.
 
+## Optimal arrangement
+
+### Factories on their footprints in rows, with straight roads
+*Raised 2026-11-25, step 107.*
+
+**What:** factories on their footprints (BR-O1), but in horizontal **rows**: each row as deep as its deepest factory, with straight east-west roads between the rows; within a row, factories anywhere along x with a road's width between them.
+
+**Why:** on footprints the roads stagger round factories of different sizes (step 107). Rows give straight roads one way, closer to how a city of flat factories of mixed sizes gets built, and easier to drive and lay rails along.
+
+**What it would take:** a new placing model in CP-SAT: per factory, which row it's in (a boolean per row, optional intervals), and per row its y and depth as variables, the depth at least that of every factory in it. A factory deeper than a row is awkward: it either sets the row's depth or spans rows. The grid, belt floor and gaps stay as on footprints.
+
 ## World map
 
 ### Buildings drawn as their outline, box by box
