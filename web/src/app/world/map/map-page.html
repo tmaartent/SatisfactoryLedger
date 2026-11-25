@@ -180,6 +180,33 @@
       }
     </nav>
   </ng-template>
+
+  <!-- The world's runs of the optimal arrangement (asked 2026-11-25): it was reached only by drawing an area. -->
+  <ng-template appSidebarTab="arrangements" label="Arrangements" icon="grid_view" [order]="0.1">
+    <nav class="arrangements" aria-label="Arrangements">
+      @if (arrangements.error(); as error) {
+        <p class="muted">The runs couldn't be loaded: {{ problem(error) }}</p>
+      } @else if (loaded(arrangements); as runs) {
+        @for (run of runs; track run.id) {
+          <a
+            class="run"
+            [routerLink]="['/snapshots', id, 'arrangement']"
+            [queryParams]="{ run: run.id }"
+          >
+            <span class="when">{{ run.requestedAt | date: 'd MMM, HH:mm' }}</span>
+            <span class="what">{{ runSummary(run) }}</span>
+          </a>
+        } @empty {
+          <p class="muted">
+            None yet. Hold ctrl and drag over an area to arrange its factories, or select an area
+            and choose Arrange.
+          </p>
+        }
+      } @else {
+        <mat-progress-bar mode="indeterminate" />
+      }
+    </nav>
+  </ng-template>
 }
 <!--
   The resource nodes by kind (asked 2026-11-23): a row per resource, a cell per purity from impure to pure, each the

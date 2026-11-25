@@ -214,8 +214,34 @@ table.mat-mdc-table {
   }
 }
 
+// A run of the optimal arrangement in a list: when it was asked for over its summary. In the run picker's list
+// (run-picker.html) and the world map's Arrangements tab (map-page.html, asked 2026-11-25).
+.run-list .run .mat-mdc-menu-item-text,
+.arrangements .run {
+  display: flex;
+  flex-direction: column;
+}
+
+:is(.run-list, .arrangements) .what {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+// In the Arrangements tab each run is a link to it. Here, not in the map page's styles: those are at Angular's budget.
+.arrangements .run {
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--mat-sys-secondary-container);
+  }
+}
+
 // The list of runs the arrangement's run picker opens (run-picker.html): an overlay, as the snapshot list. Each row is
-// when the run was asked for over its summary, and its delete button.
+// a run and its delete button.
 .run-list {
   .row {
     display: flex;
@@ -228,20 +254,10 @@ table.mat-mdc-table {
     height: auto;
     padding-block: 6px;
 
-    .mat-mdc-menu-item-text {
-      display: flex;
-      flex-direction: column;
-    }
-
     &.current .when {
       font-weight: 600;
       color: var(--mat-sys-primary);
     }
-  }
-
-  .what {
-    color: var(--mat-sys-on-surface-variant);
-    font: var(--mat-sys-body-small);
   }
 }
 
