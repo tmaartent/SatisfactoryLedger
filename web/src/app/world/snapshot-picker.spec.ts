@@ -33,12 +33,20 @@ describe('the snapshot picker above the sidebar', () => {
     confirmed: boolean,
     current: string | null = 'snapshot-2',
     snapshots = [desert, development],
+    /** How many times the list fails to load first. */
+    listFails = 0,
   ) {
     const api = {
       invoke: vi.fn((fn: unknown) =>
-        Promise.resolve(
-          fn === getSnapshots ? snapshots : fn === importSave ? { id: 'snapshot-3' } : undefined,
-        ),
+        fn === getSnapshots && listFails-- > 0
+          ? Promise.reject(new Error('503 Service Unavailable'))
+          : Promise.resolve(
+              fn === getSnapshots
+                ? snapshots
+                : fn === importSave
+                  ? { id: 'snapshot-3' }
+                  : undefined,
+            ),
       ),
     };
     TestBed.configureTestingModule({
@@ -74,6 +82,22 @@ describe('the snapshot picker above the sidebar', () => {
     ) as HTMLButtonElement;
 
   afterEach(() => document.querySelectorAll('.cdk-overlay-container').forEach((o) => o.remove()));
+
+  it('says so when its list failed to load, and loads it on Try again', async () => {
+    // Step 98: the list failed once, as while the API is starting, and the picker stayed greyed out, saying nothing.
+    const { fixture, element } = await render(true, 'snapshot-2', [desert, development], 1);
+    const snackBar = () =>
+      document.querySelector('.mat-mdc-snack-bar-container') as HTMLElement | null;
+
+    expect(snackBar()?.textContent).toContain("The snapshots couldn't be loaded");
+    expect((element.querySelector('button.current') as HTMLButtonElement).disabled).toBe(true);
+
+    (snackBar()!.querySelector('button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect((element.querySelector('button.current') as HTMLButtonElement).disabled).toBe(false);
+    expect(element.querySelector('button.current')?.textContent).toContain('Desert Start');
+  });
 
   it('names the snapshot shown', async () => {
     const { element } = await render(true);

@@ -90,6 +90,7 @@ import {
   toggle,
 } from './selection';
 import { GameIcon } from '../../shared/game-icon';
+import { loaded } from '../../shared/loaded';
 
 /** A building in the area, with what the panel shows about it. */
 interface AreaBuilding {
@@ -186,7 +187,7 @@ export class AreaPage {
         y1: Number(this.y1()),
       };
     const members = new Set(this.factoryMachines());
-    const world = this.world.value();
+    const world = loaded(this.world);
     const footprints = new Map(
       world?.footprints.map(
         (footprint) => [footprint.id, footprint] as [string, FootprintDocument],
@@ -204,8 +205,7 @@ export class AreaPage {
     const factoryId = this.factory();
     return factoryId === undefined
       ? []
-      : (this.factories
-          .value()
+      : (loaded(this.factories)
           ?.find((trace) => trace.factoryId === factoryId)
           ?.machines.map((m) => m.id) ?? []);
   });
@@ -223,7 +223,7 @@ export class AreaPage {
    * nothing is faded.
    */
   private readonly connected = computed(() => {
-    const parts = this.factoryParts.value();
+    const parts = loaded(this.factoryParts);
     return parts ? new Set(parts.connected) : null;
   });
 
@@ -241,10 +241,11 @@ export class AreaPage {
       whenAnalysed(() => this.api.invoke$Response(analyseSnapshot, params), abortSignal),
   });
   protected readonly problem = problemMessage;
+  protected readonly loaded = loaded;
 
   /** Every building inside the area, at any height. */
   protected readonly buildings = computed<AreaBuilding[]>(() => {
-    const world = this.world.value();
+    const world = loaded(this.world);
     const area = this.area();
     if (!world) return [];
     return [
@@ -260,7 +261,7 @@ export class AreaPage {
 
   /** What the analysis says about each machine and generator, by id. */
   private readonly findings = computed(() => {
-    const analysis = this.analysis.value();
+    const analysis = loaded(this.analysis);
     const all: (MachineFinding | GeneratorFinding)[] = [
       ...(analysis?.machines ?? []),
       ...(analysis?.generators ?? []),
@@ -273,11 +274,11 @@ export class AreaPage {
     params: () => ({ id: this.id() }),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
   });
-  private readonly owners = computed(() => machineOwners(this.factories.value() ?? []));
+  private readonly owners = computed(() => machineOwners(loaded(this.factories) ?? []));
   /** The machines that can't be chosen: every factory's, or while editing one, the other factories' (BR-W5). */
   private readonly blocked = computed(() => blockedMachines(this.owners(), this.editing()));
   protected readonly factoriesShown = computed(() =>
-    factoriesInArea(this.factories.value() ?? [], new Set(this.buildings().map((b) => b.id))),
+    factoriesInArea(loaded(this.factories) ?? [], new Set(this.buildings().map((b) => b.id))),
   );
 
   protected readonly selected = signal<AreaBuilding | null>(null);
@@ -290,7 +291,7 @@ export class AreaPage {
   private readonly bottlenecks = computed(
     () =>
       new Map(
-        (this.analysis.value()?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck]),
+        (loaded(this.analysis)?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck]),
       ),
   );
   protected readonly selectedBottleneck = computed(() => {
@@ -300,7 +301,7 @@ export class AreaPage {
   /** What flows through the pipe looked at, in the model; neither it nor head lift is in the save (asked 2026-11-24). */
   protected readonly selectedPipeFlow = computed(() => {
     const conveyor = this.selectedConveyor();
-    const flows = this.analysis.value()?.pipeFlows ?? [];
+    const flows = loaded(this.analysis)?.pipeFlows ?? [];
     return conveyor ? flows.find((flow) => flow.id === conveyor.id) : undefined;
   });
   protected readonly headLiftColour = conveyorColours.headLift;
@@ -352,7 +353,7 @@ export class AreaPage {
         : undefined,
     loader: ({ params }) => this.api.invoke(previewFactory, params),
   });
-  private readonly owned = computed(() => new Set(this.preview.value()?.logistics ?? []));
+  private readonly owned = computed(() => new Set(loaded(this.preview)?.logistics ?? []));
   private readonly previewLayer = new THREE.Group();
   /** The belt, pipe or lift looked at, drawn again over itself, glowing. */
   private readonly selectionLayer = new THREE.Group();
@@ -434,7 +435,7 @@ export class AreaPage {
   /** Edits a factory as a new one is defined: its machines chosen, its name filled in. */
   protected startEditing(factory: Pick<OutlinedFactory, 'factoryId' | 'name'>): void {
     const machines =
-      this.factories.value()?.find((trace) => trace.factoryId === factory.factoryId)?.machines ??
+      loaded(this.factories)?.find((trace) => trace.factoryId === factory.factoryId)?.machines ??
       [];
     this.editing.set(factory.factoryId);
     this.chosen.set(new Set(machines.map((machine) => machine.id)));
@@ -457,7 +458,7 @@ export class AreaPage {
 
   /** Edits a factory by its id, once its machines are known: the factory's page asks this from its Edit button. */
   edit(factoryId: string): void {
-    const trace = this.factories.value()?.find((candidate) => candidate.factoryId === factoryId);
+    const trace = loaded(this.factories)?.find((candidate) => candidate.factoryId === factoryId);
     if (trace) this.startEditing({ factoryId, name: trace.name });
   }
 
@@ -507,7 +508,7 @@ export class AreaPage {
    * shows it among the others, so the next one can be defined (asked 2026-11-23). It no longer opens the factory's page.
    */
   async save(): Promise<void> {
-    const snapshot = this.snapshot.value();
+    const snapshot = loaded(this.snapshot);
     if (!snapshot || !this.canSave()) return;
     this.saving.set(true);
     this.saveError.set(null);
@@ -640,7 +641,7 @@ export class AreaPage {
   }
 
   private draw(): void {
-    const world = this.world.value();
+    const world = loaded(this.world);
     const buildings = this.buildings();
     const findings = this.findings();
     const owners = this.owners();
@@ -730,8 +731,8 @@ export class AreaPage {
    * marker where each of its lines crosses: green going out, orange coming in.
    */
   private drawPreview(): void {
-    const preview = this.preview.value();
-    const world = this.world.value();
+    const preview = loaded(this.preview);
+    const world = loaded(this.world);
     this.previewLayer.clear();
     if (!preview || !world) return;
 

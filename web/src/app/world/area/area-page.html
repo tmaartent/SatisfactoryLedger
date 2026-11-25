@@ -3,7 +3,7 @@
     <a mat-icon-button [routerLink]="['/snapshots', id(), 'map']" aria-label="Map"
       ><mat-icon>arrow_back</mat-icon></a
     >
-    <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · 3D</h1>
+    <h1>{{ loaded(snapshot)?.sessionName ?? 'World' }} · 3D</h1>
   }
   <span class="spacer"></span>
   @if (!embedded()) {
@@ -155,7 +155,7 @@
           {{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators
           included
         </p>
-        @if (preview.value(); as preview) {
+        @if (loaded(preview); as preview) {
           <div class="preview">
             <!-- Output and input, power among the output, now, as the items (asked 2026-11-24). -->
             <p><span class="swatch output"></span> Output</p>

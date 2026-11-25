@@ -10,6 +10,7 @@ import { getRecipes } from '../api/fn/catalog/get-recipes';
 import { ItemForm } from '../api/models/item-form';
 import { ItemResponse } from '../api/models/item-response';
 import { classNameAsWords } from './display';
+import { loaded } from './loaded';
 
 /**
  * The catalog's names for items, recipes and buildings, loaded once, with fluids' colours, what extractors take and the
@@ -54,32 +55,32 @@ export class CatalogNames {
 
   /** Every item in the catalog, by name. Empty until the catalog is loaded. */
   items(): ItemResponse[] {
-    return [...(this.catalog.value()?.items ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+    return [...(loaded(this.catalog)?.items ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   item(id: string | null | undefined): string {
     if (!id) return '—';
-    return this.catalog.value()?.itemNames.get(id) ?? classNameAsWords(id);
+    return loaded(this.catalog)?.itemNames.get(id) ?? classNameAsWords(id);
   }
 
   recipe(id: string | null | undefined): string {
     if (!id) return '—';
-    return this.catalog.value()?.recipeNames.get(id) ?? classNameAsWords(id);
+    return loaded(this.catalog)?.recipeNames.get(id) ?? classNameAsWords(id);
   }
 
   /** The game's name for a building; one the catalog doesn't know, its class name as words. */
   building(className: string): string {
-    return this.catalog.value()?.buildingNames.get(className) ?? classNameAsWords(className);
+    return loaded(this.catalog)?.buildingNames.get(className) ?? classNameAsWords(className);
   }
 
   /** A fluid's colour in the game, "#rrggbb"; null for a solid, or one the catalog has none for. */
   fluidColour(id: string): string | null {
-    return this.catalog.value()?.fluidColours.get(id) ?? null;
+    return loaded(this.catalog)?.fluidColours.get(id) ?? null;
   }
 
   /** What an extractor building takes from a node, solid (a miner) or fluid; null for a building that isn't one. */
   extractorForm(className: string): ItemForm | null {
-    return this.catalog.value()?.extractorForms.get(className) ?? null;
+    return loaded(this.catalog)?.extractorForms.get(className) ?? null;
   }
 
   /**
@@ -88,24 +89,23 @@ export class CatalogNames {
    * Build_X_C and Desc_X_C.
    */
   icon(className: string | null | undefined): string | null {
-    if (!className || !this.icons.hasValue()) return null;
+    const icons = loaded(this.icons);
+    if (!className || !icons) return null;
     const descriptor = className.startsWith('Build_')
       ? `Desc_${className.slice('Build_'.length)}`
       : className;
-    return this.icons.value().has(descriptor)
-      ? `/api/v1/catalog/icons/${encodeURIComponent(className)}`
-      : null;
+    return icons.has(descriptor) ? `/api/v1/catalog/icons/${encodeURIComponent(className)}` : null;
   }
 
   /** An item's icon by its name, as a trace names items ("Iron Ore"); null when no item is named so, or it has none. */
   iconOfItemNamed(name: string): string | null {
-    const item = this.catalog.value()?.items.find((candidate) => candidate.name === name);
+    const item = loaded(this.catalog)?.items.find((candidate) => candidate.name === name);
     return item ? this.icon(item.id) : null;
   }
 
   /** A building's icon by its name, as a trace names buildings ("Smelter"); null when no building is named so, or it has none. */
   iconOfBuildingNamed(name: string): string | null {
-    const entry = [...(this.catalog.value()?.buildingNames ?? [])].find(
+    const entry = [...(loaded(this.catalog)?.buildingNames ?? [])].find(
       ([, buildingName]) => buildingName === name,
     );
     return entry ? this.icon(entry[0]) : null;

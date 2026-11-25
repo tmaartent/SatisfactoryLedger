@@ -1,5 +1,14 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject, input, resource, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  resource,
+  signal,
+  untracked,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -14,6 +23,7 @@ import { importSave } from '../api/fn/world/import-save';
 import { SnapshotSummaryResponse } from '../api/models/snapshot-summary-response';
 import { problemMessage } from '../shared/problem';
 import { SnapshotDeletion } from './snapshot-deletion';
+import { loaded } from '../shared/loaded';
 
 /**
  * Which snapshot the World pages show, above the sidebar on every one of them (asked 2026-11-23): the sidebar's tabs are
@@ -45,10 +55,25 @@ export class SnapshotPicker {
 
   protected readonly snapshots = resource({ loader: () => this.api.invoke(getSnapshots) });
   protected readonly shown = computed(
-    () => this.snapshots.value()?.find((snapshot) => snapshot.id === this.current()) ?? null,
+    () => loaded(this.snapshots)?.find((snapshot) => snapshot.id === this.current()) ?? null,
   );
-  protected readonly none = computed(() => this.snapshots.value()?.length === 0);
+  protected readonly none = computed(() => loaded(this.snapshots)?.length === 0);
   protected readonly importing = signal(false);
+  protected readonly loaded = loaded;
+
+  constructor() {
+    // A list that failed to load, as while the API is starting, is said where it shows on every screen: the picker is
+    // as narrow as the rail when the sidebar is collapsed, as on a tablet. Nothing asks again by itself (step 98).
+    effect(() => {
+      if (!this.snapshots.error()) return;
+      untracked(() =>
+        this.snackBar
+          .open("The snapshots couldn't be loaded. Is the API running?", 'Try again')
+          .onAction()
+          .subscribe(() => this.snapshots.reload()),
+      );
+    });
+  }
 
   /** Deletes a snapshot after asking; when it's the one shown, back to the map with no snapshot loaded. */
   protected async delete(snapshot: SnapshotSummaryResponse): Promise<void> {

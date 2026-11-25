@@ -41,12 +41,9 @@
 @if (importing()) {
   <mat-progress-bar mode="indeterminate" />
 }
-@if (snapshots.error()) {
-  <p class="muted hint">The snapshots couldn't be loaded. Is the API running?</p>
-}
 
 <mat-menu #list="matMenu" class="snapshot-list">
-  @for (snapshot of snapshots.value() ?? []; track snapshot.id) {
+  @for (snapshot of loaded(snapshots) ?? []; track snapshot.id) {
     <div class="row">
       <a
         mat-menu-item

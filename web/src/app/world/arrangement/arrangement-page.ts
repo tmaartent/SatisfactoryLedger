@@ -91,6 +91,7 @@ import {
   lineItems,
   linesToLabel,
 } from './arrangement-model';
+import { loaded } from '../../shared/loaded';
 
 /** What stays where it is and takes its plots: the stations' classes, as the arrangement counts them. */
 /** How far out the map zooms without a map picture to hold it to. */
@@ -152,6 +153,7 @@ export class ArrangementPage {
 
   private readonly api = inject(Api);
   protected readonly problem = problemMessage;
+  protected readonly loaded = loaded;
   protected readonly saving = saving;
 
   protected readonly foundations = foundations;
@@ -207,12 +209,12 @@ export class ArrangementPage {
 
   /** The shown run's belt floor in 3D, over the page. */
   protected open3d(): void {
-    const arrangement = this.arrangement.value();
+    const arrangement = loaded(this.arrangement);
     if (!arrangement) return;
     const data: BeltFloor3dDialogData = {
       arrangement,
       colourOf: this.colourOf(),
-      machines: this.machines.value() ?? null,
+      machines: loaded(this.machines) ?? null,
       focused: this.focused,
     };
     this.dialog.open(BeltFloor3dDialog, { data, width: '95vw', maxWidth: '95vw', height: '90vh' });
@@ -230,7 +232,7 @@ export class ArrangementPage {
     params: () => ({ id: this.id() }),
     loader: ({ params }) => this.api.invoke(getSnapshot, params),
   });
-  private readonly world = resource({
+  protected readonly world = resource({
     params: () => ({ id: this.id() }),
     loader: ({ params }) => this.api.invoke(getWorldMap, params),
   });
@@ -241,7 +243,7 @@ export class ArrangementPage {
   /** The world's runs, newest first. */
   protected readonly runs = resource({
     params: () => {
-      const world = this.snapshot.value()?.sessionName;
+      const world = loaded(this.snapshot)?.sessionName;
       return world ? { world } : undefined;
     },
     loader: ({ params }) => this.api.invoke(getArrangements, params),
@@ -249,7 +251,7 @@ export class ArrangementPage {
 
   protected readonly selected = linkedSignal(
     // An area dragged on the world map is a new run to make: no earlier run's area over it.
-    () => this.run() ?? (this.dragged() ? null : (this.runs.value()?.[0]?.id ?? null)),
+    () => this.run() ?? (this.dragged() ? null : (loaded(this.runs)?.[0]?.id ?? null)),
   );
   protected readonly arrangement = resource({
     params: () => {
@@ -264,7 +266,7 @@ export class ArrangementPage {
    * every two seconds, so the progress bar doesn't blink (2026-11-19). A resource keeps its value while it reloads.
    */
   protected readonly busy = computed(
-    () => this.arrangement.isLoading() || this.arrangement.value()?.summary.status === 'pending',
+    () => this.arrangement.isLoading() || loaded(this.arrangement)?.summary.status === 'pending',
   );
 
   /**
@@ -273,7 +275,7 @@ export class ArrangementPage {
    */
   private readonly machines = resource({
     params: () => {
-      const summary = this.arrangement.value()?.summary;
+      const summary = loaded(this.arrangement)?.summary;
       return summary?.status === 'ready' ? { id: summary.id } : undefined;
     },
     loader: ({ params }) => this.api.invoke(getArrangementMachines, params),
@@ -286,10 +288,10 @@ export class ArrangementPage {
    */
   private readonly connectedParts = resource({
     params: () => {
-      const running = (this.arrangement.value()?.factories.length ?? 0) > 0;
+      const running = (loaded(this.arrangement)?.factories.length ?? 0) > 0;
       const picked = [...this.focused()];
       if (running || picked.length === 0) return undefined;
-      const traces = this.factories.value() ?? [];
+      const traces = loaded(this.factories) ?? [];
       const factories = picked
         .map((factoryId) => ({
           factoryId,
@@ -328,7 +330,7 @@ export class ArrangementPage {
   private readonly deletion = inject(ArrangementDeletion);
   /** A factory's colour, as the map draws it. */
   protected readonly colourOf = computed(() => {
-    const traces = this.factories.value() ?? [];
+    const traces = loaded(this.factories) ?? [];
     return (factoryId: string) => factoryColour(traces, factoryId);
   });
   /** The factories picked in the side bar or on the map: they, their belts and the factories linked to them stand out. */
@@ -388,7 +390,7 @@ export class ArrangementPage {
     effect(() => {
       const id = this.selected();
       this.focused.set(new Set());
-      const run = untracked(() => this.runs.value())?.find((candidate) => candidate.id === id);
+      const run = untracked(() => loaded(this.runs))?.find((candidate) => candidate.id === id);
       if (!run) return;
       this.area.set(run.area ?? null);
       this.exclusions.set([...run.exclusions]);
@@ -403,7 +405,7 @@ export class ArrangementPage {
 
     // While a run is computed, ask again every two seconds.
     effect((onCleanup) => {
-      const pending = (this.runs.value() ?? []).some((run) => run.status === 'pending');
+      const pending = (loaded(this.runs) ?? []).some((run) => run.status === 'pending');
       if (!pending) return;
       const timer = setTimeout(() => {
         this.runs.reload();
@@ -509,7 +511,7 @@ export class ArrangementPage {
 
   /** The game's map picture, a tile at a time over its part of the world; not clickable, so it never takes a click. */
   private drawMapArt(): void {
-    const art = this.mapArt.hasValue() ? this.mapArt.value() : null;
+    const art = loaded(this.mapArt) ?? null;
     if (!this.map) return;
     this.artLayer.clearLayers();
     for (const tile of mapArtTiles(art))
@@ -523,10 +525,7 @@ export class ArrangementPage {
    */
   private holdToMapArt(): void {
     if (!this.map) return;
-    const extent = mapExtent(
-      this.mapArt.hasValue() ? this.mapArt.value() : null,
-      this.world.hasValue() ? this.world.value() : null,
-    );
+    const extent = mapExtent(loaded(this.mapArt) ?? null, loaded(this.world) ?? null);
     holdToExtent(this.map, extent, LeastZoom);
   }
 
@@ -595,17 +594,15 @@ export class ArrangementPage {
    * With a run shown, the run is drawn instead.
    */
   private drawWorld(): void {
-    const world = this.world.value();
-    const traces = this.factories.value() ?? [];
-    const running = (this.arrangement.value()?.factories.length ?? 0) > 0;
+    const world = loaded(this.world);
+    const traces = loaded(this.factories) ?? [];
+    const running = (loaded(this.arrangement)?.factories.length ?? 0) > 0;
     if (!this.map || !world) return;
     this.worldLayer.clearLayers();
     if (running) return;
     const owners = machineOwners(traces);
     const picking = this.focused().size > 0;
-    const picked = this.connectedParts.hasValue()
-      ? this.connectedParts.value()
-      : new Map<string, PickedConnections>();
+    const picked = loaded(this.connectedParts) ?? new Map<string, PickedConnections>();
     const { factories, parts } = relationsOf(picked, (id) => owners.get(id)?.[0]?.factoryId);
     const colourOf = (factoryId: string) => factoryColour(traces, factoryId) ?? '#90a4ae';
     const footprints = new Map(world.footprints.map((footprint) => [footprint.id, footprint]));
@@ -727,10 +724,10 @@ export class ArrangementPage {
    * and pipes on the floor below, always (asked 2026-11-23). With factories picked, those that don't feed one fade.
    */
   private drawRun(): void {
-    const arrangement = this.arrangement.value();
-    const traces = this.factories.value() ?? [];
+    const arrangement = loaded(this.arrangement);
+    const traces = loaded(this.factories) ?? [];
     const focused = this.focused();
-    const machines = this.machines.value();
+    const machines = loaded(this.machines);
     const footprints = new Map(
       (machines?.footprints ?? []).map((footprint) => [footprint.id, footprint]),
     );

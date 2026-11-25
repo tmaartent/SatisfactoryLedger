@@ -25,6 +25,7 @@ import { CatalogNames } from '../shared/catalog-names';
 import { perMinute, positionInMetres } from '../shared/display';
 import { problemMessage } from '../shared/problem';
 import { GameIcon } from '../shared/game-icon';
+import { loaded } from '../shared/loaded';
 
 /** The game data (ADR-0005), the resource nodes (ADR-0015) and the map art (ADR-0020): their imports, and what's in them. */
 @Component({
@@ -80,13 +81,13 @@ export class CatalogPage {
   private readonly matches = (name: string) =>
     name.toLowerCase().includes(this.search().trim().toLowerCase());
   protected readonly shownItems = computed(() =>
-    (this.items.value() ?? []).filter((item) => this.matches(item.name)),
+    (loaded(this.items) ?? []).filter((item) => this.matches(item.name)),
   );
   protected readonly shownRecipes = computed(() =>
-    (this.recipes.value() ?? []).filter((recipe) => this.matches(recipe.name)),
+    (loaded(this.recipes) ?? []).filter((recipe) => this.matches(recipe.name)),
   );
   protected readonly shownNodes = computed(() =>
-    (this.nodes.value() ?? []).filter(
+    (loaded(this.nodes) ?? []).filter(
       (node) => this.matches(this.names.item(node.resource)) || this.matches(node.name),
     ),
   );
@@ -98,6 +99,7 @@ export class CatalogPage {
   protected readonly nodeColumns = ['resource', 'purity', 'kind', 'position'];
 
   protected readonly perMinute = perMinute;
+  protected readonly loaded = loaded;
   protected readonly position = positionInMetres;
 
   protected async importDocs(files: FileList | null): Promise<void> {

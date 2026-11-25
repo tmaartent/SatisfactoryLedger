@@ -21,6 +21,7 @@ import { AreaPage } from './area/area-page';
 import { FactoryDeletion } from './factory-deletion';
 import { FindingsSummary } from './findings-summary';
 import { GameIcon } from '../shared/game-icon';
+import { loaded } from '../shared/loaded';
 
 /**
  * A factory's findings in one snapshot: the overview of its machines and power, the factory in 3D with all the 3D view
@@ -185,7 +186,7 @@ export class FactoryPage {
 
   /** After asking; then there's nothing left to show of it, so back to the map. */
   protected async delete(): Promise<void> {
-    const name = this.analysis.value()?.name;
+    const name = loaded(this.analysis)?.name;
     if (!name || !(await this.deletion.confirmAndDelete({ factoryId: this.factoryId(), name })))
       return;
     await this.router.navigate(['/snapshots', this.id(), 'map']);
@@ -194,4 +195,5 @@ export class FactoryPage {
   protected readonly perMinute = perMinute;
   protected readonly megawatts = megawatts;
   protected readonly problem = problemMessage;
+  protected readonly loaded = loaded;
 }
