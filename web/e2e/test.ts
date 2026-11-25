@@ -1,6 +1,6 @@
 import { expect, Page, test as base } from '@playwright/test';
 
-import { answerFromRecording, snapshot } from './api';
+import { answerFromRecording, factory, snapshot } from './api';
 
 export { expect } from '@playwright/test';
 
@@ -19,13 +19,18 @@ export const test = base.extend<{ api: string[] }>({
   ],
 });
 
+/** The test world's machines, with some room: the area of its 3D view and its arrangement. */
+export const area = 'x0=243000&y0=-199500&x1=255000&y1=-193000';
+
 export const pages = {
   start: '/snapshots',
   catalog: '/catalog',
   map: `/snapshots/${snapshot}/map`,
-  // The test world's machines, with some room.
-  area: `/snapshots/${snapshot}/area?x0=243000&y0=-199500&x1=255000&y1=-193000`,
-  arrangement: `/snapshots/${snapshot}/arrangement?x0=243000&y0=-199500&x1=255000&y1=-193000`,
+  area: `/snapshots/${snapshot}/area?${area}`,
+  arrangement: `/snapshots/${snapshot}/arrangement?${area}`,
+  factory: `/snapshots/${snapshot}/factories/${factory}`,
+  /** The map, centred on one of the factory's smelters. */
+  smelter: `/snapshots/${snapshot}/map?focus=Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2147301500`,
 };
 
 /**
@@ -34,7 +39,9 @@ export const pages = {
  * under it never hears the finger lift.
  */
 export async function whole(page: Page): Promise<void> {
-  if (new URL(page.url()).pathname.startsWith('/snapshots') && !page.url().includes('/arrangement'))
+  // As app.ts's picksSnapshot: every World page but an arrangement's and a factory's has it.
+  const [, world, snapshot, shown] = new URL(page.url()).pathname.split('/');
+  if (world === 'snapshots' && !(snapshot && ['arrangement', 'factories'].includes(shown)))
     await expect(page.locator('app-snapshot-picker button.current')).toBeAttached();
 }
 

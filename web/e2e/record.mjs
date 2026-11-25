@@ -14,6 +14,30 @@ if (!snapshot) {
   process.exit(1);
 }
 
+// A factory in the test world, for the pages that show one (step 96): its two smelters and the constructor making
+// plates, as the .NET tests' plates factory. Made for the recording and deleted after it (step 97), so the world is left
+// as it was: the journeys against the real stack define a factory of these machines themselves (a machine belongs to
+// one factory at most, BR-W5). One already there is used and kept.
+const factoryName = 'Iron Plates';
+const machines = [
+  'Build_SmelterMk1_C_2147301500',
+  'Build_SmelterMk1_C_2147301226',
+  'Build_ConstructorMk1_C_2147291547',
+].map((name) => `Persistent_Level:PersistentLevel.${name}`);
+const known = await fetch(`${base}/api/v1/world/factories?world=Development`).then((r) => r.json());
+let factory = known.find((candidate) => candidate.name === factoryName)?.id;
+const made = !factory;
+if (made) {
+  const answer = await fetch(`${base}/api/v1/world/factories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ world: 'Development', name: factoryName, machines }),
+  });
+  if (!answer.ok)
+    throw new Error(`The factory couldn't be made: ${answer.status} ${await answer.text()}`);
+  factory = (await answer.json()).id;
+}
+
 // The test world's machines, with some room: the 3D view of it.
 const area = 'x0=243000&y0=-199500&x1=255000&y1=-193000';
 const pages = [
@@ -22,6 +46,7 @@ const pages = [
   `/snapshots/${snapshot}/map`,
   `/snapshots/${snapshot}/area?${area}`,
   `/snapshots/${snapshot}/arrangement?${area}`,
+  `/snapshots/${snapshot}/factories/${factory}`,
 ];
 const art = /\/api\/v1\/catalog\/(icons|map-art)/;
 
@@ -46,6 +71,7 @@ for (const path of pages) {
   await page.waitForTimeout(3000);
 }
 await browser.close();
+if (made) await fetch(`${base}/api/v1/world/factories/${factory}`, { method: 'DELETE' });
 
 // Only what's the test world's: the snapshot list names the player's other worlds too, and the node table comes from
 // the player's own resource-nodes.json, which stays out of the repo. Of it, the nodes the test world's providers use.
@@ -61,7 +87,7 @@ if (nodes) {
 const sorted = Object.fromEntries(Object.entries(answers).sort(([a], [b]) => a.localeCompare(b)));
 writeFileSync(
   new URL('./fixtures/api.json', import.meta.url),
-  JSON.stringify({ snapshot, answers: sorted }, null, 1) + '\n',
+  JSON.stringify({ snapshot, factory, answers: sorted }, null, 1) + '\n',
 );
 console.log(`Recorded ${Object.keys(sorted).length} answers:`);
 for (const key of Object.keys(sorted)) console.log(' ', key, sorted[key].status);

@@ -27,6 +27,10 @@ const sweep: Record<
     path: pages.area,
     ready: (page) => expect(page.locator('.page-header')).toContainText('5 machines'),
   },
+  'a factory': {
+    path: pages.factory,
+    ready: (page) => expect(page.locator('h1')).toContainText('Iron Plates'),
+  },
   'the optimal arrangement': {
     path: pages.arrangement,
     ready: (page) => expect(page.locator('.leaflet-container')).toBeVisible(),

@@ -1,7 +1,6 @@
 # CI for Satisfactory Ledger. See docs/guide/07-quality-and-delivery.md § "CI pipeline".
 # backend and frontend run in parallel. The backend job also checks the OpenAPI contract.
-# Planned jobs that are not here yet:
-#   e2e against the real stack (step 96)           - later
+# After a merge to main, the journeys job also runs the app against the real stack (step 97).
 name: CI
 
 on:
@@ -138,4 +137,86 @@ jobs:
         with:
           name: playwright-report
           path: web/playwright-report
+          if-no-files-found: ignore
+
+  # Step 97: journeys against the real stack, nothing recorded: the web app, the API, the analysis service, PostgreSQL
+  # and RabbitMQ. Only after a merge to main (asked 2026-11-25), so a PR's checks don't wait for it; on the desktop only.
+  # Not the AppHost: it also starts Ollama, on a GPU the runner hasn't got. The two services run as the AppHost would
+  # wire them, by the same connection strings and service addresses.
+  journeys:
+    name: Journeys (real stack)
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ledger
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4
+        ports: ['5672:5672']
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 10s --health-retries 10
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      ConnectionStrings__ledger: Host=localhost;Port=5432;Database=ledger;Username=postgres;Password=postgres
+      ConnectionStrings__rabbitmq: amqp://guest:guest@localhost:5672
+      # Where the analysis service and the dev server's proxy find the API, as the AppHost's WithReference(api) says.
+      services__api__http__0: http://localhost:5219
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Set up .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build
+        run: dotnet build --configuration Release
+
+      # In Development, as under the AppHost: the API migrates its database when it starts. Its http profile listens on
+      # 5219. Their logs go to files, uploaded when the journeys fail.
+      - name: Start the API and the analysis service
+        run: |
+          mkdir -p logs
+          dotnet run --no-build --configuration Release --project src/SatisfactoryLedger.Api --launch-profile http > logs/api.log 2>&1 &
+          for attempt in $(seq 60); do curl -sf http://localhost:5219/health && break; sleep 2; done
+          curl -sf http://localhost:5219/health || { cat logs/api.log; exit 1; }
+          DOTNET_ENVIRONMENT=Development dotnet run --no-build --configuration Release --project src/SatisfactoryLedger.AnalysisService > logs/analysis.log 2>&1 &
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      - name: Install the browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Journeys
+        working-directory: web
+        run: npm run e2e:stack
+
+      - name: Upload report and logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: journeys-report
+          path: |
+            web/playwright-report
+            logs
           if-no-files-found: ignore
