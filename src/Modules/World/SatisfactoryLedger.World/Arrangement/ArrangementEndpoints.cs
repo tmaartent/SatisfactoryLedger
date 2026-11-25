@@ -272,7 +272,8 @@ internal static class ArrangementEndpoints
                 carried.Load?.Injection ?? false,
                 carried.Load?.Overflow ?? false,
                 carried.Belt.StartsOnBelt,
-                carried.Belt.EndsOnBelt))],
+                carried.Belt.EndsOnBelt,
+                [.. (carried.Belt.LastResortCrossings ?? []).Select(square => grid.WorldOf(square, floor))]))],
             proposal?.Unrouted ?? [],
             [.. (problem.Spots ?? [])
                 .Where(spot => spot.Way is { Count: > 0 })

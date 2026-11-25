@@ -1,0 +1,37 @@
+<button
+  mat-stroked-button
+  type="button"
+  class="current"
+  [matMenuTriggerFor]="list"
+  [disabled]="runs().length === 0"
+  [attr.aria-label]="'Run: ' + label()"
+>
+  <mat-icon>history</mat-icon>
+  <span class="name">{{ label() }}</span>
+  <mat-icon iconPositionEnd>arrow_drop_down</mat-icon>
+</button>
+
+<mat-menu #list="matMenu" class="run-list">
+  @for (run of runs(); track run.id) {
+    <div class="row">
+      <button
+        mat-menu-item
+        type="button"
+        class="run"
+        [class.current]="run.id === selected()"
+        (click)="picked.emit(run.id)"
+      >
+        <span class="when">{{ run.requestedAt | date: 'd MMM, HH:mm' }}</span>
+        <span class="what">{{ summary(run) }}</span>
+      </button>
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="'Delete the run of ' + (run.requestedAt | date: 'd MMM, HH:mm')"
+        (click)="deleted.emit(run)"
+      >
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+  }
+</mat-menu>

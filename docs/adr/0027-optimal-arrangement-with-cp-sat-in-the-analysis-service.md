@@ -28,7 +28,7 @@ The owner wants a proposal for where the world's factories would best stand, so 
 - The proposal depends on the snapshot's analysis for its weights: a run can only be requested once that's ready.
 
 ## Amendment 2026-11-23: opened from the map with ctrl and drag
-The findings page, the arrangement's only way in, is gone (step 81). Now a drag with **ctrl** held on the world map opens the arrangement with that area to arrange already drawn (decided by the owner, step 83), as a shift-drag opens the area in 3D. The area comes in the address (`?x0=…&y0=…&x1=…&y1=…`, centimetres); given one, the page shows no earlier run, so none of their areas lies over it, and a run can be made at once. Its settings are the page's defaults; picking an earlier run brings its settings, as before.
+The findings page, the arrangement's only way in, is gone (step 81). Now a drag with **ctrl** held on the world map opens the arrangement with that area to arrange already drawn (decided by the owner, step 83), as a shift-drag opens the area in 3D. The area comes in the address (`?x0=…&y0=…&x1=…&y1=…`, centimetres); given one, the page shows no earlier run, so none of their areas lies over it, and a run can be made at once. Its settings are the page's defaults; picking an earlier run brings its settings, as before. Since step 103 (asked 2026-11-25) the world map also has an **Arrangements** tab, listing the world's runs, newest first, each opening on the arrangement page (`?run=…`).
 
 ## Amendment 2026-11-23: keys to draw, settings in the sidebar
 Decided by the owner (step 85), as on the world map:

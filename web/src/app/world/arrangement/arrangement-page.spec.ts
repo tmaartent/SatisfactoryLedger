@@ -5,6 +5,7 @@ import { Api } from '../../api/api';
 import { getMapArt } from '../../api/fn/catalog/get-map-art';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { previewFactory } from '../../api/fn/world/preview-factory';
+import { requestArrangement } from '../../api/fn/world/request-arrangement';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { CatalogNames } from '../../shared/catalog-names';
 import { Sidebar } from '../../sidebar/sidebar';
@@ -90,8 +91,11 @@ const rubber = {
   logistics: 0,
 };
 
+/** An area around Rubber's machine, as the world map hands one over in the address. */
+const aroundRubber = { x0: '-1000', y0: '-1000', x1: '1000', y1: '1000' };
+
 describe('the optimal arrangement', () => {
-  async function render() {
+  async function render(area?: typeof aroundRubber) {
     let api: { invoke: ReturnType<typeof vi.fn> } | undefined;
     TestBed.configureTestingModule({
       imports: [ArrangementPage],
@@ -127,6 +131,9 @@ describe('the optimal arrangement', () => {
     });
     const fixture = TestBed.createComponent(ArrangementPage);
     fixture.componentRef.setInput('id', 'snapshot-1');
+    if (area)
+      for (const [corner, value] of Object.entries(area))
+        fixture.componentRef.setInput(corner, value);
     // The sidebar the shell puts beside the page: the settings are a tab of it.
     const sidebar = TestBed.createComponent(Sidebar);
     await fixture.whenStable();
@@ -226,6 +233,21 @@ describe('the optimal arrangement', () => {
       expect(arrange(element)?.disabled).toBe(false);
     });
 
+    it('stops selecting when a run is asked for, so the map pans again, and offers no selecting over it', async () => {
+      // Asked 2026-11-25: the run came back with the map still in select mode. Step 105: over a run shown, an area is
+      // only selected after Reset.
+      const { element, fixture, select } = await render();
+      await select(10, 200, 'Area');
+      const button = element.querySelector('button.area-select') as HTMLButtonElement;
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+
+      arrange(element)!.click();
+      await fixture.whenStable();
+
+      expect(element.querySelector('.map.drawing')).toBeNull();
+      expect(element.querySelector('button.area-select')).toBeNull();
+    });
+
     it('offers to keep a part out only once there is an area', async () => {
       const { element, select } = await render();
 
@@ -250,19 +272,43 @@ describe('the optimal arrangement', () => {
     });
   });
 
-  it('has its settings and Arrange on the page, not in the sidebar', async () => {
+  it('has its settings in a Settings tab, the first, and Arrange above the map', async () => {
+    // Step 85 kept them on the page, beside a table of runs that read unclear with a tab; the runs are a list of their
+    // own now, so the map can come first (asked 2026-11-25).
     const { element, tabs } = await render();
 
-    expect(element.querySelector('input[name="plotWidth"]')).not.toBeNull();
+    expect(
+      tabs.querySelector('section.tab[aria-label="Settings"] input[name="plotWidth"]'),
+    ).not.toBeNull();
+    expect(element.querySelector('input[name="plotWidth"]')).toBeNull();
     expect(arrange(element)).toBeDefined();
-    expect(tabs.querySelector('section.tab[aria-label="Settings"]')).toBeNull();
   });
 
-  it('has no Factories tab: a factory is picked by clicking it on the map', async () => {
-    const { tabs } = await render();
+  it('says how it works in an Info tab, not above the map', async () => {
+    const { element, tabs } = await render();
 
-    expect(tabs.querySelector('section.tab[aria-label="Factories"]')).toBeNull();
-    expect(tabs.querySelector('.rail button[aria-label="Factories"]')).toBeNull();
+    expect(tabs.querySelector('.rail button[aria-label="Info"]')).not.toBeNull();
+    expect(element.querySelector('.intro')).toBeNull();
+  });
+
+  it('lists its runs above the map, as the snapshots are listed, not in a table', async () => {
+    const { element } = await render();
+
+    expect(element.querySelector('app-run-picker')).not.toBeNull();
+    expect(element.querySelector('table')).toBeNull();
+  });
+
+  it('arranges with the settings of their tab, also while the tab is closed', async () => {
+    const { element, tabs, fixture, drag, api } = await render();
+    await drag('shiftKey', 10, 200);
+    (tabs.querySelector('button[aria-label="Collapse the sidebar"]') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    arrange(element)!.click();
+    await fixture.whenStable();
+
+    const call = api.invoke.mock.calls.find(([fn]) => fn === requestArrangement);
+    expect(call?.[1].body.plotWidthMetres).toBe(48);
   });
 
   it('has no switches for where the factories stand now or for the belts: belts always show', async () => {
@@ -271,5 +317,59 @@ describe('the optimal arrangement', () => {
     const text = (element.textContent ?? '') + (tabs.textContent ?? '');
     expect(text).not.toContain('Where they stand now');
     expect(text).not.toContain('on the floor below');
+  });
+
+  describe("the area's factories (asked 2026-11-25: what lights up couldn't be told)", () => {
+    async function openFactories(rendered: Awaited<ReturnType<typeof render>>) {
+      (
+        rendered.tabs.querySelector('.rail button[aria-label="Factories"]') as HTMLButtonElement
+      ).click();
+      await rendered.sidebar.whenStable();
+      return rendered.tabs.querySelector('section.tab[aria-label="Factories"]') as HTMLElement;
+    }
+
+    it('lists them in a Factories tab', async () => {
+      const tab = await openFactories(await render(aroundRubber));
+
+      expect(tab.textContent).toContain('Rubber');
+    });
+
+    it('says to draw an area first, before there is one', async () => {
+      const tab = await openFactories(await render());
+
+      expect(tab.textContent).toContain('Draw an area');
+    });
+
+    it('picks one from the list, as a click on it on the map does, and lets go on a second', async () => {
+      const rendered = await render(aroundRubber);
+      const tab = await openFactories(rendered);
+      const rubber = () => tab.querySelector('button.factory') as HTMLButtonElement;
+
+      rubber().click();
+      await rendered.fixture.whenStable();
+      await rendered.sidebar.whenStable();
+      expect(rubber().getAttribute('aria-pressed')).toBe('true');
+
+      rubber().click();
+      await rendered.fixture.whenStable();
+      await rendered.sidebar.whenStable();
+      expect(rubber().getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('names on the map only the factory picked and those lit up with it', async () => {
+      // Asked 2026-11-25: every name at once piled up on a phone.
+      const rendered = await render(aroundRubber);
+      const named = () =>
+        [...rendered.element.querySelectorAll('.leaflet-tooltip.factory-label')].map((name) =>
+          name.textContent?.trim(),
+        );
+      expect(named()).toEqual([]);
+
+      const tab = await openFactories(rendered);
+      (tab.querySelector('button.factory') as HTMLButtonElement).click();
+      await rendered.fixture.whenStable();
+
+      expect(named()).toEqual(['Rubber']);
+    });
   });
 });

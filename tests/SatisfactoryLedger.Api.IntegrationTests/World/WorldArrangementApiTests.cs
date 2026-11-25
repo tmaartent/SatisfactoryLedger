@@ -89,6 +89,10 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
 
         // The levels it says it uses are those the 3D view shows: up to its highest belt.
         Assert.Equal(ready.Belts.Max(belt => belt.Levels.Max()) + 1, ready.Summary.LevelsUsed);
+
+        // Routed cleanly: no belt needed a last-resort crossing (step 102).
+        Assert.Equal(0, ready.Summary.LastResortCrossings);
+        Assert.All(ready.Belts, belt => Assert.Empty(belt.LastResortCrossings));
     }
 
     [Fact]
@@ -101,6 +105,8 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
 
         Assert.True(ready.Summary.SupplyLines);
         Assert.Equal(0, ready.Summary.UnroutedBelts);
+        // Every belt routed at the first placement: no other was tried (step 101).
+        Assert.Equal(1, ready.Summary.Placements);
         Assert.Contains(ready.Belts, belt => belt.Item == "Desc_IronIngot_C");
         Assert.All(ready.Belts, belt => Assert.True(belt.Item is not null && belt.PerMinute > 0 && !belt.Injection, $"{belt.From} → {belt.To} carries {belt.Item} at {belt.PerMinute}"));
     }

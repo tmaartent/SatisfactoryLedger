@@ -18,6 +18,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ArrangedMachineResponse } from '../../api/models/arranged-machine-response';
 import { ArrangementMachinesResponse } from '../../api/models/arrangement-machines-response';
 import { ArrangementResponse } from '../../api/models/arrangement-response';
+import { RoutedBeltResponse } from '../../api/models/routed-belt-response';
 import { WorldPoint } from '../../api/models/world-point';
 import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
@@ -31,11 +32,12 @@ import {
   joinedWays,
   levelShown,
   lineJoints,
+  crossingMarks,
   placedMachines,
   shownFactories,
   movedMetres,
   relatedFactories,
-  standsOut,
+  suppliedBelts,
   jointColours,
   spotMark,
   wayMark,
@@ -328,13 +330,12 @@ export class BeltFloor3d {
           ),
           new THREE.LineBasicMaterial({ color: colourOf(way.factory) ?? '#e0e0e0' }),
         );
-        const joining = arrangement.belts.filter(
-          (belt) => belt.leavesFloor && (belt.from === spot.spotId || belt.to === spot.spotId),
-        );
-        // What it is when pointed at, as on the map; found before the plots, as a belt.
+        const joining = way.joining;
+        // What it is when pointed at, as on the map; found before the plots, as a belt. Lit with the belts joining it
+        // (step 106).
         line.userData['tooltip'] = way.tooltip;
         line.userData['belt'] = true;
-        line.userData['ends'] = [way.factory];
+        line.userData['joins'] = joining;
         this.levelled(line, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
         this.content.add(line);
 
@@ -344,7 +345,7 @@ export class BeltFloor3d {
           const drum = this.drum(mark, middle);
           // At the height the way starts at, as built.
           drum.position.y += wayHeight(way.points[0] ?? way.entry, way.entry);
-          drum.userData['ends'] = [way.factory];
+          drum.userData['joins'] = joining;
           this.levelled(drum, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
           this.content.add(drum);
         }
@@ -368,9 +369,29 @@ export class BeltFloor3d {
         // Pointing finds it before the slab above, as it does a belt.
         cube.userData['tooltip'] = joint.tooltip;
         cube.userData['belt'] = true;
-        cube.userData['ends'] = [belt.from, belt.to];
+        cube.userData['routed'] = belt;
         this.levelled(cube, [joint.level], belt.levels);
         this.content.add(cube);
+      }
+
+    // Where a belt crosses another as a last resort (step 102, decided 2026-11-25): an amber ball on the belt, lit from
+    // within, as on the map.
+    for (const belt of arrangement.belts)
+      for (const crossing of crossingMarks([belt])) {
+        const ball = new THREE.Mesh(
+          new THREE.SphereGeometry(1.2, 12, 8),
+          new THREE.MeshBasicMaterial({ color: '#ffb300' }),
+        );
+        ball.position.set(
+          (crossing.at.x - middle.x) / 100,
+          crossing.height + 1,
+          (crossing.at.y - middle.y) / 100,
+        );
+        ball.userData['tooltip'] = crossing.tooltip;
+        ball.userData['belt'] = true;
+        ball.userData['routed'] = belt;
+        this.levelled(ball, [crossing.level], belt.levels);
+        this.content.add(ball);
       }
 
     // Where a line starts at a miner or an extractor (asked 2026-11-19): a drum on the ground at the foot of its lift, a
@@ -384,7 +405,7 @@ export class BeltFloor3d {
           : [belt.corners[belt.corners.length - 1], belt.levels[belt.levels.length - 1]];
       if (!at) continue;
       const drum = this.drum({ ...mark, at }, middle);
-      drum.userData['ends'] = [belt.from, belt.to];
+      drum.userData['routed'] = belt;
       this.levelled(drum, [level ?? 0], belt.levels);
       this.content.add(drum);
     }
@@ -413,7 +434,7 @@ export class BeltFloor3d {
         geometries.forEach((geometry) => geometry.dispose());
         mesh.userData['tooltip'] = beltTooltip(belt, (item) => this.names.item(item));
         mesh.userData['belt'] = true;
-        mesh.userData['ends'] = [belt.from, belt.to];
+        mesh.userData['routed'] = belt;
         this.levelled(mesh, [level], belt.levels);
         this.content.add(mesh);
       }
@@ -441,11 +462,14 @@ export class BeltFloor3d {
   ): void {
     const factories = shownFactories(levels, arrangement.belts);
     const related = relatedFactories(focused, arrangement.links);
+    // The belts the factories picked stand out with: what supplies them, back to the source, and what they make.
+    const supplied = suppliedBelts(arrangement.belts, focused);
     for (const object of this.content.children) {
-      const { own, belt, ends, factory, full, faded } = object.userData as {
+      const { own, belt, routed, joins, factory, full, faded } = object.userData as {
         own?: number[];
         belt?: number[];
-        ends?: string[];
+        routed?: RoutedBeltResponse;
+        joins?: RoutedBeltResponse[];
         factory?: string;
         full?: THREE.Material;
         faded?: THREE.Material;
@@ -456,7 +480,8 @@ export class BeltFloor3d {
         object.visible = shown !== 'hidden';
         fade = shown === 'faded';
       }
-      if (ends && !standsOut(focused, ends)) fade = true;
+      if (routed && !supplied.has(routed)) fade = true;
+      if (joins && !joins.some((joined) => supplied.has(joined))) fade = true;
       if (factory) {
         object.visible =
           (factories === null || factories.has(factory)) &&

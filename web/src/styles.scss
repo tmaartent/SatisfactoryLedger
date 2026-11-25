@@ -177,6 +177,90 @@ table.mat-mdc-table {
   }
 }
 
+// Where a routed belt crosses another as a last resort, on the arrangement's map (arrangement-page.ts, step 102): a
+// Leaflet marker, outside the page's own styles. An amber ×, as the rings where belts leave the floor are amber.
+.leaflet-marker-icon.crossing-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #212121;
+  border-radius: 50%;
+  background: #ffb300;
+  color: #212121;
+  font: 700 13px/1 sans-serif;
+}
+
+// A factory's name on the arrangement's map, always shown (arrangement-page.ts, asked 2026-11-25): a Leaflet tooltip,
+// outside the page's own styles. Small and dark, so the plots under it still show; the picked one in the primary colour.
+.leaflet-tooltip.factory-label {
+  padding: 1px 6px;
+  border: none;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 65%);
+  box-shadow: none;
+  color: #fff;
+  font: var(--mat-sys-label-medium);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &::before {
+    display: none;
+  }
+
+  &.picked {
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+    font-weight: 600;
+  }
+}
+
+// A run of the optimal arrangement in a list: when it was asked for over its summary. In the run picker's list
+// (run-picker.html) and the world map's Arrangements tab (map-page.html, asked 2026-11-25).
+.run-list .run .mat-mdc-menu-item-text,
+.arrangements .run {
+  display: flex;
+  flex-direction: column;
+}
+
+:is(.run-list, .arrangements) .what {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+// In the Arrangements tab each run is a link to it. Here, not in the map page's styles: those are at Angular's budget.
+.arrangements .run {
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--mat-sys-secondary-container);
+  }
+}
+
+// The list of runs the arrangement's run picker opens (run-picker.html): an overlay, as the snapshot list. Each row is
+// a run and its delete button.
+.run-list {
+  .row {
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+  }
+
+  .run {
+    flex: 1;
+    height: auto;
+    padding-block: 6px;
+
+    &.current .when {
+      font-weight: 600;
+      color: var(--mat-sys-primary);
+    }
+  }
+}
+
 // What a line between a factory picked and its suppliers carries, on the arrangement's map (arrangement-page.ts): a
 // Leaflet marker, outside the page's own styles. Its item icons in a pill, centred on the line's middle.
 .line-items {

@@ -16,6 +16,9 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <param name="StartsOnBelt">Whether it starts on another belt, at its smart splitter, instead of a lift up from below a
 /// factory or spot.</param>
 /// <param name="EndsOnBelt">Whether it ends on another belt, at its priority merger, instead of a lift up into a factory.</param>
+/// <param name="LastResortCrossings">Where it crosses another belt where one of them turns, or parts from a stack swapped,
+/// on another level, in the game's centimetres: only where it couldn't get through otherwise (step 102). Empty for runs
+/// from before.</param>
 internal sealed record RoutedBeltResponse(
     string From,
     string To,
@@ -30,4 +33,5 @@ internal sealed record RoutedBeltResponse(
     bool Injection,
     bool Overflow,
     bool StartsOnBelt,
-    bool EndsOnBelt);
+    bool EndsOnBelt,
+    IReadOnlyList<WorldPoint> LastResortCrossings);

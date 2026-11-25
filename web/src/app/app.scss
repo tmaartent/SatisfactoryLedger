@@ -48,9 +48,14 @@ app-sidebar {
     display: none;
   }
 
-  // Room for the bar of tabs and, on a World page, the snapshot picker above it, which stays when the tab is closed.
+  // Room for the bar of tabs (50 px) and, on a page that has it, the snapshot picker above it (57 px), which stays when
+  // the tab is closed. A page without the picker, as the optimal arrangement, doesn't keep its room (asked 2026-11-25).
   main {
-    padding: 12px 8px 116px;
+    padding: 12px 8px 59px;
+
+    &.picks-snapshot {
+      padding-bottom: 116px;
+    }
   }
 
   app-sidebar {

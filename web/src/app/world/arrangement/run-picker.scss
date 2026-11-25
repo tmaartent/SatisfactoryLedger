@@ -1,0 +1,16 @@
+// As the snapshot picker's button: the run's name between the icons, the arrow at the right.
+.current {
+  max-width: 100%;
+
+  // Material's own template: out of this stylesheet's reach without ::ng-deep.
+  ::ng-deep .mdc-button__label {
+    min-width: 0;
+  }
+
+  .name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

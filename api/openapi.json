@@ -1980,7 +1980,9 @@
           "quality",
           "beltMetres",
           "levelsUsed",
-          "unroutedBelts"
+          "unroutedBelts",
+          "placements",
+          "lastResortCrossings"
         ],
         "type": "object",
         "properties": {
@@ -2112,6 +2114,20 @@
             "format": "int32"
           },
           "unroutedBelts": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "placements": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "lastResortCrossings": {
             "type": [
               "null",
               "integer"
@@ -3946,7 +3962,8 @@
           "injection",
           "overflow",
           "startsOnBelt",
-          "endsOnBelt"
+          "endsOnBelt",
+          "lastResortCrossings"
         ],
         "type": "object",
         "properties": {
@@ -4012,6 +4029,12 @@
           },
           "endsOnBelt": {
             "type": "boolean"
+          },
+          "lastResortCrossings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorldPoint"
+            }
           }
         }
       },

@@ -1,4 +1,3 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   Component,
   DestroyRef,
@@ -51,6 +50,9 @@ import { buildingShape } from '../map/building-shape';
 import { holdToExtent } from '../map/hold-to-extent';
 import { MapArt } from '../map/map-art';
 import { removeMap } from '../map/remove-map';
+import { SidebarTab } from '../../sidebar/sidebar-tab';
+import { SidebarTabs } from '../../sidebar/sidebar-tabs';
+import { RunPicker } from './run-picker';
 import {
   dragColours,
   footprintShapes,
@@ -73,14 +75,13 @@ import {
   mapBounds,
   metres,
   lineJoints,
+  crossingMarks,
   placedMachines,
   movedMetres,
   relatedFactories,
-  saving,
   jointColours,
   spotMark,
   wayMark,
-  standsOut,
   pickedAlone,
   SolverTime,
   solverTime,
@@ -91,6 +92,12 @@ import {
   lineGroups,
   lineItems,
   linesToLabel,
+  AreaFactory,
+  arrangedFactories,
+  factoriesInArea,
+  beltsToLabel,
+  suppliedBelts,
+  halfway,
 } from './arrangement-model';
 import { loaded } from '../../shared/loaded';
 
@@ -122,8 +129,6 @@ const stationClasses = new Set([
 @Component({
   selector: 'app-arrangement-page',
   imports: [
-    DatePipe,
-    DecimalPipe,
     FormsModule,
     RouterLink,
     MatButtonModule,
@@ -134,6 +139,8 @@ const stationClasses = new Set([
     MatProgressBarModule,
     MatSlideToggleModule,
     MatTooltipModule,
+    RunPicker,
+    SidebarTab,
   ],
   templateUrl: './arrangement-page.html',
   styleUrl: './arrangement-page.scss',
@@ -155,9 +162,7 @@ export class ArrangementPage {
   private readonly api = inject(Api);
   protected readonly problem = problemMessage;
   protected readonly loaded = loaded;
-  protected readonly saving = saving;
 
-  protected readonly foundations = foundations;
   /** Plots and roads in foundations: 6 by 6 plots with roads of 4 when nothing else is picked. */
   protected readonly plotWidth = signal(6);
   protected readonly plotDepth = signal(6);
@@ -254,6 +259,19 @@ export class ArrangementPage {
     // An area dragged on the world map is a new run to make: no earlier run's area over it.
     () => this.run() ?? (this.dragged() ? null : (loaded(this.runs)?.[0]?.id ?? null)),
   );
+  /**
+   * The run shown, once the runs are loaded. The same while it's the same run, however often the runs are asked for
+   * again while one is computed: picking another is what changes it.
+   */
+  private readonly selectedRun = computed(
+    () => loaded(this.runs)?.find((run) => run.id === this.selected()) ?? null,
+    { equal: (a, b) => a?.id === b?.id },
+  );
+  /**
+   * Whether an area may be drawn or selected (step 105, asked 2026-11-25): only for a new run, while none is shown, so
+   * before the first one or after Reset. Over a run shown, a drag only moves the map.
+   */
+  protected readonly canSelect = computed(() => this.selected() === null);
   protected readonly arrangement = resource({
     params: () => {
       const id = this.selected();
@@ -329,6 +347,7 @@ export class ArrangementPage {
   private readonly names = inject(CatalogNames);
   private readonly dialog = inject(MatDialog);
   private readonly deletion = inject(ArrangementDeletion);
+  private readonly sidebar = inject(SidebarTabs);
   /** A factory's colour, as the map draws it. */
   protected readonly colourOf = computed(() => {
     const traces = loaded(this.factories) ?? [];
@@ -337,9 +356,41 @@ export class ArrangementPage {
   /** The factories picked in the side bar or on the map: they, their belts and the factories linked to them stand out. */
   protected readonly focused = signal<ReadonlySet<string>>(new Set());
 
-  private toggleFocus(factoryId: string): void {
+  /** A click on a factory, on the map or in the Factories tab: it alone is picked, or let go. */
+  protected toggleFocus(factoryId: string): void {
     this.focused.update((focused) => pickedAlone(focused, factoryId));
   }
+
+  /**
+   * A factory picked in the Factories tab (step 105, asked 2026-11-25): picked as on the map, and centred on the map,
+   * its plot or its machines, at the zoom the player chose; zoomed out only as far as it takes to fit. Where the tab lies
+   * over the map, it closes, so the factory can be seen.
+   */
+  protected pickFromList(factory: AreaFactory): void {
+    this.toggleFocus(factory.factoryId);
+    if (!this.map || !this.focused().has(factory.factoryId)) return;
+    this.sidebar.closeWhereItCovers();
+    this.map.fitBounds(L.latLngBounds(mapBounds(factory.bounds)), {
+      padding: [48, 48],
+      maxZoom: this.map.getZoom(),
+    });
+  }
+
+  /**
+   * The factories in the area (asked 2026-11-25): the Factories tab lists them and the map names them, so what lights up
+   * can be told. A run's, on the plots it proposes; before one, those inside the area drawn, where they stand.
+   */
+  protected readonly areaFactories = computed<AreaFactory[]>(() => {
+    const arrangement = loaded(this.arrangement);
+    if (arrangement && this.selected()) return arrangedFactories(arrangement.factories);
+    const world = loaded(this.world);
+    const owners = machineOwners(loaded(this.factories) ?? []);
+    return factoriesInArea(
+      [...(world?.machines ?? []), ...(world?.consumers ?? [])],
+      owners,
+      this.area(),
+    );
+  });
 
   private readonly container = viewChild.required<ElementRef<HTMLElement>>('map');
   private map?: L.Map;
@@ -350,9 +401,15 @@ export class ArrangementPage {
   private readonly runLayer = L.layerGroup();
   private readonly beltLayer = L.layerGroup();
   private readonly areaLayer = L.layerGroup();
+  private readonly nameLayer = L.layerGroup();
+  /** The factories' names on the map, the picked first. */
+  private nameLabels: L.Tooltip[] = [];
   private fitted = false;
 
   constructor() {
+    // The map in view on arriving (step 105, asked 2026-11-25): a tab left open on the page before, as the world map's
+    // Arrangements tab, lies over it on a phone or a tablet.
+    this.sidebar.closeWhereItCovers();
     afterNextRender(() => {
       this.map = L.map(this.container().nativeElement, {
         crs: L.CRS.Simple,
@@ -371,30 +428,41 @@ export class ArrangementPage {
         this.runLayer,
         this.beltLayer,
         this.areaLayer,
+        this.nameLayer,
       ])
         layer.addTo(this.map);
       this.map.setView([0, 0], -3);
       this.listenForArea(this.map);
       this.selection.attach(this.map);
       this.map.on('resize', () => this.holdToMapArt());
+      this.map.on('zoomend', () => this.declutterNames());
       this.drawMapArt();
       this.drawWorld();
       this.drawRun();
       this.drawArea();
+      this.drawNames();
+      this.fitToArea();
     });
+    // Leaflet follows the window's size only: the sidebar's tabs beside the map change its size too, as on the world map.
+    const resized = new ResizeObserver(() => this.map?.invalidateSize());
+    afterNextRender(() => resized.observe(this.container().nativeElement));
     inject(DestroyRef).onDestroy(() => {
+      resized.disconnect();
       if (this.map) removeMap(this.map);
     });
+    effect(() => this.fitToArea());
     effect(() => this.drawMapArt());
     effect(() => this.drawWorld());
     effect(() => this.drawRun());
     effect(() => this.drawArea());
-    // Another run: nothing picked, and its area, exclusions and settings are where a new run starts.
+    effect(() => this.drawNames());
+    // Another run: nothing picked, and its area, exclusions and settings are where a new run starts. The map shows its
+    // area, each run picked (step 105: only the first was).
     effect(() => {
-      const id = this.selected();
+      const run = this.selectedRun();
       this.focused.set(new Set());
-      const run = untracked(() => loaded(this.runs))?.find((candidate) => candidate.id === id);
       if (!run) return;
+      this.fitted = false;
       this.area.set(run.area ?? null);
       this.exclusions.set([...run.exclusions]);
       this.plotWidth.set(foundations(run.plotWidthMetres));
@@ -404,6 +472,11 @@ export class ArrangementPage {
       this.ceiling.set(ceilingHeights(run.ceilingMetres));
       this.supplyLines.set(run.supplyLines);
       this.solverTime.set(solverTimeOf(run.seconds));
+    });
+
+    // A run shown ends selecting: an area is only drawn for a new run.
+    effect(() => {
+      if (!this.canSelect() && untracked(() => this.selection.selecting())) this.selection.toggle();
     });
 
     // While a run is computed, ask again every two seconds.
@@ -421,6 +494,8 @@ export class ArrangementPage {
   protected async request(): Promise<void> {
     const area = this.area();
     if (!area) return;
+    // The run is asked for: done selecting, so the map pans again when it's shown (asked 2026-11-25).
+    if (this.selection.selecting()) this.selection.toggle();
     this.requesting.set(true);
     this.requestError.set(null);
     try {
@@ -448,16 +523,6 @@ export class ArrangementPage {
     } finally {
       this.requesting.set(false);
     }
-  }
-
-  protected statusOf(run: ArrangementSummary): string {
-    if (run.status === 'pending') return 'Computing…';
-    if (run.status === 'failed') return `Failed: ${run.error ?? ''}`;
-    return run.quality === 'optimal'
-      ? 'Optimal'
-      : run.quality === 'feasible'
-        ? 'Best found in time'
-        : 'No layout found: nothing placed';
   }
 
   /**
@@ -492,24 +557,27 @@ export class ArrangementPage {
       if (items.length === 0) continue;
       // Halfway along the line: the middle of its middle piece.
       const middle = sampleCurve(byId.get(line[Math.floor(line.length / 2)])!.curve);
-      const html = items
-        .map((item) => {
-          const icon = this.names.icon(item);
-          return icon
-            ? `<img src="${escapeHtml(icon)}" alt="" width="18" height="18">`
-            : `<span>${escapeHtml(this.names.item(item))}</span>`;
-        })
-        .join('');
-      L.marker(middle[Math.floor(middle.length / 2)], {
-        icon: L.divIcon({
-          html: `<div class="line-items">${html}</div>`,
-          className: '',
-          iconSize: [0, 0],
-        }),
-      })
-        .bindTooltip(items.map((item) => this.names.item(item)).join(', '))
-        .addTo(this.worldLayer);
+      this.itemPill(items, middle[Math.floor(middle.length / 2)]).addTo(this.worldLayer);
     }
+  }
+
+  /** The icons of what a line carries in a pill at a point on it, their names on hover. */
+  private itemPill(items: readonly string[], at: L.LatLngExpression): L.Marker {
+    const html = items
+      .map((item) => {
+        const icon = this.names.icon(item);
+        return icon
+          ? `<img src="${escapeHtml(icon)}" alt="" width="18" height="18">`
+          : `<span>${escapeHtml(this.names.item(item))}</span>`;
+      })
+      .join('');
+    return L.marker(at, {
+      icon: L.divIcon({
+        html: `<div class="line-items">${html}</div>`,
+        className: '',
+        iconSize: [0, 0],
+      }),
+    }).bindTooltip(items.map((item) => this.names.item(item)).join(', '));
   }
 
   /** The game's map picture, a tile at a time over its part of the world; not clickable, so it never takes a click. */
@@ -548,7 +616,7 @@ export class ArrangementPage {
           : (event.ctrlKey || event.metaKey) && this.area()
             ? 'exclusion'
             : null;
-        if (!kind || event.button !== 0) return;
+        if (!kind || event.button !== 0 || !this.canSelect()) return;
         this.drawing.set(kind);
         map.dragging.disable();
       },
@@ -696,9 +764,93 @@ export class ArrangementPage {
         })
         .addTo(this.worldLayer);
     }
-    if (!this.fitted && points.length > 0) {
+    // The whole world, unless there's an area to show (fitToArea).
+    if (!this.fitted && !untracked(() => this.area()) && points.length > 0) {
       this.map.fitBounds(L.latLngBounds(points), { padding: [24, 24] });
       this.fitted = true;
+    }
+  }
+
+  /**
+   * Opens on the area to arrange (asked 2026-11-25): one handed over by the world map, or the shown run's once the runs
+   * come. Once only: an area drawn here afterwards is where the player already looks.
+   */
+  private fitToArea(): void {
+    const area = this.area();
+    if (!this.map || !area || this.fitted) return;
+    this.map.fitBounds(L.latLngBounds(mapBounds(area)), { padding: [24, 24] });
+    this.fitted = true;
+  }
+
+  /**
+   * The factories that stand out: the one picked and those lit up with it, what feeds it (a run's links, or before one
+   * what supplies it as built). None while nothing is picked.
+   */
+  private readonly highlighted = computed<ReadonlySet<string>>(() => {
+    const focused = this.focused();
+    if (focused.size === 0) return focused;
+    const arrangement = loaded(this.arrangement);
+    if (arrangement && this.selected())
+      return relatedFactories(focused, arrangement.links) ?? focused;
+    const owners = machineOwners(loaded(this.factories) ?? []);
+    const picked = loaded(this.connectedParts) ?? new Map<string, PickedConnections>();
+    const { factories } = relationsOf(picked, (id) => owners.get(id)?.[0]?.factoryId);
+    return new Set([...focused, ...factories.keys()]);
+  });
+
+  /**
+   * The highlighted factories named at their middle, not only when pointed at (asked 2026-11-25; first every factory in
+   * the area, which piled up on a phone). A tap or click on a name picks the factory, as on its shapes; the picked one's
+   * name stands out.
+   */
+  private drawNames(): void {
+    const highlighted = this.highlighted();
+    const factories = this.areaFactories().filter((factory) => highlighted.has(factory.factoryId));
+    const focused = this.focused();
+    if (!this.map) return;
+    this.nameLayer.clearLayers();
+    this.nameLabels = [];
+    // The picked first: its name always shows (declutterNames).
+    const ordered = [
+      ...factories.filter((factory) => focused.has(factory.factoryId)),
+      ...factories.filter((factory) => !focused.has(factory.factoryId)),
+    ];
+    for (const factory of ordered) {
+      const name = L.tooltip({
+        permanent: true,
+        direction: 'center',
+        interactive: true,
+        className: focused.has(factory.factoryId) ? 'factory-label picked' : 'factory-label',
+      })
+        .setLatLng(toMapPoint({ ...factory.middle, z: 0 }))
+        .setContent(escapeHtml(factory.name));
+      name.on('click', () => this.toggleFocus(factory.factoryId));
+      name.addTo(this.nameLayer);
+      this.nameLabels.push(name);
+    }
+    this.declutterNames();
+  }
+
+  /**
+   * Hides a name that would lie over one shown before it, until a closer zoom leaves room (asked 2026-11-25: on a
+   * phone the names of factories close together piled up). The picked factory's comes first, so it always shows.
+   */
+  private declutterNames(): void {
+    const shown: DOMRect[] = [];
+    for (const name of this.nameLabels) {
+      const element = name.getElement();
+      if (!element) continue;
+      element.style.visibility = '';
+      const box = element.getBoundingClientRect();
+      const overlaps = shown.some(
+        (other) =>
+          box.left < other.right &&
+          other.left < box.right &&
+          box.top < other.bottom &&
+          other.top < box.bottom,
+      );
+      if (overlaps) element.style.visibility = 'hidden';
+      else shown.push(box);
     }
   }
 
@@ -754,6 +906,11 @@ export class ArrangementPage {
 
     // Always (asked 2026-11-23): the belts and pipes on the floor below are part of the proposal.
     this.drawBelts(arrangement, traces, focused);
+    // With a factory picked, what its long belts and pipes carry, as the lines before a run (asked 2026-11-25).
+    for (const belt of beltsToLabel(arrangement.belts, focused))
+      this.itemPill([belt.item!], toMapPoint({ ...halfway(belt.corners), z: 0 })).addTo(
+        this.beltLayer,
+      );
 
     // With factories picked, the others fade, unless they feed one picked.
     const related = relatedFactories(focused, arrangement.links);
@@ -800,7 +957,7 @@ export class ArrangementPage {
    * each lift; at a miner a red circle, at an extractor one in the colour of its fluid (asked 2026-11-19); at a station
    * or drone port the dot is dark. Where a belt leaves the floor for one outside
    * the area, an amber ring. Belts on one square are stacked, so their lines lie on each other. With factories picked,
-   * their belts stand out.
+   * the belts that supply them, back to where it starts, and what they make stand out (suppliedBelts, step 104). Where a belt crosses another as a last resort, an amber × (step 102).
    */
   private drawBelts(
     arrangement: ArrangementResponse,
@@ -816,9 +973,10 @@ export class ArrangementPage {
       extractorForm: (name: string) => this.names.extractorForm(name),
       fluidColour: (item: string) => this.names.fluidColour(item),
     };
+    const shown = suppliedBelts(arrangement.belts, focused);
     for (const belt of arrangement.belts) {
-      const picked = focused.has(belt.from) || focused.has(belt.to);
-      const dimmed = !standsOut(focused, [belt.from, belt.to]);
+      const picked = focused.size > 0 && shown.has(belt);
+      const dimmed = !shown.has(belt);
       const ends = beltEnds(belt, factories);
       const colour = factoryColour(traces, ends.factory) ?? '#e0e0e0';
       const line = beltLine(belt.corners);
@@ -885,16 +1043,18 @@ export class ArrangementPage {
     // Outside the area, the existing belts the routed ones join where they come into the area (decided 2026-11-18):
     // dotted, in the colour of the factory they serve, from the building to a yellow circle on the area's edge. The
     // routed belts run on across the strip of the area off the floor to it, at right angles. At a miner or extractor,
-    // its circle, as inside the area (asked 2026-11-19).
+    // its circle, as inside the area (asked 2026-11-19). With factories picked, those lit with the belts joining them, so
+    // a source outside the area shows where the line starts (step 106).
     for (const spot of arrangement.ways)
       for (const way of joinedWays([spot], arrangement.belts, factories, spotNames)) {
         const colour = factoryColour(traces, way.factory) ?? '#e0e0e0';
-        const dimmed = !standsOut(focused, [way.factory]);
+        const dimmed = !way.joining.some((belt) => shown.has(belt));
+        const weight = focused.size > 0 && !dimmed ? 3 : 1.5;
         const entry = toMapPoint({ ...way.entry, z: 0 });
         const line = way.points.map((point) => toMapPoint({ ...point, z: 0 }));
         L.polyline(line, {
           color: colour,
-          weight: 1.5,
+          weight,
           opacity: dimmed ? 0.25 : 0.8,
           dashArray: '2 4',
           interactive: false,
@@ -907,7 +1067,7 @@ export class ArrangementPage {
             link.map((point) => toMapPoint({ ...point, z: 0 })),
             {
               color: colour,
-              weight: 1.5,
+              weight,
               opacity: dimmed ? 0.25 : 0.9,
               interactive: false,
             },
@@ -933,6 +1093,14 @@ export class ArrangementPage {
             .bindTooltip(mark.tooltip)
             .addTo(this.beltLayer);
       }
+
+    // Where a belt crosses another as a last resort (step 102, decided 2026-11-25): an amber ×, to check in the game.
+    for (const crossing of crossingMarks(arrangement.belts))
+      L.marker(toMapPoint({ ...crossing.at, z: 0 }), {
+        icon: L.divIcon({ html: '×', className: 'crossing-mark', iconSize: [16, 16] }),
+      })
+        .bindTooltip(crossing.tooltip)
+        .addTo(this.beltLayer);
 
     // Where supply lines are topped up (decided 2026-11-18): a priority merger, an orange square, where a top-up belt
     // ends; a smart splitter, a blue diamond, where its overflow runs on; a splitter, a white diamond, where a line runs

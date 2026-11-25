@@ -1,16 +1,80 @@
-.intro {
-  max-width: 900px;
+// The map first, filling what the screen has left (asked 2026-11-25): the page is a column as high as the shell leaves
+// it (its toolbar of 64 px, and 24 px of padding above and below), and the map takes what the header and tools don't.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 112px);
+  min-height: 420px;
 }
 
+// In the Settings tab: two fields a row, the switch and the solver's time each a row of their own.
 .settings {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin: 12px 0;
+  align-items: center;
+  padding: 0 16px 16px;
+
+  p,
+  mat-slide-toggle,
+  mat-button-toggle-group {
+    grid-column: 1 / -1;
+  }
+
+  p {
+    margin: 0;
+  }
 
   mat-form-field {
-    width: 160px;
+    width: 100%;
+  }
+}
+
+// In the Factories tab: a row each, its colour beside its name; the picked one stands out (asked 2026-11-25).
+.factories {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 8px;
+
+  p {
+    padding: 0 8px;
+    font: var(--mat-sys-body-small);
+  }
+}
+
+.factory {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: var(--mat-sys-body-medium);
+  text-align: left;
+  cursor: pointer;
+
+  &.picked {
+    background: var(--mat-sys-secondary-container);
+    font-weight: 600;
+  }
+
+  .swatch {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+}
+
+// In the Info tab.
+.about {
+  padding: 0 16px 16px;
+
+  p:first-child {
+    margin-top: 0;
   }
 }
 
@@ -22,53 +86,34 @@
   color: var(--mat-sys-on-surface-variant);
 }
 
-.runs {
-  border-collapse: collapse;
-  margin-bottom: 16px;
-
-  th,
-  td {
-    padding: 6px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
-  }
-
-  .number {
-    text-align: right;
-  }
-
-  tbody tr {
-    cursor: pointer;
-
-    &:hover {
-      background: var(--mat-sys-surface-container);
-    }
-
-    &.selected {
-      background: var(--mat-sys-secondary-container);
-    }
-  }
-}
-
 .progress {
   height: 4px;
 }
 
 .map-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 8px 0;
+
+  app-run-picker {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 .layout {
   display: flex;
+  flex: 1;
+  min-height: 0;
   gap: 16px;
 }
 
 .map-frame {
   position: relative;
   flex: 1;
+  min-height: 0;
 }
 
 .drawing-hint {
@@ -94,8 +139,8 @@
     touch-action: none;
   }
 
-  height: calc(100dvh - 360px);
-  min-height: 400px;
+  height: 100%;
+  min-height: 240px;
   border-radius: 12px;
   background: var(--mat-sys-surface-container-lowest);
 }
@@ -105,6 +150,14 @@
 // The introduction says how in either way: with keys, or with the select button on a touch screen.
 .touch {
   display: none;
+}
+
+// A phone: the shell's toolbar is 56 px, its padding 12 px above and 59 px below, room for the bar of tabs (app.scss).
+@media (max-width: 599px) {
+  :host {
+    height: calc(100dvh - 127px);
+    min-height: 360px;
+  }
 }
 
 @media (hover: none) {

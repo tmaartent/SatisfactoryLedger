@@ -4,7 +4,9 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 /// Routes the belts between arranged factories on the floor below them (decided 2026-11-18):
 /// <list type="bullet">
 /// <item>A belt runs at right angles, square by square, from a lift under one factory to a lift under the other. A lift
-/// takes its square: no other belt passes it.</item>
+/// takes its square on the levels it runs through: under a factory from its belt's level up, at a spot from its belt's
+/// level down to the ground (step 102, decided 2026-11-25). Other belts may pass it on the levels it leaves free; a lift
+/// itself only goes on a square no belt passes yet.</item>
 /// <item>Belts never cross seen from above, but one: a belt may cross over another where both run straight through
 /// the square, on another level, so neither turns or changes level there (decided 2026-11-18). They may stack on a
 /// square, one a level up to the floor's levels, and a stack keeps its order: a belt leaves it on the side it
@@ -17,8 +19,12 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 /// <item>Of the shortest ways a belt takes one with the fewest turns and crossings, then the fewest ramps and lifts. Links go shortest
 /// first, one belt at a time; a belt that can't get through is reported, and so are the rest of its link's belts (or
 /// pipes).</item>
-/// <item>Rip-up and reroute (decided 2026-11-18): when belts can't get through, every belt is taken up and laid again,
-/// the links that failed first, the most often failed foremost. The try with the fewest belts left over is kept.</item>
+/// <item>Last-resort crossings (step 102, decided 2026-11-25): once every belt has been laid so, those that couldn't get
+/// through are laid again, now also allowed to cross another where one of them turns, or to part from a stack swapped,
+/// on another level. Each such crossing outweighs any length of belt, so a belt takes the way with the fewest.</item>
+/// <item>Rip-up and reroute (decided 2026-11-18): when belts can't get through cleanly, every belt is taken up and laid
+/// again, the links that failed or needed last-resort crossings first, the most often foremost. The try with the fewest
+/// belts left over is kept, then the fewest last-resort crossings.</item>
 /// <item>Besides factories, a belt may end at a <em>spot</em>: where a node's extractor, a station or a drone port
 /// stands, with a lift down there (decided 2026-11-18). A spot outside the area is reached at the floor's edge facing
 /// it: the belt leaves the floor there, and the way still to go counts as belt. Where an existing belt in the save comes
@@ -27,7 +33,7 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 /// </list>
 /// How it keeps belts from crossing: each side of a square holds the belts across it in order, and a belt through a
 /// square joins two of its sides. Walking round a square, the belts through it must nest like brackets; two that
-/// interleave cross, which only two running straight across each other may. That order is seen from above; apart from it, each belt has a level, one belt to a level on a
+/// interleave cross, which only two running straight across each other may, but as a last resort. That order is seen from above; apart from it, each belt has a level, one belt to a level on a
 /// square. The search picks, side by side, where in each order a new belt goes, and at which level.
 /// </summary>
 public static class BeltRouter
@@ -97,7 +103,7 @@ public static class BeltRouter
         // On the board, squares count from the area's lowest corner.
         GridRectangle OnBoard(GridRectangle at) => new(at.X - squares.X, at.Y - squares.Y, at.Width, at.Depth);
         var empty = new Board(squares.Width, squares.Depth, floor.Levels);
-        Dictionary<string, End> ends = places.ToDictionary(place => place.Key, place => new End(OnBoard(floor.SquaresUnder(place.Value)), Outside: false));
+        Dictionary<string, End> ends = places.ToDictionary(place => place.Key, place => new End(OnBoard(floor.SquaresUnder(place.Value)), Outside: false, Lift: LiftSpan.Up));
         foreach ((string id, GridRectangle spot) in spots)
         {
             // Where its existing belt comes in, the belt leaves the floor for it: on the floor's edge there, or facing it.
@@ -140,8 +146,8 @@ public static class BeltRouter
             List<int> unrouted = [];
             List<int> fallbacks = [];
 
-            // A link's belts (or pipes) after one that couldn't get through are reported with it.
-            HashSet<(int Link, bool Pipe)> stopped = [];
+            // The jobs laid with last-resort crossings.
+            List<int> crossing = [];
 
             // The joins that fell back before go first, each right after what it joins (and what that joins); then the
             // belts that failed before, joins after what they join; the rest, and ties, shortest first.
@@ -178,54 +184,75 @@ public static class BeltRouter
                 return mergers.Contains(null) ? null : board.JointsOn(belt, after: mergers.Select(square => belt.Squares.IndexOf(square!.Value)).DefaultIfEmpty(0).Max());
             }
 
-            foreach (int index in order)
+            // Every belt cleanly first; then those that couldn't get through, with last-resort crossings (step 102).
+            LayAll(order, lastResort: false);
+            if (unrouted.Count > 0)
             {
-                Job job = jobs[index];
-                if (stopped.Contains((job.Number, job.Pipe)))
-                {
-                    unrouted.Add(index);
-                    continue;
-                }
+                List<int> again = [.. unrouted];
+                unrouted.Clear();
+                LayAll(again, lastResort: true);
+            }
 
-                (End from, End to) = (ends[job.Link.From], ends[job.Link.To]);
-                End? splitter = job.Off is int off && laid.TryGetValue(off, out var top) ? SplitterOn(off, top) : null;
-                End? merger = job.Onto is int onto && laid.TryGetValue(onto, out var under) ? board.JointsOn(under) : null;
-                (List<int> Squares, List<int> Levels)? way = board.Find(splitter ?? from, merger ?? to, job.Pipe);
-                if (way is null && (splitter ?? merger) is not null)
+            void LayAll(List<int> lay, bool lastResort)
+            {
+                // A link's belts (or pipes) after one that couldn't get through are reported with it.
+                HashSet<(int Link, bool Pipe)> stopped = [];
+                foreach (int index in lay)
                 {
-                    (splitter, merger) = (null, null);
-                    way = board.Find(from, to, job.Pipe);
-                }
+                    Job job = jobs[index];
+                    if (stopped.Contains((job.Number, job.Pipe)))
+                    {
+                        unrouted.Add(index);
+                        continue;
+                    }
 
-                if (way is not { } found)
-                {
-                    stopped.Add((job.Number, job.Pipe));
-                    unrouted.Add(index);
-                    continue;
-                }
+                    (End from, End to) = (ends[job.Link.From], ends[job.Link.To]);
+                    End? splitter = job.Off is int off && laid.TryGetValue(off, out var top) ? SplitterOn(off, top) : null;
+                    End? merger = job.Onto is int onto && laid.TryGetValue(onto, out var under) ? board.JointsOn(under) : null;
+                    (List<int> Squares, List<int> Levels, List<int> Crossed)? way = board.Find(splitter ?? from, merger ?? to, job.Pipe, lastResort);
+                    if (way is null && (splitter ?? merger) is not null)
+                    {
+                        (splitter, merger) = (null, null);
+                        way = board.Find(from, to, job.Pipe, lastResort);
+                    }
 
-                laid[index] = found;
-                if (job.Onto is not null)
-                {
-                    merged[index] = merger is null ? null : found.Squares[^1];
-                }
+                    if (way is not { } found)
+                    {
+                        stopped.Add((job.Number, job.Pipe));
+                        unrouted.Add(index);
+                        continue;
+                    }
 
-                if ((job.Onto is not null && merger is null) || (job.Off is not null && splitter is null))
-                {
-                    fallbacks.Add(index);
-                }
+                    laid[index] = (found.Squares, found.Levels);
+                    if (job.Onto is not null)
+                    {
+                        merged[index] = merger is null ? null : found.Squares[^1];
+                    }
 
-                (List<(int X, int Y)> corners, List<int> levels) = Runs(found.Squares, found.Levels, board.Width);
-                belts.Add(new RoutedBelt(
-                    job.Link.From,
-                    job.Link.To,
-                    [.. corners.Select(corner => new FloorSquare(corner.X + squares.X, corner.Y + squares.Y))],
-                    LeavesFloor: (splitter is null && (from.Outside || from.Leaves)) || (merger is null && (to.Outside || to.Leaves)),
-                    job.Pipe,
-                    levels,
-                    job.Index,
-                    StartsOnBelt: splitter is not null,
-                    EndsOnBelt: merger is not null));
+                    if ((job.Onto is not null && merger is null) || (job.Off is not null && splitter is null))
+                    {
+                        fallbacks.Add(index);
+                    }
+
+                    if (found.Crossed.Count > 0)
+                    {
+                        crossing.Add(index);
+                    }
+
+                    FloorSquare OnFloor((int X, int Y) at) => new(at.X + squares.X, at.Y + squares.Y);
+                    (List<(int X, int Y)> corners, List<int> levels) = Runs(found.Squares, found.Levels, board.Width);
+                    belts.Add(new RoutedBelt(
+                        job.Link.From,
+                        job.Link.To,
+                        [.. corners.Select(OnFloor)],
+                        LeavesFloor: (splitter is null && (from.Outside || from.Leaves)) || (merger is null && (to.Outside || to.Leaves)),
+                        job.Pipe,
+                        levels,
+                        job.Index,
+                        [.. found.Crossed.Select(square => OnFloor((square % board.Width, square / board.Width)))],
+                        StartsOnBelt: splitter is not null,
+                        EndsOnBelt: merger is not null));
+                }
             }
 
             List<ArrangementLink> leftOver = [.. unrouted
@@ -233,18 +260,20 @@ public static class BeltRouter
                 .Select(link => jobs[link.First()].Link with { Belts = link.Count(job => !jobs[job].Pipe), Pipes = link.Count(job => jobs[job].Pipe) })];
             var routing = new BeltRouting(belts, leftOver);
 
-            // The fewest belts left over, then the fewest joins that fell back to the factory.
-            if (best is null || (LeftOver(routing), fallbacks.Count).CompareTo((LeftOver(best), bestFallbacks)) < 0)
+            // The fewest belts left over, then the fewest last-resort crossings, then the fewest joins that fell back to the
+            // factory.
+            if (best is null
+                || (LeftOver(routing), routing.LastResortCrossings, fallbacks.Count).CompareTo((LeftOver(best), best.LastResortCrossings, bestFallbacks)) < 0)
             {
                 (best, bestFallbacks) = (routing, fallbacks.Count);
             }
 
-            if (unrouted.Count == 0 && fallbacks.Count == 0)
+            if (unrouted.Count == 0 && crossing.Count == 0 && fallbacks.Count == 0)
             {
                 break;
             }
 
-            foreach (int index in unrouted)
+            foreach (int index in unrouted.Concat(crossing))
             {
                 failed[index]++;
             }
@@ -301,8 +330,10 @@ file sealed class Board(int width, int depth, int levels)
 {
     private const int Lift = 4;
 
-    // Belt work first: one square of belt outweighs every turn and climb a belt could make. Then turns, then climbs:
-    // a ramp (2 m) before a lift (4 m or more). Last, low before high: a stack builds from the floor up.
+    // A last-resort crossing outweighs any length of belt: a way is some 20,000 squares at most, under 1 << 47 (step 102).
+    // Then belt work: one square of belt outweighs every turn and climb a belt could make. Then turns, then climbs: a
+    // ramp (2 m) before a lift (4 m or more). Last, low before high: a stack builds from the floor up.
+    private const long LastResortCross = 1L << 50;
     private const long Step = 1L << 32;
     private const long Turn = 1L << 16;
     private const long Cross = 2L << 16;
@@ -317,7 +348,7 @@ file sealed class Board(int width, int depth, int levels)
     // Per belt laid, whether it's a pipe.
     private readonly List<bool> pipes = [];
 
-    // Per square and level, whether a belt is there: a lift takes every level of its square.
+    // Per square and level, whether a belt is there: a lift takes the levels it runs through on its square.
     private readonly bool[] taken = new bool[width * depth * levels];
 
     // The side between (x, y) and (x + 1, y), and between (x, y) and (x, y + 1).
@@ -337,7 +368,9 @@ file sealed class Board(int width, int depth, int levels)
         int y0 = Math.Max(0, space.Y);
         int x1 = Math.Min(width, space.X + space.Width);
         int y1 = Math.Min(depth, space.Y + space.Depth);
-        return x0 < x1 && y0 < y1 ? new End(new GridRectangle(x0, y0, x1 - x0, y1 - y0), Outside: false) : new End(space, Outside: true);
+        return x0 < x1 && y0 < y1
+            ? new End(new GridRectangle(x0, y0, x1 - x0, y1 - y0), Outside: false, Lift: LiftSpan.Down)
+            : new End(space, Outside: true);
     }
 
     /// <summary>
@@ -356,23 +389,39 @@ file sealed class Board(int width, int depth, int levels)
     /// <summary>
     /// The way for a new belt (or pipe) with the least belt work, then the fewest turns, from a free square of
     /// <paramref name="from"/> to one of <paramref name="to"/>, with a level for each straight run and the fewest climbs;
-    /// laid on the board; null when there's none. Its squares, and its level from each to the next. An end off the floor
-    /// is reached at a free square of the floor's edge, and the way from there to it counts as belt.
+    /// laid on the board; null when there's none. Its squares, its level from each to the next, and the squares where it
+    /// crosses as a last resort, which only <paramref name="lastResort"/> allows (step 102). An end off the floor is
+    /// reached at a free square of the floor's edge, and the way from there to it counts as belt.
     /// </summary>
     /// <remarks>
     /// The way is found first with only a free level asked of each square, and the levels picked along it after: searching
     /// every level everywhere took minutes on a real floor, mostly for belts with no way at all. Only when no levels fit
     /// the way found is the search made again, level by level.
     /// </remarks>
-    public (List<int> Squares, List<int> Levels)? Find(End from, End to, bool pipe)
+    public (List<int> Squares, List<int> Levels, List<int> Crossed)? Find(End from, End to, bool pipe, bool lastResort)
     {
-        if (Search(from, to, pipe, levelled: false) is not { } way)
+        if (Search(from, to, pipe, levelled: false, lastResort) is not { } way)
         {
             return null;
         }
 
-        List<State>? states = Levelled(way, from, to) ?? Search(from, to, pipe, levelled: true);
-        return states is null ? null : Lay(states, pipe);
+        if ((Levelled(way, from, to) ?? Search(from, to, pipe, levelled: true, lastResort)) is not { } states)
+        {
+            return null;
+        }
+
+        // Where it crosses as a last resort: from each square to the next, as the search went, before it's laid.
+        List<int> crossed = [];
+        for (int i = 1; i < states.Count - 1; i++)
+        {
+            (State at, State next) = (states[i], states[i + 1]);
+            if (lastResort && Crossings(at.Square, at.Side, at.Slot, Opposite(next.Side), next.Slot, pipe, lastResort) is { Forced: > 0 })
+            {
+                crossed.Add(at.Square);
+            }
+        }
+
+        return Lay(states, pipe, from, to) is { } laidOut ? (laidOut.Squares, laidOut.Levels, crossed) : null;
     }
 
     /// <summary>
@@ -441,8 +490,10 @@ file sealed class Board(int width, int depth, int levels)
     /// <summary>
     /// The states of the cheapest way; null when there's none. <paramref name="levelled"/>: with a level for each,
     /// changing only where it turns; else at level 0 throughout, through squares with a level free.
+    /// <paramref name="lastResort"/>: crossing another where one turns, or parting from a stack swapped, allowed at a cost
+    /// outweighing any length of belt.
     /// </summary>
-    private List<State>? Search(End from, End to, bool pipe, bool levelled)
+    private List<State>? Search(End from, End to, bool pipe, bool levelled, bool lastResort)
     {
         // A state: the square the belt is on, the side it came in by (or its lift), its place in that side's order, its
         // level (on its lift, the one it leaves at), and whether it ends there.
@@ -516,8 +567,7 @@ file sealed class Board(int width, int depth, int levels)
                 int slots = (Across(state.Square, side)?.Count ?? 0) + 1;
                 for (int slot = 0; slot < slots; slot++)
                 {
-                    int crossed = state.Side == Lift ? 0 : Crossings(state.Square, state.Side, state.Slot, side, slot, pipe);
-                    if (crossed < 0)
+                    if ((state.Side == Lift ? (0, 0) : Crossings(state.Square, state.Side, state.Slot, side, slot, pipe, lastResort)) is not (int crossed, int forced))
                     {
                         continue;
                     }
@@ -531,7 +581,7 @@ file sealed class Board(int width, int depth, int levels)
                             continue;
                         }
 
-                        long step = Step + (turns ? Turn : 0) + (Cross * crossed) + Climb(level - state.Level);
+                        long step = Step + (turns ? Turn : 0) + (Cross * crossed) + (LastResortCross * forced) + Climb(level - state.Level);
                         if (arrives && (!levelled || joining is null || level == joining.Level))
                         {
                             Reach(new State(next, Opposite(side), slot, level, Ends: true), state, here + step + beyond, 0);
@@ -678,9 +728,10 @@ file sealed class Board(int width, int depth, int levels)
 
     /// <summary>
     /// Lays a belt or pipe along its states: into each side's order at its place, and its levels on each square taken.
-    /// Its ends are its lifts, which take their squares whole.
+    /// Its ends are its lifts, which take the levels they run through: from its level up under a factory, down at a spot,
+    /// and all of them where it leaves the floor or joins another belt (step 102).
     /// </summary>
-    private (List<int> Squares, List<int> Levels)? Lay(List<State> states, bool pipe)
+    private (List<int> Squares, List<int> Levels)? Lay(List<State> states, bool pipe, End from, End to)
     {
         List<int> squares = [.. states.Select(state => state.Square)];
         if (squares.Distinct().Count() != squares.Count)
@@ -703,8 +754,8 @@ file sealed class Board(int width, int depth, int levels)
         for (int i = 0; i < states.Count; i++)
         {
             int square = states[i].Square;
-            (int low, int high) = i == 0 || i == states.Count - 1
-                ? (0, levels - 1)
+            (int low, int high) = i == 0 ? Through(from, states[i].Level)
+                : i == states.Count - 1 ? Through(to, states[i].Level)
                 : (Math.Min(states[i].Level, states[i + 1].Level), Math.Max(states[i].Level, states[i + 1].Level));
             for (int level = low; level <= high; level++)
             {
@@ -715,17 +766,28 @@ file sealed class Board(int width, int depth, int levels)
         }
 
         return (squares, crossings);
+
+        (int Low, int High) Through(End end, int level) => end.Lift switch
+        {
+            LiftSpan.Up => (level, levels - 1),
+            LiftSpan.Down => (0, level),
+            _ => (0, levels - 1),
+        };
     }
 
     /// <summary>
     /// How many belts a belt crosses that comes into a square by one side at a place in its order, and leaves by another
-    /// at a place in that one's; -1 when it may not go so. Walking round the square, every belt shows twice; two that
-    /// interleave cross. Only a belt running straight through may cross, and only belts running straight across it: on
-    /// another level, which the levels taken on the square see to (decided 2026-11-18). A belt that ends on the square, at
-    /// its lift, shows only once, so nothing may pass it: that's what keeps every other belt off a lift. A pipe and a belt
-    /// share a square only so, crossing: they never stack together (decided 2026-11-18).
+    /// at a place in that one's: straight over straight, and as a last resort (<see cref="Find"/>); null when it may not
+    /// go so. Walking round the square, every belt shows twice; two that interleave cross. Only a belt running straight
+    /// through may cross, and only belts running straight across it: on another level, which the levels taken on the
+    /// square see to (decided 2026-11-18). With <paramref name="lastResort"/>, two of a kind may interleave too, as forced
+    /// crossings: where one turns, or where two part from a stack swapped; still on another level, since two belts never
+    /// share one on a square and a turning belt takes the levels between those it comes and goes at (step 102). Two running
+    /// straight the same way never do: along its run a stack keeps its order. A belt that ends on the
+    /// square, at its lift, shows only once: a belt passes it on a level it leaves free, which the levels taken see to. A
+    /// pipe and a belt share a square only crossing, or by a lift: they never stack together (decided 2026-11-18).
     /// </summary>
-    private int Crossings(int square, int inSide, int inSlot, int outSide, int outSlot, bool pipe)
+    private (int Crossed, int Forced)? Crossings(int square, int inSide, int inSlot, int outSide, int outSlot, bool pipe, bool lastResort)
     {
         const int New = -1;
         List<(int Belt, int Side)> round = [];
@@ -754,7 +816,7 @@ file sealed class Board(int width, int depth, int levels)
         int first = round.FindIndex(entry => entry.Belt == New);
         int second = round.FindLastIndex(entry => entry.Belt == New);
         bool straight = outSide == Opposite(inSide);
-        int crossed = 0;
+        (int crossed, int forced) = (0, 0);
         foreach (IGrouping<int, (int Index, int Side)> belt in round
             .Select((entry, index) => (entry.Belt, Index: index, entry.Side))
             .Where(entry => entry.Belt != New)
@@ -763,7 +825,8 @@ file sealed class Board(int width, int depth, int levels)
             (int Index, int Side)[] ends = [.. belt];
             if (ends.Length != 2)
             {
-                return -1;
+                // A lift (step 102).
+                continue;
             }
 
             bool inside = first < ends[0].Index && ends[0].Index < second;
@@ -772,22 +835,30 @@ file sealed class Board(int width, int depth, int levels)
                 // Beside or in a stack with it: only of one kind.
                 if (pipes[belt.Key] != pipe)
                 {
-                    return -1;
+                    return null;
                 }
 
                 continue;
             }
 
-            // They interleave: a crossing, allowed only straight over straight, at right angles.
-            if (!straight || ends[1].Side != Opposite(ends[0].Side) || ends[0].Side % 2 == inSide % 2)
+            // They interleave: a crossing, straight over straight at right angles; else only as a last resort, between two
+            // of a kind that don't both run straight the same way, where a stack keeps its order.
+            bool through = ends[1].Side == Opposite(ends[0].Side);
+            if (straight && through && ends[0].Side % 2 != inSide % 2)
             {
-                return -1;
+                crossed++;
             }
-
-            crossed++;
+            else if (lastResort && pipes[belt.Key] == pipe && !(straight && through))
+            {
+                forced++;
+            }
+            else
+            {
+                return null;
+            }
         }
 
-        return crossed;
+        return (crossed, forced);
     }
 
     /// <summary>The belts across a side of a square, in order; null when there are none, or it's the floor's edge.</summary>
@@ -871,7 +942,21 @@ file readonly record struct State(int Square, int Side, int Slot, int Level, boo
 /// another belt, at the squares it may join it (<see cref="Joints"/>, within <see cref="Space"/>).
 /// </summary>
 /// <param name="Leaves">Whether a belt there leaves the floor, to join an existing belt that comes in there.</param>
-file sealed record End(GridRectangle Space, bool Outside, IReadOnlyDictionary<int, Joint>? Joints = null, bool Leaves = false);
+/// <param name="Lift">Which levels a lift there runs through on its square (step 102).</param>
+file sealed record End(GridRectangle Space, bool Outside, IReadOnlyDictionary<int, Joint>? Joints = null, bool Leaves = false, LiftSpan Lift = LiftSpan.Whole);
+
+/// <summary>Which levels of its square a belt's lift runs through, from the belt's level (step 102, decided 2026-11-25).</summary>
+file enum LiftSpan
+{
+    /// <summary>Every level: where the belt leaves the floor, or joins another belt.</summary>
+    Whole,
+
+    /// <summary>Up to a factory above the floor: the levels below stay free.</summary>
+    Up,
+
+    /// <summary>Down to the ground, at a node's extractor, a station or a drone port: the levels above stay free.</summary>
+    Down,
+}
 
 /// <summary>A square of a belt laid where another may join it: at that belt's level, by one of the sides it doesn't use.</summary>
 file sealed record Joint(int Level, IReadOnlyList<int> Sides);

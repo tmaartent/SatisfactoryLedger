@@ -1,4 +1,4 @@
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   afterNextRender,
   Component,
@@ -25,6 +25,7 @@ import { Api } from '../../api/api';
 
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { analyseSnapshot } from '../../api/fn/world/analyse-snapshot';
+import { getArrangements } from '../../api/fn/world/get-arrangements';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
@@ -41,6 +42,7 @@ import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
+import { runSummary } from '../arrangement/arrangement-model';
 import { Area, areaBetween } from '../area/area-model';
 import { AreaSelection } from './area-selection';
 import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
@@ -96,6 +98,7 @@ const MinZoom = -4;
     FormsModule,
     RouterLink,
     GameIcon,
+    DatePipe,
     DecimalPipe,
     FindingsSummary,
     WhatItHolds,
@@ -144,6 +147,18 @@ export class MapPage {
     params: () => this.snapshotParams(),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
   });
+  /**
+   * The world's runs of the optimal arrangement, newest first, for the Arrangements tab (asked 2026-11-25: the
+   * arrangement was reached only by drawing an area). The runs are the world's, as on the arrangement page.
+   */
+  protected readonly arrangements = resource({
+    params: () => {
+      const world = loaded(this.snapshot)?.sessionName;
+      return world ? { world } : undefined;
+    },
+    loader: ({ params }) => this.api.invoke(getArrangements, params),
+  });
+  protected readonly runSummary = runSummary;
 
   /** ?factory=…: the factory highlighted when the map opens; the list beside the map can pick another. */
   readonly factory = input<string>();

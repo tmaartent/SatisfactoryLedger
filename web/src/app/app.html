@@ -8,7 +8,7 @@
 </mat-toolbar>
 <!-- The page, and on its right the sidebar with the page's tabs and the explanation (asked 2026-11-22). -->
 <div class="shell">
-  <main>
+  <main [class.picks-snapshot]="picksSnapshot()">
     <router-outlet />
   </main>
   @if (inWorld()) {

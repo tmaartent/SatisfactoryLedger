@@ -1,3 +1,5 @@
+import { ArrangedFactoryResponse } from '../../api/models/arranged-factory-response';
+import { ArrangementSummary } from '../../api/models/arrangement-summary';
 // The optimal arrangement's page, apart from Leaflet.
 import { RoutedBeltResponse } from '../../api/models/routed-belt-response';
 import { WorldPoint } from '../../api/models/world-point';
@@ -51,6 +53,105 @@ export function placedMachines<
 export function saving(costNow: number, cost: number): string {
   if (costNow <= 0) return '—';
   return `−${Math.round(((costNow - cost) / costNow) * 100)}%`;
+}
+
+/** A factory in the area to arrange: the Factories tab lists it, and the map names it at its middle (asked 2026-11-25). */
+export interface AreaFactory {
+  factoryId: string;
+  name: string;
+  /** In the world's centimetres. */
+  middle: { x: number; y: number };
+  /** What a pick in the Factories tab zooms to (step 105): its plot in a run, or the rectangle around its machines. */
+  bounds: WorldRectangle;
+}
+
+/**
+ * The factories in the area before a run, by name: those whose machines' middle (of the rectangle around their
+ * positions) lies inside it. None before an area is drawn.
+ */
+export function factoriesInArea(
+  machines: readonly { id: string; position: WorldPoint }[],
+  owners: ReadonlyMap<string, readonly { factoryId: string; name: string }[]>,
+  area: WorldRectangle | null,
+): AreaFactory[] {
+  if (!area) return [];
+  const spans = new Map<string, { name: string; x0: number; y0: number; x1: number; y1: number }>();
+  for (const machine of machines) {
+    const owner = owners.get(machine.id)?.[0];
+    if (!owner) continue;
+    const { x, y } = machine.position;
+    const span = spans.get(owner.factoryId);
+    if (span)
+      Object.assign(span, {
+        x0: Math.min(span.x0, x),
+        y0: Math.min(span.y0, y),
+        x1: Math.max(span.x1, x),
+        y1: Math.max(span.y1, y),
+      });
+    else spans.set(owner.factoryId, { name: owner.name, x0: x, y0: y, x1: x, y1: y });
+  }
+  const [left, right] = [Math.min(area.x0, area.x1), Math.max(area.x0, area.x1)];
+  const [top, bottom] = [Math.min(area.y0, area.y1), Math.max(area.y0, area.y1)];
+  return [...spans]
+    .map(([factoryId, { name, x0, y0, x1, y1 }]) => ({
+      factoryId,
+      name,
+      middle: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 },
+      bounds: { x0, y0, x1, y1 },
+    }))
+    .filter(
+      ({ middle }) =>
+        middle.x >= left && middle.x <= right && middle.y >= top && middle.y <= bottom,
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** A run's factories, by name: at the middle of the plot it proposes, or where they stand when it proposes none. */
+export function arrangedFactories(factories: readonly ArrangedFactoryResponse[]): AreaFactory[] {
+  const middleOf = (rectangle: WorldRectangle) => ({
+    x: (rectangle.x0 + rectangle.x1) / 2,
+    y: (rectangle.y0 + rectangle.y1) / 2,
+  });
+  return factories
+    .map((factory) => ({
+      factoryId: factory.factoryId,
+      name: factory.name ?? '(deleted)',
+      middle: middleOf(factory.proposed ?? factory.now),
+      bounds: factory.proposed ?? factory.now,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** How a run ended, or that it's still computed. */
+export function runStatus(run: ArrangementSummary): string {
+  if (run.status === 'pending') return 'Computing…';
+  if (run.status === 'failed') return `Failed: ${run.error ?? ''}`;
+  return run.quality === 'optimal'
+    ? 'Optimal'
+    : run.quality === 'feasible'
+      ? 'Best found in time'
+      : 'No layout found: nothing placed';
+}
+
+/**
+ * A run in one line, as the list of runs shows it under when it was asked for (asked 2026-11-25): its plots and roads
+ * in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, its last-resort
+ * crossings (step 102), how many placements that took when more than one (step 101), how it ended.
+ */
+export function runSummary(run: ArrangementSummary): string {
+  const size = (metres: number) => String(Math.round(foundations(metres) * 10) / 10);
+  const parts = [
+    `${size(run.plotWidthMetres)} × ${size(run.plotDepthMetres)}`,
+    `roads ${size(run.roadXMetres)} · ${size(run.roadYMetres)}`,
+  ];
+  if (run.supplyLines) parts.push('supply lines');
+  if (run.costNow !== null && run.cost !== null) parts.push(saving(run.costNow, run.cost));
+  if (run.unroutedBelts) parts.push(`${run.unroutedBelts} not routed`);
+  if (run.lastResortCrossings)
+    parts.push(`${run.lastResortCrossings} crossing${run.lastResortCrossings === 1 ? '' : 's'}`);
+  if ((run.placements ?? 1) > 1) parts.push(`best of ${run.placements} placements`);
+  parts.push(runStatus(run));
+  return parts.join(' · ');
 }
 
 /**
@@ -151,12 +252,13 @@ export function beltEnds(
  * The existing belts outside the area that routed belts join where they leave the floor (decided 2026-11-18): each with
  * where it comes into the area (its last point, on the area's edge); how each belt joining it gets there from its end
  * on the floor's edge, across the strip of the area that isn't floor and then along the area's edge, at right angles;
- * the factory of one of them for its colour; what it says when pointed at; and the levels the belts joining it run on
- * there, to show it with them. One no routed belt joins is left out.
+ * the factory of one of them for its colour; what it says when pointed at; the levels the belts joining it run on
+ * there, to show it with them; and those belts, so it lights up when they do (step 106: it stood dimmed by the factory
+ * of its colour, the first on a supply line, while the line was lit for a factory further on). One no routed belt
+ * joins is left out.
  */
-export function joinedWays(
-  ways: readonly { spotId: string; points: WorldPoint[] }[],
-  belts: readonly Pick<
+export function joinedWays<
+  Belt extends Pick<
     RoutedBeltResponse,
     | 'from'
     | 'to'
@@ -167,7 +269,10 @@ export function joinedWays(
     | 'perMinute'
     | 'pipe'
     | 'injection'
-  >[],
+  >,
+>(
+  ways: readonly { spotId: string; points: WorldPoint[] }[],
+  belts: readonly Belt[],
   factories: ReadonlySet<string>,
   names: { item: (item: string) => string; building: (className: string) => string },
 ): {
@@ -177,6 +282,7 @@ export function joinedWays(
   links: WorldPoint[][];
   tooltip: string;
   levels: number[];
+  joining: Belt[];
 }[] {
   return ways.flatMap((way) => {
     const joining = belts.filter(
@@ -212,6 +318,7 @@ export function joinedWays(
             ),
           ),
         ],
+        joining,
       },
     ];
   });
@@ -354,11 +461,6 @@ export function shownFactories(
  */
 export function pickedAlone(focused: ReadonlySet<string>, factoryId: string): ReadonlySet<string> {
   return focused.has(factoryId) && focused.size === 1 ? new Set() : new Set([factoryId]);
-}
-
-/** Whether a belt (by its ends) or a factory stands out: when nothing is picked, or one of them is. */
-export function standsOut(focused: ReadonlySet<string>, ends: readonly string[]): boolean {
-  return focused.size === 0 || ends.some((end) => focused.has(end));
 }
 
 /**
@@ -681,6 +783,117 @@ export function linesToLabel(
   lengthOf: (id: string) => number,
 ): string[][] {
   return lines.filter((line) => line.reduce((sum, id) => sum + lengthOf(id), 0) >= LabelledLine);
+}
+
+/** How long a run of corners is on the map, in centimetres. */
+function lengthAlong(corners: readonly WorldPoint[]): number {
+  let length = 0;
+  for (let i = 1; i < corners.length; i++)
+    length += Math.hypot(corners[i].x - corners[i - 1].x, corners[i].y - corners[i - 1].y);
+  return length;
+}
+
+/**
+ * The routed belts of a run that say what they carry (asked 2026-11-25), as the lines before a run: with a factory
+ * picked, those it stands out with (suppliedBelts), 30 metres long or more, that carry something.
+ */
+export function beltsToLabel<
+  Belt extends Pick<
+    RoutedBeltResponse,
+    'from' | 'to' | 'item' | 'corners' | 'injection' | 'overflow'
+  >,
+>(belts: readonly Belt[], focused: ReadonlySet<string>): Belt[] {
+  if (focused.size === 0) return [];
+  const shown = suppliedBelts(belts, focused);
+  return belts.filter(
+    (belt) => belt.item != null && shown.has(belt) && lengthAlong(belt.corners) >= LabelledLine,
+  );
+}
+
+/**
+ * The routed belts the factories picked stand out with (step 104, asked 2026-11-25): every belt while none is picked.
+ * Otherwise, what supplies them, back to where it starts, and what they make. With supply lines a belt runs from one
+ * factory on its line to the next, so the belt into a factory may start under the one before it: a belt carrying an item
+ * from a factory that item comes into runs on from that factory, and its way back goes on through every belt bringing
+ * the item there, the line's and its top-ups; an overflow's only through the top-ups, whose smart splitter it leaves.
+ * Such a belt running on past a factory picked isn't what it makes, and stays out. A belt from before what it carries
+ * was kept isn't traced back.
+ */
+export function suppliedBelts<
+  Belt extends Pick<RoutedBeltResponse, 'from' | 'to' | 'item' | 'injection' | 'overflow'>,
+>(belts: readonly Belt[], focused: ReadonlySet<string>): Set<Belt> {
+  if (focused.size === 0) return new Set(belts);
+  const into = (factory: string, item: string | null) =>
+    item == null ? [] : belts.filter((belt) => belt.to === factory && belt.item === item);
+  const shown = new Set<Belt>();
+  const back = (belt: Belt): void => {
+    if (shown.has(belt)) return;
+    shown.add(belt);
+    for (const before of into(belt.from, belt.item))
+      if (!belt.overflow || before.injection) back(before);
+  };
+  for (const belt of belts)
+    if (focused.has(belt.to)) back(belt);
+    else if (focused.has(belt.from) && into(belt.from, belt.item).length === 0) shown.add(belt);
+  return shown;
+}
+
+/** Where a routed belt crosses another as a last resort (step 102), as the map and the 3D view mark it. */
+export interface CrossingMark {
+  at: WorldPoint;
+  /** The belt's height on its run there, in metres above the belt floor. */
+  height: number;
+  level: number;
+  tooltip: string;
+}
+
+/**
+ * The last-resort crossings of the routed belts (step 102, decided 2026-11-25): where one crosses another where one of
+ * them turns, or parts from a stack swapped, on another level. Each at the belt's height on the first run it lies on.
+ */
+export function crossingMarks(
+  belts: readonly Pick<
+    RoutedBeltResponse,
+    'corners' | 'heights' | 'levels' | 'lastResortCrossings'
+  >[],
+): CrossingMark[] {
+  const between = (value: number, a: number, b: number) =>
+    value >= Math.min(a, b) - 1 && value <= Math.max(a, b) + 1;
+  return belts.flatMap((belt) =>
+    belt.lastResortCrossings.map((at) => {
+      const run = Math.max(
+        0,
+        belt.corners.findIndex(
+          (corner, i) =>
+            i + 1 < belt.corners.length &&
+            between(at.x, corner.x, belt.corners[i + 1].x) &&
+            between(at.y, corner.y, belt.corners[i + 1].y),
+        ),
+      );
+      return {
+        at,
+        height: belt.heights[run] ?? 0,
+        level: belt.levels[run] ?? 0,
+        tooltip:
+          '<b>Crosses another belt here</b><br>on another level: a last resort, where it could not get through otherwise',
+      };
+    }),
+  );
+}
+
+/** The point halfway along a run of corners, around its turns. */
+export function halfway(corners: readonly WorldPoint[]): WorldPoint {
+  let left = lengthAlong(corners) / 2;
+  for (let i = 1; i < corners.length; i++) {
+    const [a, b] = [corners[i - 1], corners[i]];
+    const step = Math.hypot(b.x - a.x, b.y - a.y);
+    if (step >= left && step > 0) {
+      const t = left / step;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z };
+    }
+    left -= step;
+  }
+  return corners[corners.length - 1];
 }
 
 /**

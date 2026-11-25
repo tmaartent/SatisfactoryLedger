@@ -5,10 +5,12 @@ import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
 import { getMapArt } from '../../api/fn/catalog/get-map-art';
+import { getArrangements } from '../../api/fn/world/get-arrangements';
 import { getResourceNodes } from '../../api/fn/catalog/get-resource-nodes';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
+import { ArrangementSummary } from '../../api/models/arrangement-summary';
 import { FactoryTrace } from '../../api/models/factory-trace';
 import { CatalogNames } from '../../shared/catalog-names';
 import { Sidebar } from '../../sidebar/sidebar';
@@ -50,6 +52,37 @@ beforeEach(() => {
 // canvas that was gone, an error after the test that failed the run: let it draw first.
 afterEach(() => new Promise((drawn) => requestAnimationFrame(drawn)));
 
+/** A run of the optimal arrangement for the world, ready. */
+const run = (id: string, requestedAt: string, unroutedBelts = 0): ArrangementSummary => ({
+  id,
+  snapshotId: 'snapshot-1',
+  world: 'Desert Start',
+  requestedAt,
+  computedAt: requestedAt,
+  status: 'ready',
+  quality: 'optimal',
+  error: null,
+  area: null,
+  exclusions: [],
+  plotWidthMetres: 48,
+  plotDepthMetres: 48,
+  roadXMetres: 32,
+  roadYMetres: 32,
+  ceilingMetres: 64,
+  supplyLines: false,
+  seconds: 60,
+  spotWeight: 1,
+  together: 0,
+  duration: null,
+  costNow: 1000,
+  cost: 660,
+  beltMetres: 1234,
+  levelsUsed: 2,
+  unroutedBelts,
+  placements: 1,
+  lastResortCrossings: 0,
+});
+
 async function render(
   id?: string,
   mapArt: unknown = null,
@@ -58,6 +91,11 @@ async function render(
     factory('f-1', 'Rubber'),
     factory('f-2', 'Plastic'),
     factory('f-3', 'Gone', false),
+  ],
+  // The world's runs of the optimal arrangement, newest first, as the API lists them.
+  runs: ArrangementSummary[] = [
+    run('run-2', '2026-11-25T14:30:00Z', 1),
+    run('run-1', '2026-11-24T09:05:00Z'),
   ],
 ) {
   const answers = new Map<unknown, unknown>([
@@ -120,6 +158,7 @@ async function render(
       },
     ],
     [traceFactories, traces],
+    [getArrangements, runs],
   ]);
   const api = {
     invoke: vi.fn((fn: unknown) =>
@@ -396,7 +435,14 @@ describe('the world map of a snapshot', () => {
 
     expect(
       [...tabs.querySelectorAll('.rail button')].map((b) => b.getAttribute('aria-label')),
-    ).toEqual(['Info', 'Factories', 'Unused supply', 'Unknown supply', 'Resource nodes']);
+    ).toEqual([
+      'Info',
+      'Factories',
+      'Arrangements',
+      'Unused supply',
+      'Unknown supply',
+      'Resource nodes',
+    ]);
     expect(tabs.querySelector('.info')?.textContent).toMatch(/1\s*starved/);
   });
 
@@ -555,6 +601,40 @@ describe('the world map of a snapshot', () => {
     const { tabs } = await render('snapshot-1');
 
     expect(tabs.querySelector('.info app-what-it-holds')?.textContent).toMatch(/2425\s*machines/);
+  });
+
+  describe('the Arrangements tab (asked 2026-11-25: the arrangement was reached only by drawing an area)', () => {
+    it("lists the world's runs of the optimal arrangement, newest first, each summed up in a line", async () => {
+      const { api, tabs, open } = await render('snapshot-1');
+
+      await open('Arrangements');
+
+      expect(api.invoke).toHaveBeenCalledWith(getArrangements, { world: 'Desert Start' });
+      expect(names(tabs, '.arrangements .run .what')).toEqual([
+        '6 × 6 · roads 4 · 4 · −34% · 1 not routed · Optimal',
+        '6 × 6 · roads 4 · 4 · −34% · Optimal',
+      ]);
+      expect(tabs.querySelectorAll('.arrangements .run .when')).toHaveLength(2);
+    });
+
+    it('opens a run on the arrangement page', async () => {
+      const { tabs, open } = await render('snapshot-1');
+
+      await open('Arrangements');
+
+      const first = tabs.querySelector('.arrangements a.run') as HTMLAnchorElement;
+      expect(first.getAttribute('href')).toBe('/snapshots/snapshot-1/arrangement?run=run-2');
+    });
+
+    it('says how to arrange an area while the world has no runs', async () => {
+      const { tabs, open } = await render('snapshot-1', null, undefined, undefined, []);
+
+      await open('Arrangements');
+
+      expect(tabs.querySelector('.arrangements')?.textContent).toMatch(
+        /None yet\. Hold ctrl and drag over an area/,
+      );
+    });
   });
 
   it('lists its factories in the sidebar, not beside the map', async () => {
