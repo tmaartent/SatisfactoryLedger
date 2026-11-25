@@ -350,60 +350,103 @@ function spotName(spotId: string, building: (className: string) => string): stri
 /** A miner red; an extractor blue while the catalog has no colour for its fluid (before an import that brings them). */
 const minerColour = '#e53935';
 const extractorColour = '#1e88e5';
+/** A station or drone port: the map's dark dot. */
+const stationColour = '#37474f';
+/** Machines no factory owns: the grey the page gives a machine of no factory. */
+const undefinedColour = '#90a4ae';
 
-/** The catalog's names, with what extractors take and fluids' colours: what a mark at a node needs. */
+/** The stations and drone ports, which a belt goes down to at their spot, as the arrangement counts them. */
+const stationClasses = new Set([
+  'Build_TrainDockingStation_C',
+  'Build_TrainDockingStationLiquid_C',
+  'Build_TruckStation_C',
+  'Build_DroneStation_C',
+]);
+
+/**
+ * What a line starts or ends at, outside the arranged factories (asked 2026-11-25: lines from machines ended in
+ * nothing): a node's miner or extractor, a station or drone port, a machine of a factory outside the area, or machines
+ * no factory owns, an undefined factory (step 108).
+ */
+export type SourceKind = 'miner' | 'extractor' | 'station' | 'factory' | 'undefined';
+
+/**
+ * The catalog's names, with what extractors take and fluids' colours, and the factory a machine belongs to, with its
+ * colour on the map: what a mark at a line's end needs.
+ */
 interface NodeNames {
   item: (item: string) => string;
   building: (className: string) => string;
   extractorForm: (className: string) => 'solid' | 'fluid' | null;
   fluidColour: (item: string) => string | null;
+  ownerOf: (machine: string) => { name: string; colour: string } | undefined;
 }
 
 /**
- * What marks a node's building (asked 2026-11-19): a miner, red, or an extractor of a fluid or gas, in its colour in the
- * game, with what it is and what the belts from it carry when pointed at. Null at a station or drone port.
+ * What marks a line's end outside the arranged factories, with what it is and what the belts from it carry when pointed
+ * at: a miner, red, or an extractor of a fluid or gas, in its colour in the game (asked 2026-11-19); a station or drone
+ * port, dark; a machine of a factory outside the area, in that factory's colour, by its name; machines no factory owns,
+ * grey, as an undefined factory (asked 2026-11-25).
  */
 function nodeMark(
   spotId: string,
   belts: readonly Pick<RoutedBeltResponse, 'item' | 'perMinute' | 'pipe' | 'injection'>[],
   names: NodeNames,
-): { kind: 'miner' | 'extractor'; colour: string; tooltip: string } | null {
+): { kind: SourceKind; colour: string; tooltip: string } {
   const className = /(Build_\w+?_C)_\d+/.exec(spotId)?.[1];
   const form = className ? names.extractorForm(className) : null;
-  if (form === null) return null;
   const item = belts.find((belt) => belt.item)?.item;
   const carried = [
     ...new Set(belts.map((belt) => carries(belt, names.item)).filter((text) => text !== null)),
   ];
-  return {
-    kind: form === 'solid' ? 'miner' : 'extractor',
-    colour:
-      form === 'solid' ? minerColour : ((item ? names.fluidColour(item) : null) ?? extractorColour),
-    tooltip: [`<b>${spotName(spotId, names.building)}</b>`, ...carried].join('<br>'),
-  };
+  const named = (title: string, ...more: string[]) => [title, ...more, ...carried].join('<br>');
+  const building = spotName(spotId, names.building);
+  if (form !== null)
+    return {
+      kind: form === 'solid' ? 'miner' : 'extractor',
+      colour:
+        form === 'solid'
+          ? minerColour
+          : ((item ? names.fluidColour(item) : null) ?? extractorColour),
+      tooltip: named(`<b>${building}</b>`),
+    };
+  if (className && stationClasses.has(className))
+    return { kind: 'station', colour: stationColour, tooltip: named(`<b>${building}</b>`) };
+  // A merged spot's id holds its first building, before "+": that one says whose they are.
+  const first = /[^>+]*Build_\w+?_C_\d+/.exec(spotId)?.[0] ?? spotId;
+  const owner = names.ownerOf(first);
+  return owner
+    ? {
+        kind: 'factory',
+        colour: owner.colour,
+        tooltip: named(`<b>${owner.name}</b> · factory outside the area`, building),
+      }
+    : {
+        kind: 'undefined',
+        colour: undefinedColour,
+        tooltip: named('<b>Undefined factory</b>', building),
+      };
 }
 
 /**
- * What marks a routed belt's end at a miner or an extractor in the area, and at which end. Null for a belt between
- * factories, at a station or drone port, which keep their dark dot, and for a belt that leaves the floor to join the
- * existing belt from its building outside the area: its end is on the floor's edge, and the building is marked at the
- * start of that belt (`wayMark`).
+ * What marks a routed belt's end at a building in the area that isn't an arranged factory, and at which end (`nodeMark`).
+ * Null for a belt between factories, and for a belt that leaves the floor to join the existing belt from its building
+ * outside the area: its end is on the floor's edge, and the building is marked at the start of that belt (`wayMark`).
  */
 export function spotMark(
   belt: Pick<RoutedBeltResponse, 'from' | 'to' | 'item' | 'perMinute' | 'pipe' | 'injection'> &
     Partial<Pick<RoutedBeltResponse, 'leavesFloor'>>,
   factories: ReadonlySet<string>,
   names: NodeNames,
-): { kind: 'miner' | 'extractor'; end: 'start' | 'end'; colour: string; tooltip: string } | null {
+): { kind: SourceKind; end: 'start' | 'end'; colour: string; tooltip: string } | null {
   const { spot } = beltEnds(belt, factories);
   if (spot === null || belt.leavesFloor) return null;
-  const mark = nodeMark(spot === 'start' ? belt.from : belt.to, [belt], names);
-  return mark && { ...mark, end: spot };
+  return { ...nodeMark(spot === 'start' ? belt.from : belt.to, [belt], names), end: spot };
 }
 
 /**
- * What marks the miner or extractor outside the area at the start of an existing belt the routed ones join (asked
- * 2026-11-19), saying what those routed belts carry. Null at a station or drone port, and for a belt no routed belt joins.
+ * What marks the building outside the area at the start of an existing belt the routed ones join (asked 2026-11-19),
+ * as `nodeMark` does, saying what those routed belts carry. Null for a belt no routed belt joins.
  */
 export function wayMark(
   way: { spotId: string; points: WorldPoint[] },
@@ -412,14 +455,13 @@ export function wayMark(
     'from' | 'to' | 'leavesFloor' | 'item' | 'perMinute' | 'pipe' | 'injection'
   >[],
   names: NodeNames,
-): { kind: 'miner' | 'extractor'; at: WorldPoint; colour: string; tooltip: string } | null {
+): { kind: SourceKind; at: WorldPoint; colour: string; tooltip: string } | null {
   const joining = belts.filter(
     (belt) => belt.leavesFloor && (belt.from === way.spotId || belt.to === way.spotId),
   );
   const at = way.points[0];
   if (joining.length === 0 || !at) return null;
-  const mark = nodeMark(way.spotId, joining, names);
-  return mark && { kind: mark.kind, at, colour: mark.colour, tooltip: mark.tooltip };
+  return { ...nodeMark(way.spotId, joining, names), at };
 }
 
 /**
@@ -903,4 +945,29 @@ export function halfway(corners: readonly WorldPoint[]): WorldPoint {
  */
 export function wayHeight(point: WorldPoint, entry: WorldPoint): number {
   return point.z != null && entry.z != null ? (point.z - entry.z) / 100 : 0;
+}
+
+/** Every level a routed belt or pipe runs on, from the floor up, each once: the Levels tab's list. */
+export function beltLevels(belts: readonly Pick<RoutedBeltResponse, 'levels'>[]): number[] {
+  return [...new Set(belts.flatMap((belt) => belt.levels))].sort((a, b) => a - b);
+}
+
+/**
+ * The levels shown in 3D for those ticked in the Levels tab (decided 2026-11-18): null while every level is ticked, so
+ * every factory shows too; otherwise only those.
+ */
+export function shownLevels(
+  all: readonly number[],
+  ticked: readonly number[],
+): ReadonlySet<number> | null {
+  return all.every((level) => ticked.includes(level)) ? null : new Set(ticked);
+}
+
+/**
+ * How far back the 3D view of the floor stands from its middle, for a floor `reach` metres at its largest, on a screen
+ * `aspect` wide per unit of height. The camera's angle of view is set upright, so on a screen higher than wide, a
+ * phone's, it stands as much further back as the screen is narrower, as the area's 3D view does (`framingDistance`).
+ */
+export function floorDistance(reach: number, aspect: number): number {
+  return (reach * 0.9) / Math.min(1, aspect);
 }

@@ -29,6 +29,7 @@ import {
   beltStretches3d,
   beltTooltip,
   factoryTooltip,
+  floorDistance,
   joinedWays,
   levelShown,
   lineJoints,
@@ -39,6 +40,7 @@ import {
   relatedFactories,
   suppliedBelts,
   jointColours,
+  SourceKind,
   spotMark,
   wayMark,
   wayHeight,
@@ -69,7 +71,7 @@ const pipeRadius = 0.7;
     </div>
   `,
   styles: `
-    /* As high as where it's put: the pop-up gives it the window's height less its header. */
+    /* As high as where it's put: the page puts it where the map is. */
     :host {
       display: block;
       height: 100%;
@@ -100,6 +102,11 @@ export class BeltFloor3d {
 
   /** A factory's colour, as on the map. */
   readonly colourOf = input.required<(factoryId: string) => string | undefined>();
+
+  /** The factory a machine belongs to, with its colour: to mark a line's end at a machine, as the map does. */
+  readonly ownerOf = input<(machine: string) => { name: string; colour: string } | undefined>(
+    () => undefined,
+  );
 
   /**
    * The levels shown, picked one by one (decided 2026-11-18): only their belts and pipes, the splitters and mergers on
@@ -149,6 +156,7 @@ export class BeltFloor3d {
       const arrangement = this.arrangement();
       const colourOf = this.colourOf();
       const machines = this.machines();
+      this.ownerOf();
       if (this.renderer) this.draw(arrangement, colourOf, machines);
     });
     effect(() => {
@@ -189,14 +197,21 @@ export class BeltFloor3d {
     new ResizeObserver(resize).observe(stage);
     resize();
     this.renderer.domElement.addEventListener('pointermove', (event) => this.point(event));
-    this.renderer.domElement.addEventListener('pointerleave', () => this.tip.set(null));
-    // A click picks the factory under it; a drag turns the view and picks nothing.
+    // A finger leaves the canvas as it's lifted, right after a tap: the label it showed stays.
+    this.renderer.domElement.addEventListener('pointerleave', (event) => {
+      if (event.pointerType === 'mouse') this.tip.set(null);
+    });
+    // A click picks the factory under it; a drag turns the view and picks nothing. On a touch screen, where nothing
+    // hovers, a tap also shows what it's on, as a tap on the map does (asked 2026-11-25); a tap on nothing closes it.
     let down: { x: number; y: number } | null = null;
     this.renderer.domElement.addEventListener('pointerdown', (event) => {
       down = { x: event.clientX, y: event.clientY };
     });
     this.renderer.domElement.addEventListener('pointerup', (event) => {
-      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 4) this.pick(event);
+      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 4) {
+        this.pick(event);
+        if (event.pointerType !== 'mouse') this.tipAt(event);
+      }
       down = null;
     });
     this.renderer.setAnimationLoop(() => {
@@ -238,12 +253,12 @@ export class BeltFloor3d {
     };
     const middle = { x: (bounds.x0 + bounds.x1) / 2, y: (bounds.y0 + bounds.y1) / 2 };
 
-    // The floor, under the area.
+    // The floor, under the area: half see-through, so seen from below it hides nothing above it (asked 2026-11-25), and
+    // drawn without hiding what's behind it, as the faded pieces are.
     const [width, depth] = [(bounds.x1 - bounds.x0) / 100, (bounds.y1 - bounds.y0) / 100];
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(width, 0.5, depth),
-      this.material('#3a4048'),
-    );
+    const floorMaterial = this.material('#3a4048', 0.5);
+    floorMaterial.depthWrite = false;
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.5, depth), floorMaterial);
     floor.position.set(0, -0.75, 0);
     this.content.add(floor);
 
@@ -314,6 +329,7 @@ export class BeltFloor3d {
       building: (name: string) => this.names.building(name),
       extractorForm: (name: string) => this.names.extractorForm(name),
       fluidColour: (item: string) => this.names.fluidColour(item),
+      ownerOf: this.ownerOf(),
     };
     for (const spot of arrangement.ways ?? [])
       for (const way of joinedWays([spot], arrangement.belts, arranged, spotNames)) {
@@ -339,10 +355,10 @@ export class BeltFloor3d {
         this.levelled(line, way.levels, [...new Set(joining.flatMap((belt) => belt.levels))]);
         this.content.add(line);
 
-        // At a miner or extractor, its drum, as inside the area (asked 2026-11-19).
+        // At a miner or extractor, its drum, as inside the area (asked 2026-11-19); elsewhere a dot (asked 2026-11-25).
         const mark = wayMark(spot, arrangement.belts, spotNames);
         if (mark) {
-          const drum = this.drum(mark, middle);
+          const drum = this.mark(mark, middle);
           // At the height the way starts at, as built.
           drum.position.y += wayHeight(way.points[0] ?? way.entry, way.entry);
           drum.userData['joins'] = joining;
@@ -395,7 +411,8 @@ export class BeltFloor3d {
       }
 
     // Where a line starts at a miner or an extractor (asked 2026-11-19): a drum on the ground at the foot of its lift, a
-    // miner red, an extractor in the colour of its fluid; lit from within, as the splitters and mergers.
+    // miner red, an extractor in the colour of its fluid; lit from within, as the splitters and mergers. Where it starts
+    // or ends at a station, a drone port or machines, a dot in the colour the map gives it (asked 2026-11-25).
     for (const belt of arrangement.belts) {
       const mark = spotMark(belt, arranged, spotNames);
       if (!mark) continue;
@@ -404,7 +421,7 @@ export class BeltFloor3d {
           ? [belt.corners[0], belt.levels[0]]
           : [belt.corners[belt.corners.length - 1], belt.levels[belt.levels.length - 1]];
       if (!at) continue;
-      const drum = this.drum({ ...mark, at }, middle);
+      const drum = this.mark({ ...mark, at }, middle);
       drum.userData['routed'] = belt;
       this.levelled(drum, [level ?? 0], belt.levels);
       this.content.add(drum);
@@ -535,6 +552,11 @@ export class BeltFloor3d {
       this.tip.set(null);
       return;
     }
+    if (event.pointerType === 'mouse') this.tipAt(event);
+  }
+
+  /** The label of what's under a pointer, beside it; none on nothing. */
+  private tipAt(event: PointerEvent): void {
     const canvas = this.renderer!.domElement;
     const rect = canvas.getBoundingClientRect();
     const [x, y] = [event.clientX - rect.left, event.clientY - rect.top];
@@ -557,18 +579,27 @@ export class BeltFloor3d {
    * A miner's or extractor's drum on the ground, lit from within, saying what it is when pointed at; found before the
    * plots, as a belt.
    */
-  private drum(
-    mark: { at: WorldPoint; colour: string; tooltip: string },
+  /**
+   * A line's end outside the arranged factories, on the ground: a miner's or extractor's drum, or a dot for a station,
+   * a drone port or machines; lit from within, saying what it is when pointed at.
+   */
+  private mark(
+    mark: { kind: SourceKind; at: WorldPoint; colour: string; tooltip: string },
     middle: { x: number; y: number },
   ): THREE.Mesh {
-    const drum = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.5, 2.5, 1.5, 16),
+    const node = mark.kind === 'miner' || mark.kind === 'extractor';
+    const shown = new THREE.Mesh(
+      node ? new THREE.CylinderGeometry(2.5, 2.5, 1.5, 16) : new THREE.SphereGeometry(1.75, 16, 12),
       new THREE.MeshBasicMaterial({ color: mark.colour }),
     );
-    drum.position.set((mark.at.x - middle.x) / 100, 0.75, (mark.at.y - middle.y) / 100);
-    drum.userData['tooltip'] = mark.tooltip;
-    drum.userData['belt'] = true;
-    return drum;
+    shown.position.set(
+      (mark.at.x - middle.x) / 100,
+      node ? 0.75 : 1.75,
+      (mark.at.y - middle.y) / 100,
+    );
+    shown.userData['tooltip'] = mark.tooltip;
+    shown.userData['belt'] = true;
+    return shown;
   }
 
   private stretch(
@@ -619,7 +650,9 @@ export class BeltFloor3d {
     const size = bounds.getSize(new THREE.Vector3());
     const reach = Math.max(size.x, size.y, size.z, 20);
     this.camera!.position.copy(middle).add(
-      new THREE.Vector3(1, 0.6, 1.15).normalize().multiplyScalar(reach * 0.9),
+      new THREE.Vector3(1, 0.6, 1.15)
+        .normalize()
+        .multiplyScalar(floorDistance(reach, this.camera!.aspect)),
     );
     this.controls!.target.copy(middle);
   }

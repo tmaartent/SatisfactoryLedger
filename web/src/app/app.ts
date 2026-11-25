@@ -62,6 +62,14 @@ export class App {
     () => this.inWorld() && !/^\/snapshots\/[^/?#]+\/(arrangement|factories)\b/.test(this.url()),
   );
 
+  /**
+   * Whether the page has the Explanation tab: every World page but the optimal arrangement, which has no findings to
+   * explain (asked 2026-11-25).
+   */
+  protected readonly explains = computed(
+    () => this.inWorld() && !/^\/snapshots\/[^/?#]+\/arrangement\b/.test(this.url()),
+  );
+
   /** The snapshot the page is about, from its URL; null on the World's start and outside the World. */
   protected readonly snapshotId = computed(
     () => /^\/snapshots\/([^/?#]+)/.exec(this.url())?.[1] ?? null,

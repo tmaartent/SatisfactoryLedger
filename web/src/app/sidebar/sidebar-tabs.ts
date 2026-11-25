@@ -62,6 +62,15 @@ export class SidebarTabs {
     if (window.matchMedia?.('(max-width: 960px)').matches) this.collapsed.set(true);
   }
 
+  /**
+   * Before the arrangement's 3D view (asked 2026-11-25): with a mouse, the view's own tab opens beside it; on a touch
+   * screen the tabs close, so the view can be seen, and a tap on a tab's icon opens it.
+   */
+  showBeside3d(key: string): void {
+    if (window.matchMedia?.('(hover: none)').matches) this.collapsed.set(true);
+    else this.show(key);
+  }
+
   /** A click on a tab's icon: the open tab collapses; any other opens. */
   toggle(key: string): void {
     if (this.current()?.key === key && !this.collapsed()) this.collapsed.set(true);

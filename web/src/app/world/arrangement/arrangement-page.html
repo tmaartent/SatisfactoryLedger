@@ -105,29 +105,67 @@
   </nav>
 </ng-template>
 
+<!-- The levels to show in 3D, one by one (decided 2026-11-18), as a tab while the 3D view shows (asked 2026-11-25). -->
+@if (shows3d()) {
+  <ng-template appSidebarTab="levels" label="Levels" icon="layers" [order]="0.75">
+    <section class="levels">
+      <p class="muted">
+        Each belt and pipe at its height: a ramp where it turns 2 m up or down, a lift where it
+        turns 4 m or more; the factories at the ceiling, with their machines.
+      </p>
+      @if (loaded(machines)?.machines?.length) {
+        <mat-slide-toggle [checked]="showMachines()" (change)="showMachines.set($event.checked)"
+          >Machines</mat-slide-toggle
+        >
+      }
+      @if (focused().size > 0) {
+        <button mat-stroked-button type="button" (click)="focused.set(emptyPicks)">
+          Unpick factories
+        </button>
+      }
+      <h3>Levels</h3>
+      <div class="level-buttons">
+        <button mat-stroked-button type="button" (click)="ticked.set(allLevels())">All</button>
+        <button mat-stroked-button type="button" (click)="ticked.set([])">None</button>
+      </div>
+      @for (level of allLevels(); track level) {
+        <mat-checkbox [checked]="ticked().includes(level)" (change)="tick(level, $event.checked)">
+          Level {{ level }}{{ level === 0 ? ' (floor)' : '' }}
+        </mat-checkbox>
+      }
+      <p class="muted">
+        A line with a run on a level ticked shows whole: its runs there in full, the rest faded,
+        with its splitters and mergers and the factories it connects.
+      </p>
+    </section>
+  </ng-template>
+}
+
 <!-- With keys on a keyboard, or on a touch screen with the select button (asked 2026-11-24, ADR-0033). -->
 <ng-template appSidebarTab="info" label="Info" icon="info" [order]="1">
   <section class="about">
-    <p>
-      <span class="keys">Hold shift and drag on the map to draw the area</span
-      ><span class="touch">Select the area on the map with the button at its top right</span>: the
-      factories inside it are placed on plots in rows and columns, one plot each, so the belt work
-      to their inputs is least: from other factories, and at a lighter weight from nodes, stations
-      and drone ports. Their belts and pipes are then routed on a floor below. Everything else stays
-      where it is: other factories and stations keep their plots.
-    </p>
-    <p>
-      <span class="keys">Hold ctrl and drag inside the area to keep out a part</span
-      ><span class="touch">Draw a part inside the area and choose <em>Keep out</em></span> where no
-      factory may stand, such as where trains come in.
-    </p>
-    <p>
-      The plots, roads and solver are in the <em>Settings</em> tab. The runs are in the list above
-      the map: picking one shows it, and starts a new run from its area, exclusions and settings;
-      <em>Reset</em> clears them to draw anew. A run takes about the solver time, plus half a
-      minute.
-    </p>
-    <p class="muted">A proposal only: the save has no terrain, so check where it puts things.</p>
+    <ul>
+      <li>
+        <b>Area</b>: <span class="keys">shift-drag on the map</span
+        ><span class="touch">the select button on the map</span>.
+      </li>
+      <li>
+        <b>Keep out</b> a part, such as where trains come in:
+        <span class="keys">ctrl-drag inside the area</span
+        ><span class="touch">select it, then <em>Keep out</em></span
+        >.
+      </li>
+      <li>
+        <b>Arrange</b> places its factories so their belts are shortest, then routes the belts on a
+        floor below. Everything else stays.
+      </li>
+      <li>
+        <b>Runs</b> are in the list above the map; the next one starts from the one picked.
+        <em>Reset</em> to start anew.
+      </li>
+      <li><b>3D</b> shows the belt floor; <em>Levels</em> picks what shows.</li>
+    </ul>
+    <p class="muted">A proposal only: the save has no terrain.</p>
   </section>
 </ng-template>
 
@@ -173,10 +211,21 @@
       Hold shift and drag to draw the area to arrange
     }
   </span>
-  @if ((loaded(arrangement)?.belts?.length ?? 0) > 0) {
-    <button mat-stroked-button type="button" (click)="open3d()">
-      <mat-icon>view_in_ar</mat-icon> Belt floor in 3D
-    </button>
+  @if (hasBelts()) {
+    <mat-button-toggle-group
+      name="view"
+      aria-label="Map or 3D"
+      hideSingleSelectionIndicator
+      [value]="view()"
+      (change)="showView($event.value)"
+    >
+      <mat-button-toggle value="map" aria-label="Map"
+        ><mat-icon>map</mat-icon> Map</mat-button-toggle
+      >
+      <mat-button-toggle value="3d" aria-label="3D"
+        ><mat-icon>view_in_ar</mat-icon> 3D</mat-button-toggle
+      >
+    </mat-button-toggle-group>
   }
   @if (requestError(); as message) {
     <span class="error">{{ message }}</span>
@@ -185,6 +234,31 @@
 <div class="layout">
   <div class="map-frame">
     <div #map class="map" [class.drawing]="drawing() || selection.selecting()"></div>
+    <!-- The belt floor in 3D in the map's place (asked 2026-11-25), as the area's 3D view: the map waits below. -->
+    @if (shows3d() && loaded(arrangement); as shown) {
+      <div class="floor-3d">
+        <app-belt-floor-3d
+          [arrangement]="shown"
+          [colourOf]="colourOf()"
+          [ownerOf]="ownerOf()"
+          [levels]="levels()"
+          [machines]="loaded(machines) ?? null"
+          [showMachines]="showMachines()"
+          [focused]="focused()"
+          (picked)="toggleFocus($event)"
+        />
+        <!-- With a mouse, or on a touch screen, which has neither a wheel nor a right button, as the area's hint. -->
+        <span class="hint-3d">
+          <span class="keys"
+            >Drag to turn, scroll to zoom, right-drag to move. Click a factory to pick it; point at
+            anything to see what it is.</span
+          ><span class="touch"
+            >Drag to look, pinch to zoom, two-finger drag to move. Tap a factory to pick it, and
+            anything to see what it is.</span
+          >
+        </span>
+      </div>
+    }
     <!--
       On a touch screen, with no keys to hold: select a rectangle, then say what it is (asked 2026-11-24, ADR-0033). Only
       for a new run (step 105).

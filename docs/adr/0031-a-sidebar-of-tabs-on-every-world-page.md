@@ -49,3 +49,6 @@ Each World page had its own side panel. The map had the snapshots on its left an
 
 ## Amendment 2026-11-24: on a phone, a bar along the bottom
 On a screen narrower than 600 pixels the rail is a bar of tabs along the bottom of the window, and the open tab a sheet above it, at half height or full, moved by swiping or tapping its handle (ADR-0033). Wider screens are as above.
+
+## Amendment 2026-11-25: no Explanation tab on the optimal arrangement
+Decided by the owner (step 109): the optimal arrangement has no findings to explain, so the shell leaves its Explanation tab out there (`App.explains`), as it leaves out the snapshot picker (`App.picksSnapshot`). Every other World page keeps it.

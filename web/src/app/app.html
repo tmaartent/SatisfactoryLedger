@@ -11,8 +11,9 @@
   <main [class.picks-snapshot]="picksSnapshot()">
     <router-outlet />
   </main>
-  @if (inWorld()) {
-    <!-- On every World page, last: it stays while the player follows its links. Its code loads when it's first shown. -->
+  @if (explains()) {
+    <!-- On every World page but the arrangement, last: it stays while the player follows its links. Its code loads when
+         it's first shown. -->
     <ng-template appSidebarTab="explanation" label="Explanation" icon="lightbulb" [order]="9">
       @defer {
         <app-explain-panel />

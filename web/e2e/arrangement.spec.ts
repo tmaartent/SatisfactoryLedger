@@ -411,3 +411,56 @@ test.describe('the optimal arrangement, its sources outside the area', () => {
     await expect.poll(() => wayOpacity(page)).toBe(0.8);
   });
 });
+
+/**
+ * Step 109 (asked 2026-11-25): a run's belt floor in 3D in the map's place, as the area's 3D view, with its levels in a
+ * tab of the sidebar, instead of a pop-up over the page.
+ */
+/** The Map or 3D toggle: a radio of the group. */
+const viewToggle = (page: Page, name: 'Map' | '3D') =>
+  page.getByRole('radiogroup', { name: 'Map or 3D' }).getByRole('radio', { name, exact: true });
+
+test.describe('the optimal arrangement in 3D', () => {
+  test.beforeEach(async ({ page }) => {
+    await answerLine(page);
+    await page.goto(`/snapshots/${snapshot}/arrangement?run=run-line`);
+    await viewToggle(page, '3D').click();
+  });
+
+  test("shows the belt floor in the map's place, in view", async ({ page }) => {
+    await expect(page.locator('.floor-3d canvas')).toBeVisible();
+    await expect(async () => inView(page, '.floor-3d canvas')).toPass();
+  });
+
+  test('says how to look around with the fingers or the mouse it has', async ({ page }) => {
+    const [shown, hidden] = (await touch(page)) ? ['touch', 'keys'] : ['keys', 'touch'];
+
+    await expect(page.locator(`.hint-3d .${shown}`)).toBeVisible();
+    await expect(page.locator(`.hint-3d .${hidden}`)).toBeHidden();
+  });
+
+  test('opens the Levels tab with a mouse, and keeps the tabs closed on a touch screen', async ({
+    page,
+  }) => {
+    const levels = page.getByRole('checkbox', { name: 'Level 0 (floor)' });
+    if (await touch(page)) await expect(levels).toBeHidden();
+    else await expect(levels).toBeVisible();
+  });
+
+  test('picks the levels to show in a Levels tab, there only while the 3D view is', async ({
+    page,
+  }) => {
+    // Open already with a mouse; on a touch screen it's tapped open.
+    if (await touch(page)) await page.getByRole('button', { name: 'Levels', exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Level 0 (floor)' })).toBeChecked();
+    await page.getByRole('button', { name: 'None', exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Level 0 (floor)' })).not.toBeChecked();
+    // Closed first: where the open tab lies over the page, it lies over the toggle too.
+    await page.getByRole('button', { name: 'Levels', exact: true }).click();
+
+    await viewToggle(page, 'Map').click();
+
+    await expect(page.locator('.floor-3d')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Levels', exact: true })).toHaveCount(0);
+  });
+});
