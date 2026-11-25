@@ -10,8 +10,11 @@ test.describe("a factory's building on the map", () => {
     await expect(page.locator('h1')).toContainText('Development');
     await whole(page);
     // At first a smelter is some 10 px wide, two stacked: zoomed in, as a person would, a tap at the middle hits it.
+    // When the map zoomed to the smelter (?focus=) first, fewer clicks take it as close as it goes, and the button is
+    // then disabled: a click that waits for it gives up (step 98; it waited out the test).
     const zoomIn = page.getByRole('button', { name: 'Zoom in' });
-    for (let times = 0; times < 3; times++) await zoomIn.click();
+    for (let times = 0; times < 3; times++)
+      await zoomIn.click({ timeout: 3000 }).catch(() => undefined);
     await expect(page.locator('.leaflet-container')).not.toHaveClass(/leaflet-zoom-anim/);
   });
 

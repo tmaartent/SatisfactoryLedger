@@ -7,13 +7,31 @@ export { expect } from '@playwright/test';
 /**
  * Playwright's test, with the recorded API answers for every test (step 95): it fails when the page asked for
  * something not recorded. A test that changes something answers that call itself, with page.route.
+ *
+ * It also fails when the page threw (step 98): an error nothing caught, or one Angular logged as it does every error
+ * while drawing ("ERROR ..."). Such an error leaves a page half drawn, as the snapshot picker greyed out after its list
+ * failed to load once; no test had asked for that. The browser's own lines about a failed request don't count: the
+ * recording answers the game's art with a 404 on purpose.
  */
-export const test = base.extend<{ api: string[] }>({
+export const test = base.extend<{ api: string[]; thrown: string[] }>({
   api: [
     async ({ page }, use) => {
       const unanswered = await answerFromRecording(page);
       await use(unanswered);
       expect(unanswered, 'API calls without a recorded answer').toEqual([]);
+    },
+    { auto: true },
+  ],
+  thrown: [
+    async ({ page }, use) => {
+      const thrown: string[] = [];
+      page.on('pageerror', (error) => thrown.push(error.message));
+      page.on('console', (message) => {
+        if (message.type() === 'error' && message.text().startsWith('ERROR'))
+          thrown.push(message.text().split('\n')[0]);
+      });
+      await use(thrown);
+      expect(thrown, 'Errors the page threw').toEqual([]);
     },
     { auto: true },
   ],

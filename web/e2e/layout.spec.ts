@@ -81,6 +81,36 @@ test.describe('the world map', () => {
   });
 });
 
+test.describe('the snapshot picker', () => {
+  test('opens the list of snapshots', async ({ page }) => {
+    await page.goto(pages.map);
+    await whole(page);
+    await page.locator('app-snapshot-picker button.current').click();
+
+    await expect(page.locator('.snapshot-list a.snapshot')).toHaveText(['Development']);
+  });
+
+  test('says so when the list failed to load, and loads it on Try again', async ({ page }) => {
+    // Step 98: it failed once, as while the API is starting, and the picker stayed greyed out, saying nothing.
+    let failures = 1;
+    await page.route('**/api/v1/world/snapshots', (route) =>
+      failures-- > 0
+        ? route.fulfill({ status: 503, json: { title: 'Service Unavailable', status: 503 } })
+        : route.fallback(),
+    );
+    await page.goto(pages.start);
+
+    // In a snack bar: inside the picker, as narrow as the rail on a tablet, the words didn't show.
+    const snackBar = page.locator('.mat-mdc-snack-bar-container');
+    await expect(snackBar).toContainText("couldn't be loaded");
+    await inView(page, '.mat-mdc-snack-bar-container');
+    await snackBar.getByRole('button', { name: 'Try again' }).click();
+
+    await expect(snackBar).toBeHidden();
+    await expect(page.locator('app-snapshot-picker button.current')).toBeEnabled();
+  });
+});
+
 test.describe('the 3D view', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(pages.area);
