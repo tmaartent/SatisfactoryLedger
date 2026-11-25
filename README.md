@@ -6,6 +6,13 @@ An offline ledger of a Satisfactory world. It reads the world from the game's sa
 
 It is also a deliberate learning and portfolio project. It shows Domain-Driven Design, Test-Driven Development, API design and a modern .NET + Angular stack, built as a modular monolith with a few services beside it. Follow the [learning guide](docs/guide/README.md) and the [step logs](docs/guide/log/).
 
+And it is a research project in AI engineering:
+
+- **Agentic development.** The code is written using leading agentic development practices, with agent swarms: each step test-first, with the owner deciding the domain and reviewing every change.
+- **MCP.** An [MCP server](docs/adr/0029-mcp-server-over-the-public-api.md) gives a language model the world's facts as tools: what a factory takes in, where a shortage starts, what supplies it.
+- **Local LLMs.** An [assistant](docs/adr/0030-assistant-explains-a-finding.md) explains a finding in words with a model running locally on Ollama, or with Claude, from the facts the MCP server returns, and flags any number in its answer that isn't in those facts.
+- **What's next** is in [AI enhancements](docs/domain/ai-enhancements.md): evals from real cases, RAG over the docs and game data, plain language to a plan, and fine-tuning a local model.
+
 ## What it does
 
 The screenshots are of a real world, *Desert Start*, in the model.
