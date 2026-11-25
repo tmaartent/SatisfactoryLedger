@@ -64,6 +64,7 @@ public class ArrangementDocumentsTests
         ArrangementProposalDocument proposal = ArrangementDocuments.Solve(problem);
 
         Assert.Equal(1, proposal.Placements);
+        Assert.All(proposal.Belts!, belt => Assert.Empty(belt.LastResortCrossings!));
     }
 
     [Fact]
@@ -86,6 +87,42 @@ public class ArrangementDocumentsTests
 
         Assert.Equal(3, proposal.Placements);
         Assert.Equal(1, proposal.Unrouted!.Sum(link => link.Belts + link.Pipes));
+    }
+
+    [Fact]
+    public void When_belts_need_last_resort_crossings_it_places_again_and_keeps_the_fewest()
+    {
+        // Step 102 (decided 2026-11-25): the belts here run between spots, so every layout routes them the same way. Spots
+        // whose existing belts come in at the floor's edge close the north and south rows between the corners; the
+        // corners' belts stack along the middle row and part swapped, crossing as a last resort. The two factories have
+        // no links: placed again, they change nothing, but each placement is tried.
+        static SpotDocument Corner(string id, int x, int y) => new(id, new GridRectangleDocument(x, y, 1, 1));
+        static SpotDocument Edge(string id, int x, int y) => new(id, new GridRectangleDocument(x, y < 1 ? -10 : 10, 1, 1), new GridRectangleDocument(x, y, 1, 1));
+        SpotDocument[] spots =
+        [
+            Corner("smelting", 0, 0), Corner("plates", 4, 2), Corner("ingots", 0, 2), Corner("rods", 4, 0),
+            Edge("wire", 1, 0), Edge("cable", 2, 0), Edge("screws", 1, 2), Edge("bolts", 2, 2), Edge("nuts", 3, 0), Edge("bars", 3, 2),
+        ];
+        var problem = new ArrangementProblemDocument(
+            [new ArrangedFactoryDocument("a", new GridRectangleDocument(0, 0, 1, 1)), new ArrangedFactoryDocument("b", new GridRectangleDocument(4, 2, 1, 1))],
+            [.. spots.Select(spot => new FixedPlaceDocument(spot.Id, spot.Squares, Blocks: false))],
+            [
+                new ArrangementLinkDocument("smelting", "plates", 1), new ArrangementLinkDocument("ingots", "rods", 1),
+                new ArrangementLinkDocument("wire", "cable", 1), new ArrangementLinkDocument("screws", "bolts", 1), new ArrangementLinkDocument("nuts", "bars", 1),
+            ],
+            new GridRectangleDocument(0, 0, 5, 3),
+            GapX: 0,
+            GapY: 0,
+            Together: 0,
+            Seconds: 5,
+            Floor: new BeltFloorDocument(SquaresPerPlotX: 1, SquaresPerPlotY: 1, RoadSquaresX: 0, RoadSquaresY: 0, Levels: 16),
+            Spots: spots);
+
+        ArrangementProposalDocument proposal = ArrangementDocuments.Solve(problem);
+
+        Assert.Equal(3, proposal.Placements);
+        Assert.Empty(proposal.Unrouted!);
+        Assert.Equal(1, proposal.Belts!.Sum(belt => belt.LastResortCrossings!.Count));
     }
 
     [Fact]

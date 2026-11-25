@@ -89,6 +89,10 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
 
         // The levels it says it uses are those the 3D view shows: up to its highest belt.
         Assert.Equal(ready.Belts.Max(belt => belt.Levels.Max()) + 1, ready.Summary.LevelsUsed);
+
+        // Routed cleanly: no belt needed a last-resort crossing (step 102).
+        Assert.Equal(0, ready.Summary.LastResortCrossings);
+        Assert.All(ready.Belts, belt => Assert.Empty(belt.LastResortCrossings));
     }
 
     [Fact]

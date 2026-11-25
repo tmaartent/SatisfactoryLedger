@@ -10,6 +10,8 @@ namespace SatisfactoryLedger.World.Contracts.Arrangement;
 /// <param name="Load">What it carries; null in runs from before the service told it.</param>
 /// <param name="StartsOnBelt">Whether it starts on another belt, at a smart splitter, instead of a lift.</param>
 /// <param name="EndsOnBelt">Whether it ends on another belt, at a priority merger, instead of a lift.</param>
+/// <param name="LastResortCrossings">Where it crosses another belt where one turns, or parts from a stack swapped (step
+/// 102); null in runs from before.</param>
 public sealed record RoutedBeltDocument(
     string From,
     string To,
@@ -21,4 +23,5 @@ public sealed record RoutedBeltDocument(
     int Index = 0,
     BeltLoadDocument? Load = null,
     bool StartsOnBelt = false,
-    bool EndsOnBelt = false);
+    bool EndsOnBelt = false,
+    IReadOnlyList<FloorSquareDocument>? LastResortCrossings = null);

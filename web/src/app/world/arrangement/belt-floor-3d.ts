@@ -31,6 +31,7 @@ import {
   joinedWays,
   levelShown,
   lineJoints,
+  crossingMarks,
   placedMachines,
   shownFactories,
   movedMetres,
@@ -371,6 +372,26 @@ export class BeltFloor3d {
         cube.userData['ends'] = [belt.from, belt.to];
         this.levelled(cube, [joint.level], belt.levels);
         this.content.add(cube);
+      }
+
+    // Where a belt crosses another as a last resort (step 102, decided 2026-11-25): an amber ball on the belt, lit from
+    // within, as on the map.
+    for (const belt of arrangement.belts)
+      for (const crossing of crossingMarks([belt])) {
+        const ball = new THREE.Mesh(
+          new THREE.SphereGeometry(1.2, 12, 8),
+          new THREE.MeshBasicMaterial({ color: '#ffb300' }),
+        );
+        ball.position.set(
+          (crossing.at.x - middle.x) / 100,
+          crossing.height + 1,
+          (crossing.at.y - middle.y) / 100,
+        );
+        ball.userData['tooltip'] = crossing.tooltip;
+        ball.userData['belt'] = true;
+        ball.userData['ends'] = [belt.from, belt.to];
+        this.levelled(ball, [crossing.level], belt.levels);
+        this.content.add(ball);
       }
 
     // Where a line starts at a miner or an extractor (asked 2026-11-19): a drum on the ground at the foot of its lift, a

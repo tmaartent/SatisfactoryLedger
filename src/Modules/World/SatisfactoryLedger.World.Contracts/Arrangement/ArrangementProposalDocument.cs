@@ -10,9 +10,10 @@ namespace SatisfactoryLedger.World.Contracts.Arrangement;
 /// <param name="CostNow">What the layout as built costs.</param>
 /// <param name="Duration">How long the solver took.</param>
 /// <param name="Belts">The belts between the placed factories, routed on the floor below them; null without a floor.</param>
-/// <param name="Unrouted">Per link, the belts that couldn't be routed without crossing.</param>
-/// <param name="Placements">How many placements were tried (step 101): another when belts were left unrouted, keeping
-/// the one that left the fewest. 1 for a proposal from before.</param>
+/// <param name="Unrouted">Per link, the belts that couldn't be routed, not even with last-resort crossings.</param>
+/// <param name="Placements">How many placements were tried (steps 101 and 102): another when belts were left unrouted or
+/// needed last-resort crossings, keeping the one that left the fewest, then needed the fewest. 1 for a proposal from
+/// before.</param>
 public sealed record ArrangementProposalDocument(
     IReadOnlyDictionary<string, GridRectangleDocument> Places,
     double Cost,

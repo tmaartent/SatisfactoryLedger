@@ -32,9 +32,10 @@ public static class ArrangementDocuments
             loads.TryAdd((link.From, link.To), link.Loads!);
         }
 
-        // Placed, then routed. When belts are left over, placed again elsewhere, up to Placements in all, keeping the
-        // layout that left the fewest, then the least belt work (step 101, asked 2026-11-25): the routing of one layout
-        // always comes out the same, but another layout may route. Each placement takes the solver's whole time.
+        // Placed, then routed. When belts are left over, or need last-resort crossings, placed again elsewhere, up to
+        // Placements in all, keeping the layout that left the fewest, then needed the fewest crossings, then the least belt
+        // work (steps 101 and 102, asked 2026-11-25): the routing of one layout always comes out the same, but another
+        // layout may route cleanly. Each placement takes the solver's whole time.
         List<IReadOnlyDictionary<string, GridRectangle>> tried = [];
         (ArrangementProposal Proposal, BeltRouting? Routing, List<SupplyLeg>? Legs)? best = null;
         for (int seed = 0; seed < Placements; seed++)
@@ -49,12 +50,13 @@ public static class ArrangementDocuments
 
             tried.Add(placed.Places);
             (BeltRouting? routed, List<SupplyLeg>? routedLegs) = Route(document, problem, placed);
-            if (best is not { } kept || Left(routed) < Left(kept.Routing) || (Left(routed) == Left(kept.Routing) && placed.Cost < kept.Proposal.Cost))
+            if (best is not { } kept
+                || (Left(routed), Crossings(routed), placed.Cost).CompareTo((Left(kept.Routing), Crossings(kept.Routing), kept.Proposal.Cost)) < 0)
             {
                 best = (placed, routed, routedLegs);
             }
 
-            if (Left(routed) == 0)
+            if (Left(routed) == 0 && Crossings(routed) == 0)
             {
                 break;
             }
@@ -89,7 +91,8 @@ public static class ArrangementDocuments
                 belt.Index,
                 LoadOf(belt),
                 belt.StartsOnBelt,
-                belt.EndsOnBelt)).ToList(),
+                belt.EndsOnBelt,
+                [.. belt.LastResortCrossings.Select(square => new FloorSquareDocument(square.X, square.Y))])).ToList(),
             routing?.Unrouted.Select(link => new ArrangementLinkDocument(link.From, link.To, link.Belts, link.WeightPercent, link.Pipes)).ToList(),
             Math.Max(tried.Count, 1));
     }
@@ -99,6 +102,9 @@ public static class ArrangementDocuments
 
     /// <summary>How many belts and pipes a routing left over; none without one.</summary>
     private static int Left(BeltRouting? routing) => routing?.Unrouted.Sum(link => link.BeltsAndPipes) ?? 0;
+
+    /// <summary>How many last-resort crossings a routing needed (step 102); none without one.</summary>
+    private static int Crossings(BeltRouting? routing) => routing?.LastResortCrossings ?? 0;
 
     /// <summary>
     /// The belts of a layout, routed on the floor below it, when the problem has one: the links' belts, or with supply

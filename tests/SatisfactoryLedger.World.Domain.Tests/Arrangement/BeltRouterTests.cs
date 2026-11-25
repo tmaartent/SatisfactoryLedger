@@ -5,7 +5,8 @@ namespace SatisfactoryLedger.World.Domain.Tests.Arrangement;
 /// <summary>
 /// The belts between arranged factories, routed on the floor below them (decided 2026-11-18): at right angles, from a
 /// lift under one factory to a lift under the other, never crossing seen from above. Belts may stack, and a stack keeps
-/// its order; a lift takes its square. A belt that can't get through is reported.
+/// its order; a lift takes its square on the levels it runs through. A belt that can't get through cleanly may cross
+/// another where one turns, or part from a stack swapped, as a last resort (step 102). One that can't even so is reported.
 /// </summary>
 /// <remarks>The tests' plots are one square each, without roads, so a plot is a square.</remarks>
 public class BeltRouterTests
@@ -43,6 +44,7 @@ public class BeltRouterTests
         RoutedBelt belt = Assert.Single(routing.Belts);
         Assert.Equal(("smelting", "plates"), (belt.From, belt.To));
         Assert.Equal([new FloorSquare(0, 1), new FloorSquare(9, 1)], belt.Corners);
+        Assert.Empty(belt.LastResortCrossings);
     }
 
     [Fact]
@@ -83,9 +85,10 @@ public class BeltRouterTests
     }
 
     [Fact]
-    public void A_belt_never_passes_through_a_lift()
+    public void A_belt_never_passes_a_lift_on_the_levels_it_takes()
     {
-        // The short link goes first; its lifts close the only row.
+        // The short link goes first, on the floor: its lifts rise from there up to the factories, through every level,
+        // and close the only row.
         BeltRouting routing = Route(
             new GridRectangle(0, 0, 6, 1),
             new() { ["smelting"] = new(0, 0, 1, 1), ["ingots"] = new(2, 0, 1, 1), ["rods"] = new(3, 0, 1, 1), ["plates"] = new(5, 0, 1, 1) },
@@ -93,6 +96,45 @@ public class BeltRouterTests
 
         Assert.Equal(("ingots", "rods"), (Assert.Single(routing.Belts).From, routing.Belts[0].To));
         Assert.Equal([new ArrangementLink("smelting", "plates", 1)], routing.Unrouted);
+    }
+
+    [Fact]
+    public void A_belt_passes_under_a_factory_s_lift_below_the_level_its_belt_leaves_at()
+    {
+        // Step 102 (decided 2026-11-25): a lift under a factory rises from its belt's level to the factory. Assemblers'
+        // belt crosses over the short north-south one, so it runs a level up, and its lift at (2, 2) leaves the floor
+        // level free. The long belt north runs straight through under it.
+        BeltRouting routing = Route(
+            new GridRectangle(0, 0, 8, 7),
+            new()
+            {
+                ["ingots"] = new(4, 1, 1, 1), ["rods"] = new(4, 3, 1, 1), ["assemblers"] = new(2, 2, 1, 1), ["frames"] = new(7, 2, 1, 1),
+                ["smelting"] = new(2, 0, 1, 1), ["plates"] = new(2, 6, 1, 1),
+            },
+            [new ArrangementLink("ingots", "rods", 1), new ArrangementLink("assemblers", "frames", 1), new ArrangementLink("smelting", "plates", 1)]);
+
+        RoutedBelt assemblers = routing.Belts.Single(belt => belt.From == "assemblers");
+        RoutedBelt smelting = routing.Belts.Single(belt => belt.From == "smelting");
+        Assert.Equal(1, LevelAt(assemblers, new FloorSquare(3, 2)));
+        Assert.Equal([new FloorSquare(2, 0), new FloorSquare(2, 6)], smelting.Corners);
+        Assert.Equal(0, LevelAt(smelting, new FloorSquare(2, 2)));
+    }
+
+    [Fact]
+    public void A_belt_passes_over_a_spot_s_lift_above_the_level_its_belt_comes_in_at()
+    {
+        // Step 102 (decided 2026-11-25): a lift at an extractor or a station runs down from its belt's level to the
+        // ground. The miner's belt to the station takes the floor level of the only row; the long belt passes above.
+        BeltRouting routing = Route(
+            new GridRectangle(0, 0, 6, 1),
+            new() { ["smelting"] = new(0, 0, 1, 1), ["plates"] = new(5, 0, 1, 1) },
+            [new ArrangementLink("smelting", "plates", 1), new ArrangementLink("miner", "freight platform", 1)],
+            spots: new() { ["miner"] = new(2, 0, 1, 1), ["freight platform"] = new(3, 0, 1, 1) });
+
+        RoutedBelt smelting = routing.Belts.Single(belt => belt.From == "smelting");
+        Assert.Empty(routing.Unrouted);
+        Assert.Equal([1], smelting.Levels);
+        Assert.Empty(smelting.LastResortCrossings);
     }
 
     [Fact]
@@ -106,6 +148,7 @@ public class BeltRouterTests
 
         Assert.Empty(routing.Unrouted);
         Assert.NotEqual(LevelAt(routing.Belts[0], new FloorSquare(1, 1)), LevelAt(routing.Belts[1], new FloorSquare(1, 1)));
+        Assert.All(routing.Belts, belt => Assert.Empty(belt.LastResortCrossings));
     }
 
     [Fact]
@@ -122,28 +165,46 @@ public class BeltRouterTests
         Assert.Single(routing.Unrouted);
     }
 
-    [Fact]
-    public void A_straight_belt_never_crosses_another_where_that_one_turns()
+    /// <summary>Lifts close every way along the middle row but one, where the belt from the north turns twice.</summary>
+    private static readonly Dictionary<string, GridRectangle> AroundATurn = new()
     {
-        // Ingots to rods, the shorter, goes first: down from the north, east along the middle row, south again; lifts close
-        // every other way. Smelting to plates along the middle row would cross it where it turns south.
-        BeltRouting routing = Route(
-            new GridRectangle(0, 0, 5, 3),
-            new()
-            {
-                ["smelting"] = new(0, 1, 1, 1), ["plates"] = new(4, 1, 1, 1), ["ingots"] = new(1, 2, 1, 1), ["rods"] = new(2, 0, 1, 1),
-                ["wire"] = new(1, 0, 1, 1), ["cable"] = new(0, 0, 1, 1), ["screws"] = new(2, 2, 1, 1), ["bolts"] = new(3, 2, 1, 1),
-            },
-            [
-                new ArrangementLink("smelting", "plates", 1), new ArrangementLink("ingots", "rods", 1),
-                new ArrangementLink("wire", "cable", 1), new ArrangementLink("screws", "bolts", 1),
-            ]);
+        ["smelting"] = new(0, 1, 1, 1), ["plates"] = new(4, 1, 1, 1), ["ingots"] = new(1, 2, 1, 1), ["rods"] = new(2, 0, 1, 1),
+        ["wire"] = new(1, 0, 1, 1), ["cable"] = new(0, 0, 1, 1), ["screws"] = new(2, 2, 1, 1), ["bolts"] = new(3, 2, 1, 1),
+    };
 
-        Assert.Equal(1, routing.Unrouted.Sum(link => link.BeltsAndPipes));
+    private static readonly ArrangementLink[] AroundATurnLinks =
+    [
+        new ArrangementLink("smelting", "plates", 1), new ArrangementLink("ingots", "rods", 1),
+        new ArrangementLink("wire", "cable", 1), new ArrangementLink("screws", "bolts", 1),
+    ];
+
+    [Fact]
+    public void A_straight_belt_crosses_another_where_that_one_turns_only_as_a_last_resort_on_another_level()
+    {
+        // Ingots to rods, the shorter, goes first: down from the north, east along the middle row, south again. Smelting
+        // to plates along the middle row can't get by without crossing it where it turns (step 102, decided 2026-11-25).
+        BeltRouting routing = Route(new GridRectangle(0, 0, 5, 3), AroundATurn, AroundATurnLinks);
+
+        RoutedBelt smelting = routing.Belts.Single(belt => belt.From == "smelting");
+        RoutedBelt ingots = routing.Belts.Single(belt => belt.From == "ingots");
+        FloorSquare crossing = Assert.Single(smelting.LastResortCrossings);
+        Assert.Empty(routing.Unrouted);
+        Assert.Contains(crossing, ingots.Corners);
+        Assert.NotEqual(LevelAt(smelting, crossing), LevelAt(ingots, crossing));
+        Assert.Equal(1, routing.LastResortCrossings);
     }
 
     [Fact]
-    public void A_belt_never_crosses_another_where_either_turns()
+    public void A_last_resort_crossing_needs_a_level_of_its_own_on_one_level_the_belt_is_reported()
+    {
+        BeltRouting routing = Route(new GridRectangle(0, 0, 5, 3), AroundATurn, AroundATurnLinks, levels: 1);
+
+        Assert.Equal(1, routing.Unrouted.Sum(link => link.BeltsAndPipes));
+        Assert.Equal(0, routing.LastResortCrossings);
+    }
+
+    [Fact]
+    public void A_turning_belt_crosses_a_straight_one_only_as_a_last_resort_on_another_level()
     {
         // Smelting to plates runs along the middle row. Ingots, north of it, can only reach rods, south-east, by turning
         // east on the middle row and south again: crossing smelting's belt where it turns. Lifts close every other way.
@@ -154,12 +215,54 @@ public class BeltRouterTests
                 ["smelting"] = new(0, 1, 1, 1), ["plates"] = new(3, 1, 1, 1), ["ingots"] = new(1, 2, 1, 1), ["rods"] = new(2, 0, 1, 1),
                 ["wire"] = new(1, 0, 1, 1), ["cable"] = new(0, 0, 1, 1), ["screws"] = new(2, 2, 1, 1), ["bolts"] = new(3, 2, 1, 1),
             },
+            AroundATurnLinks);
+
+        RoutedBelt smelting = routing.Belts.Single(belt => belt.From == "smelting");
+        RoutedBelt ingots = routing.Belts.Single(belt => belt.From == "ingots");
+        FloorSquare crossing = Assert.Single(ingots.LastResortCrossings);
+        Assert.Empty(routing.Unrouted);
+        Assert.Empty(smelting.LastResortCrossings);
+        Assert.Contains(crossing, ingots.Corners);
+        Assert.NotEqual(LevelAt(smelting, crossing), LevelAt(ingots, crossing));
+    }
+
+    [Fact]
+    public void A_clean_way_goes_before_a_shorter_one_that_crosses_as_a_last_resort()
+    {
+        // As the straight belt above, with a free row along the north: smelting goes round by it, twice as far.
+        BeltRouting routing = Route(new GridRectangle(0, 0, 5, 4), AroundATurn, AroundATurnLinks);
+
+        RoutedBelt smelting = routing.Belts.Single(belt => belt.From == "smelting");
+        Assert.Empty(routing.Unrouted);
+        Assert.Equal(0, routing.LastResortCrossings);
+        Assert.Equal(8, Length(smelting));
+    }
+
+    [Fact]
+    public void Two_belts_in_a_stack_part_swapped_only_as_a_last_resort_on_another_level()
+    {
+        // Lifts close the north and south rows between the corners: both long belts stack along the middle row, the one
+        // from the south-west on its south side. It leaves north, the other south, so they part swapped (step 102).
+        BeltRouting routing = Route(
+            new GridRectangle(0, 0, 5, 3),
+            new()
+            {
+                ["smelting"] = new(0, 0, 1, 1), ["plates"] = new(4, 2, 1, 1), ["ingots"] = new(0, 2, 1, 1), ["rods"] = new(4, 0, 1, 1),
+                ["wire"] = new(1, 0, 1, 1), ["cable"] = new(2, 0, 1, 1), ["screws"] = new(1, 2, 1, 1), ["bolts"] = new(2, 2, 1, 1),
+                ["nuts"] = new(3, 0, 1, 1), ["bars"] = new(3, 2, 1, 1),
+            },
             [
                 new ArrangementLink("smelting", "plates", 1), new ArrangementLink("ingots", "rods", 1),
-                new ArrangementLink("wire", "cable", 1), new ArrangementLink("screws", "bolts", 1),
+                new ArrangementLink("wire", "cable", 1), new ArrangementLink("screws", "bolts", 1), new ArrangementLink("nuts", "bars", 1),
             ]);
 
-        Assert.Equal(1, routing.Unrouted.Sum(link => link.BeltsAndPipes));
+        RoutedBelt smelting = routing.Belts.Single(belt => belt.From == "smelting");
+        RoutedBelt ingots = routing.Belts.Single(belt => belt.From == "ingots");
+        FloorSquare crossing = Assert.Single(smelting.LastResortCrossings.Concat(ingots.LastResortCrossings));
+        Assert.Empty(routing.Unrouted);
+        // Where they join the stack or leave it: along it, a stack keeps its order.
+        Assert.Contains(crossing, new[] { new FloorSquare(0, 1), new FloorSquare(4, 1) });
+        Assert.NotEqual(LevelAt(smelting, crossing), LevelAt(ingots, crossing));
     }
 
     [Fact]
@@ -184,6 +287,7 @@ public class BeltRouterTests
         RoutedBelt ingots = routing.Belts.Single(belt => belt.From == "ingots");
         Assert.Empty(routing.Unrouted);
         Assert.NotEqual(LevelAt(smelting, new FloorSquare(1, 1)), LevelAt(ingots, new FloorSquare(1, 1)));
+        Assert.Equal(0, routing.LastResortCrossings);
     }
 
     [Fact]

@@ -30,6 +30,7 @@ const older: ArrangementSummary = {
   levelsUsed: 2,
   unroutedBelts: 0,
   placements: 1,
+  lastResortCrossings: 0,
 };
 
 const newer: ArrangementSummary = {

@@ -3,6 +3,7 @@ import {
   areaBetween,
   beltsToLabel,
   halfway,
+  crossingMarks,
   arrangedFactories,
   factoriesInArea,
   runStatus,
@@ -130,6 +131,35 @@ describe('optimal arrangement', () => {
     });
   });
 
+  describe('where a routed belt crosses another as a last resort (step 102)', () => {
+    const at = (x: number, y: number) => ({ x, y, z: 0 });
+    const belt = {
+      corners: [at(0, 0), at(4000, 0), at(4000, 2000)],
+      heights: [2, 4],
+      levels: [1, 2],
+      lastResortCrossings: [at(1600, 0), at(4000, 800)],
+    };
+
+    it('is marked at each square it says, at its height on the run there', () => {
+      expect(crossingMarks([belt]).map(({ at, height, level }) => ({ at, height, level }))).toEqual(
+        [
+          { at: at(1600, 0), height: 2, level: 1 },
+          { at: at(4000, 800), height: 4, level: 2 },
+        ],
+      );
+    });
+
+    it('says why it is there', () => {
+      expect(crossingMarks([belt])[0].tooltip).toBe(
+        '<b>Crosses another belt here</b><br>on another level: a last resort, where it could not get through otherwise',
+      );
+    });
+
+    it('is none for a belt routed cleanly', () => {
+      expect(crossingMarks([{ ...belt, lastResortCrossings: [] }])).toEqual([]);
+    });
+  });
+
   describe('a run as the list of runs names it', () => {
     const run: ArrangementSummary = {
       id: 'run-1',
@@ -158,6 +188,7 @@ describe('optimal arrangement', () => {
       levelsUsed: 2,
       unroutedBelts: 0,
       placements: 1,
+      lastResortCrossings: 0,
     };
 
     it('says how it ended', () => {
@@ -182,6 +213,19 @@ describe('optimal arrangement', () => {
       // Step 101: placed again when belts were left over, keeping the best.
       expect(runSummary({ ...run, unroutedBelts: 1, placements: 3 })).toBe(
         '6 × 6 · roads 4 · 4 · −34% · 1 not routed · best of 3 placements · Optimal',
+      );
+    });
+
+    it('says how many last-resort crossings its belts make', () => {
+      // Step 102: where a belt couldn't get through otherwise.
+      expect(runSummary({ ...run, lastResortCrossings: 2 })).toBe(
+        '6 × 6 · roads 4 · 4 · −34% · 2 crossings · Optimal',
+      );
+      expect(runSummary({ ...run, lastResortCrossings: 1 })).toBe(
+        '6 × 6 · roads 4 · 4 · −34% · 1 crossing · Optimal',
+      );
+      expect(runSummary({ ...run, lastResortCrossings: null })).toBe(
+        '6 × 6 · roads 4 · 4 · −34% · Optimal',
       );
     });
 

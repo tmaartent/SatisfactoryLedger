@@ -19,7 +19,8 @@ public class RoutedBeltTests
             LeavesFloor: false,
             Pipe: false,
             Levels: [0, 1, 3, 0],
-            Index: 0);
+            Index: 0,
+            LastResortCrossings: []);
 
         Assert.Equal([new FloorSquare(3, 3), new FloorSquare(6, 3)], belt.Lifts);
     }

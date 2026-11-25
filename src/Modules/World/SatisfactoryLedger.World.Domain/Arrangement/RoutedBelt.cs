@@ -8,6 +8,8 @@ namespace SatisfactoryLedger.World.Domain.Arrangement;
 /// from turn to turn (decided 2026-11-18).</param>
 /// <param name="Index">Which of its link's belts it is, from 0; or of its pipes, for a pipe. For a supply line's leg, its
 /// number among the legs.</param>
+/// <param name="LastResortCrossings">The squares where it crosses another belt where one of them turns, or parts from a
+/// stack swapped: on another level, and only where it couldn't get through otherwise (step 102, decided 2026-11-25).</param>
 /// <param name="StartsOnBelt">Whether it starts on another belt, at a smart splitter on its first square, instead of a
 /// lift (decided 2026-11-18).</param>
 /// <param name="EndsOnBelt">Whether it ends on another belt, at a priority merger on its last square, instead of a lift
@@ -20,6 +22,7 @@ public sealed record RoutedBelt(
     bool Pipe,
     IReadOnlyList<int> Levels,
     int Index,
+    IReadOnlyList<FloorSquare> LastResortCrossings,
     bool StartsOnBelt = false,
     bool EndsOnBelt = false)
 {

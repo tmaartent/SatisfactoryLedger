@@ -131,8 +131,8 @@ export function runStatus(run: ArrangementSummary): string {
 
 /**
  * A run in one line, as the list of runs shows it under when it was asked for (asked 2026-11-25): its plots and roads
- * in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, how many
- * placements that took when more than one (step 101), how it ended.
+ * in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, its last-resort
+ * crossings (step 102), how many placements that took when more than one (step 101), how it ended.
  */
 export function runSummary(run: ArrangementSummary): string {
   const size = (metres: number) => String(Math.round(foundations(metres) * 10) / 10);
@@ -143,6 +143,8 @@ export function runSummary(run: ArrangementSummary): string {
   if (run.supplyLines) parts.push('supply lines');
   if (run.costNow !== null && run.cost !== null) parts.push(saving(run.costNow, run.cost));
   if (run.unroutedBelts) parts.push(`${run.unroutedBelts} not routed`);
+  if (run.lastResortCrossings)
+    parts.push(`${run.lastResortCrossings} crossing${run.lastResortCrossings === 1 ? '' : 's'}`);
   if ((run.placements ?? 1) > 1) parts.push(`best of ${run.placements} placements`);
   parts.push(runStatus(run));
   return parts.join(' · ');
@@ -799,6 +801,49 @@ export function beltsToLabel<
       belt.item != null &&
       (focused.has(belt.from) || focused.has(belt.to)) &&
       lengthAlong(belt.corners) >= LabelledLine,
+  );
+}
+
+/** Where a routed belt crosses another as a last resort (step 102), as the map and the 3D view mark it. */
+export interface CrossingMark {
+  at: WorldPoint;
+  /** The belt's height on its run there, in metres above the belt floor. */
+  height: number;
+  level: number;
+  tooltip: string;
+}
+
+/**
+ * The last-resort crossings of the routed belts (step 102, decided 2026-11-25): where one crosses another where one of
+ * them turns, or parts from a stack swapped, on another level. Each at the belt's height on the first run it lies on.
+ */
+export function crossingMarks(
+  belts: readonly Pick<
+    RoutedBeltResponse,
+    'corners' | 'heights' | 'levels' | 'lastResortCrossings'
+  >[],
+): CrossingMark[] {
+  const between = (value: number, a: number, b: number) =>
+    value >= Math.min(a, b) - 1 && value <= Math.max(a, b) + 1;
+  return belts.flatMap((belt) =>
+    belt.lastResortCrossings.map((at) => {
+      const run = Math.max(
+        0,
+        belt.corners.findIndex(
+          (corner, i) =>
+            i + 1 < belt.corners.length &&
+            between(at.x, corner.x, belt.corners[i + 1].x) &&
+            between(at.y, corner.y, belt.corners[i + 1].y),
+        ),
+      );
+      return {
+        at,
+        height: belt.heights[run] ?? 0,
+        level: belt.levels[run] ?? 0,
+        tooltip:
+          '<b>Crosses another belt here</b><br>on another level: a last resort, where it could not get through otherwise',
+      };
+    }),
   );
 }
 

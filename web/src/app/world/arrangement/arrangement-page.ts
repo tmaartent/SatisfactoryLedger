@@ -74,6 +74,7 @@ import {
   mapBounds,
   metres,
   lineJoints,
+  crossingMarks,
   placedMachines,
   movedMetres,
   relatedFactories,
@@ -917,7 +918,7 @@ export class ArrangementPage {
    * each lift; at a miner a red circle, at an extractor one in the colour of its fluid (asked 2026-11-19); at a station
    * or drone port the dot is dark. Where a belt leaves the floor for one outside
    * the area, an amber ring. Belts on one square are stacked, so their lines lie on each other. With factories picked,
-   * their belts stand out.
+   * their belts stand out. Where a belt crosses another as a last resort, an amber × (step 102).
    */
   private drawBelts(
     arrangement: ArrangementResponse,
@@ -1050,6 +1051,14 @@ export class ArrangementPage {
             .bindTooltip(mark.tooltip)
             .addTo(this.beltLayer);
       }
+
+    // Where a belt crosses another as a last resort (step 102, decided 2026-11-25): an amber ×, to check in the game.
+    for (const crossing of crossingMarks(arrangement.belts))
+      L.marker(toMapPoint({ ...crossing.at, z: 0 }), {
+        icon: L.divIcon({ html: '×', className: 'crossing-mark', iconSize: [16, 16] }),
+      })
+        .bindTooltip(crossing.tooltip)
+        .addTo(this.beltLayer);
 
     // Where supply lines are topped up (decided 2026-11-18): a priority merger, an orange square, where a top-up belt
     // ends; a smart splitter, a blue diamond, where its overflow runs on; a splitter, a white diamond, where a line runs
