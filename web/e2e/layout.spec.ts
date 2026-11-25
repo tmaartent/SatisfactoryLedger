@@ -87,7 +87,7 @@ test.describe('the snapshot picker', () => {
     await whole(page);
     await page.locator('app-snapshot-picker button.current').click();
 
-    await expect(page.locator('.snapshot-list a.snapshot')).toHaveText(['Development']);
+    await expect(page.locator('.snapshot-list a.snapshot .name')).toHaveText(['Development']);
   });
 
   test('says so when the list failed to load, and loads it on Try again', async ({ page }) => {

@@ -164,7 +164,14 @@ table.mat-mdc-table {
   .snapshot {
     flex: 1;
 
-    &.current {
+    // Its name and when it was saved, apart: the link holds both, so the date opens it too.
+    .mat-mdc-menu-item-text {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    &.current .name {
       font-weight: 600;
       color: var(--mat-sys-primary);
     }
@@ -258,6 +265,25 @@ table.mat-mdc-table {
       font-weight: 600;
       color: var(--mat-sys-primary);
     }
+  }
+}
+
+// A row of the snapshot or run list, with its own delete button beside the item: the whole row lights up under the
+// pointer, as one item would, not only the part Material makes the menu item (asked 2026-11-25). Material's own colour.
+:is(.snapshot-list, .run-list) .row {
+  &:hover {
+    background-color: var(
+      --mat-menu-item-hover-state-layer-color,
+      color-mix(
+        in srgb,
+        var(--mat-sys-on-surface) calc(var(--mat-sys-hover-state-layer-opacity) * 100%),
+        transparent
+      )
+    );
+  }
+
+  .mat-mdc-menu-item:not([disabled]):hover {
+    background-color: transparent;
   }
 }
 
