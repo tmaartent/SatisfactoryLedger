@@ -487,3 +487,6 @@ docs/resources/en-US.json
 # The game's map picture and icons, extracted from a local install by the map tool (ADR-0020, ADR-0032): Coffee Stain's art, never committed.
 map-art.json
 icons.json
+
+# The map tool writes its node table here by default (ADR-0015); the copy the tests use is in the Catalog tests' Fixtures.
+/resource-nodes.json
