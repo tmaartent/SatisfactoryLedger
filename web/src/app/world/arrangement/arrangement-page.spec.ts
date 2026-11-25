@@ -233,8 +233,9 @@ describe('the optimal arrangement', () => {
       expect(arrange(element)?.disabled).toBe(false);
     });
 
-    it('stops selecting when a run is asked for, so the map pans again', async () => {
-      // Asked 2026-11-25: the run came back with the map still in select mode.
+    it('stops selecting when a run is asked for, so the map pans again, and offers no selecting over it', async () => {
+      // Asked 2026-11-25: the run came back with the map still in select mode. Step 105: over a run shown, an area is
+      // only selected after Reset.
       const { element, fixture, select } = await render();
       await select(10, 200, 'Area');
       const button = element.querySelector('button.area-select') as HTMLButtonElement;
@@ -243,7 +244,8 @@ describe('the optimal arrangement', () => {
       arrange(element)!.click();
       await fixture.whenStable();
 
-      expect(button.getAttribute('aria-pressed')).toBe('false');
+      expect(element.querySelector('.map.drawing')).toBeNull();
+      expect(element.querySelector('button.area-select')).toBeNull();
     });
 
     it('offers to keep a part out only once there is an area', async () => {

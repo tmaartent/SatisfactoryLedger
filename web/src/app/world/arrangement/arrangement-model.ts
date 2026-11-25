@@ -61,6 +61,8 @@ export interface AreaFactory {
   name: string;
   /** In the world's centimetres. */
   middle: { x: number; y: number };
+  /** What a pick in the Factories tab zooms to (step 105): its plot in a run, or the rectangle around its machines. */
+  bounds: WorldRectangle;
 }
 
 /**
@@ -91,10 +93,11 @@ export function factoriesInArea(
   const [left, right] = [Math.min(area.x0, area.x1), Math.max(area.x0, area.x1)];
   const [top, bottom] = [Math.min(area.y0, area.y1), Math.max(area.y0, area.y1)];
   return [...spans]
-    .map(([factoryId, span]) => ({
+    .map(([factoryId, { name, x0, y0, x1, y1 }]) => ({
       factoryId,
-      name: span.name,
-      middle: { x: (span.x0 + span.x1) / 2, y: (span.y0 + span.y1) / 2 },
+      name,
+      middle: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 },
+      bounds: { x0, y0, x1, y1 },
     }))
     .filter(
       ({ middle }) =>
@@ -114,6 +117,7 @@ export function arrangedFactories(factories: readonly ArrangedFactoryResponse[])
       factoryId: factory.factoryId,
       name: factory.name ?? '(deleted)',
       middle: middleOf(factory.proposed ?? factory.now),
+      bounds: factory.proposed ?? factory.now,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

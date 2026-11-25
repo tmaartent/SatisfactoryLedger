@@ -61,10 +61,20 @@ describe('optimal arrangement', () => {
     ];
     const area = { x0: -500, y0: -500, x1: 5000, y1: 5000 };
 
-    it('are those whose machines stand, in the middle, inside the area, by name', () => {
+    it('are those whose machines stand, in the middle, inside the area, by name, with the rectangle around them', () => {
       expect(factoriesInArea(machines, owners, area)).toEqual([
-        { factoryId: 'steel', name: 'Steel Beams', middle: { x: 1000, y: 500 } },
-        { factoryId: 'wire', name: 'Wire', middle: { x: 3000, y: 3000 } },
+        {
+          factoryId: 'steel',
+          name: 'Steel Beams',
+          middle: { x: 1000, y: 500 },
+          bounds: { x0: 0, y0: 0, x1: 2000, y1: 1000 },
+        },
+        {
+          factoryId: 'wire',
+          name: 'Wire',
+          middle: { x: 3000, y: 3000 },
+          bounds: { x0: 3000, y0: 3000, x1: 3000, y1: 3000 },
+        },
       ]);
     });
 
@@ -86,9 +96,14 @@ describe('optimal arrangement', () => {
           { factoryId: 'gone', name: null, now, proposed: null },
         ]),
       ).toEqual([
-        { factoryId: 'gone', name: '(deleted)', middle: { x: 50, y: 50 } },
-        { factoryId: 'steel', name: 'Steel Beams', middle: { x: 50, y: 50 } },
-        { factoryId: 'wire', name: 'Wire', middle: { x: 1200, y: 2200 } },
+        { factoryId: 'gone', name: '(deleted)', middle: { x: 50, y: 50 }, bounds: now },
+        { factoryId: 'steel', name: 'Steel Beams', middle: { x: 50, y: 50 }, bounds: now },
+        {
+          factoryId: 'wire',
+          name: 'Wire',
+          middle: { x: 1200, y: 2200 },
+          bounds: { x0: 1000, y0: 2000, x1: 1400, y1: 2400 },
+        },
       ]);
     });
   });

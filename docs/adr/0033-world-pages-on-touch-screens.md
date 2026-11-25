@@ -37,6 +37,9 @@ The World pages were made for a mouse and a wide screen:
 - **A long press, then a drag, to pick an area:** no button, but hard to find.
 - **No areas on touch screens:** phones and tablets would only look.
 
+## Amendment (2026-11-25, step 105): selecting only for a new run, the map in view
+On the arrangement page an area is selected (the select button, or shift and ctrl with a drag) only while no run is shown: before the first, or after Reset. Over a run shown, a drag moves the map. The page closes a tab left open on the page before where it lies over the map, as the 3D view does, and so does a pick in its Factories tab, which centres that factory.
+
 ## Amendment (2026-11-25): from outside, over Tailscale
 The owner wanted the site from outside the home network, over Tailscale. Windows had put the Tailscale adapter in the Private profile, where node.js has no firewall rule, and adding one needs administrator rights. Instead, **Tailscale Serve** passes `http://<machine>.<tailnet>.ts.net:8080` on to the dev server at `localhost:4200`, within the tailnet only (not Funnel): `tailscale serve --bg --http=8080 http://localhost:4200`, undone with `tailscale serve --http=8080 off`. The dev server refuses host names it doesn't know (Vite's guard against DNS rebinding), so `angular.json` allows `.ts.net` (`allowedHosts`). The machine's short name and its Tailscale IP don't work: Serve matches the full name, and the short one isn't allowed. After the tailnet was renamed (to `duiker-squeaker.ts.net`), Serve kept answering 404 on the new name, though its config had it: the Tailscale service matched requests against its old name until it reconnected (`tailscale down`, then `up`).
 

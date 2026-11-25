@@ -73,7 +73,7 @@
         class="factory"
         [class.picked]="focused().has(factory.factoryId)"
         [attr.aria-pressed]="focused().has(factory.factoryId)"
-        (click)="toggleFocus(factory.factoryId)"
+        (click)="pickFromList(factory)"
       >
         <span class="swatch" [style.background]="colourOf()(factory.factoryId) ?? '#90a4ae'"></span>
         {{ factory.name }}
@@ -144,7 +144,9 @@
   />
   <!-- As on the world map, with keys rather than buttons (asked 2026-11-23). -->
   <span class="muted how">
-    @if (area()) {
+    @if (!canSelect()) {
+      Reset to draw a new area
+    } @else if (area()) {
       Hold ctrl and drag inside the area to keep out a part{{
         exclusions().length > 0 ? ' · ' + exclusions().length + ' kept out' : ''
       }}; shift to draw it anew
@@ -164,17 +166,22 @@
 <div class="layout">
   <div class="map-frame">
     <div #map class="map" [class.drawing]="drawing() || selection.selecting()"></div>
-    <!-- On a touch screen, with no keys to hold: select a rectangle, then say what it is (asked 2026-11-24, ADR-0033). -->
-    <button
-      mat-mini-fab
-      class="area-select"
-      [attr.aria-pressed]="selection.selecting()"
-      aria-label="Select an area"
-      title="Select an area"
-      (click)="selection.toggle()"
-    >
-      <mat-icon>{{ selection.selecting() ? 'close' : 'highlight_alt' }}</mat-icon>
-    </button>
+    <!--
+      On a touch screen, with no keys to hold: select a rectangle, then say what it is (asked 2026-11-24, ADR-0033). Only
+      for a new run (step 105).
+    -->
+    @if (canSelect()) {
+      <button
+        mat-mini-fab
+        class="area-select"
+        [attr.aria-pressed]="selection.selecting()"
+        aria-label="Select an area"
+        title="Select an area"
+        (click)="selection.toggle()"
+      >
+        <mat-icon>{{ selection.selecting() ? 'close' : 'highlight_alt' }}</mat-icon>
+      </button>
+    }
     @if (selection.drawn()) {
       <div class="area-choices">
         <button mat-flat-button type="button" (click)="useSelected('area')">

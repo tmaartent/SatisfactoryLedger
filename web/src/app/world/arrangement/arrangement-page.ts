@@ -51,6 +51,7 @@ import { holdToExtent } from '../map/hold-to-extent';
 import { MapArt } from '../map/map-art';
 import { removeMap } from '../map/remove-map';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
+import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { RunPicker } from './run-picker';
 import {
   dragColours,
@@ -78,10 +79,10 @@ import {
   placedMachines,
   movedMetres,
   relatedFactories,
+  standsOut,
   jointColours,
   spotMark,
   wayMark,
-  standsOut,
   pickedAlone,
   SolverTime,
   solverTime,
@@ -259,6 +260,19 @@ export class ArrangementPage {
     // An area dragged on the world map is a new run to make: no earlier run's area over it.
     () => this.run() ?? (this.dragged() ? null : (loaded(this.runs)?.[0]?.id ?? null)),
   );
+  /**
+   * The run shown, once the runs are loaded. The same while it's the same run, however often the runs are asked for
+   * again while one is computed: picking another is what changes it.
+   */
+  private readonly selectedRun = computed(
+    () => loaded(this.runs)?.find((run) => run.id === this.selected()) ?? null,
+    { equal: (a, b) => a?.id === b?.id },
+  );
+  /**
+   * Whether an area may be drawn or selected (step 105, asked 2026-11-25): only for a new run, while none is shown, so
+   * before the first one or after Reset. Over a run shown, a drag only moves the map.
+   */
+  protected readonly canSelect = computed(() => this.selected() === null);
   protected readonly arrangement = resource({
     params: () => {
       const id = this.selected();
@@ -334,6 +348,7 @@ export class ArrangementPage {
   private readonly names = inject(CatalogNames);
   private readonly dialog = inject(MatDialog);
   private readonly deletion = inject(ArrangementDeletion);
+  private readonly sidebar = inject(SidebarTabs);
   /** A factory's colour, as the map draws it. */
   protected readonly colourOf = computed(() => {
     const traces = loaded(this.factories) ?? [];
@@ -345,6 +360,21 @@ export class ArrangementPage {
   /** A click on a factory, on the map or in the Factories tab: it alone is picked, or let go. */
   protected toggleFocus(factoryId: string): void {
     this.focused.update((focused) => pickedAlone(focused, factoryId));
+  }
+
+  /**
+   * A factory picked in the Factories tab (step 105, asked 2026-11-25): picked as on the map, and centred on the map,
+   * its plot or its machines, at the zoom the player chose; zoomed out only as far as it takes to fit. Where the tab lies
+   * over the map, it closes, so the factory can be seen.
+   */
+  protected pickFromList(factory: AreaFactory): void {
+    this.toggleFocus(factory.factoryId);
+    if (!this.map || !this.focused().has(factory.factoryId)) return;
+    this.sidebar.closeWhereItCovers();
+    this.map.fitBounds(L.latLngBounds(mapBounds(factory.bounds)), {
+      padding: [48, 48],
+      maxZoom: this.map.getZoom(),
+    });
   }
 
   /**
@@ -378,6 +408,9 @@ export class ArrangementPage {
   private fitted = false;
 
   constructor() {
+    // The map in view on arriving (step 105, asked 2026-11-25): a tab left open on the page before, as the world map's
+    // Arrangements tab, lies over it on a phone or a tablet.
+    this.sidebar.closeWhereItCovers();
     afterNextRender(() => {
       this.map = L.map(this.container().nativeElement, {
         crs: L.CRS.Simple,
@@ -424,12 +457,13 @@ export class ArrangementPage {
     effect(() => this.drawRun());
     effect(() => this.drawArea());
     effect(() => this.drawNames());
-    // Another run: nothing picked, and its area, exclusions and settings are where a new run starts.
+    // Another run: nothing picked, and its area, exclusions and settings are where a new run starts. The map shows its
+    // area, each run picked (step 105: only the first was).
     effect(() => {
-      const id = this.selected();
+      const run = this.selectedRun();
       this.focused.set(new Set());
-      const run = untracked(() => loaded(this.runs))?.find((candidate) => candidate.id === id);
       if (!run) return;
+      this.fitted = false;
       this.area.set(run.area ?? null);
       this.exclusions.set([...run.exclusions]);
       this.plotWidth.set(foundations(run.plotWidthMetres));
@@ -439,6 +473,11 @@ export class ArrangementPage {
       this.ceiling.set(ceilingHeights(run.ceilingMetres));
       this.supplyLines.set(run.supplyLines);
       this.solverTime.set(solverTimeOf(run.seconds));
+    });
+
+    // A run shown ends selecting: an area is only drawn for a new run.
+    effect(() => {
+      if (!this.canSelect() && untracked(() => this.selection.selecting())) this.selection.toggle();
     });
 
     // While a run is computed, ask again every two seconds.
@@ -578,7 +617,7 @@ export class ArrangementPage {
           : (event.ctrlKey || event.metaKey) && this.area()
             ? 'exclusion'
             : null;
-        if (!kind || event.button !== 0) return;
+        if (!kind || event.button !== 0 || !this.canSelect()) return;
         this.drawing.set(kind);
         map.dragging.disable();
       },
