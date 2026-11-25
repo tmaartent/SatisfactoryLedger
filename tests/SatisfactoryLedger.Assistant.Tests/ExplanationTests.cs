@@ -16,7 +16,7 @@ public class ExplanationTests
           "starts": [{
             "cause": "tooFewProducers", "causeTerm": "too few producers", "item": "Iron Ingot", "perMinute": 30,
             "at": [{ "building": "Smelter", "recipe": "Iron Ingot", "count": 1, "ids": ["Build_SmelterMk1_C_1"], "positionMetres": { "x": 12.5, "y": -3, "z": 0 } }],
-            "path": [{ "building": "Constructor", "recipe": "Iron Plate", "machines": 2, "shortOf": "Iron Ingot", "perMinute": 30 }]
+            "path": [{ "building": "Constructor", "recipe": "Iron Plate", "machines": 2, "ids": ["Build_ConstructorMk1_C_1", "Build_ConstructorMk1_C_2"], "shortOf": "Iron Ingot", "perMinute": 30 }]
           }]
         }
         """;
@@ -194,7 +194,7 @@ public class ExplanationTests
               "starts": [{
                 "cause": "beltFull", "causeTerm": "bottleneck", "item": "Wire", "perMinute": 1200,
                 "at": [{ "building": "Conveyor Belt Mk.6", "count": 1, "ids": ["belt-1"] }],
-                "path": [{ "building": "Assembler", "recipe": "Alternate: Steel Rotor", "machines": 9, "shortOf": "Wire", "perMinute": 1462.03 }],
+                "path": [{ "building": "Assembler", "recipe": "Alternate: Steel Rotor", "machines": 9, "ids": ["a1"], "shortOf": "Wire", "perMinute": 1462.03 }],
                 "moreCapacity": { "tier": "Conveyor Belt Mk.6", "lines": 2, "carriesPerMinute": 1462.03 }
               }]
             }

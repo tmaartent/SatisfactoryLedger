@@ -18,10 +18,13 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <!-- The fake ledger tools are a real MCP server, in memory. -->
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
+    <PackageReference Include="JsonSchema.Net" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SatisfactoryLedger.Assistant\SatisfactoryLedger.Assistant.csproj" />
+    <!-- The real MCP server: its tools and answer types are what the fake ledger tools stand in for (step 99). -->
+    <ProjectReference Include="..\..\src\SatisfactoryLedger.Mcp\SatisfactoryLedger.Mcp.csproj" />
   </ItemGroup>
 
 </Project>
