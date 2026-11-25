@@ -1,5 +1,6 @@
 """Gathers one stacked area of the owner's world for the 3D prototype: buildings with their status and their clearance
 boxes (local corners, from the Docs file), and belt/pipe curves. Units: centimetres, game axes (x east, y south, z up)."""
+
 import json, re, sys
 
 docs, map_path, analysis_path, out = sys.argv[1:5]
@@ -32,7 +33,7 @@ def boxes_of(clearance):
         elif ch == ")":
             depth -= 1
             if depth == 0:
-                parts.append(clearance[start:i + 1])
+                parts.append(clearance[start : i + 1])
     boxes = []
     for p in parts:
         if "CT_Soft" in p or "IsValid=True" not in p:
@@ -42,7 +43,12 @@ def boxes_of(clearance):
         m = re.search(r"Rotation=\(X=" + num + ",Y=" + num + ",Z=" + num + ",W=" + num, p)
         q = tuple(map(float, m.groups())) if m else (0, 0, 0, 1)
         # Corner k: bit 2 = x max, bit 1 = y max, bit 0 = z max.
-        corners = [rotate(q, (a, b, c)) for a in (mn[0], mx[0]) for b in (mn[1], mx[1]) for c in (mn[2], mx[2])]
+        corners = [
+            rotate(q, (a, b, c))
+            for a in (mn[0], mx[0])
+            for b in (mn[1], mx[1])
+            for c in (mn[2], mx[2])
+        ]
         boxes.append([[round(x + t[0]), round(y + t[1]), round(z + t[2])] for x, y, z in corners])
     return boxes
 
@@ -60,8 +66,12 @@ for nc in data:
 
 world = json.load(open(map_path))
 analysis = json.load(open(analysis_path))
-status = {m["id"]: (m["limit"], m["utilisation"], m.get("limitingItem")) for m in analysis["machines"]}
-status.update({g["id"]: (g["limit"], g["utilisation"], g.get("limitingItem")) for g in analysis["generators"]})
+status = {
+    m["id"]: (m["limit"], m["utilisation"], m.get("limitingItem")) for m in analysis["machines"]
+}
+status.update(
+    {g["id"]: (g["limit"], g["utilisation"], g.get("limitingItem")) for g in analysis["generators"]}
+)
 
 
 def inside(p):
@@ -75,18 +85,35 @@ for kind in ("machines", "providers", "logistics", "consumers"):
             continue
         p = b["position"]
         s = status.get(b["id"])
-        buildings.append({
-            "kind": kind, "cls": b["className"], "recipe": b.get("recipe"),
-            "p": [round(p["x"]), round(p["y"]), round(p["z"])], "yaw": b.get("yaw", 0),
-            "status": s[0] if s else None, "util": round(s[1], 3) if s else None, "item": s[2] if s else None,
-        })
+        buildings.append(
+            {
+                "kind": kind,
+                "cls": b["className"],
+                "recipe": b.get("recipe"),
+                "p": [round(p["x"]), round(p["y"]), round(p["z"])],
+                "yaw": b.get("yaw", 0),
+                "status": s[0] if s else None,
+                "util": round(s[1], 3) if s else None,
+                "item": s[2] if s else None,
+            }
+        )
 
 conveyors = []
 for c in world["conveyors"]:
     if any(inside(pt["location"]) for pt in c["curve"]):
-        conveyors.append({"pipe": c["kind"] == "pipe", "curve": [
-            [[round(pt["location"][a]) for a in "xyz"], [round(pt["arriveTangent"][a]) for a in "xyz"], [round(pt["leaveTangent"][a]) for a in "xyz"]]
-            for pt in c["curve"]]})
+        conveyors.append(
+            {
+                "pipe": c["kind"] == "pipe",
+                "curve": [
+                    [
+                        [round(pt["location"][a]) for a in "xyz"],
+                        [round(pt["arriveTangent"][a]) for a in "xyz"],
+                        [round(pt["leaveTangent"][a]) for a in "xyz"],
+                    ]
+                    for pt in c["curve"]
+                ],
+            }
+        )
 
 used = {b["cls"] for b in buildings}
 result = {
@@ -98,7 +125,26 @@ result = {
 }
 open(out, "w").write(json.dumps(result, separators=(",", ":")))
 zs = [b["p"][2] for b in buildings]
-print(len(buildings), "buildings,", len(conveyors), "belts and pipes,", len(result["shapes"]), "shapes;",
-      "z", min(zs) / 100, "to", max(zs) / 100, "m;", round(len(json.dumps(result)) / 1024), "KB")
-print({k: sum(1 for b in buildings if b["kind"] == k) for k in ("machines", "providers", "logistics", "consumers")},
-      "no shape:", sorted({b["cls"] for b in buildings if b["cls"] not in result["shapes"]}))
+print(
+    len(buildings),
+    "buildings,",
+    len(conveyors),
+    "belts and pipes,",
+    len(result["shapes"]),
+    "shapes;",
+    "z",
+    min(zs) / 100,
+    "to",
+    max(zs) / 100,
+    "m;",
+    round(len(json.dumps(result)) / 1024),
+    "KB",
+)
+print(
+    {
+        k: sum(1 for b in buildings if b["kind"] == k)
+        for k in ("machines", "providers", "logistics", "consumers")
+    },
+    "no shape:",
+    sorted({b["cls"] for b in buildings if b["cls"] not in result["shapes"]}),
+)
