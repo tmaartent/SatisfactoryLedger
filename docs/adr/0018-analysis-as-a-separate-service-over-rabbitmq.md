@@ -40,3 +40,6 @@ We will run the analysis in its own service, `SatisfactoryLedger.AnalysisService
 - Two deployables share one library. A change to the flow network or analysis document format is a change to both, and is versioned like the documents already are.
 - The analysis version (ADR-0017) still decides when stored analyses are stale. It now lives in the shared library.
 - One analysis at a time per service instance. More instances can listen on the same queue later.
+
+## Amendment (2026-11-25, step 99): when World can't be reached
+A test found that a message whose call to World failed after the World client's own retries (a few seconds) went to RabbitMQ's error queue at once: the snapshot stayed pending until the API restarted and queued it again. The owner chose retries in the service: such a message is tried again after 5 s, 30 s and 2 min, then every 5 minutes for an hour, before the error queue (`AnalysisService.AddAnalysisService`). Only failed calls to World count (an `HttpRequestException`, or Polly's rejection when a call times out or the circuit is open); the handlers catch what fails in their own work. The scheduled tries are kept in memory: a restart of the service loses them, and the API's queueing at startup is the net for that.
