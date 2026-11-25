@@ -26,7 +26,7 @@ The owner asked how to keep the touch-screen work of steps 90 to 93 from breakin
 - **assertions**, not screenshot comparisons: what a rule says is measured (no sideways scroll, the canvas as big as its stage, the choices in view), so fonts and rendering that differ between machines don't matter;
 - **four devices:** a Pixel 7 (Chromium), an iPhone 15 (WebKit), an iPad (WebKit) and a 1280 × 800 desktop with a mouse.
 
-The answers are recorded from the running app for the test world (`Development.sav`) by `web/e2e/record.mjs`, into `web/e2e/fixtures/api.json`. Map art and icons, the game's art, aren't recorded; nor are the player's other worlds or their resource-node table. A test fails when a page asks for something not recorded. The recording doesn't follow the API by itself: when an answer's shape changes, record again. That gap is what step 96's tests against the real stack close.
+The answers are recorded from the running app for the test world (`Development.sav`) by `web/e2e/record.mjs`, into `web/e2e/fixtures/api.json`. Map art and icons, the game's art, aren't recorded; nor are the player's other worlds or their resource-node table. A test fails when a page asks for something not recorded. The recording doesn't follow the API by itself: when an answer's shape changes, record again. That gap is what tests against the real stack close. *Since step 96 a check runs in every CI run too: each recorded answer is validated against the schema `api/openapi.json` gives for it (`e2e/recording.spec.ts`), so a changed API fails until the answers are recorded again.*
 
 ## Alternatives considered
 - **In-memory EF provider for integration tests:** fast, but behaves differently from PostgreSQL (no real transactions or constraints) and gives false confidence.
