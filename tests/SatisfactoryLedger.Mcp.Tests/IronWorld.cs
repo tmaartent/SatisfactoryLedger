@@ -27,7 +27,7 @@ internal static class IronWorld
             new
             {
                 factoryId = PlateFactory, name = "Plates", traceable = true, logistics = 12,
-                machines = new[] { new { id = "m-1" }, new { id = "m-2" }, new { id = "m-4" } },
+                machines = new[] { PlateMachine("m-1"), PlateMachine("m-2"), PlateMachine("m-4") },
                 outputs = Array.Empty<object>(), inputs = Array.Empty<object>(), missing = Array.Empty<string>(),
             },
         });
@@ -37,7 +37,7 @@ internal static class IronWorld
             name = "Plates",
             settled = true,
             summary = new { machines = 3, running = 0, starved = 2, outputBlocked = 1, noRecipe = 0 },
-            generatorSummary = new { generators = 0, running = 0, starved = 0, outputBlocked = 0 },
+            generatorSummary = new { generators = 0, running = 0, starved = 0, outputBlocked = 0, fuelUnknown = 0 },
             output = new[]
             {
                 new { item = "Desc_IronPlate_C", now = 20.0, atFullSpeed = 60.0, receiversNeed = 0.0, othersBring = 0.0, @short = 0.0, sunk = 0.0, cannotLeave = 4.0, destinations = Array.Empty<object>() },
@@ -70,6 +70,7 @@ internal static class IronWorld
                     perMinute = 30.0,
                     others = Array.Empty<object>(),
                     shortOf = new Dictionary<string, double>(),
+                    moreCapacity = (object?)null,
                 },
             },
         });
@@ -115,6 +116,7 @@ internal static class IronWorld
                     perMinute = 15.0,
                     others = new[] { Group("Build_SmelterMk1_C", "Recipe_IngotIron_C", 1, 10, "m-3") },
                     shortOf = new Dictionary<string, double>(),
+                    moreCapacity = (object?)null,
                 },
             },
         });
@@ -163,6 +165,10 @@ internal static class IronWorld
         });
     }
 
+    /// <summary>A plate constructor of the factory, as its trace names it.</summary>
+    private static object PlateMachine(string id) =>
+        new { id, className = "Build_ConstructorMk1_C", recipe = "Recipe_IronPlate_C" };
+
     private static object Snapshot(string id, string savedAt, string analysis) => new
     {
         id,
@@ -170,7 +176,7 @@ internal static class IronWorld
         gameBuild = 400000,
         savedAt,
         importedAt = savedAt,
-        counts = new { buildables = 10, machines = 5, logistics = 20 },
+        counts = new { machines = 5, providers = 2, consumers = 1, logistics = 20, connections = 24 },
         analysis,
     };
 
@@ -178,7 +184,7 @@ internal static class IronWorld
     {
         settled = true,
         summary = new { machines = 5, running = 1, starved = 2, outputBlocked = 1, noRecipe = 1 },
-        generatorSummary = new { generators = 0, running = 0, starved = 0, outputBlocked = 0 },
+        generatorSummary = new { generators = 0, running = 0, starved = 0, outputBlocked = 0, fuelUnknown = 0 },
         machines = new[]
         {
             Starved("m-1"),
@@ -189,6 +195,7 @@ internal static class IronWorld
         },
         generators = Array.Empty<object>(),
         dronePorts = Array.Empty<object>(),
+        pipeFlows = Array.Empty<object>(),
         bottlenecks = new[]
         {
             new { id = "belt-7", className = "Build_ConveyorBeltMk3_C", capacity = 270.0, flow = 270.0, offeredMore = 30.0, position = new { x = 100.0, y = 200.0, z = 0.0 }, approximate = false },
