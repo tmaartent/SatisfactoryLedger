@@ -25,7 +25,11 @@ Ideas for practising AI engineering on this project (an MCP server, evals, RAG, 
 **What it would take:** in the solver, the full-but-arriving inventory takes only what the line's other ends leave, like a depot uploader (BR-A8). A new analysis version, so every snapshot is analysed again.
 
 ### An exact steady state, as a linear programme
-*Raised 2026-11-05, step 13.*
+*Raised 2026-11-05, step 13. **Tried in step 29, and not taken** ([ADR-0026](../adr/0026-steady-state-as-a-sequence-of-linear-programmes.md)):
+the pure linear programme did worse than the sweep. It failed numerically ("ABNORMAL") on part of the owner's current
+world, and it can't choose the game's share rule, share = min(limit, level), by itself. What stayed is a running start:
+one LP per part primes the sweep, which settled every part of that world. Not to be proposed again as a replacement.
+What follows is the original idea.*
 
 **What:** compute the steady state as one system of equations and inequalities, solved with a linear-programming solver, instead of sweeping until nothing changes (`SteadyState`). Flows per connection and item are the variables. Capacities, recipes (input and output in fixed ratios at a utilisation between 0 and 1), conservation at every node, and what providers offer are the constraints.
 
