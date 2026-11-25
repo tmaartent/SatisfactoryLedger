@@ -3,6 +3,7 @@ import {
   areaBetween,
   beltsToLabel,
   halfway,
+  suppliedBelts,
   crossingMarks,
   arrangedFactories,
   factoriesInArea,
@@ -104,6 +105,8 @@ describe('optimal arrangement', () => {
       to,
       item,
       corners,
+      injection: false,
+      overflow: false,
     });
     const long = [at(0, 0), at(4000, 0)];
     const short = [at(0, 0), at(1000, 0)];
@@ -113,9 +116,9 @@ describe('optimal arrangement', () => {
     });
 
     it('are those into or out of a factory picked, 30 m long or more, that carry something', () => {
-      const into = belt('miner', 'plates', long);
+      const into = belt('miner', 'plates', long, 'Desc_OreIron_C');
       const outOf = belt('plates', 'screws', long);
-      const shortOne = belt('smelter', 'plates', short);
+      const shortOne = belt('smelter', 'plates', short, 'Desc_OreIron_C');
       const elsewhere = belt('miner', 'wire', long);
       const empty = belt('miner', 'plates', long, null);
 
@@ -128,6 +131,80 @@ describe('optimal arrangement', () => {
     it('stand halfway along the belt, around its turns', () => {
       expect(halfway([at(0, 0), at(4000, 0), at(4000, 2000)])).toEqual(at(3000, 0));
       expect(halfway([at(0, 0), at(1000, 0), at(1000, 3000)])).toEqual(at(1000, 1000));
+    });
+  });
+
+  describe('the belts a factory picked stands out with: its supply, back to the source, and what it makes (step 104)', () => {
+    // The owner's rubber line (2026-11-25): from a freight platform past five factories, a splitter under each, topped
+    // up before Radio Control Systems by a priority merger from the same platform.
+    const leg = (
+      from: string,
+      to: string,
+      item = 'Desc_Rubber_C',
+      more: { injection?: boolean; overflow?: boolean } = {},
+    ) => ({ from, to, item, injection: false, overflow: false, ...more });
+    const platform = leg('platform', 'heat sinks');
+    const heatSinks = leg('heat sinks', 'turbo motors');
+    const turboMotors = leg('turbo motors', 'cooling');
+    const cooling = leg('cooling', 'modular engines');
+    const modularEngines = leg('modular engines', 'radio control');
+    const topUp = leg('platform', 'radio control', 'Desc_Rubber_C', { injection: true });
+    const radioControl = leg('radio control', 'crystal oscillators');
+    const engines = leg('modular engines', 'rockets', 'Desc_SpaceElevatorPart_4_C');
+    const plating = leg('smart plating', 'modular engines', 'Desc_SpaceElevatorPart_1_C');
+    const belts = [
+      platform,
+      heatSinks,
+      turboMotors,
+      cooling,
+      modularEngines,
+      topUp,
+      radioControl,
+      engines,
+      plating,
+    ];
+    const of = (...picked: string[]) => [...suppliedBelts(belts, new Set(picked))];
+
+    it('are every belt while none is picked', () => {
+      expect(of()).toEqual(belts);
+    });
+
+    it("are an input's line traced back to where it starts, through the factories it passes", () => {
+      expect(of('modular engines')).toEqual(
+        expect.arrayContaining([platform, heatSinks, turboMotors, cooling, plating]),
+      );
+    });
+
+    it('are not the line running on past it to the factories after', () => {
+      expect(of('modular engines')).not.toContain(modularEngines);
+      expect(of('modular engines')).not.toContain(radioControl);
+    });
+
+    it('are what it makes, where that goes', () => {
+      expect(of('modular engines')).toContain(engines);
+      expect(of('modular engines')).toHaveLength(6);
+    });
+
+    it('take in the top-ups onto the line before the factories it passes', () => {
+      expect(of('crystal oscillators')).toEqual(
+        expect.arrayContaining([radioControl, topUp, modularEngines, platform]),
+      );
+    });
+
+    it("trace a top-up's overflow back to its top-up only, not the line it was merged onto", () => {
+      const overflow = leg('radio control', 'stators', 'Desc_Rubber_C', { overflow: true });
+      expect([...suppliedBelts([...belts, overflow], new Set(['stators']))]).toEqual([
+        overflow,
+        topUp,
+      ]);
+    });
+
+    it('trace nothing back for a belt from before what it carries was kept', () => {
+      const old = [
+        leg('a', 'b', null as unknown as string),
+        leg('c', 'a', null as unknown as string),
+      ];
+      expect([...suppliedBelts(old, new Set(['b']))]).toEqual([old[0]]);
     });
   });
 

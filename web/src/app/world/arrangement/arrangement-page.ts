@@ -96,6 +96,7 @@ import {
   arrangedFactories,
   factoriesInArea,
   beltsToLabel,
+  suppliedBelts,
   halfway,
 } from './arrangement-model';
 import { loaded } from '../../shared/loaded';
@@ -918,7 +919,7 @@ export class ArrangementPage {
    * each lift; at a miner a red circle, at an extractor one in the colour of its fluid (asked 2026-11-19); at a station
    * or drone port the dot is dark. Where a belt leaves the floor for one outside
    * the area, an amber ring. Belts on one square are stacked, so their lines lie on each other. With factories picked,
-   * their belts stand out. Where a belt crosses another as a last resort, an amber × (step 102).
+   * the belts that supply them, back to where it starts, and what they make stand out (suppliedBelts, step 104). Where a belt crosses another as a last resort, an amber × (step 102).
    */
   private drawBelts(
     arrangement: ArrangementResponse,
@@ -934,9 +935,10 @@ export class ArrangementPage {
       extractorForm: (name: string) => this.names.extractorForm(name),
       fluidColour: (item: string) => this.names.fluidColour(item),
     };
+    const shown = suppliedBelts(arrangement.belts, focused);
     for (const belt of arrangement.belts) {
-      const picked = focused.has(belt.from) || focused.has(belt.to);
-      const dimmed = !standsOut(focused, [belt.from, belt.to]);
+      const picked = focused.size > 0 && shown.has(belt);
+      const dimmed = !shown.has(belt);
       const ends = beltEnds(belt, factories);
       const colour = factoryColour(traces, ends.factory) ?? '#e0e0e0';
       const line = beltLine(belt.corners);

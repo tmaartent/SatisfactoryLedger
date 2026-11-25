@@ -790,18 +790,47 @@ function lengthAlong(corners: readonly WorldPoint[]): number {
 
 /**
  * The routed belts of a run that say what they carry (asked 2026-11-25), as the lines before a run: with a factory
- * picked, those into or out of it, 30 metres long or more, that carry something.
+ * picked, those it stands out with (suppliedBelts), 30 metres long or more, that carry something.
  */
 export function beltsToLabel<
-  Belt extends Pick<RoutedBeltResponse, 'from' | 'to' | 'item' | 'corners'>,
+  Belt extends Pick<
+    RoutedBeltResponse,
+    'from' | 'to' | 'item' | 'corners' | 'injection' | 'overflow'
+  >,
 >(belts: readonly Belt[], focused: ReadonlySet<string>): Belt[] {
   if (focused.size === 0) return [];
+  const shown = suppliedBelts(belts, focused);
   return belts.filter(
-    (belt) =>
-      belt.item != null &&
-      (focused.has(belt.from) || focused.has(belt.to)) &&
-      lengthAlong(belt.corners) >= LabelledLine,
+    (belt) => belt.item != null && shown.has(belt) && lengthAlong(belt.corners) >= LabelledLine,
   );
+}
+
+/**
+ * The routed belts the factories picked stand out with (step 104, asked 2026-11-25): every belt while none is picked.
+ * Otherwise, what supplies them, back to where it starts, and what they make. With supply lines a belt runs from one
+ * factory on its line to the next, so the belt into a factory may start under the one before it: a belt carrying an item
+ * from a factory that item comes into runs on from that factory, and its way back goes on through every belt bringing
+ * the item there, the line's and its top-ups; an overflow's only through the top-ups, whose smart splitter it leaves.
+ * Such a belt running on past a factory picked isn't what it makes, and stays out. A belt from before what it carries
+ * was kept isn't traced back.
+ */
+export function suppliedBelts<
+  Belt extends Pick<RoutedBeltResponse, 'from' | 'to' | 'item' | 'injection' | 'overflow'>,
+>(belts: readonly Belt[], focused: ReadonlySet<string>): Set<Belt> {
+  if (focused.size === 0) return new Set(belts);
+  const into = (factory: string, item: string | null) =>
+    item == null ? [] : belts.filter((belt) => belt.to === factory && belt.item === item);
+  const shown = new Set<Belt>();
+  const back = (belt: Belt): void => {
+    if (shown.has(belt)) return;
+    shown.add(belt);
+    for (const before of into(belt.from, belt.item))
+      if (!belt.overflow || before.injection) back(before);
+  };
+  for (const belt of belts)
+    if (focused.has(belt.to)) back(belt);
+    else if (focused.has(belt.from) && into(belt.from, belt.item).length === 0) shown.add(belt);
+  return shown;
 }
 
 /** Where a routed belt crosses another as a last resort (step 102), as the map and the 3D view mark it. */

@@ -18,6 +18,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ArrangedMachineResponse } from '../../api/models/arranged-machine-response';
 import { ArrangementMachinesResponse } from '../../api/models/arrangement-machines-response';
 import { ArrangementResponse } from '../../api/models/arrangement-response';
+import { RoutedBeltResponse } from '../../api/models/routed-belt-response';
 import { WorldPoint } from '../../api/models/world-point';
 import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
@@ -37,6 +38,7 @@ import {
   movedMetres,
   relatedFactories,
   standsOut,
+  suppliedBelts,
   jointColours,
   spotMark,
   wayMark,
@@ -369,7 +371,7 @@ export class BeltFloor3d {
         // Pointing finds it before the slab above, as it does a belt.
         cube.userData['tooltip'] = joint.tooltip;
         cube.userData['belt'] = true;
-        cube.userData['ends'] = [belt.from, belt.to];
+        cube.userData['routed'] = belt;
         this.levelled(cube, [joint.level], belt.levels);
         this.content.add(cube);
       }
@@ -389,7 +391,7 @@ export class BeltFloor3d {
         );
         ball.userData['tooltip'] = crossing.tooltip;
         ball.userData['belt'] = true;
-        ball.userData['ends'] = [belt.from, belt.to];
+        ball.userData['routed'] = belt;
         this.levelled(ball, [crossing.level], belt.levels);
         this.content.add(ball);
       }
@@ -405,7 +407,7 @@ export class BeltFloor3d {
           : [belt.corners[belt.corners.length - 1], belt.levels[belt.levels.length - 1]];
       if (!at) continue;
       const drum = this.drum({ ...mark, at }, middle);
-      drum.userData['ends'] = [belt.from, belt.to];
+      drum.userData['routed'] = belt;
       this.levelled(drum, [level ?? 0], belt.levels);
       this.content.add(drum);
     }
@@ -434,7 +436,7 @@ export class BeltFloor3d {
         geometries.forEach((geometry) => geometry.dispose());
         mesh.userData['tooltip'] = beltTooltip(belt, (item) => this.names.item(item));
         mesh.userData['belt'] = true;
-        mesh.userData['ends'] = [belt.from, belt.to];
+        mesh.userData['routed'] = belt;
         this.levelled(mesh, [level], belt.levels);
         this.content.add(mesh);
       }
@@ -462,11 +464,14 @@ export class BeltFloor3d {
   ): void {
     const factories = shownFactories(levels, arrangement.belts);
     const related = relatedFactories(focused, arrangement.links);
+    // The belts the factories picked stand out with: what supplies them, back to the source, and what they make.
+    const supplied = suppliedBelts(arrangement.belts, focused);
     for (const object of this.content.children) {
-      const { own, belt, ends, factory, full, faded } = object.userData as {
+      const { own, belt, ends, routed, factory, full, faded } = object.userData as {
         own?: number[];
         belt?: number[];
         ends?: string[];
+        routed?: RoutedBeltResponse;
         factory?: string;
         full?: THREE.Material;
         faded?: THREE.Material;
@@ -478,6 +483,7 @@ export class BeltFloor3d {
         fade = shown === 'faded';
       }
       if (ends && !standsOut(focused, ends)) fade = true;
+      if (routed && !supplied.has(routed)) fade = true;
       if (factory) {
         object.visible =
           (factories === null || factories.has(factory)) &&
