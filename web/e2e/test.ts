@@ -1,6 +1,6 @@
 import { expect, Page, test as base } from '@playwright/test';
 
-import { answerFromRecording, snapshot } from './api';
+import { answerFromRecording, factory, snapshot } from './api';
 
 export { expect } from '@playwright/test';
 
@@ -26,6 +26,9 @@ export const pages = {
   // The test world's machines, with some room.
   area: `/snapshots/${snapshot}/area?x0=243000&y0=-199500&x1=255000&y1=-193000`,
   arrangement: `/snapshots/${snapshot}/arrangement?x0=243000&y0=-199500&x1=255000&y1=-193000`,
+  factory: `/snapshots/${snapshot}/factories/${factory}`,
+  /** The map, centred on one of the factory's smelters. */
+  smelter: `/snapshots/${snapshot}/map?focus=Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2147301500`,
 };
 
 /**
@@ -34,7 +37,9 @@ export const pages = {
  * under it never hears the finger lift.
  */
 export async function whole(page: Page): Promise<void> {
-  if (new URL(page.url()).pathname.startsWith('/snapshots') && !page.url().includes('/arrangement'))
+  // As app.ts's picksSnapshot: every World page but an arrangement's and a factory's has it.
+  const [, world, snapshot, shown] = new URL(page.url()).pathname.split('/');
+  if (world === 'snapshots' && !(snapshot && ['arrangement', 'factories'].includes(shown)))
     await expect(page.locator('app-snapshot-picker button.current')).toBeAttached();
 }
 

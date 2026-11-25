@@ -1,5 +1,3 @@
-import { Page } from '@playwright/test';
-
 import { covered, dragOver, expect, inView, pages, test, touch, whole } from './test';
 
 /**
@@ -7,26 +5,8 @@ import { covered, dragOver, expect, inView, pages, test, touch, whole } from './
  * out or Cancel; with a mouse, clicks and keys, and the steps in the Info tab.
  */
 
-/** What the chosen machines would make: answered here, as the preview is asked for with a POST, which isn't recorded. */
-async function answerPreviews(page: Page): Promise<void> {
-  await page.route('**/api/v1/world/snapshots/*/factory-preview', (route) =>
-    route.fulfill({
-      json: {
-        logistics: [],
-        outputs: [],
-        inputs: [],
-        leaving: [{ item: 'Desc_IronIngot_C', perMinute: 30 }],
-        arriving: [{ item: 'Desc_OreIron_C', perMinute: 30 }],
-        connected: [],
-        supplies: [],
-      },
-    }),
-  );
-}
-
 test.describe('defining a factory in 3D', () => {
   test.beforeEach(async ({ page }) => {
-    await answerPreviews(page);
     await page.goto(pages.area);
     await expect(page.locator('.stage canvas')).toBeVisible();
     // The canvas stands before the world arrives: wait for its machines, or a drag lands on a view still loading.

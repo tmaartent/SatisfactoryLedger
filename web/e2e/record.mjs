@@ -14,6 +14,27 @@ if (!snapshot) {
   process.exit(1);
 }
 
+// A factory in the test world, for the pages that show one (step 96): its two smelters and the constructor making
+// plates, as the .NET tests' plates factory. Made once; recording again finds it.
+const factoryName = 'Iron Plates';
+const machines = [
+  'Build_SmelterMk1_C_2147301500',
+  'Build_SmelterMk1_C_2147301226',
+  'Build_ConstructorMk1_C_2147291547',
+].map((name) => `Persistent_Level:PersistentLevel.${name}`);
+const known = await fetch(`${base}/api/v1/world/factories?world=Development`).then((r) => r.json());
+let factory = known.find((candidate) => candidate.name === factoryName)?.id;
+if (!factory) {
+  const made = await fetch(`${base}/api/v1/world/factories`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ world: 'Development', name: factoryName, machines }),
+  });
+  if (!made.ok)
+    throw new Error(`The factory couldn't be made: ${made.status} ${await made.text()}`);
+  factory = (await made.json()).id;
+}
+
 // The test world's machines, with some room: the 3D view of it.
 const area = 'x0=243000&y0=-199500&x1=255000&y1=-193000';
 const pages = [
@@ -22,6 +43,7 @@ const pages = [
   `/snapshots/${snapshot}/map`,
   `/snapshots/${snapshot}/area?${area}`,
   `/snapshots/${snapshot}/arrangement?${area}`,
+  `/snapshots/${snapshot}/factories/${factory}`,
 ];
 const art = /\/api\/v1\/catalog\/(icons|map-art)/;
 
@@ -61,7 +83,7 @@ if (nodes) {
 const sorted = Object.fromEntries(Object.entries(answers).sort(([a], [b]) => a.localeCompare(b)));
 writeFileSync(
   new URL('./fixtures/api.json', import.meta.url),
-  JSON.stringify({ snapshot, answers: sorted }, null, 1) + '\n',
+  JSON.stringify({ snapshot, factory, answers: sorted }, null, 1) + '\n',
 );
 console.log(`Recorded ${Object.keys(sorted).length} answers:`);
 for (const key of Object.keys(sorted)) console.log(' ', key, sorted[key].status);
