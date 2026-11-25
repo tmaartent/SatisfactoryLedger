@@ -108,7 +108,11 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
         // Every belt routed at the first placement: no other was tried (step 101).
         Assert.Equal(1, ready.Summary.Placements);
         Assert.Contains(ready.Belts, belt => belt.Item == "Desc_IronIngot_C");
-        Assert.All(ready.Belts, belt => Assert.True(belt.Item is not null && belt.PerMinute > 0 && !belt.Injection, $"{belt.From} → {belt.To} carries {belt.Item} at {belt.PerMinute}"));
+        Assert.All(ready.Belts, belt => Assert.True(belt.Item is not null && belt.PerMinute > 0, $"{belt.From} → {belt.To} carries {belt.Item} at {belt.PerMinute}"));
+
+        // Smelting brings Plates 12.5 ingots a minute; the smelter no factory owns tops the line up with the other 10
+        // (decided 2026-11-25).
+        Assert.Contains(ready.Belts, belt => belt is { Item: "Desc_IronIngot_C", PerMinute: 10, Injection: true });
     }
 
     [Fact]
@@ -168,8 +172,10 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
     [Fact]
     public async Task Every_run_is_kept_for_its_world()
     {
-        ArrangementSummary first = (await (await RequestAsync(new { seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
-        ArrangementSummary second = (await (await RequestAsync(new { plotWidthMetres = 40, together = 0, seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+        // On footprints: on the default 48-metre plots, the test world's machines no factory owns leave no room. The plot
+        // sizes are kept with the run all the same.
+        ArrangementSummary first = (await (await RequestAsync(new { footprints = true, seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+        ArrangementSummary second = (await (await RequestAsync(new { plotWidthMetres = 40, together = 0, footprints = true, seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
 
         ArrangementSummary[] runs = await _client.GetAsync<ArrangementSummary[]>("/api/v1/world/arrangements?world=Development");
 
@@ -180,8 +186,9 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
     [Fact]
     public async Task A_run_can_be_deleted_even_while_it_is_computed()
     {
-        ArrangementSummary kept = (await (await RequestAsync(new { seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
-        ArrangementSummary deleted = (await (await RequestAsync(new { seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+        // On footprints, for room (see above).
+        ArrangementSummary kept = (await (await RequestAsync(new { footprints = true, seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
+        ArrangementSummary deleted = (await (await RequestAsync(new { footprints = true, seconds = 2 })).Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
 
         HttpResponseMessage response = await _client.DeleteAsync($"/api/v1/world/arrangements/{deleted.Id}", TestContext.Current.CancellationToken);
 
@@ -231,7 +238,7 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
     {
         var trackside = new WorldRectangle(0, 0, 2000, 3000);
 
-        HttpResponseMessage response = await RequestAsync(new { exclusions = new[] { trackside }, seconds = 2 });
+        HttpResponseMessage response = await RequestAsync(new { exclusions = new[] { trackside }, footprints = true, seconds = 2 });
 
         ArrangementSummary requested = (await response.Content.ReadFromJsonAsync<ArrangementSummary>(TestContext.Current.CancellationToken))!;
         Assert.Equal([trackside], (await ReadyAsync(requested.Id)).Summary.Exclusions);

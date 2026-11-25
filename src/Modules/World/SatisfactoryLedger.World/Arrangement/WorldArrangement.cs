@@ -25,8 +25,12 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// at its spot on the belt floor, where its belts are routed to. A node doesn't block: factories may stand over it.
 /// Extractors, stations and drone ports feeding a factory one item share belts up to the top belt's (or pipe's)
 /// capacity, and so do stations and drone ports a factory sends one item to (<see cref="SupplyBelts"/>).</item>
+/// <item>Machines no factory owns, and factories outside the area, that feed an arranged factory (decided 2026-11-25):
+/// like a node's extractor, at the weight of the settings, from a spot at the one of their machines nearest the factory
+/// as it stands now; one outside the area reached where its existing belt comes into it.</item>
 /// <item>What stays: the other factories and every train or truck station and drone port, which keep the plots they
-/// touch; and the exclusions drawn, whose plots are kept free.</item>
+/// touch; every machine no factory owns that reaches into the area, which keeps the plots it touches too (decided
+/// 2026-11-25); and the exclusions drawn, whose plots are kept free.</item>
 /// </list>
 /// </summary>
 internal static class WorldArrangement
@@ -196,6 +200,22 @@ internal static class WorldArrangement
                         Feeds(building, to);
                     }
 
+                    // Machines no factory owns, or a factory outside the area, feeding a factory being arranged: like a
+                    // node's extractor, from a spot at the machine nearest the factory (decided 2026-11-25).
+                    bool fromOutside = source is { Kind: InputSourceKind.Factory, FactoryId: { } supplier } && supplier != factory.Id
+                        && !chosen.Contains(supplier.ToString());
+                    if (chosen.Contains(to) && (source.Kind == InputSourceKind.NoFactory || fromOutside))
+                    {
+                        if (Nearest(source.Machines ?? [], outline) is { } machine)
+                        {
+                            List<Supply> feeding = supplies.TryGetValue((to, input.Item), out List<Supply>? found) ? found : supplies[(to, input.Item)] = [];
+                            feeding.Add(new Supply(machine.Id, machine.Position!.X, machine.Position.Y, source.PerMinute));
+                            Feeds(machine.Id, to);
+                        }
+
+                        continue;
+                    }
+
                     string? from = source is { Kind: InputSourceKind.Factory, FactoryId: { } other } && other != factory.Id ? other.ToString() : null;
 
                     // Only links that touch a factory being arranged change with the arrangement.
@@ -256,6 +276,18 @@ internal static class WorldArrangement
         foreach (BuildableDocument station in snapshot.Buildables.Where(buildable => Stations.Contains(buildable.ClassName) && buildable.Position is not null))
         {
             fixedPlaces[station.Id] = new FixedPlace(station.Id, grid.PlotsTouching([.. Outline(station, footprints)]), Blocks: true);
+        }
+
+        // Every machine no factory owns that reaches into the area keeps its plots, as a station does (decided 2026-11-25).
+        HashSet<string> owned = [.. traced.SelectMany(entry => entry.Members.Machines.Select(machine => machine.Id))];
+        foreach (BuildableDocument machine in snapshot.Buildables.Where(buildable => buildable.Position is not null && !owned.Contains(buildable.Id)
+            && world.Find(BuildableId.Of(buildable.Id)) is Machine or Consumer { IsGenerator: true }))
+        {
+            List<(double X, double Y)> outline = [.. Outline(machine, footprints)];
+            if (Touches(outline, area))
+            {
+                fixedPlaces[machine.Id] = new FixedPlace(machine.Id, grid.PlotsTouching(outline), Blocks: true);
+            }
         }
 
         // Where the player keeps factories out, as places that stay and block.
@@ -365,6 +397,18 @@ internal static class WorldArrangement
             gapY,
             settings.Together);
         return new MadeArrangement(problem, grid, spots, loads, lines, entries);
+
+        // Of some machines, the one standing nearest the middle of a factory's outline; none without a position.
+        BuildableDocument? Nearest(IEnumerable<string> machines, List<(double X, double Y)> outline)
+        {
+            double x = (outline.Min(point => point.X) + outline.Max(point => point.X)) / 2;
+            double y = (outline.Min(point => point.Y) + outline.Max(point => point.Y)) / 2;
+            return machines
+                .Select(buildables.GetValueOrDefault)
+                .OfType<BuildableDocument>()
+                .Where(machine => machine.Position is not null)
+                .MinBy(machine => Math.Pow(machine.Position!.X - x, 2) + Math.Pow(machine.Position.Y - y, 2));
+        }
 
         // A node's extractor, or a station or drone port: what a belt may go down to at its spot.
         bool IsSpot(string id) => world.Find(BuildableId.Of(id)) is Provider || IsStation(id);

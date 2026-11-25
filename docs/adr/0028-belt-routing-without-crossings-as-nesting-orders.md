@@ -35,6 +35,12 @@ On the owner's Desert world 2 belts were still left over after three placements,
 
 On the owner's Desert world (Fast, supply lines, 32 m), the 2 unrouted belts became 1, with no last-resort crossing, over 3 placements, 8 levels used, 1 min 48 s. The one left is from a Mk.3 miner outside the area, whose belt must leave the floor where its existing belt comes in on the north edge: no crossing helps there.
 
+## Amendment (2026-11-25, step 108): machines no factory owns, and factories outside the area, as spots
+On the owner's Learning world a factory took 596 Copper Ingots a minute from smelters no factory owns, and half its Caterium from a factory outside the area. Neither was routed, and the smelters didn't count in placing either: `WorldArrangement` kept a source only when it was an arranged factory or a node's extractor, station or drone port. The owner chose (2026-11-25):
+- **Such a source is a spot, like a node's extractor**: at the one of its machines standing nearest the factory it feeds as built (`InputSource.Machines`, the machines a source starts at, kept by `FactoryInputs` and left out of the API with `[JsonIgnore]`). Its belts merge with the extractors', stations' and drone ports' bringing the same item, it weighs at the spot weight, it joins the supply lines as a source, and one off the floor is reached where its existing belt comes in (`ExistingWays`, which follows logistics from any building). *Considered:* the machine where the existing belt leaves the group, found by following it; more exact, more work, and different only for odd layouts.
+- **A machine or generator no factory owns that reaches into the area blocks its plots**, as a station does.
+- A factory outside the area that an arranged factory *sends* to is still a full-weight link that isn't routed.
+
 ## Alternatives considered
 - **A fine grid** where each square becomes as many lanes as it holds belts, with lanes that never touch: the same rule, but 16 × 16 times more cells (4 million for 1 km), and lanes would look like belts side by side rather than stacked.
 - **CP-SAT for routing too** (a flow per belt with crossing constraints): optimal for small floors, but the non-crossing rule over shared stretches is hard to state as constraints, and the model would grow with every square.
