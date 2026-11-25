@@ -24,11 +24,14 @@
     <!-- Starts a throwaway PostgreSQL container for the test run. Needs Docker. -->
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.RabbitMq" />
+    <!-- The MCP client, to ask the MCP server what a model would ask it (step 99). -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SatisfactoryLedger.Api\SatisfactoryLedger.Api.csproj" />
     <ProjectReference Include="..\..\src\SatisfactoryLedger.AnalysisService\SatisfactoryLedger.AnalysisService.csproj" />
+    <ProjectReference Include="..\..\src\SatisfactoryLedger.Mcp\SatisfactoryLedger.Mcp.csproj" />
   </ItemGroup>
 
 </Project>
