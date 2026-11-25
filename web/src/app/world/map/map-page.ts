@@ -35,6 +35,7 @@ import { buildingShape } from './building-shape';
 import { coveredSides } from './visible-part';
 import { holdToExtent } from './hold-to-extent';
 import { MapArt } from './map-art';
+import { removeMap } from './remove-map';
 import { HiddenNodes } from './hidden-nodes';
 import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
@@ -76,6 +77,7 @@ import { LimitFacts, limitText } from '../limit-text';
 import { FindingsSummary } from '../findings-summary';
 import { ShownStatus } from '../shown-status';
 import { WhatItHolds } from '../what-it-holds';
+import { loaded } from '../../shared/loaded';
 
 /** Every kilometre a grid line, over the whole game world (about −3.3 to 4.3 km east, −3.8 to 3.8 km north). */
 const GridStep = 1000;
@@ -150,7 +152,7 @@ export class MapPage {
   protected readonly hiddenNodes = inject(HiddenNodes);
   /** The tab's rows: a resource each, its nodes counted per purity. */
   protected readonly nodeKinds = computed(() =>
-    nodeKinds(this.nodes.value() ?? [], (resource) => this.names.item(resource)),
+    nodeKinds(loaded(this.nodes) ?? [], (resource) => this.names.item(resource)),
   );
   protected readonly purities = Purities;
   protected readonly nodeKey = nodeKey;
@@ -176,46 +178,46 @@ export class MapPage {
     return drawn ? toArea(drawn.from, drawn.to) : null;
   });
 
-  private readonly statuses = computed(() => machineStatuses(this.analysis.value()?.machines));
+  private readonly statuses = computed(() => machineStatuses(loaded(this.analysis)?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
   private readonly generators = computed(
     () =>
       new Map(
-        (this.analysis.value()?.generators ?? []).map((generator) => [generator.id, generator]),
+        (loaded(this.analysis)?.generators ?? []).map((generator) => [generator.id, generator]),
       ),
   );
   private readonly utilisations = computed(
     () =>
       new Map(
-        (this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine.utilisation]),
+        (loaded(this.analysis)?.machines ?? []).map((machine) => [machine.id, machine.utilisation]),
       ),
   );
   /** Each machine's finding, by id: its tooltip says what it's short of or can't get rid of (BR-A11). */
   private readonly machineFindings = computed(
-    () => new Map((this.analysis.value()?.machines ?? []).map((machine) => [machine.id, machine])),
+    () => new Map((loaded(this.analysis)?.machines ?? []).map((machine) => [machine.id, machine])),
   );
   /** What flows through each pipe in the model, by id (asked 2026-11-24). */
   private readonly pipeFlows = computed(
-    () => new Map((this.analysis.value()?.pipeFlows ?? []).map((flow) => [flow.id, flow])),
+    () => new Map((loaded(this.analysis)?.pipeFlows ?? []).map((flow) => [flow.id, flow])),
   );
   protected readonly headLiftColour = conveyorColours.headLift;
   private readonly bottlenecks = computed(
     () =>
       new Map(
-        (this.analysis.value()?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck]),
+        (loaded(this.analysis)?.bottlenecks ?? []).map((bottleneck) => [bottleneck.id, bottleneck]),
       ),
   );
   /** Each building class's footprint, by class name; a class without one is drawn as a dot. */
   private readonly footprints = computed(
     () =>
       new Map(
-        (this.world.value()?.footprints ?? []).map(
+        (loaded(this.world)?.footprints ?? []).map(
           (footprint) => [footprint.id, footprint] as [string, FootprintDocument],
         ),
       ),
   );
   private readonly factoryMachines = computed(() => {
-    const factory = this.factories.value()?.find((trace) => trace.factoryId === this.factoryId());
+    const factory = loaded(this.factories)?.find((trace) => trace.factoryId === this.factoryId());
     return factory ? new Set(factory.machines.map((machine) => machine.id)) : null;
   });
   /** A count picked in the Info tab's overview: its machines or generators are shown (asked 2026-11-23). */
@@ -227,13 +229,13 @@ export class MapPage {
    * factory's. Only one at a time: picking either lets go of the other.
    */
   private readonly highlighted = computed(
-    () => buildingsShown(this.analysis.value(), this.shownStatus()) ?? this.factoryMachines(),
+    () => buildingsShown(loaded(this.analysis), this.shownStatus()) ?? this.factoryMachines(),
   );
   /** The factories each machine is in, with their colour: the same edges as in 3D. */
-  private readonly owners = computed(() => machineOwners(this.factories.value() ?? []));
+  private readonly owners = computed(() => machineOwners(loaded(this.factories) ?? []));
   /** The factories to choose from, each with the colour its machines are outlined in. */
   protected readonly factoryOptions = computed(() => {
-    const factories = this.factories.value() ?? [];
+    const factories = loaded(this.factories) ?? [];
     return factories.map((factory) => ({
       ...factory,
       colour: factoryColour(factories, factory.factoryId),
@@ -248,6 +250,7 @@ export class MapPage {
     colour: statusColours[status],
   }));
   protected readonly problem = problemMessage;
+  protected readonly loaded = loaded;
 
   private readonly container = viewChild.required<ElementRef<HTMLElement>>('map');
   private map?: L.Map;
@@ -279,7 +282,7 @@ export class MapPage {
     afterNextRender(() => resized.observe(this.container().nativeElement));
     inject(DestroyRef).onDestroy(() => {
       resized.disconnect();
-      this.map?.remove();
+      if (this.map) removeMap(this.map);
     });
 
     // Redraw a layer when what it shows changes; Leaflet itself knows nothing about signals.
@@ -370,7 +373,7 @@ export class MapPage {
 
   /** The game's map picture, a tile at a time over its part of the world; not clickable, so it never takes a click. */
   private drawMapArt(): void {
-    const art = this.mapArt.hasValue() ? this.mapArt.value() : null;
+    const art = loaded(this.mapArt) ?? null;
     if (!this.map) return;
 
     this.artLayer.clearLayers();
@@ -386,10 +389,7 @@ export class MapPage {
    */
   private holdToMapArt(): void {
     if (!this.map) return;
-    const extent = mapExtent(
-      this.mapArt.hasValue() ? this.mapArt.value() : null,
-      this.world.hasValue() ? this.world.value() : null,
-    );
+    const extent = mapExtent(loaded(this.mapArt) ?? null, loaded(this.world) ?? null);
     holdToExtent(this.map, extent, MinZoom);
   }
 
@@ -514,7 +514,7 @@ export class MapPage {
   }
 
   private drawMachines(): void {
-    const machines = this.world.value()?.machines ?? [];
+    const machines = loaded(this.world)?.machines ?? [];
     const statuses = this.statuses();
     const utilisations = this.utilisations();
     const findings = this.machineFindings();
@@ -572,7 +572,7 @@ export class MapPage {
 
   /** Belts and pipes as built (their saved curves); a bottleneck red, with what it carries and what's offered on top. */
   private drawConveyors(): void {
-    const conveyors = this.world.value()?.conveyors ?? [];
+    const conveyors = loaded(this.world)?.conveyors ?? [];
     const bottlenecks = this.bottlenecks();
     const flows = this.pipeFlows();
     if (!this.map) return;
@@ -613,7 +613,7 @@ export class MapPage {
   }
 
   private drawProviders(): void {
-    const providers = this.world.value()?.providers ?? [];
+    const providers = loaded(this.world)?.providers ?? [];
     if (!this.map) return;
 
     this.providerLayer.clearLayers();
@@ -645,7 +645,7 @@ export class MapPage {
 
   /** Splitters, mergers, lifts, storage, and the consumers belts end in (BR-W8): so belts don't stop in mid-air. */
   private drawOthers(): void {
-    const world = this.world.value();
+    const world = loaded(this.world);
     const generators = this.generators();
     if (!this.map) return;
 
@@ -780,12 +780,12 @@ export class MapPage {
 
   /** The Unused supply tab (asked 2026-11-23): the sources that could give more, the most left over first. */
   protected readonly unusedSupply = computed(() =>
-    [...(this.analysis.value()?.unusedSupply ?? [])].sort(
+    [...(loaded(this.analysis)?.unusedSupply ?? [])].sort(
       (a, b) => b.offered - b.delivered - (a.offered - a.delivered),
     ),
   );
   /** The Unknown supply tab (asked 2026-11-23): the sources whose rate the save doesn't tell, as the analysis gives them. */
-  protected readonly unknownSupply = computed(() => this.analysis.value()?.unknownSupply ?? []);
+  protected readonly unknownSupply = computed(() => loaded(this.analysis)?.unknownSupply ?? []);
   protected readonly perMinute = perMinute;
 
   /** What an unknown source is assumed to give, per item, the most first. */
@@ -829,8 +829,8 @@ export class MapPage {
 
   /** Every resource node, as a pin (asked 2026-11-23): free or with a miner or extractor on it, which its tooltip names. */
   private drawNodes(): void {
-    const nodes = shownNodes(this.nodes.value() ?? [], this.hiddenNodes.hidden());
-    const takers = nodeTakers(this.world.value()?.providers ?? []);
+    const nodes = shownNodes(loaded(this.nodes) ?? [], this.hiddenNodes.hidden());
+    const takers = nodeTakers(loaded(this.world)?.providers ?? []);
     if (!this.map) return;
 
     this.nodeLayer.clearLayers();
@@ -879,7 +879,7 @@ export class MapPage {
   /** Zoom to the buildings stood out, a factory's or a status's, and ring each one: a machine is small from afar. */
   private fitToHighlighted(): void {
     const highlighted = this.highlighted();
-    const world = this.world.value();
+    const world = loaded(this.world);
     if (!this.map) return;
 
     this.shownLayer.clearLayers();
@@ -941,7 +941,7 @@ export class MapPage {
 
   /** A finding's buildable (?focus=): zoom to it, ring it, and open its tooltip. Nothing when the map doesn't have it. */
   private focusOnBuildable(): void {
-    const world = this.world.value();
+    const world = loaded(this.world);
     const id = this.focus();
     if (!this.map || !world || !id) return;
 

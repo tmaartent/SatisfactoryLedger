@@ -134,6 +134,19 @@ function smallTargets(selector: string): string[] {
 }
 
 for (const [name, { path, ready, fills }] of Object.entries(sweep)) {
+  // Before its page is ready, as for the others below: with the API down, it never is.
+  test(`${name} says so when the API fails, and throws nothing`, async ({ page }) => {
+    // Step 98: a page that read what failed to load threw, and was left half drawn. Routes added later come first, so
+    // this answers before the recording does.
+    await page.route('**/api/v1/**', (route) =>
+      route.fulfill({ status: 503, json: { title: 'Service Unavailable', status: 503 } }),
+    );
+    await page.goto(path);
+
+    await expect(page.getByText(/couldn't be loaded/).first()).toBeVisible();
+    // The test's fixture fails it when the page threw (e2e/test.ts).
+  });
+
   test.describe(name, () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(path);

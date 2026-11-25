@@ -37,10 +37,6 @@
   }
 }
 
-.hint {
-  margin: 0 12px 8px;
-}
-
 // As wide as the rail: the name gives way, and the import stacks under the snapshot's button.
 @container (max-width: 120px) {
   .picker {
@@ -56,9 +52,5 @@
     mat-icon[iconPositionEnd] {
       display: none;
     }
-  }
-
-  .hint {
-    display: none;
   }
 }

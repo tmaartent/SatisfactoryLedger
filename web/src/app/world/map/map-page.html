@@ -1,5 +1,5 @@
 <div class="page-header">
-  <h1>{{ snapshot.value()?.sessionName ?? 'World' }}</h1>
+  <h1>{{ loaded(snapshot)?.sessionName ?? 'World' }}</h1>
   @if (id()) {
     <span class="spacer"></span>
     <!-- As defining a factory in 3D does: no button (asked 2026-11-23). -->
@@ -106,7 +106,7 @@
     <section class="info">
       @if (analysis.error(); as error) {
         <p class="muted">The findings couldn't be loaded: {{ problem(error) }}</p>
-      } @else if (analysis.value(); as findings) {
+      } @else if (loaded(analysis); as findings) {
         <app-findings-summary
           [findings]="findings"
           [selectable]="true"
@@ -118,7 +118,7 @@
           Click a count to show those buildings on the map; click it again to show all.
         </p>
         <!-- What the snapshot holds, as the findings page said it before it went (asked 2026-11-23). -->
-        @if (snapshot.value(); as shown) {
+        @if (loaded(snapshot); as shown) {
           <h3>What it holds</h3>
           <app-what-it-holds [counts]="shown.counts" />
           <!-- What the import couldn't take in, as the findings page warned of it (until 2026-11-23). -->

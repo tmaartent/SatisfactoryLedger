@@ -2,8 +2,11 @@
   <a mat-icon-button [routerLink]="['/snapshots', id(), 'map']" aria-label="Back to the map"
     ><mat-icon>arrow_back</mat-icon></a
   >
-  <h1>{{ snapshot.value()?.sessionName ?? 'World' }} · optimal arrangement</h1>
+  <h1>{{ loaded(snapshot)?.sessionName ?? 'World' }} · optimal arrangement</h1>
 </div>
+@if (world.error(); as error) {
+  <p>The map couldn't be loaded: {{ problem(error) }}</p>
+}
 
 <!-- With keys on a keyboard, or on a touch screen with the select button (asked 2026-11-24, ADR-0033). -->
 <p class="muted intro">
@@ -66,7 +69,7 @@
   </mat-button-toggle-group>
 </form>
 
-@if (runs.value(); as list) {
+@if (loaded(runs); as list) {
   @if (list.length > 0) {
     <table class="runs">
       <thead>
@@ -144,7 +147,7 @@
     <mat-progress-bar mode="indeterminate" />
   }
 </div>
-@if (arrangement.value()?.unrouted; as unrouted) {
+@if (loaded(arrangement)?.unrouted; as unrouted) {
   @if (unrouted.length > 0) {
     <p class="error">
       {{ unrouted.length }} {{ unrouted.length === 1 ? 'link' : 'links' }} couldn't be routed
@@ -171,7 +174,7 @@
       Hold shift and drag to draw the area to arrange
     }
   </span>
-  @if ((arrangement.value()?.belts?.length ?? 0) > 0) {
+  @if ((loaded(arrangement)?.belts?.length ?? 0) > 0) {
     <button mat-stroked-button type="button" (click)="open3d()">
       <mat-icon>view_in_ar</mat-icon> Belt floor in 3D
     </button>
