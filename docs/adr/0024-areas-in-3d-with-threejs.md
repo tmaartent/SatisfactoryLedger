@@ -47,3 +47,6 @@ Defining a factory in 3D with shift held worked well, so the map does the same (
 
 ## Amendment 2026-11-23: ctrl and drag for the arrangement
 The same drag with **ctrl** held (⌘ on a Mac) opens the optimal arrangement of the area instead of the 3D view (decided by the owner, step 83). The header says both.
+
+## Amendment 2026-11-26: a splitter's or merger's ways in and out
+Asked by the owner (step 110), in every 3D view: a splitter or merger clicked or tapped shows **arrows on its ways in and out**, a way in cyan and a way out amber, lying flat on its belts just outside it, drawn over everything (`flow-arrow.ts`). In the area's view, which the factory page shows too, they come from the save's belts: a belt whose curve ends at the splitter brings items in, one that starts there takes them out (`attachmentArrows`). Within 1.5 m across and 0.5 m in height, as measured on the Desert world: a belt's end lies 75 to 125 cm from its own splitter's middle, at its height, while a neighbour's lies 2 m or more away and stacked splitters stand 2 m apart. A way in or out by a lift or straight into a machine has no belt end there, so no arrow. In the arrangement's view they come from the supply line through the merger or splitter (`jointArrows`, ADR-0027). The game has no vertical splitters or mergers: five attachments, all on a belt, and the lifts.

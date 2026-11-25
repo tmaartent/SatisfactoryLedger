@@ -60,10 +60,12 @@ import {
   buildingBoxes,
   curveInArea,
   inArea,
+  attachmentArrows,
   sampleCurve3d,
   toScene,
   tubeColour,
 } from './area-model';
+import { flowArrow } from './flow-arrow';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { framingDistance, pointsToFrame } from './framing';
@@ -357,6 +359,8 @@ export class AreaPage {
   private readonly previewLayer = new THREE.Group();
   /** The belt, pipe or lift looked at, drawn again over itself, glowing. */
   private readonly selectionLayer = new THREE.Group();
+  /** The ways in and out of the splitter or merger looked at, as arrows (asked 2026-11-26). */
+  private readonly attachmentLayer = new THREE.Group();
   /** The box being dragged, on screen, while shift or alt is held, or while boxing on a touch screen. */
   protected readonly dragBox = signal<ScreenRect | null>(null);
   /**
@@ -399,6 +403,7 @@ export class AreaPage {
     this.scene.add(this.content);
     this.scene.add(this.previewLayer);
     this.scene.add(this.selectionLayer);
+    this.scene.add(this.attachmentLayer);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
     const sun = new THREE.DirectionalLight(0xffffff, 1.6);
     sun.position.set(60, 140, 90);
@@ -422,6 +427,7 @@ export class AreaPage {
     });
     effect(() => this.drawPreview());
     effect(() => this.drawSelectedConveyor());
+    effect(() => this.drawAttachmentArrows());
   }
 
   /** Defining a factory shows the Info tab, which has the steps; the name and Save are in the page's header. */
@@ -773,6 +779,24 @@ export class AreaPage {
         this.previewLayer.add(marker);
       }
     }
+  }
+
+  /**
+   * The splitter or merger looked at, with its ways in and out as arrows at the ends of its belts (asked 2026-11-26);
+   * nothing while defining, as with a building.
+   */
+  private drawAttachmentArrows(): void {
+    const building = this.selected();
+    const world = loaded(this.world);
+    this.attachmentLayer.clear();
+    if (this.defining() || !world || !building?.className.startsWith('Build_ConveyorAttachment'))
+      return;
+    const area = this.area();
+    const middle = { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
+    for (const arrow of attachmentArrows(building.position, world.conveyors))
+      this.attachmentLayer.add(
+        flowArrow(new THREE.Vector3(...toScene(arrow.at, middle)), arrow.along, arrow.way),
+      );
   }
 
   /** The belt, pipe or lift looked at, a little thicker and glowing; nothing while defining, as with a building. */
