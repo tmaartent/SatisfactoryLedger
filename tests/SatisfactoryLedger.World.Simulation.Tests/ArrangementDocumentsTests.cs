@@ -48,6 +48,47 @@ public class ArrangementDocumentsTests
     }
 
     [Fact]
+    public void A_layout_whose_belts_all_route_is_placed_once()
+    {
+        var problem = new ArrangementProblemDocument(
+            [new ArrangedFactoryDocument("smelting", new GridRectangleDocument(0, 0, 1, 1)), new ArrangedFactoryDocument("plates", new GridRectangleDocument(5, 5, 1, 1))],
+            [],
+            [new ArrangementLinkDocument("smelting", "plates", 2)],
+            new GridRectangleDocument(0, 0, 6, 6),
+            GapX: 0,
+            GapY: 0,
+            Together: 0,
+            Seconds: 5,
+            Floor: new BeltFloorDocument(SquaresPerPlotX: 10, SquaresPerPlotY: 10, RoadSquaresX: 4, RoadSquaresY: 4, Levels: 16));
+
+        ArrangementProposalDocument proposal = ArrangementDocuments.Solve(problem);
+
+        Assert.Equal(1, proposal.Placements);
+    }
+
+    [Fact]
+    public void When_belts_are_left_unrouted_it_places_again_up_to_three_times_and_keeps_the_fewest_left()
+    {
+        // Step 101 (asked 2026-11-25): a strip one square wide, with one level, holds one belt of the two the link needs,
+        // wherever the factories stand. Each new placement differs from the ones before.
+        var problem = new ArrangementProblemDocument(
+            [new ArrangedFactoryDocument("smelting", new GridRectangleDocument(0, 0, 1, 1)), new ArrangedFactoryDocument("plates", new GridRectangleDocument(5, 0, 1, 1))],
+            [],
+            [new ArrangementLinkDocument("smelting", "plates", 2)],
+            new GridRectangleDocument(0, 0, 6, 1),
+            GapX: 0,
+            GapY: 0,
+            Together: 0,
+            Seconds: 5,
+            Floor: new BeltFloorDocument(SquaresPerPlotX: 1, SquaresPerPlotY: 1, RoadSquaresX: 0, RoadSquaresY: 0, Levels: 1));
+
+        ArrangementProposalDocument proposal = ArrangementDocuments.Solve(problem);
+
+        Assert.Equal(3, proposal.Placements);
+        Assert.Equal(1, proposal.Unrouted!.Sum(link => link.Belts + link.Pipes));
+    }
+
+    [Fact]
     public void Without_a_layout_no_belts_are_routed()
     {
         var problem = new ArrangementProblemDocument(

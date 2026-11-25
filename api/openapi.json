@@ -1980,7 +1980,8 @@
           "quality",
           "beltMetres",
           "levelsUsed",
-          "unroutedBelts"
+          "unroutedBelts",
+          "placements"
         ],
         "type": "object",
         "properties": {
@@ -2112,6 +2113,13 @@
             "format": "int32"
           },
           "unroutedBelts": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "placements": {
             "type": [
               "null",
               "integer"

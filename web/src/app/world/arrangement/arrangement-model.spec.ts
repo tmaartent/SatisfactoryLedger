@@ -157,6 +157,7 @@ describe('optimal arrangement', () => {
       beltMetres: 1234,
       levelsUsed: 2,
       unroutedBelts: 0,
+      placements: 1,
     };
 
     it('says how it ended', () => {
@@ -174,6 +175,13 @@ describe('optimal arrangement', () => {
     it('says when it routes supply lines, and how many belts it left unrouted', () => {
       expect(runSummary({ ...run, supplyLines: true, unroutedBelts: 3 })).toBe(
         '6 × 6 · roads 4 · 4 · supply lines · −34% · 3 not routed · Optimal',
+      );
+    });
+
+    it('says when it took more than one placement to leave the fewest belts unrouted', () => {
+      // Step 101: placed again when belts were left over, keeping the best.
+      expect(runSummary({ ...run, unroutedBelts: 1, placements: 3 })).toBe(
+        '6 × 6 · roads 4 · 4 · −34% · 1 not routed · best of 3 placements · Optimal',
       );
     });
 

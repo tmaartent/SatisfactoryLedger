@@ -20,7 +20,14 @@ namespace SatisfactoryLedger.World.Simulation;
 /// </summary>
 public static class ArrangementSolver
 {
-    public static ArrangementProposal Solve(ArrangementProblem problem, TimeSpan timeLimit)
+    /// <param name="avoid">Earlier placements of the same problem, not to be found again: in each, at least one factory
+    /// stands elsewhere (step 101: placing again after belts were left unrouted).</param>
+    /// <param name="seed">The solver's random seed: another for each placement, so its search goes another way.</param>
+    public static ArrangementProposal Solve(
+        ArrangementProblem problem,
+        TimeSpan timeLimit,
+        IReadOnlyList<IReadOnlyDictionary<string, GridRectangle>>? avoid = null,
+        int seed = 0)
     {
         ArgumentNullException.ThrowIfNull(problem);
         var model = new CpModel();
@@ -82,11 +89,33 @@ public static class ArrangementSolver
 
         // Belt work first: one cell of it outweighs every factory moving across the whole area.
         long movesAtMost = (2L * Span(area) * problem.Factories.Count) + 1;
+        // Not an earlier placement: some factory's corner lies a square or more left, right, below or above where it stood.
+        foreach (IReadOnlyDictionary<string, GridRectangle> earlier in avoid ?? [])
+        {
+            List<ILiteral> elsewhere = [];
+            foreach ((string id, (IntVar x, IntVar y)) in corners)
+            {
+                if (earlier.GetValueOrDefault(id) is not { } was)
+                {
+                    continue;
+                }
+
+                foreach (BoundedLinearExpression moved in new[] { x <= was.X - 1, x >= was.X + 1, y <= was.Y - 1, y >= was.Y + 1 })
+                {
+                    BoolVar chosen = model.NewBoolVar(string.Empty);
+                    model.Add(moved).OnlyEnforceIf(chosen);
+                    elsewhere.Add(chosen);
+                }
+            }
+
+            model.AddBoolOr(elsewhere);
+        }
+
         model.Minimize((movesAtMost * (LinearExpr.Sum(belts) + spread)) + LinearExpr.Sum(moves));
 
         var solver = new CpSolver
         {
-            StringParameters = FormattableString.Invariant($"max_time_in_seconds:{timeLimit.TotalSeconds:0.###} num_workers:8"),
+            StringParameters = FormattableString.Invariant($"max_time_in_seconds:{timeLimit.TotalSeconds:0.###} num_workers:8 random_seed:{seed}"),
         };
         CpSolverStatus status = solver.Solve(model);
         if (status is not (CpSolverStatus.Optimal or CpSolverStatus.Feasible))

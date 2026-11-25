@@ -31,6 +31,27 @@ public class ArrangementSolverTests
     }
 
     [Fact]
+    public void A_placement_asked_to_avoid_earlier_ones_puts_a_factory_elsewhere()
+    {
+        // Step 101: placing again after belts were left unrouted must not find the same layout.
+        var problem = new ArrangementProblem(
+            [new ArrangedFactory("smelting", new GridRectangle(0, 0, 4, 2)), new ArrangedFactory("plates", new GridRectangle(50, 50, 2, 2))],
+            [],
+            [new ArrangementLink("smelting", "plates", Belts: 2)],
+            World,
+            GapX: 1,
+            GapY: 1,
+            Together: 0);
+        ArrangementProposal first = ArrangementSolver.Solve(problem, TimeSpan.FromSeconds(10));
+
+        ArrangementProposal second = ArrangementSolver.Solve(problem, TimeSpan.FromSeconds(10), avoid: [first.Places], seed: 1);
+
+        Assert.NotEqual(ArrangementStatus.NotFound, second.Status);
+        Assert.Contains(second.Places, place => first.Places[place.Key] != place.Value);
+        Assert.True(second.Cost >= first.Cost, $"{second.Cost} < {first.Cost}");
+    }
+
+    [Fact]
     public void Pipes_draw_factories_together_as_belts_do()
     {
         ArrangementProposal proposal = Solve(

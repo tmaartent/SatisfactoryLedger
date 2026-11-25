@@ -11,6 +11,8 @@ namespace SatisfactoryLedger.World.Contracts.Arrangement;
 /// <param name="Duration">How long the solver took.</param>
 /// <param name="Belts">The belts between the placed factories, routed on the floor below them; null without a floor.</param>
 /// <param name="Unrouted">Per link, the belts that couldn't be routed without crossing.</param>
+/// <param name="Placements">How many placements were tried (step 101): another when belts were left unrouted, keeping
+/// the one that left the fewest. 1 for a proposal from before.</param>
 public sealed record ArrangementProposalDocument(
     IReadOnlyDictionary<string, GridRectangleDocument> Places,
     double Cost,
@@ -18,7 +20,8 @@ public sealed record ArrangementProposalDocument(
     ArrangementQuality Quality,
     TimeSpan Duration,
     IReadOnlyList<RoutedBeltDocument>? Belts = null,
-    IReadOnlyList<ArrangementLinkDocument>? Unrouted = null)
+    IReadOnlyList<ArrangementLinkDocument>? Unrouted = null,
+    int Placements = 1)
 {
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 

@@ -29,6 +29,7 @@ const older: ArrangementSummary = {
   beltMetres: 1234,
   levelsUsed: 2,
   unroutedBelts: 0,
+  placements: 1,
 };
 
 const newer: ArrangementSummary = {

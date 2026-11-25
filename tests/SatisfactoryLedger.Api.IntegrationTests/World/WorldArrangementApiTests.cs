@@ -101,6 +101,8 @@ public sealed class WorldArrangementApiTests(LedgerApiFactory api) : IAsyncLifet
 
         Assert.True(ready.Summary.SupplyLines);
         Assert.Equal(0, ready.Summary.UnroutedBelts);
+        // Every belt routed at the first placement: no other was tried (step 101).
+        Assert.Equal(1, ready.Summary.Placements);
         Assert.Contains(ready.Belts, belt => belt.Item == "Desc_IronIngot_C");
         Assert.All(ready.Belts, belt => Assert.True(belt.Item is not null && belt.PerMinute > 0 && !belt.Injection, $"{belt.From} → {belt.To} carries {belt.Item} at {belt.PerMinute}"));
     }

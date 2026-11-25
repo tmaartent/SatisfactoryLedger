@@ -131,7 +131,8 @@ export function runStatus(run: ArrangementSummary): string {
 
 /**
  * A run in one line, as the list of runs shows it under when it was asked for (asked 2026-11-25): its plots and roads
- * in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, how it ended.
+ * in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, how many
+ * placements that took when more than one (step 101), how it ended.
  */
 export function runSummary(run: ArrangementSummary): string {
   const size = (metres: number) => String(Math.round(foundations(metres) * 10) / 10);
@@ -142,6 +143,7 @@ export function runSummary(run: ArrangementSummary): string {
   if (run.supplyLines) parts.push('supply lines');
   if (run.costNow !== null && run.cost !== null) parts.push(saving(run.costNow, run.cost));
   if (run.unroutedBelts) parts.push(`${run.unroutedBelts} not routed`);
+  if ((run.placements ?? 1) > 1) parts.push(`best of ${run.placements} placements`);
   parts.push(runStatus(run));
   return parts.join(' · ');
 }
