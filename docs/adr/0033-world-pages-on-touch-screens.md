@@ -37,5 +37,8 @@ The World pages were made for a mouse and a wide screen:
 - **A long press, then a drag, to pick an area:** no button, but hard to find.
 - **No areas on touch screens:** phones and tablets would only look.
 
+## Amendment (2026-11-25): from outside, over Tailscale
+The owner wanted the site from outside the home network, over Tailscale. Windows had put the Tailscale adapter in the Private profile, where node.js has no firewall rule, and adding one needs administrator rights. Instead, **Tailscale Serve** passes `http://<machine>.<tailnet>.ts.net:8080` on to the dev server at `localhost:4200`, within the tailnet only (not Funnel): `tailscale serve --bg --http=8080 http://localhost:4200`, undone with `tailscale serve --http=8080 off`. The dev server refuses host names it doesn't know (Vite's guard against DNS rebinding), so `angular.json` allows `.ts.net` (`allowedHosts`). The machine's short name and its Tailscale IP don't work: Serve matches the full name, and the short one isn't allowed. After the tailnet was renamed (to `duiker-squeaker.ts.net`), Serve kept answering 404 on the new name, though its config had it: the Tailscale service matched requests against its old name until it reconnected (`tailscale down`, then `up`).
+
 ## Consequences
 - The layout's breakpoints are in CSS. Tests in jsdom can't apply them: what they check is the behaviour (the sheet's swipes, the legend's button). The layout was looked at in headless Chrome at a phone's and a tablet's size, with touch emulated; it needs a look on a real phone.
