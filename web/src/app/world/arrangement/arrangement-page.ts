@@ -50,6 +50,7 @@ import { AreaSelection } from '../map/area-selection';
 import { buildingShape } from '../map/building-shape';
 import { holdToExtent } from '../map/hold-to-extent';
 import { MapArt } from '../map/map-art';
+import { removeMap } from '../map/remove-map';
 import {
   dragColours,
   footprintShapes,
@@ -381,7 +382,9 @@ export class ArrangementPage {
       this.drawRun();
       this.drawArea();
     });
-    inject(DestroyRef).onDestroy(() => this.map?.remove());
+    inject(DestroyRef).onDestroy(() => {
+      if (this.map) removeMap(this.map);
+    });
     effect(() => this.drawMapArt());
     effect(() => this.drawWorld());
     effect(() => this.drawRun());

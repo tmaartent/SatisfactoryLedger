@@ -35,6 +35,7 @@ import { buildingShape } from './building-shape';
 import { coveredSides } from './visible-part';
 import { holdToExtent } from './hold-to-extent';
 import { MapArt } from './map-art';
+import { removeMap } from './remove-map';
 import { HiddenNodes } from './hidden-nodes';
 import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
@@ -281,7 +282,7 @@ export class MapPage {
     afterNextRender(() => resized.observe(this.container().nativeElement));
     inject(DestroyRef).onDestroy(() => {
       resized.disconnect();
-      this.map?.remove();
+      if (this.map) removeMap(this.map);
     });
 
     // Redraw a layer when what it shows changes; Leaflet itself knows nothing about signals.
