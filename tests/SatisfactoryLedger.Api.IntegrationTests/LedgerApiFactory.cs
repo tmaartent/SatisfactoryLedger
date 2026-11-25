@@ -27,6 +27,12 @@ public sealed class LedgerApiFactory : WebApplicationFactory<Program>, IAsyncLif
     private readonly RabbitMqContainer _rabbitmq = new RabbitMqBuilder("rabbitmq:4-alpine").Build();
     private IHost? _analysisService;
 
+    /// <summary>
+    /// How many of the analysis service's next calls to the API fail as if it couldn't be reached (step 99): a test
+    /// sets it, and the calls count it down.
+    /// </summary>
+    public int UnreachableCalls { get; set; }
+
     public async ValueTask InitializeAsync()
     {
         await Task.WhenAll(_postgres.StartAsync(), _rabbitmq.StartAsync());
@@ -36,7 +42,7 @@ public sealed class LedgerApiFactory : WebApplicationFactory<Program>, IAsyncLif
         HostApplicationBuilder service = Host.CreateApplicationBuilder();
         service.Configuration["ConnectionStrings:rabbitmq"] = _rabbitmq.GetConnectionString();
         service.AddAnalysisService(world => world
-            .ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler())
+            .ConfigurePrimaryHttpMessageHandler(() => new Reachability(this) { InnerHandler = Server.CreateHandler() })
             .ConfigureHttpClient(client => client.BaseAddress = api));
         _analysisService = service.Build();
         await _analysisService.StartAsync();
@@ -80,5 +86,20 @@ public sealed class LedgerApiFactory : WebApplicationFactory<Program>, IAsyncLif
         await base.DisposeAsync();
         await _postgres.DisposeAsync();
         await _rabbitmq.DisposeAsync();
+    }
+}
+
+/// <summary>Fails a call from the analysis service to the API while the factory says the API can't be reached.</summary>
+file sealed class Reachability(LedgerApiFactory api) : DelegatingHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (api.UnreachableCalls > 0)
+        {
+            api.UnreachableCalls--;
+            throw new HttpRequestException($"{request.RequestUri} can't be reached (a test said so).");
+        }
+
+        return base.SendAsync(request, cancellationToken);
     }
 }

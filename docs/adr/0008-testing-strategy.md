@@ -36,6 +36,9 @@ The owner chose:
 
 In `web/e2e/stack/`, with its own config (`playwright.stack.config.ts`, `npm run e2e:stack`). Locally it runs against the AppHost. CI's job **journeys** starts PostgreSQL and RabbitMQ as service containers and the API and the analysis service with `dotnet run`, wired as the AppHost would: not the AppHost itself, which also starts Ollama on a GPU.
 
+## Amendment (2026-11-25, step 99): fakes checked against the API
+The MCP server's tests answer it with a fake API. Every fake answer is now checked against `api/openapi.json` as it's set up (`ApiDescription`, with JsonSchema.Net): a path the API doesn't have, a status it doesn't answer there, or a body that doesn't fit fails the test. It found four answers the API had outgrown. Next to them, `Api.IntegrationTests` runs the MCP server against the real API, with the test world imported. The Assistant's fake MCP tools are checked the same way against the real MCP server: their parameters against its tools, their answers against the schema of its answer type. All of it runs on every PR, in the backend job.
+
 ## Alternatives considered
 - **In-memory EF provider for integration tests:** fast, but behaves differently from PostgreSQL (no real transactions or constraints) and gives false confidence.
 - **Mock-heavy unit tests for handlers:** couple tests to implementation details and break on every refactor.

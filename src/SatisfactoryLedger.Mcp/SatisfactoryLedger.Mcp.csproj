@@ -10,4 +10,9 @@
     <ProjectReference Include="..\SatisfactoryLedger.ServiceDefaults\SatisfactoryLedger.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <!-- The Assistant's tests check their fake tools' answers against these answer types (step 99). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="SatisfactoryLedger.Assistant.Tests" />
+  </ItemGroup>
+
 </Project>

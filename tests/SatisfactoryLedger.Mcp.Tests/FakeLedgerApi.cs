@@ -4,7 +4,11 @@ using System.Text.Json;
 
 namespace SatisfactoryLedger.Mcp.Tests;
 
-/// <summary>The ledger's API as the MCP server sees it: a JSON answer per path and query, 404 for anything else.</summary>
+/// <summary>
+/// The ledger's API as the MCP server sees it: a JSON answer per path and query, 404 for anything else. Each answer must
+/// be one the real API could give, as api/openapi.json describes it (step 99): otherwise the tests would pass against an
+/// API that no longer exists.
+/// </summary>
 internal sealed class FakeLedgerApi
 {
     private readonly Dictionary<string, (HttpStatusCode Status, string Json)> _answers = new(StringComparer.Ordinal);
@@ -14,7 +18,14 @@ internal sealed class FakeLedgerApi
 
     public FakeLedgerApi Answer(string pathAndQuery, object body, HttpStatusCode status = HttpStatusCode.OK)
     {
-        _answers[pathAndQuery] = (status, JsonSerializer.Serialize(body, JsonSerializerOptions.Web));
+        string json = JsonSerializer.Serialize(body, JsonSerializerOptions.Web);
+        string? misfit = ApiDescription.Misfit(pathAndQuery, status, json);
+        if (misfit is not null)
+        {
+            throw new InvalidOperationException(misfit);
+        }
+
+        _answers[pathAndQuery] = (status, json);
         return this;
     }
 

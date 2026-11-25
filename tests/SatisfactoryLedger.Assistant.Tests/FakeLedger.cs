@@ -11,8 +11,15 @@ internal sealed class FakeLedger
     /// <summary>Every call, in order: the tool and its arguments.</summary>
     public List<(string Tool, string Building, string? Recipe, string? SnapshotId)> Asked { get; } = [];
 
+    /// <summary>An answer the real tool could give (step 99): one it couldn't fails the test that sets it.</summary>
     public FakeLedger Answer(string tool, string json)
     {
+        string? misfit = RealLedgerTools.Misfit(tool, json);
+        if (misfit is not null)
+        {
+            throw new InvalidOperationException(misfit);
+        }
+
         _answers[tool] = json;
         return this;
     }

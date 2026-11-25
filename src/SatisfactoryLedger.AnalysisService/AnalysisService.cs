@@ -1,6 +1,9 @@
+using Polly;
+
 using SatisfactoryLedger.World.Contracts.Analysis;
 
 using Wolverine;
+using Wolverine.ErrorHandling;
 using Wolverine.RabbitMQ;
 
 namespace SatisfactoryLedger.AnalysisService;
@@ -40,6 +43,16 @@ public static class AnalysisService
             // A handler is cancelled after 60 seconds by default. An arrangement takes its solver's time (up to 10
             // minutes) plus half a minute for World to make the problem: room for the longest.
             options.DefaultExecutionTimeout = TimeSpan.FromMinutes(15);
+            // World couldn't be reached, after the World client's own retries (a few seconds): try the message again
+            // later, for up to an hour, before it goes to the error queue (decided 2026-11-25, step 99). Without this it
+            // went there at once, and the snapshot stayed pending until the API restarted. The handlers catch what
+            // fails in their own work; what's left is a call to World. Scheduled tries are kept in memory: a restart of
+            // this service loses them, and the API queues what's still pending when it starts.
+            options.OnException(
+                    exception => exception is HttpRequestException or ExecutionRejectedException,
+                    "World can't be reached")
+                .RetryWithCooldown(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2))
+                .Then.ScheduleRetry(Enumerable.Repeat(TimeSpan.FromMinutes(5), 12).ToArray());
             options.UseRabbitMqUsingNamedConnection(AnalysisMessaging.RabbitMqConnectionName).AutoProvision();
             // Inline: a message is handled as it arrives, and RabbitMQ gets its ack only after the handler is done. A
             // crash during a simulation leaves it on the queue. (Buffered would take it into memory first.) Inline

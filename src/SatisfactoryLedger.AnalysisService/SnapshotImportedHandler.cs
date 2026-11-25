@@ -24,7 +24,8 @@ public static partial class SnapshotImportedHandler
         {
             analysis = AnalysisDocument.Compute(network.ToNetwork());
         }
-        // The simulation itself failed: tell World why. A failing call to World is left to Wolverine to retry.
+        // The simulation itself failed: tell World why. A failing call to World is left to Wolverine to retry
+        // (AnalysisService: for up to an hour).
         catch (Exception e) when (e is not (OperationCanceledException or OutOfMemoryException))
         {
             LogFailed(logger, e, message.SnapshotId);
