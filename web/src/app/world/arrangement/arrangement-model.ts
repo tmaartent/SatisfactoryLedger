@@ -971,3 +971,75 @@ export function shownLevels(
 export function floorDistance(reach: number, aspect: number): number {
   return (reach * 0.9) / Math.min(1, aspect);
 }
+
+/** Which way a belt runs from one corner to the next, along x or y: the belt floor's belts run at right angles. */
+function heading(from: WorldPoint, to: WorldPoint): { x: number; y: number } {
+  return { x: Math.sign(to.x - from.x), y: Math.sign(to.y - from.y) };
+}
+
+/**
+ * Which way a belt comes into a point on it, and which way it goes on from there: along the stretch the point is on,
+ * or, at a corner, along the stretches before and after it. None in where it starts, none on where it ends.
+ */
+function wayThrough(
+  corners: readonly WorldPoint[],
+  at: WorldPoint,
+): { into?: { x: number; y: number }; onward?: { x: number; y: number } } | null {
+  const same = (a: WorldPoint) => a.x === at.x && a.y === at.y;
+  const corner = corners.findIndex(same);
+  if (corner >= 0)
+    return {
+      into: corner > 0 ? heading(corners[corner - 1], corners[corner]) : undefined,
+      onward:
+        corner < corners.length - 1 ? heading(corners[corner], corners[corner + 1]) : undefined,
+    };
+  for (let i = 0; i + 1 < corners.length; i++) {
+    const [a, b] = [corners[i], corners[i + 1]];
+    const within =
+      Math.min(a.x, b.x) <= at.x &&
+      at.x <= Math.max(a.x, b.x) &&
+      Math.min(a.y, b.y) <= at.y &&
+      at.y <= Math.max(a.y, b.y) &&
+      (a.x === b.x ? at.x === a.x : at.y === a.y);
+    if (within) return { into: heading(a, b), onward: heading(a, b) };
+  }
+  return null;
+}
+
+/**
+ * Where a supply line's splitter or priority merger on the floor takes in and sends out, as arrows half a foundation
+ * from it, pointing the way the items go (asked 2026-11-26): a splitter where `belt` starts on another, a merger where
+ * it ends on one. The other is the belt of the same item that passes there. None up in a factory.
+ */
+export function jointArrows(
+  belt: Pick<RoutedBeltResponse, 'corners' | 'item' | 'pipe' | 'injection'> &
+    Partial<Pick<RoutedBeltResponse, 'startsOnBelt' | 'endsOnBelt'>>,
+  end: 'start' | 'end',
+  belts: readonly Pick<RoutedBeltResponse, 'corners' | 'item' | 'pipe'>[],
+): { at: WorldPoint; along: { x: number; y: number }; way: 'in' | 'out' }[] {
+  const corners = belt.corners;
+  const n = corners.length;
+  const onFloor = end === 'start' ? belt.startsOnBelt === true : belt.endsOnBelt === true;
+  if (!onFloor || n < 2) return [];
+  const at = end === 'start' ? corners[0] : corners[n - 1];
+  const own =
+    end === 'start' ? heading(corners[0], corners[1]) : heading(corners[n - 2], corners[n - 1]);
+  const line = belts
+    .filter((other) => other !== belt && other.item === belt.item && other.pipe === belt.pipe)
+    .map((other) => wayThrough(other.corners, at))
+    .find((way) => way !== null);
+  const half = 400;
+  const arrow = (along: { x: number; y: number }, way: 'in' | 'out') => ({
+    at:
+      way === 'in'
+        ? { x: at.x - along.x * half, y: at.y - along.y * half }
+        : { x: at.x + along.x * half, y: at.y + along.y * half },
+    along,
+    way,
+  });
+  const lineIn = line?.into ? [arrow(line.into, 'in')] : [];
+  const lineOut = line?.onward ? [arrow(line.onward, 'out')] : [];
+  return end === 'end'
+    ? [arrow(own, 'in'), ...lineIn, ...lineOut]
+    : [...lineIn, ...lineOut, arrow(own, 'out')];
+}

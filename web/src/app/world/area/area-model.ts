@@ -225,3 +225,50 @@ export function tubeColour(
   if (bottlenecks.has(conveyor.id) || conveyor.looseEnds > 0) return conveyorColours.bottleneck;
   return shortOfHeadLift(conveyor) ? conveyorColours.headLift : conveyorColours[conveyor.kind];
 }
+
+/**
+ * How near a splitter or merger a belt's end is when it's connected to it, in centimetres, as measured on the Desert
+ * world (2026-11-26): at its port, 75 to 125 cm from its middle, while a neighbour's belt ends 2 m or more away; and at
+ * its own height, while splitters stacked on poles stand 2 m apart.
+ */
+const PortReach = { across: 150, high: 50 };
+
+/**
+ * Where a splitter or merger as built takes in and sends out, as arrows on its belts just outside it, pointing the way
+ * the items go (asked 2026-11-26): each arrow's middle 1.5 m along its belt from the port, so it lies beside the
+ * splitter or merger, not over it. The save keeps a belt's curve the way it runs: one that ends at it brings items in, one
+ * that starts at it takes them out. A belt only passing by, or on another floor, isn't one of its.
+ */
+export function attachmentArrows(
+  at: Position,
+  conveyors: readonly { curve: readonly CurvePointDocument[] }[],
+): { at: Position; along: { x: number; y: number }; way: 'in' | 'out' }[] {
+  const near = (point: Position) =>
+    Math.hypot(point.x - at.x, point.y - at.y) <= PortReach.across &&
+    Math.abs(point.z - at.z) <= PortReach.high;
+  // Flat, the way the belt runs there; where it runs straight up or down (a lift), towards or away from the middle.
+  const flat = (tangent: Position, from: Position, to: Position) => {
+    const [x, y] =
+      Math.hypot(tangent.x, tangent.y) > 1e-6
+        ? [tangent.x, tangent.y]
+        : [to.x - from.x, to.y - from.y];
+    const length = Math.hypot(x, y);
+    return length > 1e-6 ? { x: x / length, y: y / length } : null;
+  };
+  // An arrow's middle, 1.5 m from the port along its belt: back for one coming in, on for one going out.
+  const beside = (port: Position, along: { x: number; y: number }, way: 1 | -1): Position => ({
+    x: port.x + way * along.x * 150,
+    y: port.y + way * along.y * 150,
+    z: port.z,
+  });
+  return conveyors.flatMap((conveyor) => {
+    const [first, last] = [conveyor.curve[0], conveyor.curve[conveyor.curve.length - 1]];
+    if (!first || !last) return [];
+    const arrows: { at: Position; along: { x: number; y: number }; way: 'in' | 'out' }[] = [];
+    const into = near(last.location) ? flat(last.arriveTangent, last.location, at) : null;
+    if (into) arrows.push({ at: beside(last.location, into, -1), along: into, way: 'in' });
+    const out = near(first.location) ? flat(first.leaveTangent, at, first.location) : null;
+    if (out) arrows.push({ at: beside(first.location, out, 1), along: out, way: 'out' });
+    return arrows;
+  });
+}

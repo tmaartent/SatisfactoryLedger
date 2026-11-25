@@ -5,6 +5,7 @@ import {
   Area,
   areaAround,
   areaBetween,
+  attachmentArrows,
   buildingBoxes,
   curveInArea,
   inArea,
@@ -222,6 +223,47 @@ describe('area model', () => {
 
     it("is a pipe's with head lift to spare", () => {
       expect(tubeColour({ ...belt, kind: 'pipe', headLiftToSpare: 2 }, new Set())).toBe('#4dd0e1');
+    });
+  });
+
+  describe("a splitter's or merger's ways in and out, as built (asked 2026-11-26)", () => {
+    // A belt along x, its ends as the save keeps them: a point and the way the belt runs there.
+    const belt = (from: [number, number], to: [number, number]) => {
+      const along = { x: Math.sign(to[0] - from[0]), y: Math.sign(to[1] - from[1]), z: 0 };
+      return {
+        curve: [
+          {
+            location: { x: from[0], y: from[1], z: 100 },
+            arriveTangent: along,
+            leaveTangent: along,
+          },
+          { location: { x: to[0], y: to[1], z: 100 }, arriveTangent: along, leaveTangent: along },
+        ],
+      };
+    };
+    const splitter = { x: 0, y: 0, z: 100 };
+
+    it('takes in a belt that ends at it, the arrow on the belt just outside it, pointing the way the belt runs', () => {
+      // Its middle 1.5 m back along the belt from the port, so it lies beside the splitter, not over it.
+      expect(attachmentArrows(splitter, [belt([-2000, 0], [-100, 0])])).toEqual([
+        { at: { x: -250, y: 0, z: 100 }, along: { x: 1, y: 0 }, way: 'in' },
+      ]);
+    });
+
+    it('sends out on a belt that starts at it', () => {
+      expect(attachmentArrows(splitter, [belt([0, 100], [0, 2000])])).toEqual([
+        { at: { x: 0, y: 250, z: 100 }, along: { x: 0, y: 1 }, way: 'out' },
+      ]);
+    });
+
+    it('leaves out a belt that only passes near it', () => {
+      expect(attachmentArrows(splitter, [belt([-2000, 1000], [2000, 1000])])).toEqual([]);
+    });
+
+    it('leaves out a belt on another floor, above it', () => {
+      const above = belt([-2000, 0], [-100, 0]);
+      above.curve.forEach((point) => (point.location.z = 1100));
+      expect(attachmentArrows(splitter, [above])).toEqual([]);
     });
   });
 });

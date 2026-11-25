@@ -23,6 +23,7 @@ import { WorldPoint } from '../../api/models/world-point';
 import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
 import { boxGeometry } from '../area/box-geometry';
+import { flowArrow } from '../area/flow-arrow';
 import { sceneBackground } from '../area/scene-background';
 import { CatalogNames } from '../../shared/catalog-names';
 import {
@@ -32,6 +33,7 @@ import {
   floorDistance,
   joinedWays,
   levelShown,
+  jointArrows,
   lineJoints,
   crossingMarks,
   placedMachines,
@@ -140,13 +142,17 @@ export class BeltFloor3d {
   private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
   private readonly scene = new THREE.Scene();
   private readonly content = new THREE.Group();
+  /** The arrows of the splitter or merger clicked: its ways in and out (asked 2026-11-26). */
+  private readonly arrows = new THREE.Group();
+  /** The splitter or merger whose arrows show; none when none is clicked. */
+  private arrowsOf: THREE.Object3D | null = null;
   private readonly materials = new Map<string, THREE.Material>();
   private renderer?: THREE.WebGLRenderer;
   private camera?: THREE.PerspectiveCamera;
   private controls?: OrbitControls;
 
   constructor() {
-    this.scene.add(this.content, new THREE.AmbientLight('#ffffff', 1.2));
+    this.scene.add(this.content, this.arrows, new THREE.AmbientLight('#ffffff', 1.2));
     const sun = new THREE.DirectionalLight('#ffffff', 1.6);
     sun.position.set(0.4, 1, 0.3);
     this.scene.add(sun);
@@ -210,6 +216,7 @@ export class BeltFloor3d {
     this.renderer.domElement.addEventListener('pointerup', (event) => {
       if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 4) {
         this.pick(event);
+        this.showArrows(event);
         if (event.pointerType !== 'mouse') this.tipAt(event);
       }
       down = null;
@@ -243,6 +250,7 @@ export class BeltFloor3d {
     machines: ArrangementMachinesResponse | null,
   ): void {
     this.clear();
+    this.clearArrows();
     const { area, ceilingMetres } = arrangement.summary;
     const corners = arrangement.belts.flatMap((belt) => belt.corners);
     const bounds = area ?? {
@@ -386,6 +394,19 @@ export class BeltFloor3d {
         cube.userData['tooltip'] = joint.tooltip;
         cube.userData['belt'] = true;
         cube.userData['routed'] = belt;
+        // Its ways in and out, shown when it's clicked: a merger where the belt ends, a splitter where it starts.
+        cube.userData['arrows'] = jointArrows(
+          belt,
+          joint.kind === 'merger' ? 'end' : 'start',
+          arrangement.belts,
+        ).map((arrow) => ({
+          ...arrow,
+          at: new THREE.Vector3(
+            (arrow.at.x - middle.x) / 100,
+            cube.position.y,
+            (arrow.at.y - middle.y) / 100,
+          ),
+        }));
         this.levelled(cube, [joint.level], belt.levels);
         this.content.add(cube);
       }
@@ -523,6 +544,40 @@ export class BeltFloor3d {
     faded.opacity = full.opacity * 0.2;
     faded.depthWrite = false;
     Object.assign(object.userData, { full, faded });
+  }
+
+  /**
+   * A click on a splitter or merger on the floor shows its ways in and out as arrows (asked 2026-11-26); a click on it
+   * again, or anywhere else, lets go of them.
+   */
+  private showArrows(event: PointerEvent): void {
+    const canvas = this.renderer!.domElement;
+    const rect = canvas.getBoundingClientRect();
+    this.pointer.setFromCamera(
+      new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+      ),
+      this.camera!,
+    );
+    const hit = this.pointer
+      .intersectObjects(this.content.children, false)
+      .find((candidate) => candidate.object.visible && candidate.object.userData['arrows']);
+    const clicked = hit && hit.object !== this.arrowsOf ? hit.object : null;
+    this.clearArrows();
+    if (!clicked) return;
+    this.arrowsOf = clicked;
+    const arrows = clicked.userData['arrows'] as {
+      at: THREE.Vector3;
+      along: { x: number; y: number };
+      way: 'in' | 'out';
+    }[];
+    for (const arrow of arrows) this.arrows.add(flowArrow(arrow.at, arrow.along, arrow.way));
+  }
+
+  private clearArrows(): void {
+    this.arrows.clear();
+    this.arrowsOf = null;
   }
 
   /** The factory under a click, picked or unpicked: its slab or its machines, not a belt in front of it. */

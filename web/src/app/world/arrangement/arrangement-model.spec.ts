@@ -2,6 +2,7 @@ import { ArrangementSummary } from '../../api/models/arrangement-summary';
 import {
   areaBetween,
   beltLevels,
+  jointArrows,
   floorDistance,
   shownLevels,
   beltsToLabel,
@@ -1229,6 +1230,86 @@ describe('optimal arrangement', () => {
 
     it('as much further back as a phone is narrower than high, so the floor fits across', () => {
       expect(floorDistance(100, 0.5)).toBeCloseTo(180);
+    });
+  });
+
+  describe("a supply line's splitter or merger, its ways in and out (asked 2026-11-26)", () => {
+    // A line along x, through the joint at (2000, 0); half a foundation (4 m) either side of it, the arrows.
+    const routed = (corners: [number, number][], more: object = {}) => ({
+      corners: corners.map(([x, y]) => ({ x, y })),
+      levels: [0],
+      item: 'Desc_IronIngot_C',
+      pipe: false,
+      injection: false,
+      overflow: false,
+      startsOnBelt: false,
+      endsOnBelt: false,
+      ...more,
+    });
+    const line = routed([
+      [0, 0],
+      [4000, 0],
+    ]);
+
+    it('a priority merger takes in the line and the top-up from the side, and sends the line on', () => {
+      const topUp = routed(
+        [
+          [2000, -3000],
+          [2000, 0],
+        ],
+        { injection: true, endsOnBelt: true },
+      );
+      expect(jointArrows(topUp, 'end', [line, topUp])).toEqual([
+        { at: { x: 2000, y: -400 }, along: { x: 0, y: 1 }, way: 'in' },
+        { at: { x: 1600, y: 0 }, along: { x: 1, y: 0 }, way: 'in' },
+        { at: { x: 2400, y: 0 }, along: { x: 1, y: 0 }, way: 'out' },
+      ]);
+    });
+
+    it('a splitter takes in the line and sends it on, and the branch off to the side', () => {
+      const branch = routed(
+        [
+          [2000, 0],
+          [2000, 3000],
+        ],
+        { startsOnBelt: true },
+      );
+      expect(jointArrows(branch, 'start', [line, branch])).toEqual([
+        { at: { x: 1600, y: 0 }, along: { x: 1, y: 0 }, way: 'in' },
+        { at: { x: 2400, y: 0 }, along: { x: 1, y: 0 }, way: 'out' },
+        { at: { x: 2000, y: 400 }, along: { x: 0, y: 1 }, way: 'out' },
+      ]);
+    });
+
+    it('where the line turns at the joint, it comes in one way and goes on the other', () => {
+      const turning = routed([
+        [0, 0],
+        [2000, 0],
+        [2000, 3000],
+      ]);
+      const overflow = routed(
+        [
+          [2000, 0],
+          [4000, 0],
+        ],
+        { overflow: true, startsOnBelt: true },
+      );
+      expect(jointArrows(overflow, 'start', [turning, overflow])).toEqual([
+        { at: { x: 1600, y: 0 }, along: { x: 1, y: 0 }, way: 'in' },
+        { at: { x: 2000, y: 400 }, along: { x: 0, y: 1 }, way: 'out' },
+        { at: { x: 2400, y: 0 }, along: { x: 1, y: 0 }, way: 'out' },
+      ]);
+    });
+
+    it('has none up in a factory, where the belts go up into it', () => {
+      const topUp = routed(
+        [
+          [2000, -3000],
+          [2000, 0],
+        ],
+        { injection: true },
+      );
+      expect(jointArrows(topUp, 'end', [line, topUp])).toEqual([]);
     });
   });
 });
