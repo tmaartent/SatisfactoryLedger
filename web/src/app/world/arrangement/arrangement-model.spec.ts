@@ -1,5 +1,12 @@
+import { ArrangementSummary } from '../../api/models/arrangement-summary';
 import {
   areaBetween,
+  beltsToLabel,
+  halfway,
+  arrangedFactories,
+  factoriesInArea,
+  runStatus,
+  runSummary,
   areaFromQuery,
   relationsOf,
   lineGroups,
@@ -36,6 +43,147 @@ import {
 } from './arrangement-model';
 
 describe('optimal arrangement', () => {
+  describe('the factories in the area, as the Factories tab lists and the map names them', () => {
+    const owners = new Map([
+      ['s-1', [{ factoryId: 'steel', name: 'Steel Beams', colour: '#fff' }]],
+      ['s-2', [{ factoryId: 'steel', name: 'Steel Beams', colour: '#fff' }]],
+      ['w-1', [{ factoryId: 'wire', name: 'Wire', colour: '#fff' }]],
+      ['far', [{ factoryId: 'far', name: 'Far Away', colour: '#fff' }]],
+    ]);
+    const at = (id: string, x: number, y: number) => ({ id, position: { x, y, z: 0 } });
+    const machines = [
+      at('s-1', 0, 0),
+      at('s-2', 2000, 1000),
+      at('w-1', 3000, 3000),
+      at('far', 90000, 0),
+    ];
+    const area = { x0: -500, y0: -500, x1: 5000, y1: 5000 };
+
+    it('are those whose machines stand, in the middle, inside the area, by name', () => {
+      expect(factoriesInArea(machines, owners, area)).toEqual([
+        { factoryId: 'steel', name: 'Steel Beams', middle: { x: 1000, y: 500 } },
+        { factoryId: 'wire', name: 'Wire', middle: { x: 3000, y: 3000 } },
+      ]);
+    });
+
+    it('are none before an area is drawn', () => {
+      expect(factoriesInArea(machines, owners, null)).toEqual([]);
+    });
+
+    it("are a run's, in the middle of the plot it proposes, or where they stand when it proposes none", () => {
+      const now = { x0: 0, y0: 0, x1: 100, y1: 100 };
+      expect(
+        arrangedFactories([
+          {
+            factoryId: 'wire',
+            name: 'Wire',
+            now,
+            proposed: { x0: 1000, y0: 2000, x1: 1400, y1: 2400 },
+          },
+          { factoryId: 'steel', name: 'Steel Beams', now, proposed: null },
+          { factoryId: 'gone', name: null, now, proposed: null },
+        ]),
+      ).toEqual([
+        { factoryId: 'gone', name: '(deleted)', middle: { x: 50, y: 50 } },
+        { factoryId: 'steel', name: 'Steel Beams', middle: { x: 50, y: 50 } },
+        { factoryId: 'wire', name: 'Wire', middle: { x: 1200, y: 2200 } },
+      ]);
+    });
+  });
+
+  describe('what the routed belts of a run carry, said on the long ones that stand out (asked 2026-11-25)', () => {
+    const at = (x: number, y: number) => ({ x, y, z: 0 });
+    const belt = (
+      from: string,
+      to: string,
+      corners: { x: number; y: number; z: number }[],
+      item: string | null = 'Desc_IronPlate_C',
+    ) => ({
+      from,
+      to,
+      item,
+      corners,
+    });
+    const long = [at(0, 0), at(4000, 0)];
+    const short = [at(0, 0), at(1000, 0)];
+
+    it('are none while no factory is picked', () => {
+      expect(beltsToLabel([belt('miner', 'plates', long)], new Set())).toEqual([]);
+    });
+
+    it('are those into or out of a factory picked, 30 m long or more, that carry something', () => {
+      const into = belt('miner', 'plates', long);
+      const outOf = belt('plates', 'screws', long);
+      const shortOne = belt('smelter', 'plates', short);
+      const elsewhere = belt('miner', 'wire', long);
+      const empty = belt('miner', 'plates', long, null);
+
+      expect(beltsToLabel([into, outOf, shortOne, elsewhere, empty], new Set(['plates']))).toEqual([
+        into,
+        outOf,
+      ]);
+    });
+
+    it('stand halfway along the belt, around its turns', () => {
+      expect(halfway([at(0, 0), at(4000, 0), at(4000, 2000)])).toEqual(at(3000, 0));
+      expect(halfway([at(0, 0), at(1000, 0), at(1000, 3000)])).toEqual(at(1000, 1000));
+    });
+  });
+
+  describe('a run as the list of runs names it', () => {
+    const run: ArrangementSummary = {
+      id: 'run-1',
+      snapshotId: 'snapshot-1',
+      world: 'Learning',
+      requestedAt: '2026-11-25T10:00:00Z',
+      computedAt: '2026-11-25T10:01:00Z',
+      status: 'ready',
+      quality: 'optimal',
+      error: null,
+      area: null,
+      exclusions: [],
+      plotWidthMetres: 48,
+      plotDepthMetres: 48,
+      roadXMetres: 32,
+      roadYMetres: 32,
+      ceilingMetres: 64,
+      supplyLines: false,
+      seconds: 60,
+      spotWeight: 1,
+      together: 0,
+      duration: null,
+      costNow: 1000,
+      cost: 660,
+      beltMetres: 1234,
+      levelsUsed: 2,
+      unroutedBelts: 0,
+    };
+
+    it('says how it ended', () => {
+      expect(runStatus(run)).toBe('Optimal');
+      expect(runStatus({ ...run, quality: 'feasible' })).toBe('Best found in time');
+      expect(runStatus({ ...run, quality: null })).toBe('No layout found: nothing placed');
+      expect(runStatus({ ...run, status: 'pending' })).toBe('Computing…');
+      expect(runStatus({ ...run, status: 'failed', error: 'no room' })).toBe('Failed: no room');
+    });
+
+    it('sums it up in one line: its plots and roads, the belt work it saves and how it ended', () => {
+      expect(runSummary(run)).toBe('6 × 6 · roads 4 · 4 · −34% · Optimal');
+    });
+
+    it('says when it routes supply lines, and how many belts it left unrouted', () => {
+      expect(runSummary({ ...run, supplyLines: true, unroutedBelts: 3 })).toBe(
+        '6 × 6 · roads 4 · 4 · supply lines · −34% · 3 not routed · Optimal',
+      );
+    });
+
+    it('leaves out the saving while it is computed', () => {
+      expect(runSummary({ ...run, status: 'pending', cost: null, costNow: null })).toBe(
+        '6 × 6 · roads 4 · 4 · Computing…',
+      );
+    });
+  });
+
   const rectangle = (x0: number, y0: number, x1: number, y1: number) => ({ x0, y0, x1, y1 });
 
   it('places a rectangle on the map as the map places buildings: metres, north up', () => {

@@ -1,3 +1,5 @@
+import { ArrangedFactoryResponse } from '../../api/models/arranged-factory-response';
+import { ArrangementSummary } from '../../api/models/arrangement-summary';
 // The optimal arrangement's page, apart from Leaflet.
 import { RoutedBeltResponse } from '../../api/models/routed-belt-response';
 import { WorldPoint } from '../../api/models/world-point';
@@ -51,6 +53,97 @@ export function placedMachines<
 export function saving(costNow: number, cost: number): string {
   if (costNow <= 0) return '—';
   return `−${Math.round(((costNow - cost) / costNow) * 100)}%`;
+}
+
+/** A factory in the area to arrange: the Factories tab lists it, and the map names it at its middle (asked 2026-11-25). */
+export interface AreaFactory {
+  factoryId: string;
+  name: string;
+  /** In the world's centimetres. */
+  middle: { x: number; y: number };
+}
+
+/**
+ * The factories in the area before a run, by name: those whose machines' middle (of the rectangle around their
+ * positions) lies inside it. None before an area is drawn.
+ */
+export function factoriesInArea(
+  machines: readonly { id: string; position: WorldPoint }[],
+  owners: ReadonlyMap<string, readonly { factoryId: string; name: string }[]>,
+  area: WorldRectangle | null,
+): AreaFactory[] {
+  if (!area) return [];
+  const spans = new Map<string, { name: string; x0: number; y0: number; x1: number; y1: number }>();
+  for (const machine of machines) {
+    const owner = owners.get(machine.id)?.[0];
+    if (!owner) continue;
+    const { x, y } = machine.position;
+    const span = spans.get(owner.factoryId);
+    if (span)
+      Object.assign(span, {
+        x0: Math.min(span.x0, x),
+        y0: Math.min(span.y0, y),
+        x1: Math.max(span.x1, x),
+        y1: Math.max(span.y1, y),
+      });
+    else spans.set(owner.factoryId, { name: owner.name, x0: x, y0: y, x1: x, y1: y });
+  }
+  const [left, right] = [Math.min(area.x0, area.x1), Math.max(area.x0, area.x1)];
+  const [top, bottom] = [Math.min(area.y0, area.y1), Math.max(area.y0, area.y1)];
+  return [...spans]
+    .map(([factoryId, span]) => ({
+      factoryId,
+      name: span.name,
+      middle: { x: (span.x0 + span.x1) / 2, y: (span.y0 + span.y1) / 2 },
+    }))
+    .filter(
+      ({ middle }) =>
+        middle.x >= left && middle.x <= right && middle.y >= top && middle.y <= bottom,
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** A run's factories, by name: at the middle of the plot it proposes, or where they stand when it proposes none. */
+export function arrangedFactories(factories: readonly ArrangedFactoryResponse[]): AreaFactory[] {
+  const middleOf = (rectangle: WorldRectangle) => ({
+    x: (rectangle.x0 + rectangle.x1) / 2,
+    y: (rectangle.y0 + rectangle.y1) / 2,
+  });
+  return factories
+    .map((factory) => ({
+      factoryId: factory.factoryId,
+      name: factory.name ?? '(deleted)',
+      middle: middleOf(factory.proposed ?? factory.now),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** How a run ended, or that it's still computed. */
+export function runStatus(run: ArrangementSummary): string {
+  if (run.status === 'pending') return 'Computing…';
+  if (run.status === 'failed') return `Failed: ${run.error ?? ''}`;
+  return run.quality === 'optimal'
+    ? 'Optimal'
+    : run.quality === 'feasible'
+      ? 'Best found in time'
+      : 'No layout found: nothing placed';
+}
+
+/**
+ * A run in one line, as the list of runs shows it under when it was asked for (asked 2026-11-25): its plots and roads
+ * in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, how it ended.
+ */
+export function runSummary(run: ArrangementSummary): string {
+  const size = (metres: number) => String(Math.round(foundations(metres) * 10) / 10);
+  const parts = [
+    `${size(run.plotWidthMetres)} × ${size(run.plotDepthMetres)}`,
+    `roads ${size(run.roadXMetres)} · ${size(run.roadYMetres)}`,
+  ];
+  if (run.supplyLines) parts.push('supply lines');
+  if (run.costNow !== null && run.cost !== null) parts.push(saving(run.costNow, run.cost));
+  if (run.unroutedBelts) parts.push(`${run.unroutedBelts} not routed`);
+  parts.push(runStatus(run));
+  return parts.join(' · ');
 }
 
 /**
@@ -681,6 +774,45 @@ export function linesToLabel(
   lengthOf: (id: string) => number,
 ): string[][] {
   return lines.filter((line) => line.reduce((sum, id) => sum + lengthOf(id), 0) >= LabelledLine);
+}
+
+/** How long a run of corners is on the map, in centimetres. */
+function lengthAlong(corners: readonly WorldPoint[]): number {
+  let length = 0;
+  for (let i = 1; i < corners.length; i++)
+    length += Math.hypot(corners[i].x - corners[i - 1].x, corners[i].y - corners[i - 1].y);
+  return length;
+}
+
+/**
+ * The routed belts of a run that say what they carry (asked 2026-11-25), as the lines before a run: with a factory
+ * picked, those into or out of it, 30 metres long or more, that carry something.
+ */
+export function beltsToLabel<
+  Belt extends Pick<RoutedBeltResponse, 'from' | 'to' | 'item' | 'corners'>,
+>(belts: readonly Belt[], focused: ReadonlySet<string>): Belt[] {
+  if (focused.size === 0) return [];
+  return belts.filter(
+    (belt) =>
+      belt.item != null &&
+      (focused.has(belt.from) || focused.has(belt.to)) &&
+      lengthAlong(belt.corners) >= LabelledLine,
+  );
+}
+
+/** The point halfway along a run of corners, around its turns. */
+export function halfway(corners: readonly WorldPoint[]): WorldPoint {
+  let left = lengthAlong(corners) / 2;
+  for (let i = 1; i < corners.length; i++) {
+    const [a, b] = [corners[i - 1], corners[i]];
+    const step = Math.hypot(b.x - a.x, b.y - a.y);
+    if (step >= left && step > 0) {
+      const t = left / step;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z };
+    }
+    left -= step;
+  }
+  return corners[corners.length - 1];
 }
 
 /**

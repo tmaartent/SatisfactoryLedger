@@ -34,6 +34,7 @@ const sweep: Record<
   'the optimal arrangement': {
     path: pages.arrangement,
     ready: (page) => expect(page.locator('.leaflet-container')).toBeVisible(),
+    fills: true,
   },
 };
 

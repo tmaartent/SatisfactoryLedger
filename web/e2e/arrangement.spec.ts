@@ -15,11 +15,23 @@ test.describe('the optimal arrangement', () => {
     await noSidewaysScroll(page);
   });
 
-  test('says how to draw the area with the fingers or the keys it has', async ({ page }) => {
+  test('says how to draw the area with the fingers or the keys it has, in its Info tab', async ({
+    page,
+  }) => {
     const [shown, hidden] = (await touch(page)) ? ['touch', 'keys'] : ['keys', 'touch'];
+    await page.getByRole('button', { name: 'Info', exact: true }).click();
 
-    await expect(page.locator(`.intro .${shown}`).first()).toBeVisible();
-    await expect(page.locator(`.intro .${hidden}`).first()).toBeHidden();
+    await expect(page.locator(`.about .${shown}`).first()).toBeVisible();
+    await expect(page.locator(`.about .${hidden}`).first()).toBeHidden();
+  });
+
+  test('opens on the area to arrange, its map in view without scrolling', async ({ page }) => {
+    // Step 100: the map lay below the introduction, the settings and the runs, and showed the whole world.
+    await inView(page, '.leaflet-container');
+    const area = page.locator('.leaflet-overlay-pane path, .leaflet-overlay-pane canvas').first();
+    await expect(area).toBeAttached();
+    const map = (await page.locator('.leaflet-container').boundingBox())!;
+    expect(map.height).toBeGreaterThan(200);
   });
 
   test('offers to make a selection the area or a part to keep out, in view, on a touch screen', async ({
