@@ -19,13 +19,15 @@ export const test = base.extend<{ api: string[] }>({
   ],
 });
 
+/** The test world's machines, with some room: the area of its 3D view and its arrangement. */
+export const area = 'x0=243000&y0=-199500&x1=255000&y1=-193000';
+
 export const pages = {
   start: '/snapshots',
   catalog: '/catalog',
   map: `/snapshots/${snapshot}/map`,
-  // The test world's machines, with some room.
-  area: `/snapshots/${snapshot}/area?x0=243000&y0=-199500&x1=255000&y1=-193000`,
-  arrangement: `/snapshots/${snapshot}/arrangement?x0=243000&y0=-199500&x1=255000&y1=-193000`,
+  area: `/snapshots/${snapshot}/area?${area}`,
+  arrangement: `/snapshots/${snapshot}/arrangement?${area}`,
   factory: `/snapshots/${snapshot}/factories/${factory}`,
   /** The map, centred on one of the factory's smelters. */
   smelter: `/snapshots/${snapshot}/map?focus=Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2147301500`,

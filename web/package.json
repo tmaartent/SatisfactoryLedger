@@ -16,7 +16,9 @@
     "format:check": "prettier --check .",
     "pree2e": "npm run generate:api",
     "e2e": "playwright test",
-    "e2e:record": "node e2e/record.mjs"
+    "e2e:record": "node e2e/record.mjs",
+    "pree2e:stack": "npm run generate:api",
+    "e2e:stack": "playwright test -c playwright.stack.config.ts"
   },
   "private": true,
   "packageManager": "npm@11.3.0",

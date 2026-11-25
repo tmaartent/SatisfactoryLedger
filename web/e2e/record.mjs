@@ -15,7 +15,9 @@ if (!snapshot) {
 }
 
 // A factory in the test world, for the pages that show one (step 96): its two smelters and the constructor making
-// plates, as the .NET tests' plates factory. Made once; recording again finds it.
+// plates, as the .NET tests' plates factory. Made for the recording and deleted after it (step 97), so the world is left
+// as it was: the journeys against the real stack define a factory of these machines themselves (a machine belongs to
+// one factory at most, BR-W5). One already there is used and kept.
 const factoryName = 'Iron Plates';
 const machines = [
   'Build_SmelterMk1_C_2147301500',
@@ -24,15 +26,16 @@ const machines = [
 ].map((name) => `Persistent_Level:PersistentLevel.${name}`);
 const known = await fetch(`${base}/api/v1/world/factories?world=Development`).then((r) => r.json());
 let factory = known.find((candidate) => candidate.name === factoryName)?.id;
-if (!factory) {
-  const made = await fetch(`${base}/api/v1/world/factories`, {
+const made = !factory;
+if (made) {
+  const answer = await fetch(`${base}/api/v1/world/factories`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ world: 'Development', name: factoryName, machines }),
   });
-  if (!made.ok)
-    throw new Error(`The factory couldn't be made: ${made.status} ${await made.text()}`);
-  factory = (await made.json()).id;
+  if (!answer.ok)
+    throw new Error(`The factory couldn't be made: ${answer.status} ${await answer.text()}`);
+  factory = (await answer.json()).id;
 }
 
 // The test world's machines, with some room: the 3D view of it.
@@ -68,6 +71,7 @@ for (const path of pages) {
   await page.waitForTimeout(3000);
 }
 await browser.close();
+if (made) await fetch(`${base}/api/v1/world/factories/${factory}`, { method: 'DELETE' });
 
 // Only what's the test world's: the snapshot list names the player's other worlds too, and the node table comes from
 // the player's own resource-nodes.json, which stays out of the repo. Of it, the nodes the test world's providers use.

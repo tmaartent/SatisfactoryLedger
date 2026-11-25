@@ -25,7 +25,7 @@ export default defineConfig({
   projects: [
     // The recorded answers against the API's description (step 96): once, without a browser.
     { name: 'recording', testMatch: /recording\.spec\.ts/ },
-    // The pages, per device.
+    // The pages, per device. Not the journeys in e2e/stack, which need the real stack (playwright.stack.config.ts).
     ...[
       { name: 'phone-android', use: { ...devices['Pixel 7'] } },
       { name: 'phone-iphone', use: { ...devices['iPhone 15'] } },
@@ -34,7 +34,7 @@ export default defineConfig({
         name: 'desktop',
         use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
       },
-    ].map((project) => ({ ...project, testIgnore: /recording\.spec\.ts/ })),
+    ].map((project) => ({ ...project, testIgnore: [/recording\.spec\.ts/, /[\/]stack[\/]/] })),
   ],
   // Its own port, beside the app the AppHost serves on 4200.
   webServer: {
