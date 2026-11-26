@@ -67,6 +67,17 @@ public static class WorldFlow
         return line;
     }
 
+    /// <summary>
+    /// What a drone port takes of its fuel at most per minute: what its drones burn (BR-A16), nothing where no drone
+    /// refuels (issue #44), or null when that isn't known, so it takes only what the line's other consumers leave.
+    /// </summary>
+    private static double? MostFuel(FuelBurn burn) => burn switch
+    {
+        FuelBurn.Known known => known.PerMinute.ToDouble(),
+        FuelBurn.NoDroneRefuels => 0,
+        _ => null,
+    };
+
     private static FlowNode NodeOf(Buildable buildable, WorldGraph world, Dictionary<BuildableId, IReadOnlySet<ItemId>> cargo) => buildable switch
     {
         Machine machine => new FlowMachine(
@@ -76,11 +87,11 @@ public static class WorldFlow
         // BR-A9: its rate isn't known (a station, an unknown node), so it supplies what is asked. A station also
         // takes everything loaded onto it.
         Provider provider => new FlowUnknownSource(
-            provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, provider.BurnRate?.ToDouble(), provider.Inventory, cargo.GetValueOrDefault(provider.Id)),
+            provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, MostFuel(provider.FuelBurn), provider.Inventory, cargo.GetValueOrDefault(provider.Id)),
         // BR-A8: a generator burning a known fuel takes what it burns and makes its waste, like a machine.
         Consumer { Generation: not null } generator => new FlowMachine(
             generator.Id, PerMinute(generator.Demand), PerMinute(generator.Production), Stocked(generator.Demand, generator.InputStock)),
-        Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly, consumer.BurnRate?.ToDouble(), Evidenced(consumer.Inventory, consumer.Id, world)),
+        Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly, MostFuel(consumer.FuelBurn), Evidenced(consumer.Inventory, consumer.Id, world)),
         Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction or LogisticsKind.PipeNetwork } splitter =>
             new FlowSplitter(splitter.Id, CarriesOf(splitter), splitter.SortRules),
         Logistics { Kind: LogisticsKind.Merger } merger => new FlowMerger(merger.Id, CarriesOf(merger), merger.InputPriorities),

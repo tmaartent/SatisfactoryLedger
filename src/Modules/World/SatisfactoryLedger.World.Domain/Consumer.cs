@@ -12,24 +12,24 @@ namespace SatisfactoryLedger.World.Domain;
 /// For a dimensional depot uploader: it takes only what the line's other consumers leave. In steady state a depot is
 /// full (BR-A8).
 /// </param>
-/// <param name="burnRate">For a drone port: how much of its fuel it burns per minute, when that's known (BR-A16).</param>
+/// <param name="fuelBurn">For a drone port: what it burns of its fuel (BR-A16); not known when left out.</param>
 public sealed class Consumer(
     BuildableId id,
     IReadOnlySet<ItemId>? burns = null,
     Generation? generation = null,
     bool takesLeftoversOnly = false,
-    Rate? burnRate = null) : Buildable(id)
+    FuelBurn? fuelBurn = null) : Buildable(id)
 {
     public bool TakesLeftoversOnly { get; } = takesLeftoversOnly;
 
     /// <summary>
-    /// The fuel it burns: fuel coming in takes only what the line's other consumers leave (step 14), unless its
-    /// <see cref="BurnRate"/> is known.
+    /// The fuel in its slot: fuel coming in takes only what the line's other consumers leave (step 14), unless its
+    /// <see cref="FuelBurn"/> is known, or none of it where no drone refuels.
     /// </summary>
     public IReadOnlySet<ItemId> Burns { get; } = burns ?? new HashSet<ItemId>();
 
-    /// <summary>How much of its fuel it burns per minute; null when that isn't known (BR-A16).</summary>
-    public Rate? BurnRate { get; } = burnRate;
+    /// <summary>What it burns of its fuel (BR-A16).</summary>
+    public FuelBurn FuelBurn { get; } = fuelBurn ?? new FuelBurn.NotKnown();
 
     /// <summary>
     /// For a generator: the fuel it holds at save time, per item. A stock that lasts counts as supplied (BR-A17).
@@ -55,15 +55,18 @@ public sealed class Consumer(
     /// A generator burning a known fuel its fuel and, when it needs any, its water (BR-A8); a drone port the fuel its
     /// drones burn (BR-A16); nothing known for the others.
     /// </summary>
-    public override IReadOnlyDictionary<ItemId, Rate> Demand { get; } = generation is { } burning ? Needs(burning) : Burning(burns ?? NoItems, burnRate);
+    public override IReadOnlyDictionary<ItemId, Rate> Demand { get; } = generation is { } burning ? Needs(burning) : Burning(burns ?? NoItems, fuelBurn);
 
     /// <summary>A generator burning a known fuel its waste, when it leaves any (BR-A8).</summary>
     public override IReadOnlyDictionary<ItemId, Rate> Production { get; } =
         generation is { Byproduct: { } waste, Leaves: var leaves } && leaves > Rate.Zero ? new Dictionary<ItemId, Rate> { [waste] = leaves } : NoRates;
 
-    /// <summary>A generator its fuel and water, a drone port or truck station its fuel, whether or not its rate is known.</summary>
+    /// <summary>
+    /// A generator its fuel and water, a drone port or truck station its fuel, whether or not its rate is known; a drone
+    /// port where no drone refuels none.
+    /// </summary>
     public override IReadOnlySet<ItemId> Consumes { get; } =
-        generation is { } fuelled ? Needs(fuelled).Keys.ToHashSet() : burns ?? NoItems;
+        generation is { } fuelled ? Needs(fuelled).Keys.ToHashSet() : Fuelled(burns ?? NoItems, fuelBurn);
 
     private static Dictionary<ItemId, Rate> Needs(Generation generation)
     {

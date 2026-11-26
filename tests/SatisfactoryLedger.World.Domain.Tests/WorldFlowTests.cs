@@ -329,6 +329,39 @@ public class WorldFlowTests
     }
 
     [Fact]
+    public void A_drone_port_that_unloads_where_no_drone_refuels_takes_none_of_its_fuel()
+    {
+        TestWorld world = new TestWorld().Miner("fuel", Items.Coal, 60).Belt("belt").StationWhereNoDroneRefuels("port", Items.Coal)
+            .Connect("fuel", "belt", "port");
+
+        FlowResult result = SteadyState.Of(WorldFlow.From(world.Build(), fluids: []));
+
+        Assert.Equal(0, result.Flow(BuildableId.Of("belt"), BuildableId.Of("port"), Items.Coal), 4);
+    }
+
+    [Fact]
+    public void A_drone_port_that_loads_where_no_drone_refuels_takes_none_of_its_fuel()
+    {
+        TestWorld world = new TestWorld().Miner("fuel", Items.Coal, 60).Belt("belt").LoadingStationWhereNoDroneRefuels("port", Items.Coal)
+            .Connect("fuel", "belt", "port");
+
+        FlowResult result = SteadyState.Of(WorldFlow.From(world.Build(), fluids: []));
+
+        Assert.Equal(0, result.Flow(BuildableId.Of("belt"), BuildableId.Of("port"), Items.Coal), 4);
+    }
+
+    [Fact]
+    public void A_station_sends_no_fuel_to_a_drone_port_where_no_drone_refuels()
+    {
+        TestWorld world = new TestWorld().Station("station").Belt("belt").LoadingStationWhereNoDroneRefuels("port", Items.Coal)
+            .Connect("station", "belt", "port");
+
+        FlowResult result = SteadyState.Of(WorldFlow.From(world.Build(), fluids: []));
+
+        Assert.Equal(0, result.Flow(BuildableId.Of("belt"), BuildableId.Of("port"), Items.Coal), 4);
+    }
+
+    [Fact]
     public void A_station_whose_burn_rate_is_not_known_has_none()
     {
         TestWorld world = new TestWorld().StationBurning("port", Items.IronPlate);

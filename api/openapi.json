@@ -2348,7 +2348,8 @@
           "burns",
           "supplied",
           "position",
-          "approximate"
+          "approximate",
+          "noDroneRefuels"
         ],
         "type": "object",
         "properties": {
@@ -2362,7 +2363,10 @@
             "type": "string"
           },
           "burns": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "format": "double"
           },
           "supplied": {
@@ -2380,6 +2384,9 @@
             ]
           },
           "approximate": {
+            "type": "boolean"
+          },
+          "noDroneRefuels": {
             "type": "boolean"
           }
         }
@@ -4187,6 +4194,7 @@
           "consumerStarved",
           "storageFull",
           "nowhereToGo",
+          "noDroneRefuels",
           "unclear"
         ]
       },

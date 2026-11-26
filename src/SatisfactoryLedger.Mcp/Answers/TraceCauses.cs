@@ -20,6 +20,7 @@ internal static class TraceCauses
     public const string ConsumerStarved = "consumer starved";
     public const string StorageFull = "storage full";
     public const string NowhereToGo = "nowhere to go";
+    public const string NoDroneRefuelsHere = "no drone refuels here";
     public const string Unclear = "unclear";
 
     /// <summary>The API's cause codes, as <c>TraceCause</c> is written in JSON.</summary>
@@ -38,6 +39,7 @@ internal static class TraceCauses
         ["consumerStarved"] = ConsumerStarved,
         ["storageFull"] = StorageFull,
         ["nowhereToGo"] = NowhereToGo,
+        ["noDroneRefuels"] = NoDroneRefuelsHere,
         ["unclear"] = Unclear,
     };
 

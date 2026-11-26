@@ -38,7 +38,8 @@ internal sealed class TraceTools(LedgerClient ledger, SnapshotChoice snapshots, 
         $"ledger's term: {TraceCauses.TooFewConsumers} (they run at full speed on all that's sent), {TraceCauses.Bottleneck} (a belt, lift or " +
         $"pipe at capacity; {MoreCapacityText}), {TraceCauses.SuppliedByOthers} (the consumers also take from other producers; 'others' says who and how much), " +
         $"{TraceCauses.ConsumerStarved} (they lack another input; 'shortOf' says which, in percent), {TraceCauses.StorageFull} (a full " +
-        $"container or station), {TraceCauses.NowhereToGo} (a belt to nothing, or no line out at all), {TraceCauses.WithoutARecipe}, " +
+        $"container or station), {TraceCauses.NowhereToGo} (a belt to nothing, or no line out at all), " +
+        $"{TraceCauses.NoDroneRefuelsHere} (a drone port has the item in its fuel slot, but no drone refuels there, so it burns none), {TraceCauses.WithoutARecipe}, " +
         $"{TraceCauses.Unclear}. Each start comes with the path.")]
     public Task<TraceAnswer> TraceDownstreamAsync(
         [Description("The building, by its in-game name, e.g. \"Smelter\".")] string building,

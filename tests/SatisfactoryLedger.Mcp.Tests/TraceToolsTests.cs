@@ -28,6 +28,7 @@ public class TraceToolsTests
     [Theory]
     [InlineData("trace_upstream", "taken by others", "takenByOthers")]
     [InlineData("trace_downstream", "supplied by others", "suppliedByOthers")]
+    [InlineData("trace_downstream", "no drone refuels here", "noDroneRefuels")]
     public async Task Describes_each_cause_by_the_term_its_answer_gives_it_not_by_its_code(string tool, string term, string code)
     {
         await using var server = await LedgerMcpTestServer.StartAsync(IronWorld.Api());

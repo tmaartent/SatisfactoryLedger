@@ -101,7 +101,7 @@ public class BuildableRatesTests
     [Fact]
     public void A_drone_port_that_loads_asks_the_fuel_its_drones_burn()
     {
-        Buildable port = new Consumer(Id, new HashSet<ItemId> { Items.Battery }, burnRate: Rate.PerMinute(2));
+        Buildable port = new Consumer(Id, new HashSet<ItemId> { Items.Battery }, fuelBurn: new FuelBurn.Known(Rate.PerMinute(2)));
 
         Assert.Equal(new Dictionary<ItemId, Rate> { [Items.Battery] = Rate.PerMinute(2) }, port.Demand);
     }
@@ -109,9 +109,27 @@ public class BuildableRatesTests
     [Fact]
     public void A_drone_port_that_unloads_asks_the_fuel_its_drones_burn()
     {
-        Buildable port = new Provider(Id, burns: new HashSet<ItemId> { Items.Battery }, burnRate: Rate.PerMinute(2));
+        Buildable port = new Provider(Id, burns: new HashSet<ItemId> { Items.Battery }, fuelBurn: new FuelBurn.Known(Rate.PerMinute(2)));
 
         Assert.Equal(new Dictionary<ItemId, Rate> { [Items.Battery] = Rate.PerMinute(2) }, port.Demand);
+    }
+
+    [Fact]
+    public void A_drone_port_that_loads_where_no_drone_refuels_asks_and_consumes_none_of_its_fuel()
+    {
+        Buildable port = new Consumer(Id, new HashSet<ItemId> { Items.Battery }, fuelBurn: new FuelBurn.NoDroneRefuels());
+
+        Assert.Empty(port.Demand);
+        Assert.Empty(port.Consumes);
+    }
+
+    [Fact]
+    public void A_drone_port_that_unloads_where_no_drone_refuels_asks_and_consumes_none_of_its_fuel()
+    {
+        Buildable port = new Provider(Id, burns: new HashSet<ItemId> { Items.Battery }, fuelBurn: new FuelBurn.NoDroneRefuels());
+
+        Assert.Empty(port.Demand);
+        Assert.Empty(port.Consumes);
     }
 
     [Fact]

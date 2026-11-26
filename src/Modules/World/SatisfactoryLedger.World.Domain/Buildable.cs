@@ -40,6 +40,10 @@ public abstract class Buildable
     public override string ToString() => $"{GetType().Name} {Id}";
 
     /// <summary>BR-A16: a drone port burns the fuel in its slot at its drones' rate, when that's known.</summary>
-    private protected static IReadOnlyDictionary<ItemId, Rate> Burning(IReadOnlySet<ItemId> burns, Rate? burnRate) =>
-        burnRate is { } rate && burns.Count == 1 ? new Dictionary<ItemId, Rate> { [burns.Single()] = rate } : NoRates;
+    private protected static IReadOnlyDictionary<ItemId, Rate> Burning(IReadOnlySet<ItemId> burns, FuelBurn? burn) =>
+        burn is FuelBurn.Known known && burns.Count == 1 ? new Dictionary<ItemId, Rate> { [burns.Single()] = known.PerMinute } : NoRates;
+
+    /// <summary>The fuel in its slot it takes in: none at a drone port where no drone refuels (issue #44).</summary>
+    private protected static IReadOnlySet<ItemId> Fuelled(IReadOnlySet<ItemId> burns, FuelBurn? burn) =>
+        burn is FuelBurn.NoDroneRefuels ? NoItems : burns;
 }

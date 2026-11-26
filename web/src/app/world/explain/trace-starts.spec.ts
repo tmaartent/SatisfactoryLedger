@@ -339,5 +339,24 @@ describe('where a shortage starts, as the dialog lists it', () => {
 
       expect(whereItStarts([nothing])[0].perMinute).toBeNull();
     });
+
+    it('names a drone port where no drone refuels as where it starts, without a rate', () => {
+      const idle: TraceStart = {
+        cause: 'noDroneRefuels',
+        causeTerm: 'no drone refuels here',
+        item: 'Battery',
+        perMinute: 0,
+        at: [buildings('Drone Port', ['p1'])],
+        path: [constructors],
+      };
+
+      const row = whereItStarts([idle])[0];
+
+      expect([row.cause, row.atLabel, row.perMinute]).toEqual([
+        'No drone refuels here',
+        'At',
+        null,
+      ]);
+    });
   });
 });
