@@ -10,10 +10,51 @@ This is a **learning project**. The owner's goal is to learn how .NET, ASP.NET C
 - **Quirks go into `docs/guide/primer.md`.** Anything that surprises someone coming from Java or TypeScript (e.g. non-virtual by default, generics not erased, variance), and every new term. Point to exact file + section names, not "rule 1 from chapter 7".
 - **The owner reviews, then Claude commits.** Don't commit a step before the owner has seen its overview, unless told to.
 - **Owner's background:** experienced with DDD, TDD, Java/Spring, Python, databases and unit testing. New to the .NET ecosystem. Explain .NET things by mapping them to the Java/Spring equivalent (see `docs/guide/from-java-spring.md`). Don't re-explain DDD/TDD concepts.
-- **No production code that only tests use.** Every method, property or type in `src/` must have a caller in `src/`. Put logic in the module where production uses it, and test it there; don't add a helper to another module just to have something to assert on. Before finishing a step, check each new member for a production caller (search outside `tests/`), and remove or move whatever has none. Example of the mistake: `DronePort.EnergyOf` and `Generator.BurnRate`, `SupplementalRate`, `ByproductRate` in the Catalog, used only by tests while the World module computes the real rates.
+- **No production code that only tests use.** Every method, property or type in `src/` must have a caller in `src/`. Put logic in the module that owns the concept (see **Design** below), which production then calls, and test it there; don't add a helper to another module just to have something to assert on. Before finishing a step, check each new member for a production caller (search outside `tests/`), and remove or move whatever has none. Example of the mistake: `DronePort.EnergyOf` and `Generator.BurnRate`, `SupplementalRate`, `ByproductRate` in the Catalog, used only by tests while the World module computes the real rates.
 - **Verify library APIs against the version actually installed** (the release tag, not the main branch) before using methods. Example: `ResideInNamespaceOrBelow` exists on ArchUnitNET's main branch but not in 0.13.4.
 - Keep the docs honest. When a decision changes, update the ADR, and keep the glossary in line with the code (ubiquitous language).
 - When reviewing the owner's own code, rank findings: domain-model correctness first, then tests, then API/contract, then style. Explain *why* something is a problem.
+
+## Design: deep modules, as Matt Pocock's skills describe them
+
+Since 2026-11-26 (after step 113 had to merge five readers of the stored analysis into one), design follows the
+`mattpocock-skills` plugin. Its skills are the reference; this section says when each one applies here.
+
+- **Vocabulary: `/mattpocock-skills:codebase-design`.** Talk about structure in its terms: **module**, **interface**,
+  **implementation**, **depth**, **seam**, **adapter**, **leverage**, **locality**. Say "seam", not "boundary" (that's DDD's
+  bounded context). Domain words come from `docs/domain/glossary.md`.
+- **Name the module before building.** Each step overview has a **Design** section:
+  - which module owns the concept the step touches;
+  - whether its interface changes;
+  - what the deletion test says about anything new.
+  
+  A step that needs a fact a module already derives asks that module, and widens its interface if it can't answer
+  yet. It doesn't work the answer out next to the caller.
+- **The second copy is the trigger.** Before writing a calculation, search for the concept by its glossary term and
+  its code names. A second copy of something that exists gets moved into the module that owns it in the same step.
+- **One glossary term, one code home.** The glossary's code column names the one member that computes each term. A
+  term that needs two members listed is a shallow-module smell, raised in the overview.
+- **Seam discipline, from `codebase-design` (`DEEPENING.md`):**
+  - One adapter means a hypothetical seam; two adapters (production and test) mean a real one. Don't add an interface
+    or port for a single adapter.
+  - Classify a module's dependencies before deepening it: in-process, local-substitutable (Postgres via
+    Testcontainers), remote but owned (ports and adapters), or true external (mock).
+- **Tests at agreed seams, from `/mattpocock-skills:tdd`:**
+  - Before writing a step's tests, name the seams under test, with a line each on what they catch and miss, and get
+    the owner's OK.
+  - Test through the module's interface, one vertical slice at a time: red, then green.
+  - Refactoring isn't part of the loop; it belongs to the review.
+  - When a deepened module's interface has its own tests, the old tests of the shallow modules it replaced are
+    deleted ("replace, don't layer"), unless the owner keeps them as a safety net.
+  - End-to-end tests (save → solver → finding) are few, and say they're end-to-end.
+- **Design questions go through `/mattpocock-skills:grilling`:** rounds of numbered questions, each with a recommended
+  answer, before a step whose module or interface isn't obvious. The glossary and ADRs are updated as answers land
+  (`/mattpocock-skills:domain-modeling`).
+- **Structure gets reviewed, not just behaviour:**
+  - When reviewing, after domain correctness, check whether the change added a second copy of something, or made a
+    caller reach past a module's interface.
+  - Run `/mattpocock-skills:improve-codebase-architecture` every ten steps, or sooner when one concept spreads over
+    more than three files.
 
 ## Project conventions
 
