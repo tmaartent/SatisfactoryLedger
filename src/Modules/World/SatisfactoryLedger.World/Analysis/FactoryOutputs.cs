@@ -1,6 +1,7 @@
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -24,10 +25,9 @@ internal static class FactoryOutputs
         WorldGraph world,
         StoredFactory factory,
         FactoryMembers members,
-        AnalysisDocument analysis,
+        FlowReadings readings,
         IEnumerable<StoredFactory> factories)
     {
-        Dictionary<string, MachineStateDocument> states = analysis.Machines.ToDictionary(state => state.Id, StringComparer.Ordinal);
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         Dictionary<BuildableId, StoredFactory> owners = OwnersIn(snapshot, factory, members, factories);
 
@@ -37,17 +37,17 @@ internal static class FactoryOutputs
         Dictionary<string, List<BuildableId>> startsOf = new(StringComparer.Ordinal);
         foreach (FactoryConnection output in members.Outputs)
         {
-            IReadOnlyDictionary<string, double> leaving = Over(output, world, analysis);
+            IReadOnlyDictionary<ItemId, double> leaving = Over(output, world, readings);
             BuildableId start = output.Outside ?? output.Inside;
             foreach (ItemId item in output.Items)
             {
-                now[item.Id] = now.GetValueOrDefault(item.Id) + leaving.GetValueOrDefault(item.Id);
+                now[item.Id] = now.GetValueOrDefault(item.Id) + leaving.GetValueOrDefault(item);
                 startsOf.TryAdd(item.Id, []);
                 startsOf[item.Id].Add(start);
             }
         }
 
-        foreach ((BuildableId end, ItemId item, double perMinute) in Ends(world, members, analysis))
+        foreach ((BuildableId end, ItemId item, double perMinute) in Ends(world, members, readings))
         {
             Dictionary<(OutputDestinationKind, StoredFactory?, string?), double> to = destinations.TryGetValue(item.Id, out var found) ? found : destinations[item.Id] = [];
             var key = Destination(end);
@@ -83,7 +83,7 @@ internal static class FactoryOutputs
         Dictionary<string, double> cannotLeave = new(StringComparer.Ordinal);
         foreach (Buildable producer in members.Producers.Select(id => world.Find(id)).OfType<Buildable>())
         {
-            if (states.GetValueOrDefault(producer.Id.Id) is not { Limit: MachineLimit.OutputBlocked } state)
+            if (readings.Machine(producer.Id) is not { Limit: Domain.Flow.Objects.MachineLimit.OutputBlocked } state)
             {
                 continue;
             }
@@ -102,7 +102,7 @@ internal static class FactoryOutputs
                 List<BuildableId> starts = startsOf.GetValueOrDefault(item) ?? [];
                 ItemId id = ItemId.Of(item);
                 double need = OutputDestinations.ReceiversNeed(world, starts, id).ToDouble();
-                double get = OutputDestinations.ReceiversGet(world, starts, id, receiver => Intake(world, analysis, states, receiver, id));
+                double get = OutputDestinations.ReceiversGet(world, starts, id, receiver => readings.Into(receiver, id));
                 return new FactoryOutput(
                     item,
                     SnapshotAnalysis.Round(now.GetValueOrDefault(item)),
@@ -135,49 +135,24 @@ internal static class FactoryOutputs
     }
 
     /// <summary>
-    /// What a receiver takes of one item now: a machine or generator what it takes at the rate it runs; a drone port,
-    /// which runs at no rate of its own, what flows into the belts and pipes that end at it.
-    /// </summary>
-    private static double Intake(WorldGraph world, AnalysisDocument analysis, Dictionary<string, MachineStateDocument> states, BuildableId id, ItemId item) =>
-        states.ContainsKey(id.Id)
-            ? FlowInto(world, analysis, states, id, item)
-            : world.Upstream(id).OfType<Logistics>().Sum(from => analysis.Into.GetValueOrDefault(from.Id.Id)?.GetValueOrDefault(item.Id) ?? 0);
-
-    /// <summary>
     /// What leaves a factory over its outputs, per building at the end of its lines and item, per minute (BR-A18): a
     /// machine of another factory, a sink, a station.
     /// </summary>
-    internal static IEnumerable<(BuildableId End, ItemId Item, double PerMinute)> Ends(WorldGraph world, FactoryMembers members, AnalysisDocument analysis)
+    internal static IEnumerable<(BuildableId End, ItemId Item, double PerMinute)> Ends(WorldGraph world, FactoryMembers members, FlowReadings readings)
     {
-        Dictionary<string, MachineStateDocument> states = analysis.Machines.ToDictionary(state => state.Id, StringComparer.Ordinal);
         foreach (FactoryConnection output in members.Outputs)
         {
-            IReadOnlyDictionary<string, double> leaving = Over(output, world, analysis);
+            IReadOnlyDictionary<ItemId, double> leaving = Over(output, world, readings);
             BuildableId start = output.Outside ?? output.Inside;
             foreach (ItemId item in output.Items)
             {
                 foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(
-                    world, start, item, leaving.GetValueOrDefault(item.Id), id => FlowInto(world, analysis, states, id, item)))
+                    world, start, item, leaving.GetValueOrDefault(item), id => readings.Into(id, item)))
                 {
                     yield return (end, item, perMinute);
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// What flows into a buildable, of one item: the stored flow into a belt, pipe or container; for a machine or a
-    /// generator, which the analysis doesn't keep flows into, what it takes at the rate it runs.
-    /// </summary>
-    private static double FlowInto(WorldGraph world, AnalysisDocument analysis, Dictionary<string, MachineStateDocument> states, BuildableId id, ItemId item)
-    {
-        if (analysis.Into.TryGetValue(id.Id, out IReadOnlyDictionary<string, double>? flows))
-        {
-            return flows.GetValueOrDefault(item.Id);
-        }
-
-        double utilisation = states.GetValueOrDefault(id.Id)?.Utilisation ?? 0;
-        return utilisation * (world.Find(id)?.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0);
     }
 
     /// <summary>
@@ -209,23 +184,21 @@ internal static class FactoryOutputs
     /// with other factories, this counts their part as well.</item>
     /// </list>
     /// </summary>
-    internal static IReadOnlyDictionary<string, double> Over(FactoryConnection output, WorldGraph world, AnalysisDocument analysis)
+    internal static IReadOnlyDictionary<ItemId, double> Over(FactoryConnection output, WorldGraph world, FlowReadings readings)
     {
-        IReadOnlyDictionary<string, double> Into(BuildableId id) => analysis.Into.GetValueOrDefault(id.Id) ?? new Dictionary<string, double>();
-
         if (output.Outside is null)
         {
             return world.Upstream(output.Inside)
-                .SelectMany(feeder => Into(feeder.Id))
-                .GroupBy(flow => flow.Key, StringComparer.Ordinal)
-                .ToDictionary(item => item.Key, item => item.Sum(flow => flow.Value), StringComparer.Ordinal);
+                .SelectMany(feeder => readings.Carrying(feeder.Id))
+                .GroupBy(flow => flow.Key)
+                .ToDictionary(item => item.Key, item => item.Sum(flow => flow.Value));
         }
 
         if (world.Find(output.Inside) is Logistics && world.Downstream(output.Inside).Count() == 1)
         {
-            return Into(output.Inside);
+            return readings.Carrying(output.Inside);
         }
 
-        return world.Find(output.Outside) is Logistics ? Into(output.Outside) : new Dictionary<string, double>();
+        return world.Find(output.Outside) is Logistics ? readings.Carrying(output.Outside) : new Dictionary<ItemId, double>();
     }
 }

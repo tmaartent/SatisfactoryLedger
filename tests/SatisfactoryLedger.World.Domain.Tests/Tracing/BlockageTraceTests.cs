@@ -19,7 +19,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("smelter", Items.IronOre, 60, Items.IronIngot, 60).Belt("ingots").Machine("plates", Items.IronIngot, 30, Items.IronPlate, 20)
             .Connect("smelter", "ingots", "plates").Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Running("plates").Into("ingots", Items.IronIngot, 30).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Running("plates").Into("ingots", Items.IronIngot, 30).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
 
@@ -36,7 +36,7 @@ public class BlockageTraceTests
             .Machine("plates", Items.IronIngot, 30, Items.IronPlate, 20).Belt("to assembler")
             .Machine("assembler", [Items.IronPlate, Items.Screw], [Items.ReinforcedIronPlate])
             .Connect("plates", "to assembler", "assembler").Build();
-        FlowReadings readings = new TestReadings().Blocked("plates", Items.IronPlate, 0.5).Starved("assembler", Items.Screw, 0.25).Build();
+        FlowReadings readings = new TestReadings().Blocked("plates", Items.IronPlate, 0.5).Starved("assembler", Items.Screw, 0.25).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("plates")));
 
@@ -51,7 +51,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("smelter", Items.IronOre, 120, Items.IronIngot, 120).Belt("mk1", 60).Machine("plates", Items.IronIngot, 120, Items.IronPlate, 80)
             .Connect("smelter", "mk1", "plates").Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Bottleneck("mk1", 60).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Bottleneck("mk1", 60).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
 
@@ -65,7 +65,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("smelter", Items.IronOre, 120, Items.IronIngot, 120).Belt("mk1", 60).Machine("plates", Items.IronIngot, 120, Items.IronPlate, 80)
             .Connect("smelter", "mk1", "plates").Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Bottleneck("mk1", 60).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Bottleneck("mk1", 60).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter"), [new("Build_ConveyorBeltMk1_C", LogisticsKind.Belt, 60)]));
 
@@ -76,7 +76,7 @@ public class BlockageTraceTests
     public void A_belt_that_ends_at_nothing_takes_nothing()
     {
         WorldGraph world = new TestWorld().Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("loose end").Connect("smelter", "loose end").Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
 
@@ -92,7 +92,7 @@ public class BlockageTraceTests
             .Machine("blender", [Items.Coal, Items.Water], [Items.NitrogenGas, Items.EmptyFluidTank]).BeltCarrying("tanks", (Items.EmptyFluidTank, 10))
             .Machine("packager", Items.EmptyFluidTank, Items.PackagedNitrogenGas)
             .Connect("blender", "tanks", "packager").Build();
-        FlowReadings readings = new TestReadings().Blocked("blender", Items.NitrogenGas, 0).Running("packager").Build();
+        FlowReadings readings = new TestReadings().Blocked("blender", Items.NitrogenGas, 0).Running("packager").Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("blender")));
 
@@ -104,7 +104,7 @@ public class BlockageTraceTests
     public void A_machine_with_no_line_out_at_all_is_where_it_starts()
     {
         WorldGraph world = new TestWorld().Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
 
@@ -120,7 +120,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("ingots").Container("box", room)
             .Connect("smelter", "ingots", "box").Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
 
@@ -136,7 +136,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("ingots").Container("box", full)
             .Connect("smelter", "ingots", "box").Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
 
@@ -154,7 +154,7 @@ public class BlockageTraceTests
             .Connect("smelter", "ingots", "plates", "to rods", "assembler").Build();
         FlowReadings readings = new TestReadings()
             .Blocked("smelter", Items.IronIngot, 0.5).Blocked("plates", Items.IronPlate, 0.5).Running("assembler")
-            .Into("ingots", Items.IronIngot, 30).Into("to rods", Items.IronPlate, 20).Build();
+            .Into("ingots", Items.IronIngot, 30).Into("to rods", Items.IronPlate, 20).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter")));
 
@@ -173,7 +173,7 @@ public class BlockageTraceTests
             .Connect("smelter A", "from A", "merge", "ingots", "plates").Connect("smelter B", "from B", "merge").Build();
         FlowReadings readings = new TestReadings()
             .Blocked("smelter A", Items.IronIngot, 1.0 / 6).Running("smelter B").Running("plates")
-            .Into("from A", Items.IronIngot, 10).Into("from B", Items.IronIngot, 50).Into("ingots", Items.IronIngot, 60).Build();
+            .Into("from A", Items.IronIngot, 10).Into("from B", Items.IronIngot, 50).Into("ingots", Items.IronIngot, 60).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("smelter A")));
 
@@ -188,7 +188,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("refinery", Items.Coal, 60, Items.Water, 90).Pipe("water").Generator("coal plant", Items.Coal, 15, Items.Water, 45)
             .Connect("refinery", "water", "coal plant").Build();
-        FlowReadings readings = new TestReadings().Blocked("refinery", Items.Water, 0.5).Running("coal plant").Into("water", Items.Water, 45).Build();
+        FlowReadings readings = new TestReadings().Blocked("refinery", Items.Water, 0.5).Running("coal plant").Into("water", Items.Water, 45).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("refinery")));
 
@@ -201,7 +201,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("assembler", Items.IronPlate, 30, Items.Battery, 10).Belt("batteries").LoadingStationBurning("drone port", Items.Battery, Rate.PerMinute(2))
             .Connect("assembler", "batteries", "drone port").Build();
-        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0.2).Into("batteries", Items.Battery, 2).Build();
+        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0.2).Into("batteries", Items.Battery, 2).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("assembler")));
 
@@ -214,7 +214,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("assembler", Items.IronPlate, 30, Items.Battery, 10).Belt("batteries").LoadingStationWhereNoDroneRefuels("drone port", Items.Battery)
             .Connect("assembler", "batteries", "drone port").Build();
-        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0).Build();
+        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("assembler")));
 
@@ -228,7 +228,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("assembler", Items.IronPlate, 30, Items.Battery, 10).Belt("batteries").StationWhereNoDroneRefuels("drone port", Items.Battery)
             .Connect("assembler", "batteries", "drone port").Build();
-        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0).Build();
+        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("assembler")));
 
@@ -242,7 +242,7 @@ public class BlockageTraceTests
         WorldGraph world = new TestWorld()
             .Generator("nuclear plant", Items.UraniumFuelRod, 0.2m, Items.Water, 240, Items.UraniumWaste, 10).Belt("loose end")
             .Connect("nuclear plant", "loose end").Build();
-        FlowReadings readings = new TestReadings().Blocked("nuclear plant", Items.UraniumWaste, 0.5).Build();
+        FlowReadings readings = new TestReadings().Blocked("nuclear plant", Items.UraniumWaste, 0.5).Build(world);
 
         TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("nuclear plant")));
 

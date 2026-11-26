@@ -3,6 +3,7 @@ using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Contracts.Arrangement;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Arrangement;
+using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -65,6 +66,7 @@ internal static class WorldArrangement
         var floorArea = new WorldRectangle(area.X0, area.Y0, area.X0 + (plotsX * grid.PitchX), area.Y0 + (plotsY * grid.PitchY));
 
         WorldGraph world = snapshot.ToWorldGraph();
+        FlowReadings? readings = analysis is null ? null : AnalysisReadings.Of(world, analysis);
         HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         (double belt, double pipe) = TopCapacities(snapshot);
 
@@ -186,7 +188,7 @@ internal static class WorldArrangement
                 fixedPlaces[to] = new FixedPlace(to, grid.PlotsTouching(outline), Blocks: true);
             }
 
-            foreach (FactoryInput input in analysis is null ? [] : FactoryInputs.Of(snapshot, world, factory, members, analysis, factories))
+            foreach (FactoryInput input in readings is null ? [] : FactoryInputs.Of(snapshot, world, factory, members, readings, factories))
             {
                 foreach (InputSource source in input.Sources)
                 {
@@ -243,10 +245,10 @@ internal static class WorldArrangement
         // What the arranged factories send to stations and drone ports, merged the same way (decided 2026-11-18): a
         // shared belt leaves the factory and goes down a lift over the stations it serves. A factory's outputs can reach
         // one station over several lines, so each station's rate is added up first.
-        foreach ((StoredFactory factory, FactoryMembers members, _) in traced.Where(entry => analysis is not null && chosen.Contains(entry.Factory.Id.ToString())))
+        foreach ((StoredFactory factory, FactoryMembers members, _) in traced.Where(entry => readings is not null && chosen.Contains(entry.Factory.Id.ToString())))
         {
             string from = factory.Id.ToString();
-            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryOutputs.Ends(world, members, analysis!)
+            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryOutputs.Ends(world, members, readings!)
                 .Where(output => IsStation(output.End.Id) && buildables[output.End.Id].Position is not null)
                 .GroupBy(output => (output.End.Id, output.Item))
                 .GroupBy(

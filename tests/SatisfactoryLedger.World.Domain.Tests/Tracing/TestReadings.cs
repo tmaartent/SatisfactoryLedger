@@ -10,7 +10,7 @@ internal sealed class TestReadings
     private readonly Dictionary<BuildableId, double> _bottlenecks = [];
     private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _spare = [];
     private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _unknown = [];
-    private readonly Dictionary<BuildableId, IReadOnlyDictionary<ItemId, double>> _into = [];
+    private readonly Dictionary<BuildableId, Dictionary<ItemId, double>> _into = [];
 
     public TestReadings Running(string id) => Machine(id, new MachineReading(MachineLimit.None, 1, new Dictionary<ItemId, double>(), new Dictionary<ItemId, double>()));
 
@@ -44,14 +44,16 @@ internal sealed class TestReadings
         return this;
     }
 
-    /// <summary>What flows into a belt or pipe, per minute.</summary>
+    /// <summary>What flows into a belt or pipe of an item, per minute, beside what else flows into it.</summary>
     public TestReadings Into(string id, ItemId item, double perMinute)
     {
-        _into[BuildableId.Of(id)] = new Dictionary<ItemId, double> { [item] = perMinute };
+        (_into.TryGetValue(BuildableId.Of(id), out Dictionary<ItemId, double>? flows) ? flows : _into[BuildableId.Of(id)] = [])[item] = perMinute;
         return this;
     }
 
-    public FlowReadings Build() => new(_machines, _bottlenecks, _spare, _unknown, _into);
+    /// <summary>The readings of <paramref name="world"/>: splitters, hubs and machines are read through it.</summary>
+    public FlowReadings Build(WorldGraph world) => new(
+        world, _machines, _bottlenecks, _spare, _unknown, _into.ToDictionary(entry => entry.Key, entry => (IReadOnlyDictionary<ItemId, double>)entry.Value));
 
     private TestReadings Machine(string id, MachineReading reading)
     {

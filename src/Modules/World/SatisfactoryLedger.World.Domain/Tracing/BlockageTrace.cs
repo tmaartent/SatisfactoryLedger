@@ -124,7 +124,7 @@ public static class BlockageTrace
                 foreach (Buildable from in world.Upstream(consumer).Where(from => from is Logistics))
                 {
                     double arriving = readings.Into(from.Id, item);
-                    foreach ((BuildableId start, double perMinute) in InputSources.Of(world, from.Id, item, arriving, id => readings.OutOf(world.Find(id)!, item)))
+                    foreach ((BuildableId start, double perMinute) in InputSources.Of(world, from.Id, item, arriving, id => readings.OutOf(id, item)))
                     {
                         if (!asked.Contains(start))
                         {

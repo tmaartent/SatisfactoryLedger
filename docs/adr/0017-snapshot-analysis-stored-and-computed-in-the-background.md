@@ -31,3 +31,4 @@ We will store the result of a snapshot's simulation, and compute it in the backg
 - The analysis version must go up when a change to the analysis rules changes results. Otherwise stored analyses are stale.
 - Only one analysis runs at a time. That's fine for one player; more workers can read the same queue later.
 - The stored document is a contract with ourselves, versioned like the snapshot document.
+- **Read through one reader** (added 2026-11-26): every finding and trace reads the document as `FlowReadings`, built by `AnalysisReadings.Of`. The document stores flows into belts, lifts, pipes and containers only; the reader works out the rest the same way for every finding: what a splitter, merger or pipe network carries, what reaches a drone port, what a machine takes. Before, the factory findings each did this their own way, and drifted.

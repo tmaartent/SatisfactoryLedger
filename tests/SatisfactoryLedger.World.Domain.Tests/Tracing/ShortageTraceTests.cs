@@ -19,7 +19,7 @@ public class ShortageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("ingots").Machine("plates", Items.IronIngot, 60, Items.IronPlate, 40)
             .Connect("smelter", "ingots", "plates").Build();
-        FlowReadings readings = new TestReadings().Running("smelter").Starved("plates", Items.IronIngot, 0.5).Into("ingots", Items.IronIngot, 30).Build();
+        FlowReadings readings = new TestReadings().Running("smelter").Starved("plates", Items.IronIngot, 0.5).Into("ingots", Items.IronIngot, 30).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -40,7 +40,7 @@ public class ShortageTraceTests
             .Machine("plates", Items.IronIngot, 120, Items.IronPlate, 80)
             .Connect("smelter", "ingots", "mk1", "plates").Build();
         FlowReadings readings = new TestReadings()
-            .Starved("smelter", Items.IronOre, 0.5).Bottleneck("mk1", 30).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build();
+            .Starved("smelter", Items.IronOre, 0.5).Bottleneck("mk1", 30).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -56,7 +56,7 @@ public class ShortageTraceTests
             .Machine("plates", Items.IronIngot, 120, Items.IronPlate, 80)
             .Connect("smelter", "ingots", "mk1", "plates").Build();
         FlowReadings readings = new TestReadings()
-            .Starved("smelter", Items.IronOre, 0.5).Bottleneck("mk1", 30).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build();
+            .Starved("smelter", Items.IronOre, 0.5).Bottleneck("mk1", 30).Starved("plates", Items.IronIngot, 0.5).Into("mk1", Items.IronIngot, 60).Build(world);
         TransportTier[] tiers = [new("Build_ConveyorBeltMk1_C", LogisticsKind.Belt, 60), new("Build_ConveyorBeltMk2_C", LogisticsKind.Belt, 120)];
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates"), tiers));
@@ -73,7 +73,7 @@ public class ShortageTraceTests
             .Belt("ingots").Machine("plates", Items.IronIngot, 60, Items.IronPlate, 40)
             .Connect("miner", "ore", "smelter", "ingots", "plates").Build();
         FlowReadings readings = new TestReadings()
-            .Starved("smelter", Items.IronOre, 0.5).Starved("plates", Items.IronIngot, 0.5).Into("ore", Items.IronOre, 30).Into("ingots", Items.IronIngot, 30).Build();
+            .Starved("smelter", Items.IronOre, 0.5).Starved("plates", Items.IronIngot, 0.5).Into("ore", Items.IronOre, 30).Into("ingots", Items.IronIngot, 30).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -94,7 +94,7 @@ public class ShortageTraceTests
             .Connect("smelter", "ingots", "split", "to plates", "plates").Connect("split", "to rods", "rods").Build();
         FlowReadings readings = new TestReadings()
             .Running("smelter").Starved("plates", Items.IronIngot, 0.5).Running("rods")
-            .Into("ingots", Items.IronIngot, 30).Into("to plates", Items.IronIngot, 15).Into("to rods", Items.IronIngot, 15).Build();
+            .Into("ingots", Items.IronIngot, 30).Into("to plates", Items.IronIngot, 15).Into("to rods", Items.IronIngot, 15).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -107,7 +107,7 @@ public class ShortageTraceTests
     public void A_line_that_starts_at_nothing_brings_nothing()
     {
         WorldGraph world = new TestWorld().Belt("loose end").Machine("plates", Items.IronIngot, 30, Items.IronPlate, 20).Connect("loose end", "plates").Build();
-        FlowReadings readings = new TestReadings().Starved("plates", Items.IronIngot, 0).Build();
+        FlowReadings readings = new TestReadings().Starved("plates", Items.IronIngot, 0).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -121,7 +121,7 @@ public class ShortageTraceTests
         WorldGraph world = new TestWorld()
             .Station("station", (Items.IronIngot, 100)).Belt("ingots").Machine("plates", Items.IronIngot, 30, Items.IronPlate, 20)
             .Connect("station", "ingots", "plates").Build();
-        FlowReadings readings = new TestReadings().Unknown("station", Items.IronIngot, 15).Starved("plates", Items.IronIngot, 0.5).Into("ingots", Items.IronIngot, 15).Build();
+        FlowReadings readings = new TestReadings().Unknown("station", Items.IronIngot, 15).Starved("plates", Items.IronIngot, 0.5).Into("ingots", Items.IronIngot, 15).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -138,7 +138,7 @@ public class ShortageTraceTests
             .Machine("plates", Items.IronIngot, 60, Items.IronPlate, 40)
             .Connect("smelter", "merge", "mixed", "plates").Connect("platform", "merge").Build();
         FlowReadings readings = new TestReadings()
-            .Running("smelter").Unknown("platform", Items.IronOre, 20).Starved("plates", Items.IronIngot, 0.5).Into("mixed", Items.IronIngot, 30).Build();
+            .Running("smelter").Unknown("platform", Items.IronOre, 20).Starved("plates", Items.IronIngot, 0.5).Into("mixed", Items.IronIngot, 30).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -152,7 +152,7 @@ public class ShortageTraceTests
         WorldGraph world = new TestWorld()
             .Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("ingots").Machine("plates", Items.IronIngot, 30, Items.IronPlate, 20)
             .Connect("smelter", "ingots", "plates").Build();
-        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Starved("plates", Items.IronIngot, 0.5).Build();
+        FlowReadings readings = new TestReadings().Blocked("smelter", Items.IronIngot, 0.5).Starved("plates", Items.IronIngot, 0.5).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates")));
 
@@ -170,7 +170,7 @@ public class ShortageTraceTests
             .Connect("smelter", "ingots", "split", "to A", "plates A").Connect("split", "to B", "plates B").Build();
         FlowReadings readings = new TestReadings()
             .Running("smelter").Starved("plates A", Items.IronIngot, 0.5).Starved("plates B", Items.IronIngot, 0.5)
-            .Into("ingots", Items.IronIngot, 30).Into("to A", Items.IronIngot, 15).Into("to B", Items.IronIngot, 15).Build();
+            .Into("ingots", Items.IronIngot, 30).Into("to A", Items.IronIngot, 15).Into("to B", Items.IronIngot, 15).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates A", "plates B")));
 
@@ -186,7 +186,7 @@ public class ShortageTraceTests
             .Machine("smelter", Items.IronOre, 30, Items.IronIngot, 30).Belt("ingots").Machine("plates", Items.IronIngot, 60, Items.IronPlate, 40)
             .Machine("other plates", Items.IronIngot, 30, Items.IronPlate, 20)
             .Connect("smelter", "ingots", "plates").Build();
-        FlowReadings readings = new TestReadings().Running("smelter").Starved("plates", Items.IronIngot, 0.5).Running("other plates").Into("ingots", Items.IronIngot, 30).Build();
+        FlowReadings readings = new TestReadings().Running("smelter").Starved("plates", Items.IronIngot, 0.5).Running("other plates").Into("ingots", Items.IronIngot, 30).Build(world);
 
         TraceStart start = Single(ShortageTrace.From(world, readings, Ids("plates", "other plates")));
 
@@ -199,7 +199,7 @@ public class ShortageTraceTests
         WorldGraph world = new TestWorld()
             .Miner("coal mine", Items.Coal, 7.5m).Belt("coal").Generator("coal plant", Items.Coal, 15)
             .Connect("coal mine", "coal", "coal plant").Build();
-        FlowReadings readings = new TestReadings().Starved("coal plant", Items.Coal, 0.5).Into("coal", Items.Coal, 7.5).Build();
+        FlowReadings readings = new TestReadings().Starved("coal plant", Items.Coal, 0.5).Into("coal", Items.Coal, 7.5).Build(world);
 
         TraceStart start = Assert.Single(ShortageTrace.From(world, readings, Ids("coal plant")));
 

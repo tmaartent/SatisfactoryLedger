@@ -1,5 +1,6 @@
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Snapshots;
 namespace SatisfactoryLedger.World.Analysis;
@@ -42,6 +43,7 @@ internal static class SnapshotAnalysis
             id => members.Suppliers.Contains(BuildableId.Of(id)),
             // A drone port is never part of a factory (BR-W1, BR-W8); a generator is, when chosen as one of its machines.
             wholeWorld: false);
+        FlowReadings readings = AnalysisReadings.Of(world, analysis);
 
         return new FactoryAnalysisResponse(
             factory.Id,
@@ -49,9 +51,9 @@ internal static class SnapshotAnalysis
             findings.Settled,
             findings.Summary,
             findings.GeneratorSummary,
-            FactoryOutputs.Of(snapshot, world, factory, members, analysis, factories),
-            FactoryInputs.Of(snapshot, world, factory, members, analysis, factories),
-            PowerOf(snapshot, members, analysis),
+            FactoryOutputs.Of(snapshot, world, factory, members, readings, factories),
+            FactoryInputs.Of(snapshot, world, factory, members, readings, factories),
+            PowerOf(snapshot, members, readings),
             findings.Machines,
             findings.Generators,
             findings.Bottlenecks,
@@ -64,16 +66,15 @@ internal static class SnapshotAnalysis
     /// times how fast the flow lets it run. A generator whose fuel isn't known isn't simulated: it counts at 100% only.
     /// Null for a factory without generators. Also for the preview while choosing a factory's machines (asked 2026-11-24).
     /// </summary>
-    internal static FactoryPower? PowerOf(SnapshotDocument snapshot, FactoryMembers members, AnalysisDocument analysis)
+    internal static FactoryPower? PowerOf(SnapshotDocument snapshot, FactoryMembers members, FlowReadings readings)
     {
         Dictionary<string, GeneratorDocument> catalog = (snapshot.Generators ?? []).ToDictionary(generator => generator.Id, StringComparer.Ordinal);
-        Dictionary<string, double> utilisation = analysis.Machines.ToDictionary(state => state.Id, state => state.Utilisation, StringComparer.Ordinal);
         List<(double AtFullSpeed, double Utilisation)> generators = [.. snapshot.Buildables
             .Where(buildable => members.Machines.Contains(BuildableId.Of(buildable.Id)) && buildable.Role == BuildableDocumentRole.Consumer)
             .Where(buildable => catalog.ContainsKey(buildable.ClassName))
             .Select(buildable => (
                 (double)(catalog[buildable.ClassName].PowerMegawatts * (buildable.ClockPercent ?? 100) / 100),
-                utilisation.GetValueOrDefault(buildable.Id)))];
+                readings.Machine(BuildableId.Of(buildable.Id))?.Utilisation ?? 0))];
         return generators.Count == 0
             ? null
             : new FactoryPower(
@@ -98,7 +99,8 @@ internal static class SnapshotAnalysis
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         HashSet<string> approximate = analysis.Approximate();
         WorldGraph world = snapshot.ToWorldGraph();
-        (string? Item, double? Minutes) Stock(MachineStateDocument state) => OnStock(world, snapshot, analysis, state);
+        FlowReadings readings = AnalysisReadings.Of(world, analysis);
+        (string? Item, double? Minutes) Stock(MachineStateDocument state) => OnStock(world, readings, state);
 
         // The flow simulates generators like machines (BR-A8), but they're consumers: their own findings (BR-A15).
         List<MachineStateDocument> machines = [.. analysis.Machines
@@ -198,20 +200,15 @@ internal static class SnapshotAnalysis
                         Stock(generator).Item,
                         Stock(generator).Minutes))
             ],
-            wholeWorld ? DronePorts(world, snapshot, analysis, buildables, approximate) : [],
-            wholeWorld ? PipeFlows.Of(snapshot, analysis) : []);
+            wholeWorld ? DronePorts(world, readings, buildables, approximate) : [],
+            wholeWorld ? PipeFlows.Of(snapshot, readings) : []);
     }
-
-    /// <summary>What reaches a buildable of an item per minute: what flows into the belts and pipes that end at it.</summary>
-    private static double Supplied(SnapshotDocument snapshot, AnalysisDocument analysis, string id, string item) =>
-        snapshot.Connections.Where(connection => connection.To == id)
-            .Sum(connection => analysis.Into.GetValueOrDefault(connection.From)?.GetValueOrDefault(item) ?? 0);
 
     /// <summary>
     /// BR-A17: the stocked input a machine or generator runs on, because its belts bring less than it uses, and how long
     /// that stock lasts. When several do, the one that runs out first.
     /// </summary>
-    private static (string? Item, double? Minutes) OnStock(WorldGraph world, SnapshotDocument snapshot, AnalysisDocument analysis, MachineStateDocument state)
+    private static (string? Item, double? Minutes) OnStock(WorldGraph world, FlowReadings readings, MachineStateDocument state)
     {
         Buildable? running = world.Find(BuildableId.Of(state.Id));
         IReadOnlyDictionary<ItemId, decimal> stock = running switch
@@ -231,7 +228,7 @@ internal static class SnapshotAnalysis
                 continue;
             }
 
-            double shortfall = perMinute * state.Utilisation - Supplied(snapshot, analysis, state.Id, item.Id);
+            double shortfall = perMinute * state.Utilisation - readings.Reaching(BuildableId.Of(state.Id), item);
             if (shortfall > SteadyState.Tolerance && (first.Minutes is null || (double)held / shortfall < first.Minutes))
             {
                 first = (item.Id, Round((double)held / shortfall));
@@ -246,7 +243,7 @@ internal static class SnapshotAnalysis
     /// in its slot where no drone refuels (issue #44).
     /// </summary>
     private static List<DronePortFinding> DronePorts(
-        WorldGraph world, SnapshotDocument snapshot, AnalysisDocument analysis, Dictionary<string, BuildableDocument> buildables, HashSet<string> approximate)
+        WorldGraph world, FlowReadings readings, Dictionary<string, BuildableDocument> buildables, HashSet<string> approximate)
     {
         List<(string Id, string Fuel, double? Burns)> ports = [];
         foreach (Buildable buildable in world.Buildables)
@@ -271,7 +268,7 @@ internal static class SnapshotAnalysis
         return
         [
             .. ports
-                .Select(port => (port.Id, port.Fuel, port.Burns, Supplied: Supplied(snapshot, analysis, port.Id, port.Fuel)))
+                .Select(port => (port.Id, port.Fuel, port.Burns, Supplied: readings.Reaching(BuildableId.Of(port.Id), ItemId.Of(port.Fuel))))
                 .OrderBy(port => port.Burns is null).ThenBy(port => port.Burns is { } burns ? port.Supplied / burns : 0)
                 .ThenBy(port => port.Id, StringComparer.Ordinal)
                 .Select(port => new DronePortFinding(
