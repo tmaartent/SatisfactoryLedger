@@ -33,3 +33,17 @@ dotnet test SatisfactoryLedger.slnx
 dotnet run --project src/SatisfactoryLedger.AppHost
 cd web && npm start | npm test | npm run build | npm run lint | npm run format
 ```
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `tmaartent/SatisfactoryLedger`, through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: the glossary is `docs/domain/glossary.md` and the ADRs are in `docs/adr/`. See `docs/agents/domain.md`.
