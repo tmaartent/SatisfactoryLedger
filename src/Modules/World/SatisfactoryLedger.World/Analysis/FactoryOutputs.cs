@@ -33,6 +33,7 @@ internal static class FactoryOutputs
 
         Dictionary<string, double> now = new(StringComparer.Ordinal);
         Dictionary<string, Dictionary<(OutputDestinationKind Kind, StoredFactory? Factory, string? Building), double>> destinations = new(StringComparer.Ordinal);
+        Dictionary<string, double> brings = new(StringComparer.Ordinal);
         Dictionary<string, List<BuildableId>> startsOf = new(StringComparer.Ordinal);
         foreach (FactoryConnection output in members.Outputs)
         {
@@ -51,6 +52,12 @@ internal static class FactoryOutputs
             Dictionary<(OutputDestinationKind, StoredFactory?, string?), double> to = destinations.TryGetValue(item.Id, out var found) ? found : destinations[item.Id] = [];
             var key = Destination(end);
             to[key] = to.GetValueOrDefault(key) + perMinute;
+
+            // What this factory brings its receivers: what reaches one that asks for the item, a drone port too.
+            if (world.Find(end)?.Demand.GetValueOrDefault(item) is { } asks && asks > Rate.Zero)
+            {
+                brings[item.Id] = brings.GetValueOrDefault(item.Id) + perMinute;
+            }
         }
 
         // Only what leaves: a product its own machines take all of, such as gas unpacked for its blenders, isn't output.
@@ -61,12 +68,12 @@ internal static class FactoryOutputs
         Dictionary<string, double> atFullSpeed = new(StringComparer.Ordinal);
         foreach (Buildable member in members.Machines.Select(id => world.Find(id)).OfType<Buildable>())
         {
-            foreach ((ItemId item, Rate rate) in Makes(member).Where(product => leaves.Contains(product.Key)))
+            foreach ((ItemId item, Rate rate) in member.Production.Where(product => leaves.Contains(product.Key)))
             {
                 atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) + rate.ToDouble();
             }
 
-            foreach ((ItemId item, Rate rate) in Takes(member).Where(input => leaves.Contains(input.Key)))
+            foreach ((ItemId item, Rate rate) in member.Demand.Where(input => leaves.Contains(input.Key)))
             {
                 atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) - rate.ToDouble();
             }
@@ -81,7 +88,7 @@ internal static class FactoryOutputs
                 continue;
             }
 
-            foreach ((ItemId item, Rate rate) in Makes(producer).Where(product => leaves.Contains(product.Key)))
+            foreach ((ItemId item, Rate rate) in producer.Production.Where(product => leaves.Contains(product.Key)))
             {
                 cannotLeave[item.Id] = cannotLeave.GetValueOrDefault(item.Id) + rate.ToDouble() * (1 - state.Utilisation);
             }
@@ -95,16 +102,13 @@ internal static class FactoryOutputs
                 List<BuildableId> starts = startsOf.GetValueOrDefault(item) ?? [];
                 ItemId id = ItemId.Of(item);
                 double need = OutputDestinations.ReceiversNeed(world, starts, id).ToDouble();
-                double get = OutputDestinations.ReceiversGet(world, starts, id, receiver => FlowInto(world, analysis, states, receiver, id));
-
-                // What this factory brings its receivers: what reaches a machine or generator, of a factory or none.
-                double brings = to.Where(entry => entry.Key.Kind is OutputDestinationKind.Factory or OutputDestinationKind.NoFactory).Sum(entry => entry.Value);
+                double get = OutputDestinations.ReceiversGet(world, starts, id, receiver => Intake(world, analysis, states, receiver, id));
                 return new FactoryOutput(
                     item,
                     SnapshotAnalysis.Round(now.GetValueOrDefault(item)),
                     SnapshotAnalysis.Round(Math.Max(0, atFullSpeed.GetValueOrDefault(item))),
                     SnapshotAnalysis.Round(need),
-                    SnapshotAnalysis.Round(Math.Max(0, get - brings)),
+                    SnapshotAnalysis.Round(Math.Max(0, get - brings.GetValueOrDefault(item))),
                     SnapshotAnalysis.Round(Math.Max(0, need - get)),
                     SnapshotAnalysis.Round(to.Where(entry => entry.Key.Kind == OutputDestinationKind.Sink).Sum(entry => entry.Value)),
                     SnapshotAnalysis.Round(cannotLeave.GetValueOrDefault(item)),
@@ -129,6 +133,15 @@ internal static class FactoryOutputs
 
         string? ClassOf(BuildableId id) => buildables.GetValueOrDefault(id.Id)?.ClassName;
     }
+
+    /// <summary>
+    /// What a receiver takes of one item now: a machine or generator what it takes at the rate it runs; a drone port,
+    /// which runs at no rate of its own, what flows into the belts and pipes that end at it.
+    /// </summary>
+    private static double Intake(WorldGraph world, AnalysisDocument analysis, Dictionary<string, MachineStateDocument> states, BuildableId id, ItemId item) =>
+        states.ContainsKey(id.Id)
+            ? FlowInto(world, analysis, states, id, item)
+            : world.Upstream(id).OfType<Logistics>().Sum(from => analysis.Into.GetValueOrDefault(from.Id.Id)?.GetValueOrDefault(item.Id) ?? 0);
 
     /// <summary>
     /// What leaves a factory over its outputs, per building at the end of its lines and item, per minute (BR-A18): a
@@ -164,31 +177,8 @@ internal static class FactoryOutputs
         }
 
         double utilisation = states.GetValueOrDefault(id.Id)?.Utilisation ?? 0;
-        return utilisation * (world.Find(id) switch
-        {
-            Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
-            Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
-            Consumer { Generation: { } generation } when generation.Supplemental == item => generation.SupplementalNeeded.ToDouble(),
-            _ => 0,
-        });
+        return utilisation * (world.Find(id)?.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0);
     }
-
-    /// <summary>What one of its machines makes at 100%: a machine its recipe's products, a generator its waste (BR-A8).</summary>
-    internal static IEnumerable<KeyValuePair<ItemId, Rate>> Makes(Buildable member) => member switch
-    {
-        Machine machine => machine.Production,
-        Consumer { Generation: { Byproduct: { } waste } generation } => [new(waste, generation.Leaves)],
-        _ => [],
-    };
-
-    /// <summary>What one of its machines takes at 100%: a machine its recipe's inputs, a generator its fuel and water.</summary>
-    internal static IEnumerable<KeyValuePair<ItemId, Rate>> Takes(Buildable member) => member switch
-    {
-        Machine machine => machine.Demand,
-        Consumer { Generation: { Supplemental: { } water } generation } => [new(generation.Fuel, generation.Burns), new(water, generation.SupplementalNeeded)],
-        Consumer { Generation: { } generation } => [new(generation.Fuel, generation.Burns)],
-        _ => [],
-    };
 
     /// <summary>
     /// Who each machine in this snapshot belongs to: this factory's own members, and the other factories' machines as

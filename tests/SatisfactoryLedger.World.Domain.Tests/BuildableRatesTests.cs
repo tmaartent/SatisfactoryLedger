@@ -60,6 +60,78 @@ public class BuildableRatesTests
         Assert.Empty(machine.Production);
     }
 
+    [Fact]
+    public void A_generator_asks_its_fuel_and_its_water_at_full_power()
+    {
+        Buildable generator = new Consumer(Id, generation: new Generation(
+            Items.UraniumFuelRod, Rate.PerMinute(0.2m), Items.Water, Rate.PerMinute(240), Items.UraniumWaste, Rate.PerMinute(10)));
+
+        Assert.Equal(
+            new Dictionary<ItemId, Rate> { [Items.UraniumFuelRod] = Rate.PerMinute(0.2m), [Items.Water] = Rate.PerMinute(240) },
+            generator.Demand);
+    }
+
+    [Fact]
+    public void A_generator_that_needs_no_water_asks_only_its_fuel()
+    {
+        Buildable generator = new Consumer(Id, generation: new Generation(Items.Coal, Rate.PerMinute(15), Items.Water, Rate.Zero, null, Rate.Zero));
+
+        Assert.Equal(new Dictionary<ItemId, Rate> { [Items.Coal] = Rate.PerMinute(15) }, generator.Demand);
+        Assert.Equal(new HashSet<ItemId> { Items.Coal }, generator.Consumes);
+    }
+
+    [Fact]
+    public void A_generator_makes_its_waste()
+    {
+        Buildable generator = new Consumer(Id, generation: new Generation(
+            Items.UraniumFuelRod, Rate.PerMinute(0.2m), Items.Water, Rate.PerMinute(240), Items.UraniumWaste, Rate.PerMinute(10)));
+
+        Assert.Equal(new Dictionary<ItemId, Rate> { [Items.UraniumWaste] = Rate.PerMinute(10) }, generator.Production);
+    }
+
+    [Fact]
+    public void A_generator_whose_fuel_is_not_known_asks_and_makes_nothing_in_particular()
+    {
+        Buildable generator = new Consumer(Id) { IsGenerator = true };
+
+        Assert.Empty(generator.Demand);
+        Assert.Empty(generator.Production);
+    }
+
+    [Fact]
+    public void A_drone_port_that_loads_asks_the_fuel_its_drones_burn()
+    {
+        Buildable port = new Consumer(Id, new HashSet<ItemId> { Items.Battery }, burnRate: Rate.PerMinute(2));
+
+        Assert.Equal(new Dictionary<ItemId, Rate> { [Items.Battery] = Rate.PerMinute(2) }, port.Demand);
+    }
+
+    [Fact]
+    public void A_drone_port_that_unloads_asks_the_fuel_its_drones_burn()
+    {
+        Buildable port = new Provider(Id, burns: new HashSet<ItemId> { Items.Battery }, burnRate: Rate.PerMinute(2));
+
+        Assert.Equal(new Dictionary<ItemId, Rate> { [Items.Battery] = Rate.PerMinute(2) }, port.Demand);
+    }
+
+    [Fact]
+    public void A_truck_station_consumes_its_fuel_at_a_rate_that_is_not_known()
+    {
+        Buildable station = new Provider(Id, burns: new HashSet<ItemId> { Items.Coal });
+
+        Assert.Equal(new HashSet<ItemId> { Items.Coal }, station.Consumes);
+        Assert.Empty(station.Demand);
+    }
+
+    [Fact]
+    public void A_piece_of_logistics_asks_and_makes_nothing()
+    {
+        Buildable belt = new Logistics(Id, LogisticsKind.Belt, Rate.PerMinute(60));
+
+        Assert.Empty(belt.Demand);
+        Assert.Empty(belt.Production);
+    }
+
     [Theory]
     [InlineData(Purity.Impure, 30)]
     [InlineData(Purity.Normal, 60)]

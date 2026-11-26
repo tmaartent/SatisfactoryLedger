@@ -42,11 +42,9 @@ public sealed class FlowReadings(
         return buildable switch
         {
             Logistics => Into(buildable.Id, item),
-            Machine machine => running * (machine.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
-            Consumer { Generation: { Byproduct: { } waste } generation } when waste == item => running * generation.Leaves.ToDouble(),
             Provider { Offer: { } offer } when offer.Item == item => offer.PerMinute.ToDouble() - Spare(buildable.Id, item),
             Provider => Delivered(buildable.Id, item),
-            _ => 0,
+            _ => running * (buildable.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
         };
     }
 }

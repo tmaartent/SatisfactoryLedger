@@ -16,6 +16,7 @@ internal static class Items
     public static readonly ItemId PackagedNitrogenGas = ItemId.Of("Desc_PackagedNitrogenGas_C");
     public static readonly ItemId EmptyFluidTank = ItemId.Of("Desc_GasTank_C");
     public static readonly ItemId CoolingSystem = ItemId.Of("Desc_CoolingSystem_C");
+    public static readonly ItemId Battery = ItemId.Of("Desc_Battery_C");
 
     /// <summary>The fluids among these items: pipes carry them, belts carry the rest.</summary>
     public static readonly IReadOnlySet<ItemId> Fluids = new HashSet<ItemId> { Water, NitrogenGas };

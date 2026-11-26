@@ -1,3 +1,4 @@
+using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain.Tracing;
 
 namespace SatisfactoryLedger.World.Domain.Tests.Tracing;
@@ -179,5 +180,44 @@ public class BlockageTraceTests
         Assert.Equal(TraceCause.SuppliedByOthers, start.Cause);
         Assert.Equal(Ids("plates"), start.At);
         Assert.Equal(new Dictionary<BuildableId, double> { [BuildableId.Of("smelter B")] = 50 }, start.Others);
+    }
+
+    [Fact]
+    public void Too_few_consumers_counts_the_water_a_generator_takes()
+    {
+        WorldGraph world = new TestWorld()
+            .Machine("refinery", Items.Coal, 60, Items.Water, 90).Pipe("water").Generator("coal plant", Items.Coal, 15, Items.Water, 45)
+            .Connect("refinery", "water", "coal plant").Build();
+        FlowReadings readings = new TestReadings().Blocked("refinery", Items.Water, 0.5).Running("coal plant").Into("water", Items.Water, 45).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("refinery")));
+
+        Assert.Equal((TraceCause.TooFewConsumers, 45), (start.Cause, start.PerMinute));
+    }
+
+    [Fact]
+    public void Too_few_consumers_counts_the_fuel_a_drone_port_burns()
+    {
+        WorldGraph world = new TestWorld()
+            .Machine("assembler", Items.IronPlate, 30, Items.Battery, 10).Belt("batteries").LoadingStationBurning("drone port", Items.Battery, Rate.PerMinute(2))
+            .Connect("assembler", "batteries", "drone port").Build();
+        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0.2).Into("batteries", Items.Battery, 2).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("assembler")));
+
+        Assert.Equal((TraceCause.TooFewConsumers, 2), (start.Cause, start.PerMinute));
+    }
+
+    [Fact]
+    public void A_blocked_generator_counts_the_waste_it_cannot_get_away()
+    {
+        WorldGraph world = new TestWorld()
+            .Generator("nuclear plant", Items.UraniumFuelRod, 0.2m, Items.Water, 240, Items.UraniumWaste, 10).Belt("loose end")
+            .Connect("nuclear plant", "loose end").Build();
+        FlowReadings readings = new TestReadings().Blocked("nuclear plant", Items.UraniumWaste, 0.5).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("nuclear plant")));
+
+        Assert.Equal(5, Assert.Single(start.Path).PerMinute);
     }
 }

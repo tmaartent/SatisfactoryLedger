@@ -213,13 +213,14 @@ internal static class SnapshotAnalysis
     /// </summary>
     private static (string? Item, double? Minutes) OnStock(WorldGraph world, SnapshotDocument snapshot, AnalysisDocument analysis, MachineStateDocument state)
     {
-        (IReadOnlyDictionary<ItemId, SharedKernel.Rate> demand, IReadOnlyDictionary<ItemId, decimal> stock) = world.Find(BuildableId.Of(state.Id)) switch
+        Buildable? running = world.Find(BuildableId.Of(state.Id));
+        IReadOnlyDictionary<ItemId, decimal> stock = running switch
         {
-            Machine machine => (machine.Demand, machine.InputStock),
-            Consumer { Generation: { } generation } generator =>
-                ((IReadOnlyDictionary<ItemId, SharedKernel.Rate>)new Dictionary<ItemId, SharedKernel.Rate> { [generation.Fuel] = generation.Burns }, generator.InputStock),
-            _ => (new Dictionary<ItemId, SharedKernel.Rate>(), new Dictionary<ItemId, decimal>()),
+            Machine machine => machine.InputStock,
+            Consumer { Generation: not null } generator => generator.InputStock,
+            _ => new Dictionary<ItemId, decimal>(),
         };
+        IReadOnlyDictionary<ItemId, SharedKernel.Rate> demand = running?.Demand ?? new Dictionary<ItemId, SharedKernel.Rate>();
 
         (string? Item, double? Minutes) first = (null, null);
         foreach ((ItemId item, SharedKernel.Rate rate) in demand)

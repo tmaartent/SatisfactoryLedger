@@ -1,3 +1,4 @@
+using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Contracts.Analysis;
@@ -197,5 +198,58 @@ public class FactoryOutputsTests
         AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
         StoredFactory factory = Factory(snapshot, "Hand-built", [.. machines.Select(TestWorldSnapshot.Id)]);
         return SnapshotAnalysis.ForFactory(snapshot, factory, analysis, [factory])!.Output;
+    }
+
+    [Fact]
+    public void A_drone_port_its_belt_brings_all_the_fuel_its_drones_burn_is_short_of_nothing()
+    {
+        // A packager makes packaged turbofuel onto the belt into a drone port, where one drone refuels: 5/3 a minute.
+        const string PackagedTurbofuel = "Desc_TurboFuel_C";
+        string tank = Id("Build_PipeStorageTank_C_1"), pipe = Id("Build_Pipeline_C_1"), canisters = Id("Build_StorageContainerMk2_C_1");
+        string canisterBelt = Id("Build_ConveyorBeltMk1_C_1"), packager = Id("Build_Packager_C_1"), fuelBelt = Id("Build_ConveyorBeltMk1_C_2");
+        string port = Id("Build_DroneStation_C_1"), home = Id("Build_DroneStation_C_2");
+        var saved = new SavedWorld(
+            new SaveInfo("Drones", 517554, new DateTime(2026, 11, 26, 0, 0, 0, DateTimeKind.Utc)),
+            [
+                new SavedLogistics(BuildableId.Of(tank), "Build_PipeStorageTank_C", LogisticsKind.FluidBuffer)
+                {
+                    Stock = new Dictionary<string, decimal> { ["Desc_LiquidTurboFuel_C"] = 400 },
+                },
+                new SavedLogistics(BuildableId.Of(pipe), "Build_Pipeline_C", LogisticsKind.Pipe),
+                new SavedLogistics(BuildableId.Of(canisters), "Build_StorageContainerMk2_C", LogisticsKind.StorageContainer)
+                {
+                    Stock = new Dictionary<string, decimal> { ["Desc_FluidCanister_C"] = 500 },
+                },
+                new SavedLogistics(BuildableId.Of(canisterBelt), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedMachine(BuildableId.Of(packager), "Build_Packager_C", "Recipe_PackagedTurboFuel_C", ClockSpeed.Percent(100), 1),
+                new SavedLogistics(BuildableId.Of(fuelBelt), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt),
+                new SavedProvider(BuildableId.Of(port), "Build_DroneStation_C", Node: null, ClockSpeed.Percent(100)) { Burns = new HashSet<string> { PackagedTurbofuel } },
+                new SavedConsumer(BuildableId.Of(home), "Build_DroneStation_C")
+                {
+                    Burns = new HashSet<string>(),
+                    Drone = new SavedDroneRoute(BuildableId.Of(port), 3_000, 300),
+                },
+            ],
+            [
+                new Connection(BuildableId.Of(tank), BuildableId.Of(pipe)), new Connection(BuildableId.Of(pipe), BuildableId.Of(packager)),
+                new Connection(BuildableId.Of(canisters), BuildableId.Of(canisterBelt)), new Connection(BuildableId.Of(canisterBelt), BuildableId.Of(packager)),
+                new Connection(BuildableId.Of(packager), BuildableId.Of(fuelBelt)), new Connection(BuildableId.Of(fuelBelt), BuildableId.Of(port)),
+            ],
+            []);
+        CatalogCopy catalog = TestWorldSnapshot.Catalog with
+        {
+            Recipes = [.. TestWorldSnapshot.Catalog.Recipes, new CatalogRecipe(
+                "Recipe_PackagedTurboFuel_C", "Build_Packager_C", 6, [new("Desc_LiquidTurboFuel_C", 2), new("Desc_FluidCanister_C", 2)], [new(PackagedTurbofuel, 2)])],
+            Items = [.. TestWorldSnapshot.Catalog.Items, new CatalogItem(PackagedTurbofuel, "Packaged Turbofuel", false)],
+            // A trip of 3 km costs 24,000 + 6 × 6,000 MJ: 60,000 MJ every 5 minutes, of fuel with 7,200 MJ an item.
+            DronePorts = [new CatalogDronePort("Build_DroneStation_C", 24_000, 6, [new(PackagedTurbofuel, 7_200)])],
+        };
+        SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, catalog).ToJson());
+        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
+        StoredFactory fuel = Factory(snapshot, "Drone fuel", packager);
+
+        FactoryOutput output = Assert.Single(SnapshotAnalysis.ForFactory(snapshot, fuel, analysis, [fuel])!.Output);
+
+        Assert.Equal((1.6667, 0.0, 0.0), (output.ReceiversNeed, output.OthersBring, output.Short));
     }
 }

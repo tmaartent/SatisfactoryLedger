@@ -46,4 +46,12 @@ public sealed class Provider(
     /// </summary>
     public bool IsStation { get; init; }
 
+    /// <summary>A drone port the fuel its drones burn (BR-A16); nothing for the others.</summary>
+    public override IReadOnlyDictionary<ItemId, Rate> Demand { get; } = Burning(burns ?? NoItems, burnRate);
+
+    /// <summary>What it brings in is its <see cref="Offer"/>, not something it makes.</summary>
+    public override IReadOnlyDictionary<ItemId, Rate> Production => NoRates;
+
+    /// <summary>A drone port or truck station its fuel, whether or not its rate is known.</summary>
+    public override IReadOnlySet<ItemId> Consumes => Burns;
 }

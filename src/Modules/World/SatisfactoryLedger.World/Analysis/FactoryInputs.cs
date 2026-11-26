@@ -62,12 +62,12 @@ internal static class FactoryInputs
         Dictionary<string, double> atFullSpeed = new(StringComparer.Ordinal);
         foreach (Buildable member in members.Machines.Select(id => world.Find(id)).OfType<Buildable>())
         {
-            foreach ((ItemId item, SharedKernel.Rate rate) in FactoryOutputs.Takes(member).Where(input => now.ContainsKey(input.Key.Id)))
+            foreach ((ItemId item, SharedKernel.Rate rate) in member.Demand.Where(input => now.ContainsKey(input.Key.Id)))
             {
                 atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) + rate.ToDouble();
             }
 
-            foreach ((ItemId item, SharedKernel.Rate rate) in FactoryOutputs.Makes(member).Where(product => now.ContainsKey(product.Key.Id)))
+            foreach ((ItemId item, SharedKernel.Rate rate) in member.Production.Where(product => now.ContainsKey(product.Key.Id)))
             {
                 atFullSpeed[item.Id] = atFullSpeed.GetValueOrDefault(item.Id) - rate.ToDouble();
             }
@@ -137,11 +137,10 @@ internal static class FactoryInputs
             double idle = 1 - (states.GetValueOrDefault(id.Id)?.Utilisation ?? 1);
             return world.Find(id) switch
             {
-                Machine machine => idle * (machine.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
-                Consumer { Generation: { Byproduct: { } waste } generation } when waste == item => idle * generation.Leaves.ToDouble(),
                 Provider { IsStation: true } station => StationSpare(station, item),
                 Provider when unused.TryGetValue($"{id.Id}|{item.Id}", out UnusedSupplyDocument? supply) => supply.Offered - supply.Delivered,
-                _ => 0,
+                Provider or null => 0,
+                { } other => idle * (other.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
             };
         }
 
@@ -194,12 +193,11 @@ internal static class FactoryInputs
             double utilisation = states.GetValueOrDefault(id.Id)?.Utilisation ?? 0;
             return world.Find(id) switch
             {
-                Machine machine => utilisation * (machine.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
-                Consumer { Generation: { Byproduct: { } waste } generation } when waste == item => utilisation * generation.Leaves.ToDouble(),
                 Provider when unused.TryGetValue($"{id.Id}|{item.Id}", out UnusedSupplyDocument? supply) => supply.Delivered,
                 Provider when unknown.TryGetValue(id.Id, out UnknownSupplyDocument? supply) => supply.Delivered.GetValueOrDefault(item.Id),
                 Provider { Offer: { } offer } when offer.Item == item => offer.PerMinute.ToDouble(),
-                _ => 0,
+                Provider or null => 0,
+                { } other => utilisation * (other.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
             };
         }
 
@@ -248,13 +246,8 @@ internal static class FactoryInputs
             return Into(outside);
         }
 
-        double takes = (states.GetValueOrDefault(input.Inside.Id)?.Utilisation ?? 0) * world.Find(input.Inside) switch
-        {
-            Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
-            Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
-            Consumer { Generation: { Supplemental: { } water } generation } when water == item => generation.SupplementalNeeded.ToDouble(),
-            _ => 0,
-        };
+        double takes = (states.GetValueOrDefault(input.Inside.Id)?.Utilisation ?? 0)
+            * (world.Find(input.Inside)?.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0);
         return takes / members.Inputs.Count(other => other.Inside == input.Inside && other.Items.Contains(item));
     }
 }
