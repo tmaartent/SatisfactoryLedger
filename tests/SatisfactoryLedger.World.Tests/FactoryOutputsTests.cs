@@ -5,7 +5,6 @@ using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.SaveFile;
-using SatisfactoryLedger.World.Simulation;
 using SatisfactoryLedger.World.Snapshots;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
@@ -86,10 +85,9 @@ public class FactoryOutputsTests
     public void A_generator_it_feeds_would_take_its_fuel()
     {
         // In the later save a packager unpacks turbofuel for the fuel generator: 250 MW of 2,000 MJ a cubic metre.
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(WithGenerators.ToFlowNetwork()).ToJson());
         StoredFactory unpacking = Factory(WithGenerators, "Unpacking", TurbofuelPackager);
 
-        FactoryOutput turbofuel = SnapshotAnalysis.ForFactory(WithGenerators, unpacking, analysis, [unpacking])!.Output
+        FactoryOutput turbofuel = SnapshotAnalysis.ForFactory(WithGenerators, unpacking, WithGeneratorsAnalysis, [unpacking])!.Output
             .Single(output => output.Item == "Desc_LiquidTurboFuel_C");
 
         Assert.Equal(7.5, turbofuel.ReceiversNeed);
@@ -120,7 +118,7 @@ public class FactoryOutputsTests
                 new Connection(Saved("packager"), Saved("cans")), new Connection(Saved("cans"), Saved("sink")),
             ],
             []);
-        FactoryOutput output = Assert.Single(OutputOf(saved, "packager", "generator"));
+        FactoryOutput output = Assert.Single(OutputOf(saved, new TestAnalysis(), "packager", "generator"));
 
         Assert.Equal("Desc_FluidCanister_C", output.Item);
     }
@@ -147,7 +145,10 @@ public class FactoryOutputsTests
             ],
             []);
 
-        OutputDestination destination = Assert.Single(Assert.Single(OutputOf(saved, "smelter")).Destinations);
+        // The smelter runs at full speed: its 30 ingots a minute go into the portal.
+        TestAnalysis analysis = new TestAnalysis().Running(Id("smelter")).Into(Id("ingots"), "Desc_IronIngot_C", 30);
+
+        OutputDestination destination = Assert.Single(Assert.Single(OutputOf(saved, analysis, "smelter")).Destinations);
 
         Assert.Equal((OutputDestinationKind.Consumer, "Build_Portal_C"), (destination.Kind, destination.Building));
     }
@@ -184,20 +185,19 @@ public class FactoryOutputsTests
             ],
             []);
 
-        FactoryOutput ingots = OutputOf(saved, "smelter", "constructor").Single(output => output.Item == "Desc_IronIngot_C");
+        FactoryOutput ingots = OutputOf(saved, new TestAnalysis(), "smelter", "constructor").Single(output => output.Item == "Desc_IronIngot_C");
 
         Assert.Equal(15, ingots.AtFullSpeed);
     }
 
     private static BuildableId Saved(string name) => BuildableId.Of(TestWorldSnapshot.Id(name));
 
-    /// <summary>A hand-built world, analysed, and the output of a factory of the named machines in it.</summary>
-    private static IReadOnlyList<FactoryOutput> OutputOf(SavedWorld saved, params string[] machines)
+    /// <summary>A hand-built world with its hand-built analysis, and the output of a factory of the named machines in it.</summary>
+    private static IReadOnlyList<FactoryOutput> OutputOf(SavedWorld saved, TestAnalysis analysis, params string[] machines)
     {
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
         StoredFactory factory = Factory(snapshot, "Hand-built", [.. machines.Select(TestWorldSnapshot.Id)]);
-        return SnapshotAnalysis.ForFactory(snapshot, factory, analysis, [factory])!.Output;
+        return SnapshotAnalysis.ForFactory(snapshot, factory, analysis.Build(), [factory])!.Output;
     }
 
     [Fact]
@@ -245,7 +245,8 @@ public class FactoryOutputsTests
             DronePorts = [new CatalogDronePort("Build_DroneStation_C", 24_000, 6, [new(PackagedTurbofuel, 7_200)])],
         };
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, catalog).ToJson());
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
+        // The packager runs at the port's pace: the 5/3 a minute its drone burns goes over the belt.
+        AnalysisDocument analysis = new TestAnalysis().Into(fuelBelt, PackagedTurbofuel, 5.0 / 3).Build();
         StoredFactory fuel = Factory(snapshot, "Drone fuel", packager);
 
         FactoryOutput output = Assert.Single(SnapshotAnalysis.ForFactory(snapshot, fuel, analysis, [fuel])!.Output);

@@ -5,7 +5,7 @@ using SatisfactoryLedger.World.Domain.Tests;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
 
-namespace SatisfactoryLedger.World.Tests;
+namespace SatisfactoryLedger.World.Simulation.Tests;
 
 /// <summary>
 /// End to end: the test world (Fixtures/Development.sav), stored as a snapshot with the Catalog's rates, through the

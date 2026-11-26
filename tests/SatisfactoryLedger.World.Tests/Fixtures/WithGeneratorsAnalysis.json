@@ -1,0 +1,210 @@
+{
+  "version": 16,
+  "machines": [
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2147301500",
+      "utilisation": 1,
+      "limit": "none",
+      "starvedOf": {},
+      "blockedOn": {}
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2147301226",
+      "utilisation": 0.41666699999999995,
+      "limit": "outputBlocked",
+      "limitingItem": "Desc_IronIngot_C",
+      "starvedOf": {},
+      "blockedOn": {
+        "Desc_IronIngot_C": 0.41666699999999995
+      }
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_ConstructorMk1_C_2147291547",
+      "utilisation": 1,
+      "limit": "none",
+      "starvedOf": {},
+      "blockedOn": {}
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_ConstructorMk1_C_2147275293",
+      "utilisation": 0,
+      "limit": "starved",
+      "limitingItem": "Desc_IronIngot_C",
+      "starvedOf": {
+        "Desc_IronIngot_C": 0
+      },
+      "blockedOn": {
+        "Desc_IronRod_C": 0
+      }
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_Packager_C_2147260704",
+      "utilisation": 1,
+      "limit": "none",
+      "starvedOf": {},
+      "blockedOn": {}
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_GeneratorNuclear_C_2147427188",
+      "utilisation": 1,
+      "limit": "none",
+      "starvedOf": {},
+      "blockedOn": {}
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_GeneratorCoal_C_2147408929",
+      "utilisation": 1,
+      "limit": "none",
+      "starvedOf": {},
+      "blockedOn": {}
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_Packager_C_2147370289",
+      "utilisation": 0,
+      "limit": "outputBlocked",
+      "limitingItem": "Desc_FluidCanister_C",
+      "starvedOf": {},
+      "blockedOn": {
+        "Desc_FluidCanister_C": 0,
+        "Desc_LiquidTurboFuel_C": 0.375
+      }
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_GeneratorFuel_C_2147379250",
+      "utilisation": 0,
+      "limit": "starved",
+      "limitingItem": "Desc_LiquidTurboFuel_C",
+      "starvedOf": {
+        "Desc_LiquidTurboFuel_C": 0
+      },
+      "blockedOn": {}
+    }
+  ],
+  "bottlenecks": [],
+  "unusedSupply": [
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_MinerMk1_C_2147339296",
+      "item": "Desc_OreIron_C",
+      "offered": 60,
+      "delivered": 22.5
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_WaterPump_C_2147271168",
+      "item": "Desc_Water_C",
+      "offered": 120,
+      "delivered": 60
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_WaterPump_C_2147418772",
+      "item": "Desc_Water_C",
+      "offered": 300,
+      "delivered": 240
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_WaterPump_C_2147407830",
+      "item": "Desc_Water_C",
+      "offered": 300,
+      "delivered": 45
+    }
+  ],
+  "unknownSupply": [
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_StorageContainerMk2_C_2147239114",
+      "delivered": {
+        "Desc_FluidCanister_C": 60
+      },
+      "confirmed": false
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_StorageContainerMk2_C_2147425490",
+      "delivered": {
+        "Desc_NuclearFuelRod_C": 0.2
+      },
+      "stockMinutes": 205,
+      "confirmed": true
+    },
+    {
+      "id": "Persistent_Level:PersistentLevel.Build_StorageContainerMk2_C_2147391167",
+      "delivered": {
+        "Desc_CompactedCoal_C": 7.142857142857143
+      },
+      "stockMinutes": 194.04,
+      "confirmed": true
+    }
+  ],
+  "unsettledParts": [],
+  "into": {
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147317296": {
+      "Desc_OreIron_C": 22.5
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorLiftMk1_C_2147312952": {
+      "Desc_OreIron_C": 22.5
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147303056": {
+      "Desc_OreIron_C": 22.5
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147299536": {
+      "Desc_OreIron_C": 9.99999
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147298978": {
+      "Desc_OreIron_C": 12.500009999999998
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147295053": {
+      "Desc_IronIngot_C": 9.99999
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147294495": {
+      "Desc_IronIngot_C": 12.500009999999998
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk6_C_2147290960": {
+      "Desc_IronIngot_C": 22.5
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147285728": {
+      "Desc_IronPlate_C": 15
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk1_C_2147276358": {
+      "Desc_IronPlate_C": 15
+    },
+    "Persistent_Level:PersistentLevel.Build_Pipeline_C_2147257932": {
+      "Desc_Water_C": 60
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_NoIndicator_C_2147257019": {
+      "Desc_Water_C": 60
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk6_C_2147240555": {
+      "Desc_PackagedWater_C": 60
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk6_C_2147238266": {
+      "Desc_FluidCanister_C": 60
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_C_2147436043": {
+      "Desc_Water_C": 150
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_C_2147409671": {
+      "Desc_Water_C": 300
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_C_2147376471": {
+      "Desc_Water_C": 150
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk6_C_2147424725": {
+      "Desc_NuclearWaste_C": 10
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk6_C_2147423924": {
+      "Desc_NuclearFuelRod_C": 0.2
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_C_2147417488": {
+      "Desc_Water_C": 240
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_C_2147412050": {
+      "Desc_Water_C": 240
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_C_2147406452": {
+      "Desc_Water_C": 45
+    },
+    "Persistent_Level:PersistentLevel.Build_ConveyorBeltMk6_C_2147388065": {
+      "Desc_CompactedCoal_C": 7.142857142857143
+    },
+    "Persistent_Level:PersistentLevel.Build_PipelineMK2_C_2147380840": {
+      "Desc_Water_C": 45
+    }
+  }
+}

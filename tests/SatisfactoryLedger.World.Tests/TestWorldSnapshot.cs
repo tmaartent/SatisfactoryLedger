@@ -1,5 +1,4 @@
 using SatisfactoryLedger.World.Contracts.Analysis;
-using SatisfactoryLedger.World.Simulation;
 using SatisfactoryLedger.Catalog.Contracts;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.SaveFile;
@@ -66,14 +65,22 @@ internal static class TestWorldSnapshot
     /// <summary>Stored and read back, as the database does with it.</summary>
     public static SnapshotDocument Document { get; } = Stored(Catalog);
 
-    /// <summary>The test world's analysis, stored and read back as the database does (ADR-0017).</summary>
-    public static AnalysisDocument TestWorldAnalysis { get; } =
-        AnalysisDocument.FromJson(AnalysisDocument.Compute(Document.ToFlowNetwork()).ToJson());
+    /// <summary>
+    /// The test world's analysis as the database stores it (ADR-0017), read from a fixture instead of running the solver
+    /// (issue #47). World.Simulation.Tests guards that the solver still computes it.
+    /// </summary>
+    public static AnalysisDocument TestWorldAnalysis => LazyTestWorldAnalysis.Value;
 
     public static SnapshotDocument Stored(CatalogCopy catalog) => SnapshotDocument.FromJson(SnapshotDocument.Create(Saved, catalog).ToJson());
 
     /// <summary>The same world saved later, with a nuclear plant, a coal generator and a fuel generator (Fixtures/Generators.sav).</summary>
     public static SnapshotDocument WithGenerators { get; } = SnapshotDocument.FromJson(SnapshotDocument.Create(Read("Fixtures/Generators.sav"), Catalog).ToJson());
+
+    /// <summary>The analysis of the world with generators, as stored; guarded like <see cref="TestWorldAnalysis"/>.</summary>
+    public static AnalysisDocument WithGeneratorsAnalysis => LazyWithGeneratorsAnalysis.Value;
+
+    public const string TestWorldAnalysisFixture = "Fixtures/TestWorldAnalysis.json";
+    public const string WithGeneratorsAnalysisFixture = "Fixtures/WithGeneratorsAnalysis.json";
 
     public static readonly string NuclearPlant = Id("Build_GeneratorNuclear_C_2147427188");
     public static readonly string CoalGenerator = Id("Build_GeneratorCoal_C_2147408929");
@@ -89,6 +96,14 @@ internal static class TestWorldSnapshot
     public static readonly string Miner = Id("Build_MinerMk1_C_2147339296");
     public static readonly string WaterExtractor = Id("Build_WaterPump_C_2147271168");
     public static readonly string Packager = Id("Build_Packager_C_2147260704");
+
+    // Read when first asked for, so the guard that writes a missing fixture can still use the rest of this class.
+    private static readonly Lazy<AnalysisDocument> LazyTestWorldAnalysis = new(() => StoredAnalysis(TestWorldAnalysisFixture));
+    private static readonly Lazy<AnalysisDocument> LazyWithGeneratorsAnalysis = new(() => StoredAnalysis(WithGeneratorsAnalysisFixture));
+
+    private static AnalysisDocument StoredAnalysis(string fixture) =>
+        File.Exists(fixture) ? AnalysisDocument.FromJson(File.ReadAllText(fixture)) : throw new FileNotFoundException(
+            $"{fixture} is missing: run World.Simulation.Tests with REGENERATE_ANALYSIS_FIXTURES=1 to write it", fixture);
 
     private static SavedWorld Read(string fixture = "Fixtures/Development.sav")
     {
