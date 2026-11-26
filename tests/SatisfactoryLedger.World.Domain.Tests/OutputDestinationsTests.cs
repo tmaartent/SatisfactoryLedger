@@ -160,4 +160,14 @@ public class OutputDestinationsTests
 
         Assert.Equal(24, OutputDestinations.ReceiversGet(world, [Id("left"), Id("right")], Items.IronPlate, id => flows.GetValueOrDefault(id)));
     }
+
+    [Fact]
+    public void A_drone_port_asks_for_the_fuel_its_drones_burn()
+    {
+        WorldGraph world = new TestWorld()
+            .Belt("batteries").LoadingStationBurning("drone port", Items.Battery, Rate.PerMinute(2))
+            .Connect("batteries", "drone port").Build();
+
+        Assert.Equal(Rate.PerMinute(2), OutputDestinations.ReceiversNeed(world, [Id("batteries")], Items.Battery));
+    }
 }

@@ -318,22 +318,10 @@ public sealed class FactoryDefinition
         }
 
         /// <summary>What one of its machines makes: a machine its recipe's products, a generator its waste.</summary>
-        private IEnumerable<ItemId> Produces(BuildableId id) => world.Find(id) switch
-        {
-            Machine machine => machine.Produces,
-            Consumer { Generation: { Byproduct: { } waste } generation } when generation.Leaves > Rate.Zero => [waste],
-            _ => [],
-        };
+        private IEnumerable<ItemId> Produces(BuildableId id) => world.Find(id) is { } member ? member.Produces : [];
 
         /// <summary>What one of its machines takes in: a machine its recipe's inputs, a generator its fuel and water.</summary>
-        private IEnumerable<ItemId> Consumes(BuildableId id) => world.Find(id) switch
-        {
-            Machine machine => machine.Consumes,
-            Consumer { Generation: { } generation } => generation.SupplementalNeeded > Rate.Zero && generation.Supplemental is { } water
-                ? [generation.Fuel, water]
-                : [generation.Fuel],
-            _ => [],
-        };
+        private IEnumerable<ItemId> Consumes(BuildableId id) => world.Find(id) is { } member ? member.Consumes : [];
 
         private static List<ItemId> Ordered(IEnumerable<ItemId> items) =>
             items.Distinct().OrderBy(item => item.Id, StringComparer.Ordinal).ToList();

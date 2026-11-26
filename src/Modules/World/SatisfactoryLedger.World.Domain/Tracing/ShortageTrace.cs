@@ -165,20 +165,15 @@ public static class ShortageTrace
             }
         }
 
-        // What a starved machine lacks of an item per minute: what it asks at its clock speed less the share it gets.
+        // What a starved machine or generator lacks of an item per minute: what it asks at its clock speed less the share it gets.
         double Missing(BuildableId id, ItemId item) =>
-            world.Find(id) is Machine machine && readings.Machine(id) is { } reading
-                ? Math.Round((machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0) * (1 - reading.StarvedOf.GetValueOrDefault(item, 1)), 6)
+            world.Find(id) is { } starved && readings.Machine(id) is { } reading
+                ? Math.Round((starved.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0) * (1 - reading.StarvedOf.GetValueOrDefault(item, 1)), 6)
                 : 0;
     }
 
     /// <summary>What a producer makes of an item at full speed, per minute.</summary>
-    private static double AtFullSpeed(Buildable producer, ItemId item) => producer switch
-    {
-        Machine machine => machine.Production.GetValueOrDefault(item)?.ToDouble() ?? 0,
-        Consumer { Generation: { Byproduct: { } waste } generation } when waste == item => generation.Leaves.ToDouble(),
-        _ => 0,
-    };
+    private static double AtFullSpeed(Buildable producer, ItemId item) => producer.Production.GetValueOrDefault(item)?.ToDouble() ?? 0;
 
     /// <summary>
     /// The lines into some machines, followed upstream through logistics for one item, to where they start: the

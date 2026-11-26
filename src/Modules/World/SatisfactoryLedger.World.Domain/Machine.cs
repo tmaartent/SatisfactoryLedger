@@ -17,7 +17,6 @@ public sealed class Machine : Buildable
         Production = recipe?.Outputs.ToDictionary(output => output.Key, output => output.Value * clockSpeed * productionBoost) ?? [];
         Batches = recipe?.Batches.ToDictionary(batch => batch.Key, batch => batch.Value * productionBoost) ?? [];
         Consumes = Demand.Keys.ToHashSet();
-        Produces = Production.Keys.ToHashSet();
     }
 
     /// <summary>
@@ -31,10 +30,10 @@ public sealed class Machine : Buildable
     public IReadOnlyDictionary<ItemId, decimal>? OutputStock { get; init; }
 
     /// <summary>Per input item, what it asks per minute when it runs at 100%.</summary>
-    public IReadOnlyDictionary<ItemId, Rate> Demand { get; }
+    public override IReadOnlyDictionary<ItemId, Rate> Demand { get; }
 
     /// <summary>Per output item, what it makes per minute when it runs at 100%.</summary>
-    public IReadOnlyDictionary<ItemId, Rate> Production { get; }
+    public override IReadOnlyDictionary<ItemId, Rate> Production { get; }
 
     /// <summary>How many of each of its products fit in a slot, from the Catalog; empty when that isn't known (BR-A7).</summary>
     public IReadOnlyDictionary<ItemId, int> StackSizes { get; init; } = new Dictionary<ItemId, int>();
@@ -50,10 +49,7 @@ public sealed class Machine : Buildable
     public IReadOnlyDictionary<ItemId, decimal> Batches { get; }
 
     /// <summary>The items its recipe takes in.</summary>
-    public IReadOnlySet<ItemId> Consumes { get; }
-
-    /// <summary>The items its recipe makes.</summary>
-    public IReadOnlySet<ItemId> Produces { get; }
+    public override IReadOnlySet<ItemId> Consumes { get; }
 
     /// <summary>
     /// BR-A7: whether the save shows <paramref name="item"/> leaving it: it holds some of every input, so it can run,

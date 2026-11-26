@@ -135,20 +135,15 @@ public static class BlockageTrace
                 : new TraceStart(TraceCause.TooFewConsumers, item, fullSpeed, here, taken));
         }
 
-        // What a blocked machine can't get away of an item per minute: what it makes at its clock speed less the share that leaves.
+        // What a blocked machine or generator can't get away of an item per minute: what it makes at its clock speed less the share that leaves.
         double CannotLeave(BuildableId id, ItemId item) =>
-            world.Find(id) is Machine machine && readings.Machine(id) is { } reading
-                ? Math.Round((machine.Production.GetValueOrDefault(item)?.ToDouble() ?? 0) * (1 - reading.BlockedOn.GetValueOrDefault(item, 1)), 6)
+            world.Find(id) is { } blocked && readings.Machine(id) is { } reading
+                ? Math.Round((blocked.Production.GetValueOrDefault(item)?.ToDouble() ?? 0) * (1 - reading.BlockedOn.GetValueOrDefault(item, 1)), 6)
                 : 0;
     }
 
     /// <summary>What a consumer takes of an item at full speed, per minute; 0 when that isn't known (a sink takes all).</summary>
-    private static double Takes(Buildable consumer, ItemId item) => consumer switch
-    {
-        Machine machine => machine.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0,
-        Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns.ToDouble(),
-        _ => 0,
-    };
+    private static double Takes(Buildable consumer, ItemId item) => consumer.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0;
 
     /// <summary>
     /// The lines out of some machines, followed downstream through logistics for one item, to where they end: the

@@ -50,4 +50,10 @@ public sealed class Logistics(
     /// </summary>
     public IReadOnlyDictionary<ItemId, decimal> Carrying { get; init; } = new Dictionary<ItemId, decimal>();
 
+    /// <summary>Logistics moves items without taking or making any.</summary>
+    public override IReadOnlyDictionary<ItemId, Rate> Demand => NoRates;
+
+    public override IReadOnlyDictionary<ItemId, Rate> Production => NoRates;
+
+    public override IReadOnlySet<ItemId> Consumes => NoItems;
 }

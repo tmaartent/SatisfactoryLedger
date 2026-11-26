@@ -69,14 +69,8 @@ public static class OutputDestinations
     public static double ReceiversGet(WorldGraph world, IEnumerable<BuildableId> from, ItemId item, Func<BuildableId, double> flowInto) =>
         Receivers(world, from).Where(receiver => Asks(receiver, item) > Rate.Zero).Sum(receiver => flowInto(receiver.Id));
 
-    /// <summary>What a receiver asks for of an item at 100%: a machine its recipe at its clock speed, a generator its fuel or water.</summary>
-    private static Rate Asks(Buildable receiver, ItemId item) => receiver switch
-    {
-        Machine machine => machine.Demand.GetValueOrDefault(item) ?? Rate.Zero,
-        Consumer { Generation: { } generation } when generation.Fuel == item => generation.Burns,
-        Consumer { Generation: { Supplemental: { } water } generation } when water == item => generation.SupplementalNeeded,
-        _ => Rate.Zero,
-    };
+    /// <summary>What a receiver asks for of an item at 100%: its <see cref="Buildable.Demand"/>.</summary>
+    private static Rate Asks(Buildable receiver, ItemId item) => receiver.Demand.GetValueOrDefault(item) ?? Rate.Zero;
 
     /// <summary>The machines and consumers the lines from <paramref name="from"/> reach through logistics, each once.</summary>
     private static IEnumerable<Buildable> Receivers(WorldGraph world, IEnumerable<BuildableId> from)

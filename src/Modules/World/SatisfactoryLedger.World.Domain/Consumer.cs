@@ -51,4 +51,28 @@ public sealed class Consumer(
     /// </summary>
     public Inventory? Inventory { get; init; }
 
+    /// <summary>
+    /// A generator burning a known fuel its fuel and, when it needs any, its water (BR-A8); a drone port the fuel its
+    /// drones burn (BR-A16); nothing known for the others.
+    /// </summary>
+    public override IReadOnlyDictionary<ItemId, Rate> Demand { get; } = generation is { } burning ? Needs(burning) : Burning(burns ?? NoItems, burnRate);
+
+    /// <summary>A generator burning a known fuel its waste, when it leaves any (BR-A8).</summary>
+    public override IReadOnlyDictionary<ItemId, Rate> Production { get; } =
+        generation is { Byproduct: { } waste, Leaves: var leaves } && leaves > Rate.Zero ? new Dictionary<ItemId, Rate> { [waste] = leaves } : NoRates;
+
+    /// <summary>A generator its fuel and water, a drone port or truck station its fuel, whether or not its rate is known.</summary>
+    public override IReadOnlySet<ItemId> Consumes { get; } =
+        generation is { } fuelled ? Needs(fuelled).Keys.ToHashSet() : burns ?? NoItems;
+
+    private static Dictionary<ItemId, Rate> Needs(Generation generation)
+    {
+        Dictionary<ItemId, Rate> needs = new() { [generation.Fuel] = generation.Burns };
+        if (generation.Supplemental is { } water && generation.SupplementalNeeded > Rate.Zero)
+        {
+            needs[water] = generation.SupplementalNeeded;
+        }
+
+        return needs;
+    }
 }

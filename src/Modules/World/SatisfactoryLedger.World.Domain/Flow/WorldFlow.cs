@@ -78,9 +78,8 @@ public static class WorldFlow
         Provider provider => new FlowUnknownSource(
             provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, provider.BurnRate?.ToDouble(), provider.Inventory, cargo.GetValueOrDefault(provider.Id)),
         // BR-A8: a generator burning a known fuel takes what it burns and makes its waste, like a machine.
-        Consumer { Generation: { } generation } generator => new FlowMachine(
-            generator.Id, Demand(generation), Leaves(generation),
-            Stocked(new Dictionary<ItemId, Rate> { [generation.Fuel] = generation.Burns }, generator.InputStock)),
+        Consumer { Generation: not null } generator => new FlowMachine(
+            generator.Id, PerMinute(generator.Demand), PerMinute(generator.Production), Stocked(generator.Demand, generator.InputStock)),
         Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly, consumer.BurnRate?.ToDouble(), Evidenced(consumer.Inventory, consumer.Id, world)),
         Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction or LogisticsKind.PipeNetwork } splitter =>
             new FlowSplitter(splitter.Id, CarriesOf(splitter), splitter.SortRules),
@@ -200,18 +199,4 @@ public static class WorldFlow
 
     private static Dictionary<ItemId, double> PerMinute(IReadOnlyDictionary<ItemId, Rate> rates) =>
         rates.ToDictionary(rate => rate.Key, rate => rate.Value.ToDouble());
-
-    private static Dictionary<ItemId, double> Demand(Generation generation)
-    {
-        Dictionary<ItemId, double> demand = new() { [generation.Fuel] = generation.Burns.ToDouble() };
-        if (generation.Supplemental is { } supplemental && generation.SupplementalNeeded > Rate.Zero)
-        {
-            demand[supplemental] = generation.SupplementalNeeded.ToDouble();
-        }
-
-        return demand;
-    }
-
-    private static Dictionary<ItemId, double> Leaves(Generation generation) =>
-        generation.Byproduct is { } byproduct && generation.Leaves > Rate.Zero ? new() { [byproduct] = generation.Leaves.ToDouble() } : [];
 }

@@ -192,4 +192,17 @@ public class ShortageTraceTests
 
         Assert.Equal(Ids("plates"), start.Path[0].Machines);
     }
+
+    [Fact]
+    public void A_starved_generator_counts_the_fuel_it_lacks()
+    {
+        WorldGraph world = new TestWorld()
+            .Miner("coal mine", Items.Coal, 7.5m).Belt("coal").Generator("coal plant", Items.Coal, 15)
+            .Connect("coal mine", "coal", "coal plant").Build();
+        FlowReadings readings = new TestReadings().Starved("coal plant", Items.Coal, 0.5).Into("coal", Items.Coal, 7.5).Build();
+
+        TraceStart start = Assert.Single(ShortageTrace.From(world, readings, Ids("coal plant")));
+
+        Assert.Equal(7.5, Assert.Single(start.Path).PerMinute);
+    }
 }
