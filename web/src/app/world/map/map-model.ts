@@ -1,6 +1,7 @@
 // The world map's logic, apart from Leaflet: where things go, and what colour they get.
 
 import { CurvePointDocument } from '../../api/models/curve-point-document';
+import { DronePortFinding } from '../../api/models/drone-port-finding';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { buildingBoxes, fromAbove } from '../area/area-model';
 import { MachineFinding } from '../../api/models/machine-finding';
@@ -292,6 +293,16 @@ export function describePipeFlow(flow: PipeFlowFinding, name: (item: string) => 
   return flow.ofNetwork
     ? `its network takes in ${fluids} m³/min`
     : `${fluids}${flow.capacity ? ` of ${flow.capacity}` : ''} m³/min`;
+}
+
+/**
+ * A drone port in the model (BR-A16): "Drones burn Packaged Rocket Fuel 1.944/min · gets 1.5", or that no drone refuels
+ * there, so the fuel in its slot burns nothing (issue #44).
+ */
+export function describeDronePort(port: DronePortFinding, name: (item: string) => string): string {
+  return port.noDroneRefuels || port.burns === null
+    ? `No drone refuels here: its ${name(port.fuel)} burns nothing`
+    : `Drones burn ${name(port.fuel)} ${port.burns}/min · gets ${port.supplied}`;
 }
 
 /** A pipe's head lift in the model (BR-A22): "5.7 m to spare", or how far it climbs above it. */

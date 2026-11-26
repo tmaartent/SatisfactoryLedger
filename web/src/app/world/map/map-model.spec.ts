@@ -15,6 +15,7 @@ import {
   describeContents,
   dragColours,
   describeHeadLift,
+  describeDronePort,
   describePipeFlow,
   mapArtExtent,
   mapExtent,
@@ -252,6 +253,28 @@ describe('map model', () => {
         name,
       ),
     ).toBe('Water 60 of 300 m³/min');
+  });
+
+  describe('a drone port in the model', () => {
+    const port = {
+      id: 'port',
+      className: 'Build_DroneStation_C',
+      fuel: 'Desc_PackagedRocketFuel_C',
+      position: null,
+      approximate: false,
+    };
+
+    it('says what its drones burn and what its belts bring', () => {
+      expect(
+        describeDronePort({ ...port, burns: 1.944, supplied: 1.5, noDroneRefuels: false }, name),
+      ).toBe('Drones burn PackagedRocketFuel 1.944/min · gets 1.5');
+    });
+
+    it('says so when no drone refuels there, whatever is in its slot', () => {
+      expect(
+        describeDronePort({ ...port, burns: null, supplied: 0, noDroneRefuels: true }, name),
+      ).toBe('No drone refuels here: its PackagedRocketFuel burns nothing');
+    });
   });
 
   it('describes what the network of a pipe inside it takes in, as the model takes a network as one', () => {

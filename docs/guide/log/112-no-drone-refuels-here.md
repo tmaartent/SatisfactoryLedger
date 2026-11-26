@@ -111,3 +111,23 @@ Results:
   - `glossary.md`: **No drone refuels here**, Cause, Refuels at, Demand, Burn rate
   - `business-rules.md`: BR-A8, BR-A16, BR-A21
   - `primer.md`
+
+## Then: drone ports in the map's tooltips (asked 2026-11-26)
+
+The web had shown no drone-port findings since the findings page went (step 81), so nothing in the app showed this step. You chose option (b): the finding goes in the drone port's tooltip, where you'd click anyway.
+
+- **The tooltip line:**
+  - A port with a known rate: "Drones burn Packaged Rocket Fuel 1.944/min · gets 1.5".
+  - An idle port: "No drone refuels here: its Packaged Rocket Fuel burns nothing".
+  - It's a pure function, `describeDronePort` in `map-model.ts`, next to `describePipeFlow`.
+- **Both kinds of drone port get it:** one that unloads is drawn with the providers (`drawProviders`), one that only loads with the consumers (`drawOthers`). Both read a map of the findings by id (`dronePorts`), as generators do.
+- **Tests, written first:**
+  - `map-model.spec.ts` (2): a known rate, and no drone refuels.
+  - `map-page.spec.ts` (1): an idle drone port's tooltip says so. This one failed first, with only the building and its position in the tooltip.
+- **In 3D too** (asked the same day): clicking a drone port in the area view, or in a factory's 3D view (the same component), shows **In the model:** with the same line in the side panel. It sits where a pipe's flow in the model already goes (`selectedDronePort`, `dronePort` in `area-page.ts`).
+  - The area page has no component spec, since it's a Three.js scene. The words are tested in `map-model.spec.ts`; the panel only looks up the finding by id, as it does for pipe flows.
+- **Not built:**
+  - A drone-port count in the Info tab (option a).
+  - The finding in the optimal arrangement's 3D view: that page doesn't load the analysis, and there a drone port is a fixed spot with its name only.
+- **Results:** `ng test` 460 passed, exit code 0; lint and `tsc` clean.
+- **Files:** `web/src/app/world/map/map-model.ts`, `map-page.ts`, and their specs; `web/src/app/world/area/area-page.ts`, `area-page.html`.

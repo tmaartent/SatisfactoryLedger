@@ -34,6 +34,7 @@ import { traceFactories } from '../../api/fn/world/trace-factories';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { previewFactory } from '../../api/fn/world/preview-factory';
 import { FootprintDocument } from '../../api/models/footprint-document';
+import { DronePortFinding } from '../../api/models/drone-port-finding';
 import { GeneratorFinding } from '../../api/models/generator-finding';
 import { MachineFinding } from '../../api/models/machine-finding';
 import { MapConveyor } from '../../api/models/map-conveyor';
@@ -47,6 +48,7 @@ import {
   Contents,
   conveyorColours,
   describeHeadLift,
+  describeDronePort,
   describePipeFlow,
   statusColours,
   statusLabels,
@@ -287,6 +289,12 @@ export class AreaPage {
   protected readonly selectedFinding = computed(() => {
     const building = this.selected();
     return building ? this.findings().get(building.id) : undefined;
+  });
+  /** What the drone port looked at burns, in the model (BR-A16): or that no drone refuels there (issue #44). */
+  protected readonly selectedDronePort = computed(() => {
+    const building = this.selected();
+    const ports = loaded(this.analysis)?.dronePorts ?? [];
+    return building ? ports.find((port) => port.id === building.id) : undefined;
   });
   /** The belt, pipe or lift looked at (asked 2026-11-20); a building and a belt aren't looked at both at once. */
   protected readonly selectedConveyor = signal<MapConveyor | null>(null);
@@ -548,6 +556,11 @@ export class AreaPage {
 
   protected statusLabel(finding: { limit: MachineStatus }): string {
     return statusLabels[finding.limit];
+  }
+
+  /** What a drone port burns in the model, for the panel. */
+  protected dronePort(port: DronePortFinding): string {
+    return describeDronePort(port, (item) => this.names.item(item));
   }
 
   /** What flows through a pipe in the model, for the panel. */

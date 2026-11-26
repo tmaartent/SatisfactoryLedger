@@ -29,6 +29,7 @@ import { getArrangements } from '../../api/fn/world/get-arrangements';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { traceFactories } from '../../api/fn/world/trace-factories';
+import { DronePortFinding } from '../../api/models/drone-port-finding';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { PositionDocument } from '../../api/models/position-document';
 import { GameIcon } from '../../shared/game-icon';
@@ -53,6 +54,7 @@ import {
   describeContents,
   dragColours,
   describeHeadLift,
+  describeDronePort,
   describePipeFlow,
   shortOfHeadLift,
   escapeHtml,
@@ -210,6 +212,10 @@ export class MapPage {
   /** Each machine's finding, by id: its tooltip says what it's short of or can't get rid of (BR-A11). */
   private readonly machineFindings = computed(
     () => new Map((loaded(this.analysis)?.machines ?? []).map((machine) => [machine.id, machine])),
+  );
+  /** Each drone port's finding, by id: its tooltip says what its drones burn, or that none refuels there (BR-A16). */
+  private readonly dronePorts = computed(
+    () => new Map((loaded(this.analysis)?.dronePorts ?? []).map((port) => [port.id, port])),
   );
   /** What flows through each pipe in the model, by id (asked 2026-11-24). */
   private readonly pipeFlows = computed(
@@ -629,6 +635,7 @@ export class MapPage {
 
   private drawProviders(): void {
     const providers = loaded(this.world)?.providers ?? [];
+    const dronePorts = this.dronePorts();
     if (!this.map) return;
 
     this.providerLayer.clearLayers();
@@ -651,7 +658,9 @@ export class MapPage {
               ? ` · ${this.icon(provider.resource)}${this.names.item(provider.resource)}`
               : '') +
             (provider.purity ? ` · ${provider.purity}` : '') +
-            `<br>${positionInMetres(provider.position)}`,
+            '<br>' +
+            this.dronePortLine(dronePorts.get(provider.id)) +
+            positionInMetres(provider.position),
         )
         .addTo(this.providerLayer);
       this.shapes.set(provider.id, shape);
@@ -662,6 +671,7 @@ export class MapPage {
   private drawOthers(): void {
     const world = loaded(this.world);
     const generators = this.generators();
+    const dronePorts = this.dronePorts();
     if (!this.map) return;
 
     this.otherLayer.clearLayers();
@@ -703,6 +713,7 @@ export class MapPage {
                 ? `Burns ${this.icon(generator.fuel)}${this.names.item(generator.fuel)} · ${statusLabels[generator.limit]} · ${percent(generator.utilisation)}<br>` +
                   this.limitLine(generator)
                 : '') +
+              this.dronePortLine(dronePorts.get(building.id)) +
               (building.contents ? `Holds: ${this.contents(building.contents)}<br>` : '') +
               this.factoryLine(owner) +
               positionInMetres(building.position),
@@ -713,6 +724,13 @@ export class MapPage {
         this.shapes.set(building.id, shape);
       }
     }
+  }
+
+  /** What a drone port burns in the model, as a tooltip line; empty for any other building. */
+  private dronePortLine(port: DronePortFinding | undefined): string {
+    return port
+      ? `${escapeHtml(describeDronePort(port, (item) => this.names.item(item)))}<br>`
+      : '';
   }
 
   /** The factory a building belongs to, as a tooltip line; empty when it belongs to none. */

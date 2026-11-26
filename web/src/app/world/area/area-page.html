@@ -271,6 +271,13 @@
       } @else if (building.kind === 'machine') {
         <p class="muted">Not analysed yet</p>
       }
+      <!-- What its drones burn isn't in the save: the model's, from their latest trips (BR-A16). -->
+      @if (selectedDronePort(); as port) {
+        <dl>
+          <dt>In the model</dt>
+          <dd>{{ dronePort(port) }}</dd>
+        </dl>
+      }
       <dl>
         @if (building.inputContents) {
           <dt>Holds</dt>
