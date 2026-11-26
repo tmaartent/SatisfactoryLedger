@@ -11,8 +11,8 @@ namespace SatisfactoryLedger.World.Domain.Tracing;
 /// <item>a consumer short of another input takes no more: that's where it starts;</item>
 /// <item>consumers at full speed: if part of what they take comes from other producers, they're supplied by others;
 /// otherwise there are too few consumers;</item>
-/// <item>a full container or station, a belt to nowhere, a machine that doesn't take the item or has no recipe: each is
-/// a start of its own;</item>
+/// <item>a full container or station, a belt to nowhere, a machine that doesn't take the item or has no recipe, a drone
+/// port with the item in its fuel slot where no drone refuels (issue #44): each is a start of its own;</item>
 /// <item>a machine asked about with no line that carries the item has nowhere to send it (decided 2026-11-22).</item>
 /// </list>
 /// Blocked machines that none of these explain get an unclear start: a trace never leaves them out.
@@ -74,6 +74,11 @@ public static class BlockageTrace
             if (line.Nowhere.Count > 0)
             {
                 starts.Add(new TraceStart(TraceCause.NowhereToGo, item, line.Nowhere, here, 0));
+            }
+
+            if (line.NoDroneRefuels.Count > 0)
+            {
+                starts.Add(new TraceStart(TraceCause.NoDroneRefuels, item, line.NoDroneRefuels, here, 0));
             }
 
             List<BuildableId> fullSpeed = [];
@@ -173,6 +178,9 @@ public static class BlockageTrace
 
         public List<BuildableId> Nowhere { get; } = [];
 
+        /// <summary>Drone ports with the item in their fuel slot where no drone refuels: they burn none of it.</summary>
+        public List<BuildableId> NoDroneRefuels { get; } = [];
+
         public static DownstreamLine Of(WorldGraph world, FlowReadings readings, IReadOnlyList<BuildableId> machines, ItemId item)
         {
             var line = new DownstreamLine(world, readings, item, machines);
@@ -222,7 +230,7 @@ public static class BlockageTrace
                         return true;
                     }
 
-                    (int consumers, int belts, int stores, int nowhere) = (Consumers.Count, FullBelts.Count, FullStores.Count, Nowhere.Count);
+                    (int consumers, int belts, int stores, int nowhere, int idle) = (Consumers.Count, FullBelts.Count, FullStores.Count, Nowhere.Count, NoDroneRefuels.Count);
                     bool goes = false;
                     foreach (Buildable next in downstream)
                     {
@@ -236,10 +244,17 @@ public static class BlockageTrace
                         FullBelts.RemoveRange(belts, FullBelts.Count - belts);
                         FullStores.RemoveRange(stores, FullStores.Count - stores);
                         Nowhere.RemoveRange(nowhere, Nowhere.Count - nowhere);
+                        NoDroneRefuels.RemoveRange(idle, NoDroneRefuels.Count - idle);
                         FullBelts.Add(id);
                     }
 
                     return goes;
+                case Consumer { FuelBurn: FuelBurn.NoDroneRefuels } port when port.Burns.Contains(_item):
+                    NoDroneRefuels.Add(id);
+                    return true;
+                case Provider { FuelBurn: FuelBurn.NoDroneRefuels } port when port.Burns.Contains(_item):
+                    NoDroneRefuels.Add(id);
+                    return true;
                 case Machine machine when machine.Consumes.Contains(_item) || machine.Consumes.Count == 0:
                     Consumers.Add(id);
                     return true;

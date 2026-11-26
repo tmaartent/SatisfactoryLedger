@@ -194,9 +194,9 @@ internal sealed record SnapshotDocument(
             Depot = DepotStock is { Count: > 0 } depot ? DepotOf(depot) : null,
         };
 
-        IReadOnlyDictionary<BuildableId, Rate> burnRates = DroneBurnRates();
+        IReadOnlyDictionary<BuildableId, FuelBurn> fuelBurns = DroneFuelBurns();
         return new WorldGraph(
-            Buildables.Select(buildable => buildable.ToBuildable(copied, burnRates.TryGetValue(BuildableId.Of(buildable.Id), out Rate? rate) ? rate : null)),
+            Buildables.Select(buildable => buildable.ToBuildable(copied, fuelBurns.GetValueOrDefault(BuildableId.Of(buildable.Id)))),
             Connections.Select(connection => new Connection(BuildableId.Of(connection.From), BuildableId.Of(connection.To), connection.FromPort, connection.ToPort)));
     }
 
@@ -211,23 +211,23 @@ internal sealed record SnapshotDocument(
         return Inventory.OfDepot(holds, stackSizes, Inventory.DepotStacks(holds, stackSizes));
     }
 
-    /// <summary>BR-A16: per drone port where drones refuel, what they burn there per minute, when that's known.</summary>
-    private IReadOnlyDictionary<BuildableId, Rate> DroneBurnRates()
+    /// <summary>BR-A16: per drone port with fuel in its slot, what it burns: none where no drone refuels (issue #44).</summary>
+    private IReadOnlyDictionary<BuildableId, FuelBurn> DroneFuelBurns()
     {
         Dictionary<string, DronePortDocument> ports = (DronePorts ?? []).ToDictionary(port => port.Id, StringComparer.Ordinal);
-        List<BuildableDocument> homes = [.. Buildables.Where(buildable => buildable.Drone is not null && ports.ContainsKey(buildable.ClassName))];
-        if (homes.Count == 0)
+        if (ports.Count == 0)
         {
-            return new Dictionary<BuildableId, Rate>();
+            return new Dictionary<BuildableId, FuelBurn>();
         }
 
         // There is one kind of drone port; every port of it knows the same fuels.
-        DronePortDocument port = ports[homes[0].ClassName];
+        DronePortDocument port = ports.Values.First();
+        List<BuildableDocument> homes = [.. Buildables.Where(buildable => buildable.Drone is not null && ports.ContainsKey(buildable.ClassName))];
         Dictionary<BuildableId, ItemId> fuelInSlot = Buildables
             .Where(buildable => ports.ContainsKey(buildable.ClassName) && buildable.Burns is { Count: > 0 })
             .ToDictionary(buildable => BuildableId.Of(buildable.Id), buildable => ItemId.Of(buildable.Burns![0]));
 
-        return DroneRefuelling.BurnRates(
+        return DroneRefuelling.FuelBurns(
             homes.Select(home => new Drone(
                 BuildableId.Of(home.Id),
                 BuildableId.Of(home.Drone!.Paired),

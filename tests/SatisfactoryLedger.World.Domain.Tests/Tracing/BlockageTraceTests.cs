@@ -209,6 +209,34 @@ public class BlockageTraceTests
     }
 
     [Fact]
+    public void Fuel_for_a_drone_port_that_loads_where_no_drone_refuels_starts_there()
+    {
+        WorldGraph world = new TestWorld()
+            .Machine("assembler", Items.IronPlate, 30, Items.Battery, 10).Belt("batteries").LoadingStationWhereNoDroneRefuels("drone port", Items.Battery)
+            .Connect("assembler", "batteries", "drone port").Build();
+        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("assembler")));
+
+        Assert.Equal(TraceCause.NoDroneRefuels, start.Cause);
+        Assert.Equal(Ids("drone port"), start.At);
+    }
+
+    [Fact]
+    public void Fuel_for_a_drone_port_that_unloads_where_no_drone_refuels_starts_there()
+    {
+        WorldGraph world = new TestWorld()
+            .Machine("assembler", Items.IronPlate, 30, Items.Battery, 10).Belt("batteries").StationWhereNoDroneRefuels("drone port", Items.Battery)
+            .Connect("assembler", "batteries", "drone port").Build();
+        FlowReadings readings = new TestReadings().Blocked("assembler", Items.Battery, 0).Build();
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("assembler")));
+
+        Assert.Equal(TraceCause.NoDroneRefuels, start.Cause);
+        Assert.Equal(Ids("drone port"), start.At);
+    }
+
+    [Fact]
     public void A_blocked_generator_counts_the_waste_it_cannot_get_away()
     {
         WorldGraph world = new TestWorld()

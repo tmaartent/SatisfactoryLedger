@@ -11,7 +11,8 @@ namespace SatisfactoryLedger.World.Tests;
 
 /// <summary>
 /// Drone port findings (BR-A16): what each port where drones refuel burns, and what fuel reaches it. A small world: a
-/// container feeds rocket fuel to a hub; one drone refuels there, another at its own home port, which nothing feeds.
+/// container feeds rocket fuel to a hub; one drone refuels there, another at its own home port, which nothing feeds. A
+/// fourth port has rocket fuel in its slot, but no drone refuels there.
 /// </summary>
 public class DronePortFindingsTests
 {
@@ -19,6 +20,7 @@ public class DronePortFindingsTests
     private static readonly string Hub = TestWorldSnapshot.Id("Build_DroneStation_C_1");
     private static readonly string Home = TestWorldSnapshot.Id("Build_DroneStation_C_2");
     private static readonly string Lonely = TestWorldSnapshot.Id("Build_DroneStation_C_3");
+    private static readonly string Idle = TestWorldSnapshot.Id("Build_DroneStation_C_4");
     private static readonly string Container = TestWorldSnapshot.Id("Build_StorageContainerMk1_C_1");
     private static readonly string Belt = TestWorldSnapshot.Id("Build_ConveyorBeltMk1_C_1");
 
@@ -47,6 +49,7 @@ public class DronePortFindingsTests
                     Burns = Fuel(),
                     Drone = new SavedDroneRoute(BuildableId.Of(Hub), 3_000, 300),
                 },
+                new SavedConsumer(BuildableId.Of(Idle), "Build_DroneStation_C") { Burns = Fuel() },
             ],
             [new Connection(BuildableId.Of(Container), BuildableId.Of(Belt)), new Connection(BuildableId.Of(Belt), BuildableId.Of(Hub))],
             []);
@@ -59,10 +62,10 @@ public class DronePortFindingsTests
     }
 
     [Fact]
-    public void Every_drone_port_where_drones_refuel_is_a_finding_with_its_fuel()
+    public void Every_drone_port_where_drones_refuel_or_none_does_is_a_finding_with_its_fuel()
     {
         Assert.Equal(
-            new Dictionary<string, string> { [Hub] = RocketFuel, [Lonely] = RocketFuel },
+            new Dictionary<string, string> { [Hub] = RocketFuel, [Lonely] = RocketFuel, [Idle] = RocketFuel },
             Analysis.DronePorts.ToDictionary(port => port.Id, port => port.Fuel));
     }
 
@@ -83,8 +86,16 @@ public class DronePortFindingsTests
     }
 
     [Fact]
-    public void Drone_ports_are_listed_worst_first()
+    public void A_drone_port_where_no_drone_refuels_says_so_and_burns_nothing()
     {
-        Assert.Equal([Lonely, Hub], Analysis.DronePorts.Select(port => port.Id));
+        DronePortFinding idle = Assert.Single(Analysis.DronePorts, port => port.Id == Idle);
+
+        Assert.Equal((true, (double?)null, 0.0), (idle.NoDroneRefuels, idle.Burns, idle.Supplied));
+    }
+
+    [Fact]
+    public void Drone_ports_are_listed_worst_first_and_those_where_no_drone_refuels_last()
+    {
+        Assert.Equal([Lonely, Hub, Idle], Analysis.DronePorts.Select(port => port.Id));
     }
 }

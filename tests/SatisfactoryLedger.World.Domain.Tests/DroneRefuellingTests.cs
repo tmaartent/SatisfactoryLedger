@@ -17,61 +17,77 @@ public class DroneRefuellingTests
 
     private static decimal? EnergyOf(ItemId fuel) => fuel == RocketFuel ? 7_200 : null;
 
-    private static IReadOnlyDictionary<BuildableId, Rate> BurnRates(IEnumerable<Drone> drones, params BuildableId[] fuelled) =>
-        DroneRefuelling.BurnRates(drones, fuelled.ToDictionary(port => port, _ => RocketFuel), Cost, EnergyOf);
+    private static IReadOnlyDictionary<BuildableId, FuelBurn> FuelBurns(IEnumerable<Drone> drones, params BuildableId[] fuelled) =>
+        DroneRefuelling.FuelBurns(drones, fuelled.ToDictionary(port => port, _ => RocketFuel), Cost, EnergyOf);
 
     [Fact]
     public void A_drone_refuels_at_its_home_port_when_fuel_is_in_its_slot()
     {
-        var rates = BurnRates([new Drone(Home, Hub, Route)], Home);
+        var burns = FuelBurns([new Drone(Home, Hub, Route)], Home);
 
-        Assert.Equal(new Dictionary<BuildableId, Rate> { [Home] = RoutePerMinute }, rates);
+        Assert.Equal(new FuelBurn.Known(RoutePerMinute), burns[Home]);
     }
 
     [Fact]
     public void A_drone_whose_home_port_has_no_fuel_refuels_at_the_port_it_is_paired_with()
     {
-        var rates = BurnRates([new Drone(Home, Hub, Route)], Hub);
+        var burns = FuelBurns([new Drone(Home, Hub, Route)], Hub);
 
-        Assert.Equal(new Dictionary<BuildableId, Rate> { [Hub] = RoutePerMinute }, rates);
+        Assert.Equal(new Dictionary<BuildableId, FuelBurn> { [Hub] = new FuelBurn.Known(RoutePerMinute) }, burns);
     }
 
     [Fact]
     public void A_drone_with_fuel_at_both_ports_refuels_at_home()
     {
-        var rates = BurnRates([new Drone(Home, Hub, Route)], Home, Hub);
+        var burns = FuelBurns([new Drone(Home, Hub, Route)], Home, Hub);
 
-        Assert.Equal(new Dictionary<BuildableId, Rate> { [Home] = RoutePerMinute }, rates);
+        Assert.Equal(new FuelBurn.Known(RoutePerMinute), burns[Home]);
+    }
+
+    [Fact]
+    public void A_fuelled_port_where_every_drone_refuels_at_its_own_home_is_one_where_no_drone_refuels()
+    {
+        var burns = FuelBurns([new Drone(Home, Hub, Route), new Drone(OtherHome, Hub, Route)], Home, OtherHome, Hub);
+
+        Assert.Equal(new FuelBurn.NoDroneRefuels(), burns[Hub]);
+    }
+
+    [Fact]
+    public void A_fuelled_port_without_drones_is_one_where_no_drone_refuels()
+    {
+        var burns = FuelBurns([], Hub);
+
+        Assert.Equal(new Dictionary<BuildableId, FuelBurn> { [Hub] = new FuelBurn.NoDroneRefuels() }, burns);
     }
 
     [Fact]
     public void A_port_where_several_drones_refuel_burns_for_all_of_them()
     {
-        var rates = BurnRates([new Drone(Home, Hub, Route), new Drone(OtherHome, Hub, Route)], Hub);
+        var burns = FuelBurns([new Drone(Home, Hub, Route), new Drone(OtherHome, Hub, Route)], Hub);
 
-        Assert.Equal(RoutePerMinute * 2, rates[Hub]);
+        Assert.Equal(new FuelBurn.Known(RoutePerMinute * 2), burns[Hub]);
     }
 
     [Fact]
     public void A_drone_with_no_fuel_at_either_port_burns_nothing_the_save_can_tell()
     {
-        Assert.Empty(BurnRates([new Drone(Home, Hub, Route)]));
+        Assert.Empty(FuelBurns([new Drone(Home, Hub, Route)]));
     }
 
     [Fact]
     public void A_port_where_a_drone_without_a_recorded_trip_refuels_burns_an_unknown_rate()
     {
-        var rates = BurnRates([new Drone(Home, Hub, Route), new Drone(OtherHome, Hub, Route: null)], Hub);
+        var burns = FuelBurns([new Drone(Home, Hub, Route), new Drone(OtherHome, Hub, Route: null)], Hub);
 
-        Assert.Empty(rates);
+        Assert.Equal(new FuelBurn.NotKnown(), burns[Hub]);
     }
 
     [Fact]
     public void A_port_whose_fuel_the_catalog_has_no_energy_for_burns_an_unknown_rate()
     {
-        var rates = DroneRefuelling.BurnRates([new Drone(Home, Hub, Route)],
+        var burns = DroneRefuelling.FuelBurns([new Drone(Home, Hub, Route)],
             new Dictionary<BuildableId, ItemId> { [Home] = ItemId.Of("Desc_IronPlate_C") }, Cost, EnergyOf);
 
-        Assert.Empty(rates);
+        Assert.Equal(new FuelBurn.NotKnown(), burns[Home]);
     }
 }

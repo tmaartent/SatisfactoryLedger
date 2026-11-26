@@ -106,11 +106,19 @@ internal sealed class TestWorld
 
     /// <summary>A drone port that unloads and burns <paramref name="perMinute"/> of <paramref name="fuel"/> (BR-A16).</summary>
     public TestWorld StationBurning(string id, ItemId fuel, Rate perMinute) =>
-        Add(new Provider(BuildableId.Of(id), burns: new HashSet<ItemId> { fuel }, burnRate: perMinute));
+        Add(new Provider(BuildableId.Of(id), burns: new HashSet<ItemId> { fuel }, fuelBurn: new FuelBurn.Known(perMinute)));
 
     /// <summary>A drone port that only loads and burns <paramref name="perMinute"/> of <paramref name="fuel"/> (BR-A16).</summary>
     public TestWorld LoadingStationBurning(string id, ItemId fuel, Rate perMinute) =>
-        Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }, burnRate: perMinute));
+        Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }, fuelBurn: new FuelBurn.Known(perMinute)));
+
+    /// <summary>A drone port that unloads, with <paramref name="fuel"/> in its slot, where no drone refuels (issue #44).</summary>
+    public TestWorld StationWhereNoDroneRefuels(string id, ItemId fuel) =>
+        Add(new Provider(BuildableId.Of(id), burns: new HashSet<ItemId> { fuel }, fuelBurn: new FuelBurn.NoDroneRefuels()));
+
+    /// <summary>A drone port that only loads, with <paramref name="fuel"/> in its slot, where no drone refuels (issue #44).</summary>
+    public TestWorld LoadingStationWhereNoDroneRefuels(string id, ItemId fuel) =>
+        Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }, fuelBurn: new FuelBurn.NoDroneRefuels()));
 
     public TestWorld LoadingStationBurning(string id, ItemId fuel) => Add(new Consumer(BuildableId.Of(id), new HashSet<ItemId> { fuel }));
 

@@ -241,22 +241,30 @@ internal static class SnapshotAnalysis
         return first;
     }
 
-    /// <summary>BR-A16: every drone port where drones refuel at a known rate, the least supplied first.</summary>
+    /// <summary>
+    /// BR-A16: every drone port where drones refuel at a known rate, the least supplied first, then every port with fuel
+    /// in its slot where no drone refuels (issue #44).
+    /// </summary>
     private static List<DronePortFinding> DronePorts(
         WorldGraph world, SnapshotDocument snapshot, AnalysisDocument analysis, Dictionary<string, BuildableDocument> buildables, HashSet<string> approximate)
     {
-        List<(string Id, string Fuel, double Burns)> ports = [];
+        List<(string Id, string Fuel, double? Burns)> ports = [];
         foreach (Buildable buildable in world.Buildables)
         {
-            (IReadOnlySet<ItemId> burns, SharedKernel.Rate? rate) = buildable switch
+            (IReadOnlySet<ItemId> burns, FuelBurn? burn) = buildable switch
             {
-                Provider provider => (provider.Burns, provider.BurnRate),
-                Consumer consumer => (consumer.Burns, consumer.BurnRate),
+                Provider provider => (provider.Burns, provider.FuelBurn),
+                Consumer consumer => (consumer.Burns, consumer.FuelBurn),
                 _ => (new HashSet<ItemId>(), null),
             };
-            if (rate is not null)
+            switch (burn)
             {
-                ports.Add((buildable.Id.Id, burns.First().Id, rate.ToDouble()));
+                case FuelBurn.Known known:
+                    ports.Add((buildable.Id.Id, burns.First().Id, known.PerMinute.ToDouble()));
+                    break;
+                case FuelBurn.NoDroneRefuels:
+                    ports.Add((buildable.Id.Id, burns.First().Id, null));
+                    break;
             }
         }
 
@@ -264,15 +272,17 @@ internal static class SnapshotAnalysis
         [
             .. ports
                 .Select(port => (port.Id, port.Fuel, port.Burns, Supplied: Supplied(snapshot, analysis, port.Id, port.Fuel)))
-                .OrderBy(port => port.Supplied / port.Burns).ThenBy(port => port.Id, StringComparer.Ordinal)
+                .OrderBy(port => port.Burns is null).ThenBy(port => port.Burns is { } burns ? port.Supplied / burns : 0)
+                .ThenBy(port => port.Id, StringComparer.Ordinal)
                 .Select(port => new DronePortFinding(
                     port.Id,
                     buildables[port.Id].ClassName,
                     port.Fuel,
-                    Round(port.Burns),
+                    port.Burns is { } burns ? Round(burns) : null,
                     Round(port.Supplied),
                     buildables[port.Id].Position,
-                    approximate.Contains(port.Id)))
+                    approximate.Contains(port.Id),
+                    NoDroneRefuels: port.Burns is null))
         ];
     }
 

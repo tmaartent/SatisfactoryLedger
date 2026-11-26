@@ -43,9 +43,10 @@ public sealed record AnalysisDocument(
     /// Version 14: a belt, lift or pipe offers on no more than it can carry, so a balancer no longer multiplies what a
     /// bottleneck is offered (BR-A12).
     /// Version 15: a full belt, lift or pipe is only a bottleneck when it holds something back (BR-A12).
+    /// Version 16: a drone port with fuel in its slot where no drone refuels takes none of that fuel (BR-A16, issue #44).
     /// A stored analysis of an older version is computed again.
     /// </summary>
-    public const int CurrentVersion = 15;
+    public const int CurrentVersion = 16;
 
     public string ToJson() => JsonSerializer.Serialize(this, SimulationJson.Options);
 

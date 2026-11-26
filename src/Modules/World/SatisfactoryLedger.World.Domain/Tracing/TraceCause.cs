@@ -42,6 +42,9 @@ public enum TraceCause
     /// <summary>Blockage: the line ends at nothing, or at a machine that doesn't take the item.</summary>
     NowhereToGo,
 
+    /// <summary>Blockage: the line ends at a drone port with the item in its fuel slot where no drone refuels (issue #44).</summary>
+    NoDroneRefuels,
+
     /// <summary>The trace found no reason: providers with supply to spare, and nothing in between that explains it.</summary>
     Unclear,
 }

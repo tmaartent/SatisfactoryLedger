@@ -152,6 +152,13 @@ async function render(
             position: { x: 1000, y: 2000, z: 0 },
             yaw: 0,
           },
+          // A drone port that unloads, with fuel in its slot that no drone burns.
+          {
+            id: 'port-1',
+            className: 'Build_DroneStation_C',
+            position: { x: -2000, y: 3000, z: 0 },
+            yaw: 0,
+          },
         ],
         logistics: [],
         consumers: [],
@@ -209,6 +216,18 @@ async function render(
               stockMinutes: 12,
               position: null,
               approximate: false,
+            },
+          ],
+          dronePorts: [
+            {
+              id: 'port-1',
+              className: 'Build_DroneStation_C',
+              fuel: 'Desc_PackagedRocketFuel_C',
+              burns: null,
+              supplied: 0,
+              position: null,
+              approximate: false,
+              noDroneRefuels: true,
             },
           ],
           summary: { machines: 1, running: 0, starved: 1, outputBlocked: 0, noRecipe: 0 },
@@ -724,6 +743,14 @@ describe('the world map of a snapshot', () => {
 
     expect(element.querySelector('.leaflet-tooltip')?.textContent).toContain(
       'Click to explain why',
+    );
+  });
+
+  it("says in a drone port's tooltip that no drone refuels there", async () => {
+    const { element } = await render('snapshot-1', null, 'port-1');
+
+    expect(element.querySelector('.leaflet-tooltip')?.textContent).toContain(
+      'No drone refuels here: its Desc_PackagedRocketFuel_C burns nothing',
     );
   });
 

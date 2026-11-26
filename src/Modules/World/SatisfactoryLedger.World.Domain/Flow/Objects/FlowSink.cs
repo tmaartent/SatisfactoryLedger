@@ -6,7 +6,7 @@ namespace SatisfactoryLedger.World.Domain.Flow.Objects;
 /// For a dimensional depot uploader: it takes everything only from what the line's other consumers leave. In steady
 /// state a depot is full (BR-A8).
 /// </param>
-/// <param name="BurnRate">For a drone port that loads: how much of its fuel it burns per minute, when known (BR-A16).</param>
+/// <param name="BurnRate">For a drone port that loads: how much of its fuel it burns per minute, when known (BR-A16); 0 where no drone refuels (issue #44).</param>
 /// <param name="Inventory">
 /// Its inventory, for something at the end of a line that holds what it takes (BR-A7): it takes an item only while that
 /// fits. Null for what takes everything, such as a sink.

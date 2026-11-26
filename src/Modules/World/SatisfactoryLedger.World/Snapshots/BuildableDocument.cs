@@ -74,8 +74,8 @@ internal sealed record BuildableDocument(
         _ => throw new ArgumentException($"{saved} is not a kind of buildable a snapshot knows", nameof(saved)),
     };
 
-    /// <param name="burnRate">For a drone port where drones refuel: what they burn there per minute, when known (BR-A16).</param>
-    public Buildable ToBuildable(CopiedCatalog catalog, Rate? burnRate = null)
+    /// <param name="fuelBurn">For a drone port with fuel in its slot: what it burns (BR-A16); not known when left out.</param>
+    public Buildable ToBuildable(CopiedCatalog catalog, FuelBurn? fuelBurn = null)
     {
         var id = BuildableId.Of(Id);
         return Role switch
@@ -91,13 +91,13 @@ internal sealed record BuildableDocument(
                 OutputStock = OutputContents?.ToDictionary(entry => ItemId.Of(entry.Key), entry => entry.Value),
                 StackSizes = catalog.StackSizes,
             },
-            BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf(), burnRate)
+            BuildableDocumentRole.Provider => new Provider(id, OfferOf(catalog), StockOf(), BurnsOf(), fuelBurn)
             {
                 Inventory = InventoryOf(catalog),
                 // The save reads what a station holds; an extractor has none.
                 IsStation = Stock is not null,
             },
-            BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf(), GenerationOf(catalog), TakesLeftoversOnly, burnRate)
+            BuildableDocumentRole.Consumer => new Consumer(id, BurnsOf(), GenerationOf(catalog), TakesLeftoversOnly, fuelBurn)
             {
                 InputStock = InputStockOf(),
                 Inventory = TakesLeftoversOnly ? catalog.Depot : InventoryOf(catalog),

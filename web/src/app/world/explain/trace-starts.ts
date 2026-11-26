@@ -54,6 +54,7 @@ const causes: Record<TraceCause, { at: string; rate: boolean }> = {
   consumerStarved: { at: 'Taken by', rate: true },
   storageFull: { at: 'Full', rate: false },
   nowhereToGo: { at: 'At', rate: false },
+  noDroneRefuels: { at: 'At', rate: false },
   unclear: { at: 'At', rate: false },
 };
 

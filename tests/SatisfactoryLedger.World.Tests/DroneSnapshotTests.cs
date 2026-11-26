@@ -43,11 +43,11 @@ public class DroneSnapshotTests
         return SnapshotDocument.FromJson(SnapshotDocument.Create(saved, Catalog).ToJson());
     }
 
-    private static Rate? BurnRateOf(SnapshotDocument snapshot, BuildableId id) =>
+    private static FuelBurn FuelBurnOf(SnapshotDocument snapshot, BuildableId id) =>
         snapshot.ToWorldGraph().Buildables.Single(buildable => buildable.Id == id) switch
         {
-            Consumer consumer => consumer.BurnRate,
-            Provider provider => provider.BurnRate,
+            Consumer consumer => consumer.FuelBurn,
+            Provider provider => provider.FuelBurn,
             var other => throw new InvalidOperationException($"{other} is no drone port"),
         };
 
@@ -73,7 +73,7 @@ public class DroneSnapshotTests
     public void A_drone_port_with_fuel_in_its_slot_burns_what_its_drone_burns()
     {
         // 24,000 + 6 × 6,000 m = 60,000 MJ a trip, 8⅓ rocket fuel, every 5 minutes.
-        Assert.Equal(Rate.Of(5, 3), BurnRateOf(World(fuelAtHome: true, fuelAtHub: false), Home));
+        Assert.Equal(new FuelBurn.Known(Rate.Of(5, 3)), FuelBurnOf(World(fuelAtHome: true, fuelAtHub: false), Home));
     }
 
     [Fact]
@@ -81,13 +81,28 @@ public class DroneSnapshotTests
     {
         SnapshotDocument snapshot = World(fuelAtHome: false, fuelAtHub: true);
 
-        Assert.Equal((Rate.Of(5, 3), (Rate?)null), (BurnRateOf(snapshot, Hub), BurnRateOf(snapshot, Home)));
+        Assert.Equal(new FuelBurn.Known(Rate.Of(5, 3)), FuelBurnOf(snapshot, Hub));
+    }
+
+    [Fact]
+    public void A_fuelled_hub_whose_drone_refuels_at_home_is_a_port_where_no_drone_refuels()
+    {
+        Assert.Equal(new FuelBurn.NoDroneRefuels(), FuelBurnOf(World(fuelAtHome: true, fuelAtHub: true), Hub));
+    }
+
+    [Fact]
+    public void A_fuelled_port_in_a_world_without_drones_is_a_port_where_no_drone_refuels()
+    {
+        SnapshotDocument snapshot = World(fuelAtHome: true, fuelAtHub: true);
+        SnapshotDocument withoutDrones = snapshot with { Buildables = [.. snapshot.Buildables.Select(buildable => buildable with { Drone = null })] };
+
+        Assert.Equal(new FuelBurn.NoDroneRefuels(), FuelBurnOf(withoutDrones, Home));
     }
 
     [Fact]
     public void A_drone_that_has_made_no_trip_yet_burns_an_unknown_rate_like_before()
     {
-        Assert.Null(BurnRateOf(World(fuelAtHome: true, fuelAtHub: false, latestTripSeconds: null), Home));
+        Assert.Equal(new FuelBurn.NotKnown(), FuelBurnOf(World(fuelAtHome: true, fuelAtHub: false, latestTripSeconds: null), Home));
     }
 
     [Fact]
@@ -95,7 +110,7 @@ public class DroneSnapshotTests
     {
         var saved = SnapshotDocument.FromJson(World(fuelAtHome: true, fuelAtHub: false).ToJson()) with { DronePorts = null };
 
-        Assert.Null(BurnRateOf(saved, Home));
+        Assert.Equal(new FuelBurn.NotKnown(), FuelBurnOf(saved, Home));
     }
 
     [Fact]
