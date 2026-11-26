@@ -1,6 +1,6 @@
-using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -18,13 +18,10 @@ internal static class FactoryInputs
         WorldGraph world,
         StoredFactory factory,
         FactoryMembers members,
-        AnalysisDocument analysis,
+        FlowReadings readings,
         IEnumerable<StoredFactory> factories)
     {
-        Dictionary<string, MachineStateDocument> states = analysis.Machines.ToDictionary(state => state.Id, StringComparer.Ordinal);
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
-        Dictionary<string, UnusedSupplyDocument> unused = analysis.UnusedSupply.ToDictionary(supply => $"{supply.Id}|{supply.Item}", StringComparer.Ordinal);
-        Dictionary<string, UnknownSupplyDocument> unknown = analysis.UnknownSupply.ToDictionary(supply => supply.Id, StringComparer.Ordinal);
         Dictionary<BuildableId, StoredFactory> owners = FactoryOutputs.OwnersIn(snapshot, factory, members, factories);
 
         Dictionary<string, double> now = new(StringComparer.Ordinal);
@@ -38,7 +35,7 @@ internal static class FactoryInputs
             BuildableId start = input.Outside ?? input.Inside;
             foreach (ItemId item in input.Items)
             {
-                double amount = Arriving(input, item, world, analysis, members, states);
+                double amount = Arriving(input, item, world, readings, members);
                 now[item.Id] = now.GetValueOrDefault(item.Id) + amount;
 
                 // From its own belt or pipe when it has one, so that one's room counts too.
@@ -46,7 +43,7 @@ internal static class FactoryInputs
                 startsOf[item.Id].Add(world.Find(input.Inside) is Logistics ? input.Inside : start);
 
                 Dictionary<(InputSourceKind, StoredFactory?, string?, string?), double> from = sources.TryGetValue(item.Id, out var found) ? found : sources[item.Id] = [];
-                foreach ((BuildableId source, double perMinute) in InputSources.Of(world, start, item, amount, id => FlowOutOf(id, item)))
+                foreach ((BuildableId source, double perMinute) in InputSources.Of(world, start, item, amount, id => readings.OutOf(id, item)))
                 {
                     var key = Source(source);
                     from[key] = from.GetValueOrDefault(key) + perMinute;
@@ -106,23 +103,12 @@ internal static class FactoryInputs
         // What its sources could bring more, and what branches off into a sink, as far as the lines between have room
         // (decided 2026-11-11).
         double CouldBringMore(ItemId item) => InputSources.CouldBringMore(
-            world, startsOf[item.Id], id => Spare(id, item), Room, id => Carries(id, item, []), id => Sunk(id, item));
+            world, startsOf[item.Id], id => Spare(id, item), readings.Room, id => readings.Carries(id, item), id => Sunk(id, item));
 
-        // What an AWESOME Sink takes of an item now: what the logistics that end at it carry.
+        // What an AWESOME Sink takes of an item now: what reaches it over its lines.
         double Sunk(BuildableId id, ItemId item) => buildables.GetValueOrDefault(id.Id)?.ClassName == FactoryOutputs.SinkClass
-            ? world.Upstream(id).Sum(from => Carries(from.Id, item, []))
+            ? readings.Reaching(id, item)
             : 0;
-
-        // What a piece of logistics carries of an item now: the stored flow into a belt, lift, pipe or container, none
-        // when it has no entry (nothing flows). A splitter, merger or pipe network isn't in the stored flows at all, so
-        // what the logistics that feed it carry.
-        double Carries(BuildableId id, ItemId item, HashSet<BuildableId> passed) => world.Find(id) switch
-        {
-            Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.Merger or LogisticsKind.PipeJunction or LogisticsKind.PipeNetwork } when passed.Add(id) =>
-                world.Upstream(id).Where(from => from is Logistics).Sum(from => Carries(from.Id, item, passed)),
-            Logistics => Into(id, item),
-            _ => 0,
-        };
 
         // What a source could send more per minute: a provider its unused supply; a station what its stock keeps up
         // for half an hour; a machine of another factory, or of none, what it would make more at 100%. Its own machines
@@ -134,13 +120,12 @@ internal static class FactoryInputs
                 return 0;
             }
 
-            double idle = 1 - (states.GetValueOrDefault(id.Id)?.Utilisation ?? 1);
             return world.Find(id) switch
             {
                 Provider { IsStation: true } station => StationSpare(station, item),
-                Provider when unused.TryGetValue($"{id.Id}|{item.Id}", out UnusedSupplyDocument? supply) => supply.Offered - supply.Delivered,
-                Provider or null => 0,
-                { } other => idle * (other.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
+                Provider => readings.Spare(id, item),
+                null => 0,
+                _ => readings.MakesMore(id, item),
             };
         }
 
@@ -149,7 +134,7 @@ internal static class FactoryInputs
         // isn't in the save.
         double StationSpare(Provider station, ItemId item)
         {
-            double delivered = unknown.GetValueOrDefault(station.Id.Id)?.Delivered.GetValueOrDefault(item.Id) ?? 0;
+            double delivered = readings.Delivered(station.Id, item);
             double stock = (double)(station.Stock.GetValueOrDefault(item) + Buffers(station.Id).Sum(buffer => buffer.Stock.GetValueOrDefault(item)));
             return Math.Max(0, (stock / SteadyState.ConfirmedMinutes) - delivered);
         }
@@ -173,34 +158,6 @@ internal static class FactoryInputs
             }
         }
 
-        // What a belt, lift or pipe could carry more: its capacity less what flows into it now, of all items. No
-        // capacity known (a splitter, merger, pipe network or container): no limit.
-        double Room(BuildableId id) => world.Find(id) is Logistics { Capacity: { } capacity }
-            ? capacity.ToDouble() - (analysis.Into.GetValueOrDefault(id.Id)?.Values.Sum() ?? 0)
-            : double.PositiveInfinity;
-
-        double Into(BuildableId id, ItemId item) => analysis.Into.GetValueOrDefault(id.Id)?.GetValueOrDefault(item.Id) ?? 0;
-
-        // What a buildable sends on, of one item: the stored flow into a belt, pipe or container; for a machine or
-        // generator what it makes at the rate it runs; for a provider what it delivers.
-        double FlowOutOf(BuildableId id, ItemId item)
-        {
-            if (analysis.Into.TryGetValue(id.Id, out IReadOnlyDictionary<string, double>? flows))
-            {
-                return flows.GetValueOrDefault(item.Id);
-            }
-
-            double utilisation = states.GetValueOrDefault(id.Id)?.Utilisation ?? 0;
-            return world.Find(id) switch
-            {
-                Provider when unused.TryGetValue($"{id.Id}|{item.Id}", out UnusedSupplyDocument? supply) => supply.Delivered,
-                Provider when unknown.TryGetValue(id.Id, out UnknownSupplyDocument? supply) => supply.Delivered.GetValueOrDefault(item.Id),
-                Provider { Offer: { } offer } when offer.Item == item => offer.PerMinute.ToDouble(),
-                Provider or null => 0,
-                { } other => utilisation * (other.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
-            };
-        }
-
         // Machines by factory; a building on its own, so two miners on one belt are two sources (decided 2026-11-11).
         (InputSourceKind, StoredFactory?, string?, string?) Source(BuildableId start) => world.Find(start) switch
         {
@@ -221,33 +178,23 @@ internal static class FactoryInputs
     /// rate it runs, shared over its inputs that bring the item.</item>
     /// </list>
     /// </summary>
-    internal static double Arriving(
-        FactoryConnection input,
-        ItemId item,
-        WorldGraph world,
-        AnalysisDocument analysis,
-        FactoryMembers members,
-        IReadOnlyDictionary<string, MachineStateDocument> states)
+    internal static double Arriving(FactoryConnection input, ItemId item, WorldGraph world, FlowReadings readings, FactoryMembers members)
     {
-        double Into(BuildableId id) => analysis.Into.GetValueOrDefault(id.Id)?.GetValueOrDefault(item.Id) ?? 0;
-
         if (input.Outside is not { } outside)
         {
-            return world.Downstream(input.Inside).Sum(next => Into(next.Id));
+            return world.Downstream(input.Inside).Sum(next => readings.Carries(next.Id, item));
         }
 
         if (world.Find(input.Inside) is Logistics && world.Upstream(input.Inside).Count() == 1)
         {
-            return Into(input.Inside);
+            return readings.Carries(input.Inside, item);
         }
 
         if (world.Find(outside) is Logistics && world.Downstream(outside).Count() == 1)
         {
-            return Into(outside);
+            return readings.Carries(outside, item);
         }
 
-        double takes = (states.GetValueOrDefault(input.Inside.Id)?.Utilisation ?? 0)
-            * (world.Find(input.Inside)?.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0);
-        return takes / members.Inputs.Count(other => other.Inside == input.Inside && other.Items.Contains(item));
+        return readings.Takes(input.Inside, item) / members.Inputs.Count(other => other.Inside == input.Inside && other.Items.Contains(item));
     }
 }

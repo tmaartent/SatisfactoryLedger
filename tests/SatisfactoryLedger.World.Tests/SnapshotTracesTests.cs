@@ -1,3 +1,4 @@
+using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Tracing;
@@ -79,7 +80,7 @@ public class SnapshotTracesTests
     {
         AnalysisDocument analysis = TestWorldAnalysis;
 
-        FlowReadings readings = SnapshotTraces.Readings(analysis);
+        FlowReadings readings = AnalysisReadings.Of(Document.ToWorldGraph(), analysis);
 
         MachineReading smelter = readings.Machine(Domain.BuildableId.Of(SmelterA))!;
         Assert.Equal(Domain.Flow.Objects.MachineLimit.OutputBlocked, smelter.Limit);

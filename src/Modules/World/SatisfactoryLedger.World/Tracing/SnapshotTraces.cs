@@ -6,8 +6,6 @@ using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
 
-using DomainLimit = SatisfactoryLedger.World.Domain.Flow.Objects.MachineLimit;
-
 namespace SatisfactoryLedger.World.Tracing;
 
 /// <summary>
@@ -54,28 +52,9 @@ internal static class SnapshotTraces
                 .Select(buildable => BuildableId.Of(buildable.Id)),
         ];
         int tracedCount = machines.Count(id => states[id.Id].Limit == traced);
-        IReadOnlyList<TraceStart> starts = trace(snapshot.ToWorldGraph(), Readings(analysis), machines);
+        WorldGraph world = snapshot.ToWorldGraph();
+        IReadOnlyList<TraceStart> starts = trace(world, AnalysisReadings.Of(world, analysis), machines);
         return new TraceResponse(building, recipe, machines.Count, tracedCount, [.. starts.Select(start => Start(start, buildables))]);
-    }
-
-    /// <summary>The stored analysis as a trace reads it.</summary>
-    internal static FlowReadings Readings(AnalysisDocument analysis)
-    {
-        static IReadOnlyDictionary<ItemId, double> Items(IReadOnlyDictionary<string, double>? shares) =>
-            (shares ?? new Dictionary<string, double>()).ToDictionary(share => ItemId.Of(share.Key), share => share.Value);
-
-        return new FlowReadings(
-            analysis.Machines.ToDictionary(
-                state => BuildableId.Of(state.Id),
-                state => new MachineReading(Enum.Parse<DomainLimit>(state.Limit.ToString()), state.Utilisation, Items(state.StarvedOf), Items(state.BlockedOn))),
-            analysis.Bottlenecks.ToDictionary(bottleneck => BuildableId.Of(bottleneck.Id), bottleneck => bottleneck.OfferedMore),
-            analysis.UnusedSupply
-                .GroupBy(supply => supply.Id, StringComparer.Ordinal)
-                .ToDictionary(
-                    group => BuildableId.Of(group.Key),
-                    group => (IReadOnlyDictionary<ItemId, double>)group.ToDictionary(supply => ItemId.Of(supply.Item), supply => supply.Offered - supply.Delivered)),
-            analysis.UnknownSupply.ToDictionary(supply => BuildableId.Of(supply.Id), supply => Items(supply.Delivered)),
-            analysis.Into.ToDictionary(entry => BuildableId.Of(entry.Key), entry => Items(entry.Value)));
     }
 
     private static TraceStartResponse Start(TraceStart start, IReadOnlyDictionary<string, BuildableDocument> buildables) => new(

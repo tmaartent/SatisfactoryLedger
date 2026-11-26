@@ -1,6 +1,7 @@
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Snapshots;
 
 namespace SatisfactoryLedger.World.Factories;
@@ -66,16 +67,16 @@ internal static class FactoryTraces
         WorldGraph world = snapshot.ToWorldGraph();
         var definition = new FactoryDefinition(chosen);
         FactoryMembers members = definition.TraceMembers(world, snapshot.Fluids.Select(ItemId.Of).ToHashSet());
-        Dictionary<string, MachineStateDocument> states = (analysis?.Machines ?? []).ToDictionary(state => state.Id, StringComparer.Ordinal);
+        FlowReadings? readings = analysis is null ? null : AnalysisReadings.Of(world, analysis);
         return new FactoryPreview(
             [.. members.Logistics.Select(id => id.Id).Order(StringComparer.Ordinal)],
             Summaries(members.Outputs, buildables),
             Summaries(members.Inputs, buildables),
-            PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, analysis!).GetValueOrDefault(item.Id), analysis is not null),
-            PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, analysis!, members, states), analysis is not null),
+            PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, readings!).GetValueOrDefault(item), readings is not null),
+            PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, readings!, members), readings is not null),
             [.. definition.ConnectedIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
             [.. definition.SuppliesIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
-            analysis is null ? null : SnapshotAnalysis.PowerOf(snapshot, members, analysis));
+            readings is null ? null : SnapshotAnalysis.PowerOf(snapshot, members, readings));
     }
 
     /// <summary>Per item over the connections, what crosses now: summed, most first; without rates when they aren't known.</summary>

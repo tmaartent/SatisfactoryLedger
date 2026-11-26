@@ -1,5 +1,6 @@
 using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Snapshots;
 
 namespace SatisfactoryLedger.World.Analysis;
@@ -11,30 +12,21 @@ internal static class PipeFlows
     /// Per pipe that's drawn, with a curve: its own flow when it has one, else its network's. Pipes of a network that
     /// takes in nothing are left out.
     /// </summary>
-    public static List<PipeFlowFinding> Of(SnapshotDocument snapshot, AnalysisDocument analysis)
+    public static List<PipeFlowFinding> Of(SnapshotDocument snapshot, FlowReadings readings)
     {
         Dictionary<string, BuildableDocument> byId = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         Dictionary<string, string> hubOf = HubsOf(snapshot, byId);
         Dictionary<string, int> capacities = snapshot.TransportTiers.ToDictionary(tier => tier.Id, tier => tier.CapacityPerMinute, StringComparer.Ordinal);
         double? CapacityOf(BuildableDocument pipe) => capacities.TryGetValue(pipe.ClassName, out int capacity) ? capacity : null;
-        // A hub isn't a conduit of its own: it takes in what flows into the pipes and buffers that feed it.
-        Dictionary<string, Dictionary<string, double>> takenIn = snapshot.Connections
-            .Where(connection => hubOf.ContainsValue(connection.To) && analysis.Into.ContainsKey(connection.From))
-            .GroupBy(connection => connection.To, StringComparer.Ordinal)
-            .ToDictionary(
-                feeding => feeding.Key,
-                feeding => feeding.SelectMany(connection => analysis.Into[connection.From])
-                    .GroupBy(entry => entry.Key, StringComparer.Ordinal)
-                    .ToDictionary(item => item.Key, item => item.Sum(entry => entry.Value), StringComparer.Ordinal),
-                StringComparer.Ordinal);
         List<PipeFlowFinding> flows = [];
         foreach (BuildableDocument pipe in snapshot.Buildables.Where(buildable => buildable is { Kind: LogisticsKind.Pipe, Curve.Count: > 0 }))
         {
-            if (analysis.Into.TryGetValue(pipe.Id, out IReadOnlyDictionary<string, double>? own))
+            // A hub isn't a conduit of its own: it takes in what the pipes and buffers feeding it carry.
+            if (readings.Carrying(BuildableId.Of(pipe.Id)) is { Count: > 0 } own)
             {
                 flows.Add(new PipeFlowFinding(pipe.Id, Rounded(own), OfNetwork: false, CapacityOf(pipe)));
             }
-            else if (hubOf.TryGetValue(pipe.Id, out string? hub) && takenIn.TryGetValue(hub, out Dictionary<string, double>? network))
+            else if (hubOf.TryGetValue(pipe.Id, out string? hub) && readings.Carrying(BuildableId.Of(hub)) is { Count: > 0 } network)
             {
                 flows.Add(new PipeFlowFinding(pipe.Id, Rounded(network), OfNetwork: true, CapacityOf(pipe)));
             }
@@ -84,6 +76,6 @@ internal static class PipeFlows
         return hubOf;
     }
 
-    private static Dictionary<string, double> Rounded(IReadOnlyDictionary<string, double> flows) =>
-        flows.OrderBy(entry => entry.Key, StringComparer.Ordinal).ToDictionary(entry => entry.Key, entry => SnapshotAnalysis.Round(entry.Value));
+    private static Dictionary<string, double> Rounded(IReadOnlyDictionary<ItemId, double> flows) =>
+        flows.OrderBy(entry => entry.Key.Id, StringComparer.Ordinal).ToDictionary(entry => entry.Key.Id, entry => SnapshotAnalysis.Round(entry.Value));
 }

@@ -96,14 +96,14 @@ public static class ShortageTrace
 
                         break;
                     case Machine when reading?.Limit == MachineLimit.OutputBlocked:
-                        starts.Add(new TraceStart(TraceCause.ProducerOutputBlocked, item, [source], here, readings.OutOf(buildable, item)));
+                        starts.Add(new TraceStart(TraceCause.ProducerOutputBlocked, item, [source], here, readings.OutOf(buildable.Id, item)));
                         break;
                     case Machine or Consumer:
                         fullSpeed.Add(source);
                         break;
                     case Provider provider when provider.IsStation || readings.IsUnknownSupply(source):
                     case Logistics:
-                        starts.Add(new TraceStart(TraceCause.UnknownSupply, item, [source], here, readings.OutOf(buildable, item)));
+                        starts.Add(new TraceStart(TraceCause.UnknownSupply, item, [source], here, readings.OutOf(buildable.Id, item)));
                         break;
                     case Provider when readings.Spare(source, item) > TraceStarts.Tolerance:
                         spare.Add(source);
@@ -142,7 +142,7 @@ public static class ShortageTrace
                 }
             }
 
-            double sent = sending.Sum(source => readings.OutOf(world.Find(source)!, item));
+            double sent = sending.Sum(source => readings.OutOf(source, item));
             if (TraceStarts.Matters(others.Values.Sum(), sent))
             {
                 starts.Add(new TraceStart(TraceCause.TakenByOthers, item, sending, here, Math.Round(sent, 6)) { Others = TraceStarts.Rounded(others) });
@@ -156,12 +156,12 @@ public static class ShortageTrace
 
             if (atLimit.Count > 0)
             {
-                starts.Add(new TraceStart(TraceCause.SourceAtLimit, item, atLimit, here, atLimit.Sum(id => readings.OutOf(world.Find(id)!, item))));
+                starts.Add(new TraceStart(TraceCause.SourceAtLimit, item, atLimit, here, atLimit.Sum(id => readings.OutOf(id, item))));
             }
 
             if (spare.Count > 0 && fullSpeed.Count == 0 && atLimit.Count == 0)
             {
-                starts.Add(new TraceStart(TraceCause.Unclear, item, spare, here, spare.Sum(id => readings.OutOf(world.Find(id)!, item))));
+                starts.Add(new TraceStart(TraceCause.Unclear, item, spare, here, spare.Sum(id => readings.OutOf(id, item))));
             }
         }
 
