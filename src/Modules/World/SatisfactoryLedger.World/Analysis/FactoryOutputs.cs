@@ -102,7 +102,7 @@ internal static class FactoryOutputs
                 List<BuildableId> starts = startsOf.GetValueOrDefault(item) ?? [];
                 ItemId id = ItemId.Of(item);
                 double need = OutputDestinations.ReceiversNeed(world, starts, id).ToDouble();
-                double get = OutputDestinations.ReceiversGet(world, starts, id, receiver => readings.Into(receiver, id));
+                double get = OutputDestinations.ReceiversGet(world, starts, id, readings);
                 return new FactoryOutput(
                     item,
                     SnapshotAnalysis.Round(now.GetValueOrDefault(item)),
@@ -146,8 +146,7 @@ internal static class FactoryOutputs
             BuildableId start = output.Outside ?? output.Inside;
             foreach (ItemId item in output.Items)
             {
-                foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(
-                    world, start, item, leaving.GetValueOrDefault(item), id => readings.Into(id, item)))
+                foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(world, start, item, leaving.GetValueOrDefault(item), readings))
                 {
                     yield return (end, item, perMinute);
                 }

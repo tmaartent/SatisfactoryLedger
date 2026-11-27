@@ -1,3 +1,5 @@
+using SatisfactoryLedger.World.Domain.Tracing;
+
 namespace SatisfactoryLedger.World.Domain;
 
 /// <summary>
@@ -13,9 +15,9 @@ public static class InputSources
     /// from each start of its line. A line that only leads back to where the walk passed (a loop) brings nothing of its
     /// own: its share goes to the others.
     /// </summary>
-    /// <param name="flowOutOf">What a buildable sends on per minute, of this item, as the analysis found it.</param>
+    /// <param name="readings">The analysis: each branch weighs what it sends on of the item (<see cref="FlowReadings.OutOf"/>).</param>
     public static IReadOnlyDictionary<BuildableId, double> Of(
-        WorldGraph world, BuildableId to, ItemId item, double perMinute, Func<BuildableId, double> flowOutOf)
+        WorldGraph world, BuildableId to, ItemId item, double perMinute, FlowReadings readings)
     {
         return Fractions(to, []).ToDictionary(start => start.Key, start => start.Value * perMinute);
 
@@ -39,7 +41,7 @@ public static class InputSources
                 Dictionary<BuildableId, double> parts = Fractions(from, here);
                 if (parts.Count > 0)
                 {
-                    branches.Add((parts, flowOutOf(from)));
+                    branches.Add((parts, readings.OutOf(from, item)));
                 }
             }
 

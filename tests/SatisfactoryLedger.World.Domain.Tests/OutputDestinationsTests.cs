@@ -1,4 +1,6 @@
 using SatisfactoryLedger.SharedKernel;
+using SatisfactoryLedger.World.Domain.Tests.Tracing;
+using SatisfactoryLedger.World.Domain.Tracing;
 
 namespace SatisfactoryLedger.World.Domain.Tests;
 
@@ -11,10 +13,6 @@ public class OutputDestinationsTests
 {
     private static BuildableId Id(string name) => BuildableId.Of(name);
 
-    /// <summary>What flows into each buildable, per minute, as the analysis found it; nothing for the others.</summary>
-    private static Func<BuildableId, double> Flowing(params (string Id, double PerMinute)[] flows) =>
-        id => flows.Where(flow => flow.Id == id.Id).Sum(flow => flow.PerMinute);
-
     private static Dictionary<string, double> Ends(IReadOnlyDictionary<BuildableId, double> ends) =>
         ends.ToDictionary(end => end.Key.Id, end => Math.Round(end.Value, 4));
 
@@ -25,7 +23,7 @@ public class OutputDestinationsTests
             .Belt("plates").Machine("assembler", Items.IronPlate, 30, Items.ReinforcedIronPlate, 5)
             .Connect("plates", "assembler").Build();
 
-        var ends = OutputDestinations.Of(world, Id("plates"), Items.IronPlate, 20, Flowing(("plates", 20)));
+        var ends = OutputDestinations.Of(world, Id("plates"), Items.IronPlate, 20, new TestReadings().Into("plates", Items.IronPlate, 20).Build(world));
 
         Assert.Equal(new Dictionary<string, double> { ["assembler"] = 20 }, Ends(ends));
     }
@@ -39,7 +37,8 @@ public class OutputDestinationsTests
             .Machine("assembler B", Items.IronPlate, 30, Items.ReinforcedIronPlate, 5)
             .Connect("splitter", "left", "assembler A").Connect("splitter", "right", "assembler B").Build();
 
-        var ends = OutputDestinations.Of(world, Id("splitter"), Items.IronPlate, 30, Flowing(("left", 20), ("right", 10)));
+        var ends = OutputDestinations.Of(
+            world, Id("splitter"), Items.IronPlate, 30, new TestReadings().Into("left", Items.IronPlate, 20).Into("right", Items.IronPlate, 10).Build(world));
 
         Assert.Equal(new Dictionary<string, double> { ["assembler A"] = 20, ["assembler B"] = 10 }, Ends(ends));
     }
@@ -55,8 +54,11 @@ public class OutputDestinationsTests
             .Connect("ours", "merger", "mixed", "splitter", "left", "assembler A")
             .Connect("theirs", "merger").Connect("splitter", "right", "assembler B").Build();
 
-        var ends = OutputDestinations.Of(
-            world, Id("ours"), Items.IronPlate, 10, Flowing(("ours", 10), ("theirs", 30), ("mixed", 40), ("left", 20), ("right", 20)));
+        FlowReadings readings = new TestReadings()
+            .Into("ours", Items.IronPlate, 10).Into("theirs", Items.IronPlate, 30).Into("mixed", Items.IronPlate, 40)
+            .Into("left", Items.IronPlate, 20).Into("right", Items.IronPlate, 20).Build(world);
+
+        var ends = OutputDestinations.Of(world, Id("ours"), Items.IronPlate, 10, readings);
 
         Assert.Equal(new Dictionary<string, double> { ["assembler A"] = 5, ["assembler B"] = 5 }, Ends(ends));
     }
@@ -66,7 +68,8 @@ public class OutputDestinationsTests
     {
         WorldGraph world = new TestWorld().Belt("plates").Container("box").Connect("plates", "box").Build();
 
-        var ends = OutputDestinations.Of(world, Id("plates"), Items.IronPlate, 20, Flowing(("plates", 20), ("box", 20)));
+        var ends = OutputDestinations.Of(
+            world, Id("plates"), Items.IronPlate, 20, new TestReadings().Into("plates", Items.IronPlate, 20).Into("box", Items.IronPlate, 20).Build(world));
 
         Assert.Equal(new Dictionary<string, double> { ["box"] = 20 }, Ends(ends));
     }
@@ -76,7 +79,7 @@ public class OutputDestinationsTests
     {
         WorldGraph world = new TestWorld().Belt("plates").Connect("plates").Build();
 
-        var ends = OutputDestinations.Of(world, Id("plates"), Items.IronPlate, 20, Flowing(("plates", 20)));
+        var ends = OutputDestinations.Of(world, Id("plates"), Items.IronPlate, 20, new TestReadings().Into("plates", Items.IronPlate, 20).Build(world));
 
         Assert.Equal(new Dictionary<string, double> { ["plates"] = 20 }, Ends(ends));
     }
@@ -89,7 +92,8 @@ public class OutputDestinationsTests
             .Belt("plates").Merger("merger").Belt("on").Splitter("splitter").Belt("back").Belt("out").Sink("sink")
             .Connect("plates", "merger", "on", "splitter", "out", "sink").Connect("splitter", "back", "merger").Build();
 
-        var ends = OutputDestinations.Of(world, Id("plates"), Items.IronPlate, 20, Flowing(("plates", 20), ("on", 20), ("out", 20)));
+        var ends = OutputDestinations.Of(world, Id("plates"), Items.IronPlate, 20, new TestReadings()
+            .Into("plates", Items.IronPlate, 20).Into("on", Items.IronPlate, 20).Into("out", Items.IronPlate, 20).Build(world));
 
         Assert.Equal(new Dictionary<string, double> { ["sink"] = 20 }, Ends(ends));
     }
@@ -151,14 +155,15 @@ public class OutputDestinationsTests
     [Fact]
     public void Its_receivers_get_what_flows_into_them_now_from_any_source_each_once()
     {
-        // Two lines lead to the assembler; a sink takes the rest. Only the assembler takes plates for a recipe.
+        // Two lines lead to the assembler, which runs at 80% of its 30 a minute; a sink takes the rest. Only the assembler
+        // takes plates for a recipe.
         WorldGraph world = new TestWorld()
             .Belt("left").Belt("right").Machine("assembler", Items.IronPlate, 30, Items.ReinforcedIronPlate, 5)
             .Belt("rest").Sink("sink")
             .Connect("left", "assembler").Connect("right", "assembler").Connect("right", "rest", "sink").Build();
-        Dictionary<BuildableId, double> flows = new() { [Id("assembler")] = 24, [Id("sink")] = 6 };
+        FlowReadings readings = new TestReadings().Starved("assembler", Items.IronPlate, 0.8).Into("rest", Items.IronPlate, 6).Build(world);
 
-        Assert.Equal(24, OutputDestinations.ReceiversGet(world, [Id("left"), Id("right")], Items.IronPlate, id => flows.GetValueOrDefault(id)));
+        Assert.Equal(24, OutputDestinations.ReceiversGet(world, [Id("left"), Id("right")], Items.IronPlate, readings), 4);
     }
 
     [Fact]

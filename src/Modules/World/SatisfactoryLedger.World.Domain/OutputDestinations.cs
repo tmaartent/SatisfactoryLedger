@@ -1,4 +1,5 @@
 using SatisfactoryLedger.SharedKernel;
+using SatisfactoryLedger.World.Domain.Tracing;
 
 namespace SatisfactoryLedger.World.Domain;
 
@@ -13,9 +14,9 @@ public static class OutputDestinations
     /// What reaches each end of the line from <paramref name="from"/>, per minute, of the <paramref name="perMinute"/>
     /// of <paramref name="item"/> that sets off on it. A part that loops back to where it passed isn't followed again.
     /// </summary>
-    /// <param name="flowInto">What flows into a buildable per minute, of this item, as the analysis found it.</param>
+    /// <param name="readings">The analysis: at a split, each side gets what flows into it of the item (<see cref="FlowReadings.Into"/>).</param>
     public static IReadOnlyDictionary<BuildableId, double> Of(
-        WorldGraph world, BuildableId from, ItemId item, double perMinute, Func<BuildableId, double> flowInto)
+        WorldGraph world, BuildableId from, ItemId item, double perMinute, FlowReadings readings)
     {
         Dictionary<BuildableId, double> ends = [];
         Follow(from, perMinute, []);
@@ -42,10 +43,10 @@ public static class OutputDestinations
                 return;
             }
 
-            double total = onwards.Sum(flowInto);
+            double total = onwards.Sum(next => readings.Into(next, item));
             foreach (BuildableId next in onwards)
             {
-                double share = total > 0 ? flowInto(next) / total : 1.0 / onwards.Count;
+                double share = total > 0 ? readings.Into(next, item) / total : 1.0 / onwards.Count;
                 Follow(next, amount * share, here);
             }
         }
@@ -64,10 +65,11 @@ public static class OutputDestinations
 
     /// <summary>
     /// What those same receivers, the ones that ask for <paramref name="item"/>, take of it now, from whatever source:
-    /// the sum of <paramref name="flowInto"/> over them, each once (decided 2026-11-11).
+    /// what flows into each of them as <paramref name="readings"/> found it (<see cref="FlowReadings.Into"/>), each once
+    /// (decided 2026-11-11).
     /// </summary>
-    public static double ReceiversGet(WorldGraph world, IEnumerable<BuildableId> from, ItemId item, Func<BuildableId, double> flowInto) =>
-        Receivers(world, from).Where(receiver => Asks(receiver, item) > Rate.Zero).Sum(receiver => flowInto(receiver.Id));
+    public static double ReceiversGet(WorldGraph world, IEnumerable<BuildableId> from, ItemId item, FlowReadings readings) =>
+        Receivers(world, from).Where(receiver => Asks(receiver, item) > Rate.Zero).Sum(receiver => readings.Into(receiver.Id, item));
 
     /// <summary>What a receiver asks for of an item at 100%: its <see cref="Buildable.Demand"/>.</summary>
     private static Rate Asks(Buildable receiver, ItemId item) => receiver.Demand.GetValueOrDefault(item) ?? Rate.Zero;

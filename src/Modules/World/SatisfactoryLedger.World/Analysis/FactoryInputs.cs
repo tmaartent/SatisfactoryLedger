@@ -43,7 +43,7 @@ internal static class FactoryInputs
                 startsOf[item.Id].Add(world.Find(input.Inside) is Logistics ? input.Inside : start);
 
                 Dictionary<(InputSourceKind, StoredFactory?, string?, string?), double> from = sources.TryGetValue(item.Id, out var found) ? found : sources[item.Id] = [];
-                foreach ((BuildableId source, double perMinute) in InputSources.Of(world, start, item, amount, id => readings.OutOf(id, item)))
+                foreach ((BuildableId source, double perMinute) in InputSources.Of(world, start, item, amount, readings))
                 {
                     var key = Source(source);
                     from[key] = from.GetValueOrDefault(key) + perMinute;

@@ -132,7 +132,7 @@ public static class ShortageTrace
                 foreach (Buildable next in world.Downstream(source))
                 {
                     double leaving = next is Logistics ? readings.Into(next.Id, item) : 0;
-                    foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(world, next.Id, item, leaving, id => readings.Into(id, item)))
+                    foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(world, next.Id, item, leaving, readings))
                     {
                         if (!asked.Contains(end) && end != source)
                         {
