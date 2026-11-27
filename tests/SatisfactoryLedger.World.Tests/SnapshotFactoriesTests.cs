@@ -11,9 +11,11 @@ public class SnapshotFactoriesTests
 {
     private static StoredMachine Machine(string id) => StoredMachine.From(Document.Buildables.Single(buildable => buildable.Id == id));
 
-    private static StoredFactory Factory(string name, params string[] machines) => new()
+    private static StoredFactory Factory(string name, params string[] machines) => Factory(Guid.CreateVersion7(), name, machines);
+
+    private static StoredFactory Factory(Guid id, string name, params string[] machines) => new()
     {
-        Id = Guid.CreateVersion7(),
+        Id = id,
         World = "Development",
         Name = name,
         Machines = [.. machines.Select(Machine)],
@@ -110,14 +112,45 @@ public class SnapshotFactoriesTests
     }
 
     [Fact]
-    public void A_machine_two_factories_have_belongs_to_the_first_of_them_given()
+    public void A_machine_two_factories_have_belongs_to_the_oldest_of_them_whatever_the_order_given()
     {
-        StoredFactory smelting = Factory("Smelting", SmelterA);
-        StoredFactory plates = Factory("Plates", SmelterA, ConstructorC);
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterA, ConstructorC);
 
         SnapshotFactories factories = SnapshotFactories.Of(Document, [plates, smelting]);
 
-        Assert.Equal(plates.Id, factories.Owners[BuildableId.Of(SmelterA)]);
+        Assert.Equal(smelting.Id, factories.Owners[BuildableId.Of(SmelterA)]);
+    }
+
+    [Fact]
+    public void A_factory_counts_a_machine_it_shares_with_an_older_one_as_its_own()
+    {
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterA, ConstructorC);
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
+
+        Assert.Equal(plates.Id, factories.Find(plates.Id)!.Owners[BuildableId.Of(SmelterA)]);
+    }
+
+    [Fact]
+    public void To_a_factory_the_machines_of_others_belong_to_their_owners()
+    {
+        StoredFactory smelting = Factory("Smelting", SmelterA);
+        StoredFactory plates = Factory("Plates", ConstructorC);
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
+
+        Assert.Equal(smelting.Id, factories.Find(plates.Id)!.Owners[BuildableId.Of(SmelterA)]);
+    }
+
+    [Fact]
+    public void Factories_in_a_snapshot_are_listed_as_given_not_oldest_first()
+    {
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", ConstructorC);
+
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [plates, smelting]);
+
+        Assert.Equal([plates, smelting], factories.Factories.Select(traced => traced.Factory));
     }
 
     [Fact]
@@ -133,7 +166,55 @@ public class SnapshotFactoriesTests
     }
 
     [Fact]
-    public void A_factory_is_found_by_its_id()
+    public void A_rebuilt_machine_two_factories_matched_is_the_oldest_ones_and_missing_from_the_other()
+    {
+        BuildableDocument smelter = Find(SmelterA);
+        SnapshotDocument rebuilt = Replaced(smelter, smelter with { Id = Id("Build_SmelterMk1_C_1") });
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredMachine nearby = new(Id("Build_SmelterMk1_C_9"), smelter.ClassName, smelter.Position!.X + 30, smelter.Position.Y, smelter.Position.Z);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", ConstructorC);
+        plates.Machines.Add(nearby);
+
+        SnapshotFactories factories = SnapshotFactories.Of(rebuilt, [plates, smelting]);
+
+        Assert.Contains(Id("Build_SmelterMk1_C_1"), factories.Find(smelting.Id)!.Machines.Select(id => id.Id));
+        Assert.Equal([nearby], factories.Find(plates.Id)!.Missing);
+        Assert.Equal(smelting.Id, factories.Owners[BuildableId.Of(Id("Build_SmelterMk1_C_1"))]);
+    }
+
+    [Fact]
+    public void A_rebuilt_stored_machine_two_factories_share_gets_one_replacement_which_both_keep()
+    {
+        BuildableDocument smelter = Find(SmelterA);
+        SnapshotDocument rebuilt = Replaced(smelter, smelter with { Id = Id("Build_SmelterMk1_C_1") });
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterA, ConstructorC);
+
+        SnapshotFactories factories = SnapshotFactories.Of(rebuilt, [plates, smelting]);
+
+        Assert.Equal([Id("Build_SmelterMk1_C_1")], factories.Find(smelting.Id)!.Machines.Select(id => id.Id));
+        Assert.Equal([Id("Build_SmelterMk1_C_1"), ConstructorC], factories.Find(plates.Id)!.Machines.Select(id => id.Id));
+        Assert.Empty(factories.Find(plates.Id)!.Missing);
+        Assert.Equal(smelting.Id, factories.Owners[BuildableId.Of(Id("Build_SmelterMk1_C_1"))]);
+    }
+
+    [Fact]
+    public void A_machine_another_factory_has_by_its_id_replaces_no_older_factorys_machine()
+    {
+        BuildableDocument smelter = Find(SmelterB);
+        StoredMachine gone = new(Id("Build_SmelterMk1_C_9"), smelter.ClassName, smelter.Position!.X, smelter.Position.Y, smelter.Position.Z);
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        smelting.Machines.Add(gone);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterB);
+
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
+
+        Assert.Equal([gone], factories.Find(smelting.Id)!.Missing);
+        Assert.Equal(plates.Id, factories.Owners[BuildableId.Of(SmelterB)]);
+    }
+
+    [Fact]
+    public void Each_factory_in_a_snapshot_is_the_stored_factory_of_its_id()
     {
         StoredFactory smelting = Factory("Smelting", SmelterA);
 

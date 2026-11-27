@@ -41,3 +41,13 @@ Every factory in the owner's database was stored by its machines (72 of 72; none
 - `POST /factories` takes `machines` only; `outputBelt` and `inputItems` are gone, with the problem codes `World.NotAnOutputBelt` and `World.UnknownInputItems`.
 - `GET /snapshots/{id}/output-belts` (BR-W12) is gone, with `OutputBeltSuggestions` and the domain's `CandidateOutputBelts` and `OutputBeltTrace`.
 - The startup conversion (`FactoryConversion`) is gone, and the migration `DropFactoryOutputBelt` drops the `output_belt` and `input_items` columns.
+
+## Update 2026-11-27: who owns a machine two factories share
+
+Factories stored before BR-W5 can still share a machine, and since step 122 a rebuilt machine is matched across the world's factories at once (`SnapshotFactories`). The ownership rule, as the owner decided after the review of spec #56:
+
+- **The oldest factory owns a shared machine:** the one with the lowest id (a `Guid` v7, so the one defined first), on every page and in every check, whatever order the factories are listed in (`SnapshotFactories.Owners`, `StoredFactory.OldestFirst`).
+- **A factory counts its own machines as its own:** from inside it, a shared machine is its own, so its findings don't depend on another factory; seen from any other factory it's the oldest one's (`TracedFactory.Owners`).
+- **A rebuilt machine replaces at most one stored machine world-wide:** when stored machines of two factories match it, the oldest factory gets it and the other reports its machine as missing. A stored machine the two share is one machine, so it gets one replacement, which both keep.
+
+See BR-W5 and BR-W11 in `docs/domain/business-rules.md`.

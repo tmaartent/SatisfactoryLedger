@@ -24,12 +24,11 @@ internal static class SnapshotAnalysis
     /// whole world, because a factory depends on its supply. Null when the factory can't be traced in this snapshot
     /// (BR-W11).
     /// </summary>
-    /// <param name="factories">The world's factories: where its output goes (BR-A18). This one is added when it isn't among them.</param>
+    /// <param name="factories">The world's factories, this one among them: where its output goes (BR-A18).</param>
     public static FactoryAnalysisResponse? ForFactory(
-        SnapshotDocument snapshot, StoredFactory factory, AnalysisDocument analysis, IEnumerable<StoredFactory> factories)
+        SnapshotDocument snapshot, StoredFactory factory, AnalysisDocument analysis, IReadOnlyList<StoredFactory> factories)
     {
-        List<StoredFactory> all = [.. factories];
-        var inSnapshot = SnapshotFactories.Of(snapshot, all.Any(other => other.Id == factory.Id) ? all : [.. all, factory]);
+        var inSnapshot = SnapshotFactories.Of(snapshot, factories);
         TracedFactory traced = inSnapshot.Find(factory.Id)!;
         if (!traced.IsTraceable)
         {
@@ -53,7 +52,7 @@ internal static class SnapshotAnalysis
             // A drone port is never part of a factory (BR-W1, BR-W8); a generator is, when chosen as one of its machines.
             wholeWorld: false);
         FactoryHandovers handovers = SnapshotHandovers.Of(snapshot, inSnapshot, traced, readings);
-        Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, all);
+        Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, factories);
 
         return new FactoryAnalysisResponse(
             factory.Id,

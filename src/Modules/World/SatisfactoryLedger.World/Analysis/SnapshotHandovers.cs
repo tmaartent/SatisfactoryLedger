@@ -23,7 +23,7 @@ internal static class SnapshotHandovers
             factories.World,
             readings,
             factory.Members,
-            OwnersFor(factories, factory),
+            factory.Owners,
             snapshot.Buildables.Where(buildable => buildable.ClassName == SinkClass).Select(buildable => BuildableId.Of(buildable.Id)).ToHashSet(),
             snapshot.Buildables.Where(buildable => UsesUp.Contains(buildable.ClassName)).Select(buildable => BuildableId.Of(buildable.Id)).ToHashSet(),
             snapshot.Buildables.ToDictionary(buildable => BuildableId.Of(buildable.Id), buildable => buildable.ClassName));
@@ -31,19 +31,4 @@ internal static class SnapshotHandovers
     /// <summary>Each factory's name by its id, this one's too: the handovers name owners by id (decision 7 of #50).</summary>
     public static Dictionary<Guid, string> NamesOf(StoredFactory factory, IEnumerable<StoredFactory> factories) =>
         factories.Prepend(factory).DistinctBy(other => other.Id).ToDictionary(other => other.Id, other => other.Name);
-
-    /// <summary>
-    /// Who each machine in this snapshot belongs to, as this factory sees it: its own members are its own, the rest as
-    /// <see cref="SnapshotFactories.Owners"/> says.
-    /// </summary>
-    private static Dictionary<BuildableId, Guid> OwnersFor(SnapshotFactories factories, TracedFactory factory)
-    {
-        Dictionary<BuildableId, Guid> owners = factory.Members.Machines.ToDictionary(id => id, _ => factory.Factory.Id);
-        foreach ((BuildableId id, Guid owner) in factories.Owners)
-        {
-            owners.TryAdd(id, owner);
-        }
-
-        return owners;
-    }
 }

@@ -1,0 +1,108 @@
+# Step 122 · A rebuilt machine replaces one stored machine across the world
+
+**Goal:** issue #60, the fourth ticket of card 4 (#56), decision 3. A **change in behaviour**, not a refactor: a rebuilt machine (a new id, the same class, within a metre of where a stored machine stood) replaces **at most one stored machine across all the world's factories** in a snapshot. When stored machines of two factories both match it, the **oldest** factory (lowest id, as in BR-W5) gets it, and the other reports its machine as **missing**. Before, each factory was matched on its own, with its own "already taken" set, so both could claim it. Branch `ticket/60-rebuilt-machine-world-wide`, from `refactor/factories-of-a-snapshot`.
+
+## Design
+
+- **Module:** `SnapshotFactories` (`World/Factories`), the code home of **Factories in a snapshot**; the interface under test. Its interface doesn't change: `Of(snapshot, factories)` already took every factory at once (step 119), so the rule could move inside without a caller noticing.
+- **Implementation change, in `MachineMatch`** (internal, one caller: `SnapshotFactories.Of`). `MachineMatch.In(snapshot, machines)` matched one factory; it's now `MachineMatch.In(snapshot, factories)`, which matches all of them in one pass and returns one `MachineMatch` per factory, in the order given. Inside it:
+  - **taken** starts as every stored machine of *any* factory that the snapshot has by its id, so such a machine is never another factory's replacement;
+  - replacements are chosen **oldest factory first** (`OrderBy(factory => factory.Id)`, a stable sort), each stored machine taking the closest free machine of its class within a metre, as before;
+  - the result per factory is read back in the caller's order (decision 10: `Factories` keeps it).
+- **Wiring change at one caller, the arrangement-machines endpoint** (`ArrangementEndpoints.MachinesAsync`). It passed only the arranged factories to `SnapshotFactories.Of`; it now passes the world's factories and keeps the arranged ones. Otherwise a rebuilt machine that an older factory *outside* the arrangement gets would be drawn as an arranged factory's machine, unlike on every other page. The arrangement problem itself (`ArrangementProblems.FactoriesAsync`), the trace list and the factory page already pass the whole world.
+- **Deletion test:** nothing new to delete. `MachineMatch` stays the one place that knows a rebuilt machine (class, a metre, taken); it's deeper now, since "across the world" is inside it instead of being nobody's.
+- **Second copy:** none. `MachineMatch.In` has one caller; the factory preview doesn't match stored machines.
+
+## The change in behaviour, and where it shows
+
+Only when two factories' stored machines are within a metre of one rebuilt machine of their class, or when a factory's stored machine is gone and another factory's machine (kept by its id) stands within a metre of where it stood.
+
+- **Trace list, factory page, arrangement:** the younger factory now reports its machine as missing there, and the rebuilt machine is the oldest one's in `Owners`. Before, both traced it, so both counted it as a member.
+- **Arrangement machines:** see the wiring change above.
+- **The define check** (`ClaimedMachines`, 409 `World.MachinesTaken`) passes the world's *other* factories, so the factory being edited isn't part of the match. See *Choices to overrule*; changed in the review (Review fixes, A).
+
+The golden fixtures (stored analyses) passed unchanged: their test worlds have no two factories near one rebuilt machine, so no regeneration was needed.
+
+## Seams under test (decision 11)
+
+- **A, the module** (`SnapshotFactoriesTests`):
+  - Red first: `A_rebuilt_machine_two_factories_matched_is_the_oldest_ones_and_missing_from_the_other`. SmelterA rebuilt in place; the older factory stores SmelterA, the younger one a smelter 30 cm away; passed younger first. It failed with "Expected [StoredMachine … Build_SmelterMk1_C_9 …], Actual []" (the younger one claimed it too), then passed.
+  - `A_machine_another_factory_has_by_its_id_replaces_no_older_factorys_machine` (the ticket's second criterion). It passed at once: slice one's world-wide `taken` set already covers it. Against the old per-factory matcher it would fail (the older factory's `taken` didn't hold the younger one's SmelterB), so it guards the rule rather than driving code.
+- **B, the safety net:** `ClaimedMachinesTests`, `WorldArrangementTests`, `WorldArrangementApiTests` (the machines endpoint), the factory-page tests and the golden fixtures pass without an edit.
+
+**Tests changed because of the new rule:** none. No existing test had two factories near one rebuilt machine.
+
+Test run: 1333 passed, 0 failed (two more than step 121).
+
+## C# points
+
+| Here | In Java / TypeScript |
+|---|---|
+| **`Zip` into tuples**: `stored.Zip(matches)` pairs the factories with their matches; `foreach ((StoredFactory factory, MachineMatch match) in …)` deconstructs each pair. Primer: *`Zip` into tuples, and `OrderBy` is stable*. | No `zip` on Java streams (Guava `Streams.zip`, or an index loop); lodash `zip` in TypeScript. |
+| **`OrderBy` is stable**: factories with equal ids (impossible, primary key) would keep the order given. Same primer entry. | `Stream.sorted` on an ordered stream is stable too. |
+| **A collection expression from a `Select`**: `return [.. factories.Select(factory => Matched(factory.Machines))];` into an `IReadOnlyList<MachineMatch>`; the compiler picks the concrete type. | `.toList()`. |
+
+## Choices to overrule
+
+- **A stored machine two factories have (from before BR-W5) gets one replacement, which both keep.** It's one machine with one id, so "replaces at most one stored machine" holds; the oldest factory owns the replacement (BR-W5), and the younger one still counts it as its own from inside (`OwnersSeenFrom`). The alternative, the younger one reporting its copy as missing, would make an overlap look different once the machine is rebuilt than before. I chose the first; say if you want the other. *Kept by the owner: see Owner decisions after review, B.*
+- **The define check doesn't include the factory being edited.** When you edit an older factory X whose stored machine was rebuilt, and a younger factory Y's stored machine also matches the rebuilt one, the check matches without X, so Y gets the rebuilt machine there and choosing it for X is refused as Y's. Everywhere else it's X's. Fixing it means passing X's stored version too and leaving X out of the claims; I left `ClaimedMachines` as it is, since the case needs two factories' machines within a metre of each other, which BR-W5 has refused since 2026-11-11. *Fixed in the review: see Review fixes, A.*
+- **Greedy, per stored machine.** Within the oldest factory each stored machine takes the closest free one in its order, as before. A younger factory's closer stored machine still loses to an older factory's farther one: that's the rule as decided ("the oldest factory gets it").
+
+**Files:** `src/Modules/World/SatisfactoryLedger.World/Factories/MachineMatch.cs`, `Factories/SnapshotFactories.cs`, `Arrangement/ArrangementEndpoints.cs`; `tests/SatisfactoryLedger.World.Tests/SnapshotFactoriesTests.cs`; `docs/domain/business-rules.md` (BR-W11), `docs/domain/glossary.md` (Missing Machine, Factories in a snapshot), `docs/guide/primer.md`, this log.
+
+## Review fixes
+
+Code review of the integration branch `refactor/factories-of-a-snapshot` (spec #56).
+
+- **A, behaviour change: the define check matches as every other page does.** `DefineFactoryHandler.ClashAsync` now loads all the world's factories untracked (`AsNoTracking`), so an edited factory X comes back as stored, not with its new machines, and passes them all to `ClaimedMachines.Among`, which gained a `claimant` id and leaves the claimant's own machines out of the claims. Editing an older X whose stored machine was rebuilt, a younger Y's nearer stored machine no longer claims the rebuilt one: it's X's, as on the trace list, the factory page and the arrangement (BR-W11, BR-W5). Defining a new factory is unchanged: it isn't stored yet, so the world's factories are all others. The name check reads the same list, skipping X by id.
+  - Red first: `ClaimedMachinesTests.A_rebuilt_machine_the_edited_factory_is_matched_to_is_not_taken_by_a_younger_one_that_stands_closer`. SmelterA rebuilt 50 cm away; the older factory stores SmelterA, the younger one a smelter 40 cm away. It failed with "Assert.Empty() Failure: Collection was not empty" (the older factory itself counted as the owner), then passed.
+  - Changed tests: the three other `ClaimedMachinesTests` pass a fresh `Guid.CreateVersion7()` as the claimant, because `Among` takes one now. Their expectations are unchanged.
+- **B: `SnapshotAnalysis.ForFactory` takes the whole world, this factory among it.** The branch that added the factory when it was missing is gone (it was the second copy of `SnapshotHandovers.NamesOf`'s `Prepend`/`DistinctBy`), and `factories` is an `IReadOnlyList<StoredFactory>`. No test had to change: every test already passed the factory among the factories.
+- **C: "oldest" has one home**, `StoredFactory.OldestFirst` (an `IComparer<StoredFactory>`: lowest `Guid` v7 id first). `MachineMatch.In` orders by it; `SnapshotFactories.Of` walks the factories oldest first and keeps the first owner per machine (`TryAdd`) instead of comparing ids itself. The `OrderBy(factory => factory.Id)` in `ArrangementProblems` and `AnalysisEndpoints` stay: they're database orderings EF translates to SQL, not the ownership rule.
+- **D: `ClaimedMachines.Among`** looks each chosen machine up once with `TryGetValue`, then names the owner through `Find(owner)`.
+- **E: `WorldArrangement`** keeps `(TracedFactory Traced, Outline)` instead of `(StoredFactory, FactoryMembers, Outline)`, so `SnapshotHandovers.Of` gets the traced factory directly; the `inSnapshot.Find(factory.Id)!` lookup is gone.
+- **F: `ArrangementEndpoints`** has `using SatisfactoryLedger.World.Factories;` instead of `Factories.SnapshotFactories` / `Factories.StoredFactory`.
+- **G: glossary, Missing Machine:** the code column names `TracedFactory.Missing` only.
+- **H: renamed in `SnapshotFactoriesTests`:** `A_factory_is_found_by_its_id` is `Each_factory_in_a_snapshot_is_the_stored_factory_of_its_id`; `The_factories_keep_the_order_given` is `Factories_in_a_snapshot_are_listed_as_given_not_oldest_first`.
+
+Primer: new row *A tracking query returns the entity you're changing* (identity resolution, and `AsNoTracking` to read the stored version).
+
+Test run: 1334 passed, 0 failed (one more than before the review).
+
+
+## Owner decisions after review
+
+The owner's decisions on the review of spec #56 (2026-11-27).
+
+### A. A factory's own view of who owns its machines: `TracedFactory.Owners`
+
+**Design.**
+
+- **Module:** `SnapshotFactories` (Factories in a snapshot) still owns ownership, both halves of BR-W5. What changes is where each half is read:
+  - the world-wide answer stays `SnapshotFactories.Owners` (the oldest factory);
+  - the exception "a factory counts its own machines as its own" moves from the method `SnapshotFactories.OwnersSeenFrom(TracedFactory)` onto the factory, as `TracedFactory.Owners`.
+- **Interface change:** `OwnersSeenFrom` is gone; `TracedFactory.Owners` replaces it. `TracedFactory.Machines` stays. A caller now asks the factory it already holds (`factory.Owners`) instead of passing it back to the collection it came from (`factories.OwnersSeenFrom(factory)`).
+- **Implementation:** `SnapshotFactories.Of` works out the world-wide owners first, from the matches (oldest first, `TryAdd`), then hands that one dictionary to each `TracedFactory`. Each factory builds its own view in a `Lazy` the first time it's read (its traced machines first, then the rest as the world-wide owners say) and keeps it. `OwnersSeenFrom` built a new dictionary on every call.
+- **Deletion test:** delete `TracedFactory.Owners` and its one production caller, `SnapshotHandovers.Of`, has to merge the factory's machines into `SnapshotFactories.Owners` itself. That's the helper (`OwnersFor`) that step 121 moved into the module. It earns its keep.
+- **Glossary:** *Factories in a snapshot* names both members in its code column: `SnapshotFactories.Owners` for the world-wide owner, `TracedFactory.Owners` for how one factory sees it. That's one term with two members, but they're two answers to two questions, both in the one module, not a second copy.
+
+**Tests, at `SnapshotFactories`' interface** (through `SnapshotFactories.Of(...).Find(id)`). Replaced, not layered:
+
+- `A_factory_counts_a_machine_it_shares_with_an_older_one_as_its_own` now reads `factories.Find(plates.Id)!.Owners`. Red first: a compile error (no `TracedFactory.Owners`), then green.
+- `Seen_from_a_factory_the_machines_of_others_belong_to_their_owners` is now `To_a_factory_the_machines_of_others_belong_to_their_owners`, and reads `TracedFactory.Owners`.
+
+**Choice to overrule:** the name `Owners` on both types. On `TracedFactory` it reads as "the owners, as this factory has them". `OwnersAsSeenBy` is the private helper that builds it.
+
+**C# point:** a `Lazy<T>` captured in another `Lazy`'s factory. `TracedFactory.Owners` reads `members.Value` inside its own `Lazy`, so it traces the members only when someone asks for owners. It throws the same `InvalidOperationException` as `Members` for a factory that can't be traced (primer: *One `Lazy<T>` shared by others*). Java: two `Suppliers.memoize`, one calling the other.
+
+### B. BR-W11: a shared stored machine gets one replacement, which both keep
+
+That's what the code already did (see *Choices to overrule* above), and now it's written down: BR-W11 has a sentence for it. No test covered it, so there's one now: `SnapshotFactoriesTests.A_rebuilt_stored_machine_two_factories_share_gets_one_replacement_which_both_keep`. It passed at once, so it guards the rule rather than driving code.
+
+### C. ADR-0025: the ownership rule
+
+ADR-0025 has an *Update 2026-11-27* section: the oldest factory (lowest `Guid` v7 id) owns a shared machine, a factory counts its own as its own, and a rebuilt machine replaces at most one stored machine world-wide. It points to BR-W5 and BR-W11.
+
+**Files:** `src/Modules/World/SatisfactoryLedger.World/Factories/SnapshotFactories.cs`, `Factories/TracedFactory.cs`, `Analysis/SnapshotHandovers.cs`; `tests/SatisfactoryLedger.World.Tests/SnapshotFactoriesTests.cs`; `docs/domain/business-rules.md` (BR-W11), `docs/domain/glossary.md` (Factories in a snapshot), `docs/adr/0025-factories-defined-by-their-machines.md`, this log.
+
+Test run: 1335 passed, 0 failed (one more than after the review fixes).
