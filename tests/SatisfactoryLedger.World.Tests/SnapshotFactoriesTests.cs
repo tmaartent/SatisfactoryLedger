@@ -91,6 +91,17 @@ public class SnapshotFactoriesTests
     }
 
     [Fact]
+    public void A_factorys_machines_in_the_snapshot_are_its_stored_machines_a_rebuilt_one_under_the_id_that_replaced_it()
+    {
+        BuildableDocument smelter = Find(SmelterB);
+        SnapshotDocument rebuilt = Replaced(smelter, smelter with { Id = Id("Build_SmelterMk1_C_1") });
+
+        TracedFactory traced = Traced(rebuilt, IronPlates());
+
+        Assert.Equal([SmelterA, Id("Build_SmelterMk1_C_1"), ConstructorC], traced.Machines.Select(id => id.Id));
+    }
+
+    [Fact]
     public void A_traceable_factorys_members_include_the_logistics_between_its_machines()
     {
         TracedFactory traced = Traced(Document, IronPlates());

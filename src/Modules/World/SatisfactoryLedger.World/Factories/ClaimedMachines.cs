@@ -15,16 +15,9 @@ internal static class ClaimedMachines
     /// </summary>
     public static IReadOnlyList<TakenMachine> Among(IEnumerable<string> chosen, SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
     {
-        Dictionary<string, string> owners = new(StringComparer.Ordinal);
-        foreach (StoredFactory factory in factories)
-        {
-            MachineMatch match = MachineMatch.In(snapshot, factory.Machines);
-            foreach (BuildableId id in match.Ids)
-            {
-                owners.TryAdd(id.Id, factory.Name);
-            }
-        }
-
-        return [.. chosen.Where(owners.ContainsKey).Select(id => new TakenMachine(id, owners[id]))];
+        var inSnapshot = SnapshotFactories.Of(snapshot, factories);
+        return [.. chosen
+            .Where(id => inSnapshot.Owners.ContainsKey(BuildableId.Of(id)))
+            .Select(id => new TakenMachine(id, inSnapshot.Find(inSnapshot.Owners[BuildableId.Of(id)])!.Factory.Name))];
     }
 }

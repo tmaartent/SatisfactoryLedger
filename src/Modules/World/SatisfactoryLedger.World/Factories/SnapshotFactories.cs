@@ -10,11 +10,12 @@ namespace SatisfactoryLedger.World.Factories;
 /// </summary>
 internal sealed class SnapshotFactories
 {
+    private readonly Lazy<WorldGraph> world;
     private readonly Dictionary<Guid, TracedFactory> byId;
 
-    private SnapshotFactories(WorldGraph world, List<TracedFactory> factories, Dictionary<BuildableId, Guid> owners)
+    private SnapshotFactories(Lazy<WorldGraph> world, List<TracedFactory> factories, Dictionary<BuildableId, Guid> owners)
     {
-        World = world;
+        this.world = world;
         Factories = factories;
         Owners = owners;
         byId = [];
@@ -24,8 +25,8 @@ internal sealed class SnapshotFactories
         }
     }
 
-    /// <summary>The snapshot's world graph, built once.</summary>
-    public WorldGraph World { get; }
+    /// <summary>The snapshot's world graph: built the first time it's read, then kept.</summary>
+    public WorldGraph World => world.Value;
 
     /// <summary>The factories in the order given.</summary>
     public IReadOnlyList<TracedFactory> Factories { get; }
@@ -36,19 +37,20 @@ internal sealed class SnapshotFactories
     /// </summary>
     public IReadOnlyDictionary<BuildableId, Guid> Owners { get; }
 
-    /// <summary>Matches each factory's stored machines in the snapshot, and builds its world graph once.</summary>
+    /// <summary>
+    /// Matches each factory's stored machines in the snapshot, in one pass. The world graph, which the world, whether a
+    /// factory is traceable and its members need, is built once, the first time one of them is read.
+    /// </summary>
     public static SnapshotFactories Of(SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
     {
-        WorldGraph world = snapshot.ToWorldGraph();
+        Lazy<WorldGraph> world = new(snapshot.ToWorldGraph);
         HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         List<TracedFactory> traced = [];
         Dictionary<BuildableId, Guid> owners = [];
         foreach (StoredFactory factory in factories)
         {
             MachineMatch match = MachineMatch.In(snapshot, factory.Machines);
-            FactoryDefinition? definition = factory.ToDefinition(match);
-            FactoryDefinition? traceable = definition is not null && definition.IsTraceableIn(world) ? definition : null;
-            traced.Add(new TracedFactory(factory, match.Missing, traceable, world, fluids));
+            traced.Add(new TracedFactory(factory, match, factory.ToDefinition(match), world, fluids));
             foreach (BuildableId id in match.Ids)
             {
                 owners.TryAdd(id, factory.Id);
