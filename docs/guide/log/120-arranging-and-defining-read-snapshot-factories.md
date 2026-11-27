@@ -42,7 +42,20 @@ Baseline measured by the orchestrator on `main` 74f0322 with curl against the ru
 | Factory page `GET …/factories/01a1ca2f-…/analysis` ("Iron Plates and Rods") | 2.54 s | 1.67, 1.61, 1.50, 1.69, 1.54 |
 | Making an arrangement problem `GET /internal/world/arrangements/{run}/problem` (whole world, default settings) | — | 28.26, 23.05, 23.77 |
 
-**After:** measured by the orchestrator once this step is merged into `refactor/factories-of-a-snapshot`. No speed-up is claimed until then.
+**After** (61c880a, this step merged; same world, snapshot, factory and settings; AppHost restarted on the branch):
+
+| Call | Warm-up | Warm runs (s) | Change |
+|---|---|---|---|
+| Trace list | 2.42 s | 1.90, 1.54, 1.76, 1.95, 2.02 | none measurable: the ranges overlap |
+| Factory page | 2.02 s | 1.54, 1.39, 1.24, 1.22, 1.36 | about 0.2–0.3 s less: one world graph instead of two, no matching per other factory |
+| Making an arrangement problem | — | 8.83, 8.91, 8.37 | **about 2.7–3 × faster** (23–28 s → 8.4–8.9 s): every factory matched once, not once per factory |
+
+The trace list was already one pass per factory, so it had nothing to gain; its time is mostly loading the snapshot
+and building the world graph. Making the problem lost the 72 × 72 matches the architecture review suspected. What's
+left of its 8–9 s isn't looked at here.
+
+That the problem itself didn't change is shown by the arrangement tests and golden fixtures, not on the owner's world:
+the baseline run's problem wasn't kept to compare with.
 
 ## C# points
 
