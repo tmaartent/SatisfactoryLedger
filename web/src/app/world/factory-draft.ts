@@ -88,9 +88,7 @@ export class FactoryDraft {
   }
 
   start(): void {
-    this.settled.set([]);
-    this._saveError.set(null);
-    this._defining.set(true);
+    this.reset(true, null, [], '');
   }
 
   /** Edits a factory as a new one is defined: its machines chosen, its name filled in. Not before its machines are known. */
@@ -99,12 +97,12 @@ export class FactoryDraft {
       ?.factories()
       ?.find((candidate) => candidate.factoryId === factoryId);
     if (!factory) return;
-    this._editing.set(factoryId);
-    this._chosen.set(new Set(factory.machines.map((machine) => machine.id)));
-    this.name.set(factory.name);
-    this.settled.set([]);
-    this._saveError.set(null);
-    this._defining.set(true);
+    this.reset(
+      true,
+      factoryId,
+      factory.machines.map((machine) => machine.id),
+      factory.name,
+    );
   }
 
   /** Adds a machine, or takes it out when it's chosen already; never another factory's (BR-W5). */
@@ -126,12 +124,22 @@ export class FactoryDraft {
   }
 
   stop(): void {
-    this._defining.set(false);
-    this._editing.set(null);
-    this._chosen.set(new Set());
+    this.reset(false, null, [], '');
+  }
+
+  /** Every part of the draft at once, so starting, editing and stopping can't leave one behind. */
+  private reset(
+    defining: boolean,
+    editing: string | null,
+    chosen: readonly string[],
+    name: string,
+  ): void {
+    this._editing.set(editing);
+    this._chosen.set(new Set(chosen));
+    this.name.set(name);
     this.settled.set([]);
-    this.name.set('');
     this._saveError.set(null);
+    this._defining.set(defining);
   }
 
   /** Stores the factory, new or edited, in the snapshot's world, and is done; if the API refuses, says why and stays. */

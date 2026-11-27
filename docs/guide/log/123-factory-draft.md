@@ -24,7 +24,7 @@ Every slice started red: first a compile error (no such member), then green with
 
 **Tests changed:** `factory-page.spec.ts`. Its tests checked calls on the stub (`area().edit`, `area().save`, `area().stopDefining`, `area().saved.emit`); they now check the requests made and what the page shows. Two tests were merged into the new "saves its machines under the name typed, then asks for its findings again", and one new one checks a refused save. `selection.spec.ts`: the two `boxSelect` tests (add, take out) became one `inBox` test; add and take out are in the draft's tests.
 
-**Test runs:** web 475 passed (40 files); lint clean; `ng build` clean; e2e on recorded answers 261 passed, 48 skipped (device-specific). **The journey against the real stack failed** at "its page shows Iron Plate", for the reason log 97 names: the Development world still has the *Iron Plates* factory, which owns the smelters, so BR-W5 keeps them out of the journey's box. The code before this step skipped them the same way (`machinesOnScreen` filtered `blockedMachines(owners, null)`). The save itself answered 201 and the factory's page opened under its name.
+**Test runs:** web 475 passed (40 files); lint clean; `ng build` clean; e2e on recorded answers 261 passed, 48 skipped (device-specific); the journey against the real stack 1 passed. Its first run failed at "its page shows Iron Plate", for the reason log 97 names: the Development world still had the *Iron Plates* factory, which owned the smelters, so BR-W5 kept them out of the journey's box (the code before this step skipped them the same way). With the owner's agreement that factory was deleted, and the journey passed.
 
 ## Angular / TypeScript points
 
@@ -42,6 +42,8 @@ Every slice started red: first a compile error (no such member), then green with
 
 - **The draft stops before `saved$` fires.** AreaPage emitted `saved` and then stopped. Now a subscriber never sees a draft that's saved but still defining. Nothing reads the draft in between, so the player sees the same.
 - **`choose` checks `defining` itself.** AreaPage checked it before calling. The rule now sits with the state it guards.
+- **AreaPage doesn't read `draft.blocked()`**, though Q12 said it would (found in review). It passes every machine or generator tapped or boxed, and the draft leaves out another factory's. So BR-W5 is decided in one place; `machinesOnScreen` lost its own `blocked` filter. `blocked` stays public: the draft's tests read it, and a 3D view could grey those machines out with it.
+- **`start`, `edit` and `stop` all go through one private `reset`** (found in review: the three repeated the same resets). `start` now also empties the choice and the name; `stop` had already done that, and the *Define a factory* button only shows after a `stop`.
 - **`choosable` (is it a machine or generator) stays in AreaPage.** The draft only sees ids; what kind of building a mesh is belongs to the 3D view.
 - **AreaPage opens the Info tab from an `effect` on `draft.defining()` (Q10)**, so it also opens when the factory's page starts editing from its header. Before, `startEditing` called `showStepsBeside` directly, so it's the same.
 - **AreaPage shrank by 90 lines (1126 → 1036)**, not the "hundreds" the card guessed. The workflow was smaller than the card's diagram made it look; most of AreaPage is the 3D stage, which is card 5.
