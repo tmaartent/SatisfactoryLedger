@@ -1,10 +1,6 @@
 // Selecting machines for a factory in the 3D view (BR-W2), apart from three.js: what a click or a dragged box does.
 
-/** A point on screen, in pixels from the canvas's top left. */
-export interface ScreenPoint {
-  x: number;
-  y: number;
-}
+import { PressReach, ScreenPoint } from '../stage/stage';
 
 /** A rectangle on screen, in pixels from the canvas's top left. */
 export interface ScreenRect {
@@ -31,15 +27,12 @@ export function rectBetween(a: ScreenPoint, b: ScreenPoint): ScreenRect {
   };
 }
 
-/** How far a pointer may move between pressing and letting go, in pixels, and still click rather than drag. */
-export const ClickReach = 4;
-
 /**
  * Whether a box drawn by touch is a tap (asked 2026-11-24): its finger moved no more than a click may, so the click on
  * the machine under it adds or takes it out, and no box is offered.
  */
 export function isTap(box: ScreenRect): boolean {
-  return Math.hypot(box.right - box.left, box.bottom - box.top) <= ClickReach;
+  return Math.hypot(box.right - box.left, box.bottom - box.top) <= PressReach;
 }
 
 /** How high the choices for a box drawn by touch stand, in pixels, and how far from the box. */
