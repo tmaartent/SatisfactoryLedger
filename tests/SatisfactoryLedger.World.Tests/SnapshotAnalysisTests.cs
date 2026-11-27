@@ -95,4 +95,15 @@ public class SnapshotAnalysisTests
         Assert.Null(container.StockMinutes);
         Assert.False(container.Confirmed);
     }
+
+    [Fact]
+    public void A_source_or_destination_that_rounds_to_nothing_on_the_page_is_not_listed()
+    {
+        // Per minute, unrounded: what the factory page shows to 0.0001 a minute (BR-A10), and leaves out at 0 (#52).
+        (string Name, double PerMinute)[] handovers = [("smelter", 12.34567), ("next to nothing", 0.00004), ("just enough", 0.00005)];
+
+        Assert.Equal(
+            [("smelter", 12.3457), ("just enough", 0.0001)],
+            SnapshotAnalysis.Shown(handovers, handover => handover.PerMinute).Select(shown => (shown.Value.Name, shown.PerMinute)));
+    }
 }

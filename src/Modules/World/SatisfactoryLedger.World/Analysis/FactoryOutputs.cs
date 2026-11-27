@@ -21,14 +21,13 @@ internal static class FactoryOutputs
             SnapshotAnalysis.Round(output.Sunk),
             SnapshotAnalysis.Round(output.CannotLeave),
             [
-                .. output.Destinations
-                    .Where(destination => SnapshotAnalysis.Round(destination.PerMinute) > 0)
-                    .Select(destination => new OutputDestination(
-                        destination.Kind,
-                        destination.Owner,
-                        destination.Owner is { } owner ? names[owner] : null,
-                        destination.Building,
-                        SnapshotAnalysis.Round(destination.PerMinute))),
+                .. SnapshotAnalysis.Shown(output.Destinations, destination => destination.PerMinute)
+                    .Select(shown => new OutputDestination(
+                        shown.Value.Kind,
+                        shown.Value.Owner,
+                        shown.Value.Owner is { } owner ? names[owner] : null,
+                        shown.Value.Building,
+                        shown.PerMinute)),
             ])),
     ];
 }

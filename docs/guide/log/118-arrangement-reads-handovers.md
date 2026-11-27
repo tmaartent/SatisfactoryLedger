@@ -58,5 +58,22 @@ About a fifth less on the arrangement tests' small worlds, close to the noise. N
 | Here | In Java / TypeScript |
 |---|---|
 | **An extended property pattern through a nullable struct**: `source is { Kind: InputSourceKind.Building, Id.Id: { } building }`. `Id` is a `BuildableId?`; the pattern checks it isn't null and reads `.Id` of the value inside, in one go. Primer: *.NET basics → A positional pattern on a nullable tuple* is the same idea. | Java 21's record patterns nest (`instanceof Source(var kind, BuildableId(var id), …)`), but they don't unwrap an `Optional`. TypeScript: `source.id?.id`, then a check. |
-| **Deconstructing a named tuple in `foreach`**: `foreach ((IncomingSource source, double perMinute) in input.Sources.Select(source => (Source: source, PerMinute: Round(…))))`. The names in the `Select` are for the `Where`; the `foreach` takes the parts by position. | No tuples in Java: a small record or `Map.Entry`. TypeScript: `for (const [source, perMinute] of …)`. |
+| **Deconstructing a named tuple in `foreach`**: `foreach ((IncomingSource source, double perMinute) in SnapshotAnalysis.Shown(input.Sources, source => source.PerMinute))`. `Shown` returns `(T Value, double PerMinute)` tuples; the names are for its own `Where`, and the `foreach` takes the parts by position. (Before the review the `Select` and `Where` were written out here.) | No tuples in Java: a small record or `Map.Entry`. TypeScript: `for (const [source, perMinute] of …)`. |
 | **A method's work moved out of a property path**: `Short()` being a method (step 116) is what lets the arrangement read `Inputs` without paying for the max-flow. | The same as not calling a costly getter in Java; here the compiler-visible `()` makes it obvious at the call. |
+
+## After review
+
+The code review of card 3 (#50) found four things, fixed here. None changes behaviour (decision 2): the API responses, the golden fixtures, the `ForFactory` tests and the arrangement tests pass unchanged.
+
+- **a. One home for "as the page shows it".** Rounding a source's or destination's rate and leaving it out when that rounds to nothing (#52) was written three times: `FactoryInputs` (sources), `FactoryOutputs` (destinations) and `WorldArrangement` (sources). It now lives once, in `SnapshotAnalysis.Shown(values, perMinute)`, next to `SnapshotAnalysis.Round`, and all three call it. New test at that seam: `SnapshotAnalysisTests.A_source_or_destination_that_rounds_to_nothing_on_the_page_is_not_listed` (red as a compile error first). Before it, only the golden fixtures pinned the rule.
+- **b. The tolerance has a name.** `IncomingItem.Short()` compared against a bare `Need * 1e-4`. That's now the constant `IncomingItem.ShortfallShareOfNeed`, whose doc comment says it's *relative* (0.01% of the need), unlike the *absolute* `SteadyState.Tolerance` (0.0001 per minute).
+- **c. The arrangement no longer pays for the outputs side.** `FactoryHandovers.Of` used to work out both sides, and the arrangement reads only `Inputs`. `Outputs` is now a `Lazy<IReadOnlyList<OutgoingItem>>`, worked out once, the first time it's read. The interface keeps its shape: `Outputs` is still a property, and `Of`, `Arriving`, `Leaving`, `Ends` and `Short()` are unchanged. Primer: *Testing → `Lazy<T>` for a costly part of an object*.
+- **d. Honest docs.** The glossary's **Source** and **Destination** rows each list three code names: `FactoryHandovers`, the line-following `InputSources.Of` / `OutputDestinations.Of`, and `InputSourceKind` / `OutputDestinationKind`. Step 117's log said they name `FactoryHandovers` as their one code home, and so did this log's *Glossary* line above. Step 117's log is corrected, and raises it as a shallow-module smell. They stay apart because others use them: the traces call the line-following (`BlockageTrace`, `ShortageTrace`), and the API records reuse the kind enums. The code isn't restructured for it.
+
+**Accepted unchanged by the owner:**
+
+- The public statics beside `Of` (`Arriving`, `Leaving`, `Ends`).
+- `IncomingItem.Short()` as a method, while `OutgoingItem.Short` is a property.
+- `buildingOf` as building class-name strings, and `owners` as `Guid`s. Cards 8 and 4 replace them.
+
+**Files:** `World/Analysis/SnapshotAnalysis.cs` (`Shown`), `FactoryInputs.cs`, `FactoryOutputs.cs`, `World/Arrangement/WorldArrangement.cs`; `World.Domain/IncomingItem.cs`, `FactoryHandovers.cs`; `tests/SatisfactoryLedger.World.Tests/SnapshotAnalysisTests.cs`; `docs/guide/log/117-handovers-outputs.md`, this log, `docs/guide/primer.md`.

@@ -17,15 +17,14 @@ internal static class FactoryInputs
             SnapshotAnalysis.Round(input.Need),
             SnapshotAnalysis.Round(input.Short()),
             [
-                .. input.Sources
-                    .Where(source => SnapshotAnalysis.Round(source.PerMinute) > 0)
-                    .Select(source => new InputSource(
-                        source.Kind,
-                        source.Owner,
-                        source.Owner is { } owner ? names[owner] : null,
-                        source.Building,
-                        source.Id?.Id,
-                        SnapshotAnalysis.Round(source.PerMinute))),
+                .. SnapshotAnalysis.Shown(input.Sources, source => source.PerMinute)
+                    .Select(shown => new InputSource(
+                        shown.Value.Kind,
+                        shown.Value.Owner,
+                        shown.Value.Owner is { } owner ? names[owner] : null,
+                        shown.Value.Building,
+                        shown.Value.Id?.Id,
+                        shown.PerMinute)),
             ])),
     ];
 }

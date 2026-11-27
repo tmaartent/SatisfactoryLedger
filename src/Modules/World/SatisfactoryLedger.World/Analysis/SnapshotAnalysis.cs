@@ -298,4 +298,11 @@ internal static class SnapshotAnalysis
     }
 
     internal static double Round(double value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Sources or destinations as the factory page shows them: each with its rate per minute rounded (BR-A10), and left
+    /// out when that rounds to nothing (#52). The factory page and the arrangement both list them this way.
+    /// </summary>
+    internal static IEnumerable<(T Value, double PerMinute)> Shown<T>(IEnumerable<T> values, Func<T, double> perMinute) =>
+        values.Select(value => (Value: value, PerMinute: Round(perMinute(value)))).Where(shown => shown.PerMinute > 0);
 }

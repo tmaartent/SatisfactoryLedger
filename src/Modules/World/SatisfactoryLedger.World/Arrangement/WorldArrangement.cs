@@ -193,9 +193,7 @@ internal static class WorldArrangement
             foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(snapshot, world, factory, members, readings, factories).Inputs)
             {
                 string item = input.Item.Id;
-                foreach ((IncomingSource source, double perMinute) in input.Sources
-                    .Select(source => (Source: source, PerMinute: SnapshotAnalysis.Round(source.PerMinute)))
-                    .Where(source => source.PerMinute > 0))
+                foreach ((IncomingSource source, double perMinute) in SnapshotAnalysis.Shown(input.Sources, source => source.PerMinute))
                 {
                     // A node's extractor, a station or a drone port feeding a factory being arranged: merged with the
                     // others that bring it the item.

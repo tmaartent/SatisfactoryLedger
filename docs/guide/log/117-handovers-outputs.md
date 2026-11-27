@@ -29,7 +29,8 @@
   - Delete `SnapshotHandovers`, and the facts get built twice, once in each projection. Before this step one projection reached into the other.
   - `OutgoingItem` and `OutgoingDestination` exist so the projection doesn't reach into tuples.
   - Nothing new is test-only. Every public member has a production caller in `FactoryOutputs`, `FactoryTraces` or `WorldArrangement`.
-- **Glossary:** the **Destination**, **Receivers' Need**, **Others Bring / Short** and **Sunk / Can't Leave** rows name `FactoryHandovers` as their one code home. The **Handovers** row describes both sides.
+- **Glossary:** the **Receivers' Need**, **Others Bring / Short** and **Sunk / Can't Leave** rows name `FactoryHandovers` as their one code home. The **Handovers** row describes both sides.
+- **Shallow-module smell (corrected after review):** the **Destination** row, like **Source** in step 116, doesn't have one code home. It lists three: `FactoryHandovers` (`OutgoingItem.Destinations`), the line-following `OutputDestinations.Of` downstream, and the enum `OutputDestinationKind` (for Source: `InputSources.Of` and `InputSourceKind`). An earlier version of this log said they name `FactoryHandovers` alone. They stay apart because others share them: the traces follow the lines too (`BlockageTrace` calls `InputSources.Of`, `ShortageTrace` calls `OutputDestinations.Of`), and the API records `InputSource` and `OutputDestination` reuse the kind enums. Raised here per CLAUDE.md; the code isn't restructured for it.
 
 ### Choices to overrule
 

@@ -5,6 +5,13 @@ namespace SatisfactoryLedger.World.Domain;
 /// <summary>What a factory takes in of one item (decided 2026-11-11): one item of its <see cref="FactoryHandovers.Inputs"/>.</summary>
 public sealed class IncomingItem
 {
+    /// <summary>
+    /// A shortfall up to this share of the need is none: a <em>relative</em> tolerance, 0.01% of the need. The flow
+    /// settles within a small tolerance, while the need comes exactly from the recipes. Not the absolute
+    /// <see cref="Flow.SteadyState.Tolerance"/> per minute the solver settles to.
+    /// </summary>
+    private const double ShortfallShareOfNeed = 1e-4;
+
     private readonly Func<double> _couldBringMore;
 
     /// <param name="couldBringMore">What its sources could bring more per minute, worked out when it's asked for.</param>
@@ -39,9 +46,7 @@ public sealed class IncomingItem
     [SuppressMessage("Naming", "CA1720:Identifier contains type name", Justification = "Short is the glossary term, not the integer type.")]
     public double Short()
     {
-        // The flow settles within a small tolerance, while the need comes exactly from the recipes: a shortfall within
-        // 0.01% of the need is none.
         double shortfall = Need - (Arriving + _couldBringMore());
-        return shortfall > Need * 1e-4 ? shortfall : 0;
+        return shortfall > Need * ShortfallShareOfNeed ? shortfall : 0;
     }
 }

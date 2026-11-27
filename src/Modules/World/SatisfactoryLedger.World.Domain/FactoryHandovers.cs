@@ -14,17 +14,20 @@ public sealed class FactoryHandovers
     /// <summary>Machines ordered by id, as the factory page and the arrangement list them.</summary>
     private static readonly IComparer<BuildableId> ById = Comparer<BuildableId>.Create((a, b) => string.CompareOrdinal(a.Id, b.Id));
 
-    private FactoryHandovers(IReadOnlyList<IncomingItem> inputs, IReadOnlyList<OutgoingItem> outputs)
+    /// <summary>The outputs side, worked out the first time <see cref="Outputs"/> is read: the arrangement reads only the inputs.</summary>
+    private readonly Lazy<IReadOnlyList<OutgoingItem>> _outputs;
+
+    private FactoryHandovers(IReadOnlyList<IncomingItem> inputs, Func<IReadOnlyList<OutgoingItem>> outputs)
     {
         Inputs = inputs;
-        Outputs = outputs;
+        _outputs = new Lazy<IReadOnlyList<OutgoingItem>>(outputs);
     }
 
     /// <summary>What it takes in, per item, ordered by item id.</summary>
     public IReadOnlyList<IncomingItem> Inputs { get; }
 
-    /// <summary>What it makes, per item that leaves, ordered by item id.</summary>
-    public IReadOnlyList<OutgoingItem> Outputs { get; }
+    /// <summary>What it makes, per item that leaves, ordered by item id. Worked out once, when first read.</summary>
+    public IReadOnlyList<OutgoingItem> Outputs => _outputs.Value;
 
     /// <param name="members">The factory's members in <paramref name="world"/>.</param>
     /// <param name="owners">Who each machine belongs to: this factory's own members, and the other factories' machines.</param>
@@ -39,7 +42,7 @@ public sealed class FactoryHandovers
         IReadOnlySet<BuildableId> sinks,
         IReadOnlySet<BuildableId> usedUp,
         IReadOnlyDictionary<BuildableId, string> buildingOf) =>
-        new(IncomingOf(world, readings, members, owners, sinks, buildingOf), OutgoingOf(world, readings, members, owners, sinks, usedUp, buildingOf));
+        new(IncomingOf(world, readings, members, owners, sinks, buildingOf), () => OutgoingOf(world, readings, members, owners, sinks, usedUp, buildingOf));
 
     /// <summary>
     /// What leaves over an output of one item now, read from the stored flows: they keep what flows into each belt, lift,
