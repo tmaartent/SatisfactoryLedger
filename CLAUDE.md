@@ -34,6 +34,8 @@ dotnet run --project src/SatisfactoryLedger.AppHost
 # After a deliberate change to the solver or the analysis version: write the test worlds' stored analyses anew, then read the diff
 REGENERATE_ANALYSIS_FIXTURES=1 dotnet test tests/SatisfactoryLedger.World.Simulation.Tests
 cd web && npm start | npm test | npm run build | npm run lint | npm run format
+npx ng test --include src/app/<path>.spec.ts --watch=false   # one web spec
+npm run e2e | npm run e2e:stack   # pages on recorded answers | journeys, against the running AppHost
 ```
 
 A new git worktree needs `git submodule update --init` before it builds; removing one takes `git worktree remove --force`, once its submodule shows no changes. To put a worktree's branch on the integration branch, use `git switch -C <branch> <integration-branch>`: a global git guardrail blocks `reset --hard`, `branch -D`, `push --force` and a push to a branch whose PR is merged.
