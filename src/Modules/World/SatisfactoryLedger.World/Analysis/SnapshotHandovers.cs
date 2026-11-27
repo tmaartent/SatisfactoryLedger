@@ -7,8 +7,7 @@ namespace SatisfactoryLedger.World.Analysis;
 
 /// <summary>
 /// A factory's <see cref="FactoryHandovers"/> in a snapshot: the facts the module can't derive yet (decision 3 of #50),
-/// read from the snapshot and the stored factories. Classifying buildings at import is card 8; matching factories
-/// once is card 4.
+/// read from the snapshot and the factories matched in it. Classifying buildings at import is card 8.
 /// </summary>
 internal static class SnapshotHandovers
 {
@@ -18,18 +17,13 @@ internal static class SnapshotHandovers
     /// <summary>The consumers that use up what they get, shown by building (decided 2026-11-11). Stations and uploaders store it.</summary>
     private static readonly HashSet<string> UsesUp = new(["Build_Portal_C", "Build_AlienPowerBuilding_C"], StringComparer.Ordinal);
 
-    /// <param name="factories">The world's factories, this one among them: who a machine at the other end belongs to.</param>
-    public static FactoryHandovers Of(
-        SnapshotDocument snapshot,
-        WorldGraph world,
-        StoredFactory factory,
-        FactoryMembers members,
-        FlowReadings readings,
-        IEnumerable<StoredFactory> factories) => FactoryHandovers.Of(
-            world,
+    /// <param name="factories">The world's factories matched in the snapshot, this one among them: who a machine at the other end belongs to.</param>
+    public static FactoryHandovers Of(SnapshotDocument snapshot, SnapshotFactories factories, TracedFactory factory, FlowReadings readings) =>
+        FactoryHandovers.Of(
+            factories.World,
             readings,
-            members,
-            OwnersIn(snapshot, factory, members, factories),
+            factory.Members,
+            OwnersFor(factories, factory),
             snapshot.Buildables.Where(buildable => buildable.ClassName == SinkClass).Select(buildable => BuildableId.Of(buildable.Id)).ToHashSet(),
             snapshot.Buildables.Where(buildable => UsesUp.Contains(buildable.ClassName)).Select(buildable => BuildableId.Of(buildable.Id)).ToHashSet(),
             snapshot.Buildables.ToDictionary(buildable => BuildableId.Of(buildable.Id), buildable => buildable.ClassName));
@@ -39,19 +33,15 @@ internal static class SnapshotHandovers
         factories.Prepend(factory).DistinctBy(other => other.Id).ToDictionary(other => other.Id, other => other.Name);
 
     /// <summary>
-    /// Who each machine in this snapshot belongs to: this factory's own members, and the other factories' machines as
-    /// matched in it (BR-W11). The first factory wins for a machine stored in two, from before BR-W5.
+    /// Who each machine in this snapshot belongs to, as this factory sees it: its own members are its own, the rest as
+    /// <see cref="SnapshotFactories.Owners"/> says.
     /// </summary>
-    private static Dictionary<BuildableId, Guid> OwnersIn(
-        SnapshotDocument snapshot, StoredFactory factory, FactoryMembers members, IEnumerable<StoredFactory> factories)
+    private static Dictionary<BuildableId, Guid> OwnersFor(SnapshotFactories factories, TracedFactory factory)
     {
-        Dictionary<BuildableId, Guid> owners = members.Machines.ToDictionary(id => id, _ => factory.Id);
-        foreach (StoredFactory other in factories.Where(other => other.Id != factory.Id))
+        Dictionary<BuildableId, Guid> owners = factory.Members.Machines.ToDictionary(id => id, _ => factory.Factory.Id);
+        foreach ((BuildableId id, Guid owner) in factories.Owners)
         {
-            foreach (BuildableId id in MachineMatch.In(snapshot, other.Machines).Ids)
-            {
-                owners.TryAdd(id, other.Id);
-            }
+            owners.TryAdd(id, owner);
         }
 
         return owners;

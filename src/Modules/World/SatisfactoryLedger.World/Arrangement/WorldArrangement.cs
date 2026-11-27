@@ -65,29 +65,24 @@ internal static class WorldArrangement
         // The belt floor: the whole plots from the area's corner, with their roads. The area can reach past it.
         var floorArea = new WorldRectangle(area.X0, area.Y0, area.X0 + (plotsX * grid.PitchX), area.Y0 + (plotsY * grid.PitchY));
 
-        WorldGraph world = snapshot.ToWorldGraph();
+        var inSnapshot = SnapshotFactories.Of(snapshot, factories);
+        WorldGraph world = inSnapshot.World;
         FlowReadings? readings = analysis is null ? null : AnalysisReadings.Of(world, analysis);
         HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         (double belt, double pipe) = TopCapacities(snapshot);
 
         // Every factory traced, with the outline of its machines; those whose middle is inside the area are arranged.
         List<(StoredFactory Factory, FactoryMembers Members, List<(double X, double Y)> Outline)> traced = [];
-        foreach (StoredFactory factory in factories)
+        foreach (TracedFactory factory in inSnapshot.Factories.Where(factory => factory.IsTraceable))
         {
-            FactoryDefinition? definition = factory.ToDefinition(MachineMatch.In(snapshot, factory.Machines));
-            if (definition is null || !definition.IsTraceableIn(world))
-            {
-                continue;
-            }
-
-            FactoryMembers members = definition.TraceMembers(world, fluids);
+            FactoryMembers members = factory.Members;
             List<(double X, double Y)> outline = [.. members.Machines
                 .Select(id => buildables.GetValueOrDefault(id.Id))
                 .OfType<BuildableDocument>()
                 .SelectMany(buildable => Outline(buildable, footprints))];
             if (outline.Count > 0)
             {
-                traced.Add((factory, members, outline));
+                traced.Add((factory.Factory, members, outline));
             }
         }
 
@@ -190,7 +185,7 @@ internal static class WorldArrangement
 
             // The sources of what the factory takes in, with the machines they start at. Rounded as the factory page
             // shows them, and left out when they round to nothing, as when the arrangement read the page's inputs (#54).
-            foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(snapshot, world, factory, members, readings, factories).Inputs)
+            foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(snapshot, inSnapshot, inSnapshot.Find(factory.Id)!, readings).Inputs)
             {
                 string item = input.Item.Id;
                 foreach ((IncomingSource source, double perMinute) in SnapshotAnalysis.Shown(input.Sources, source => source.PerMinute))
