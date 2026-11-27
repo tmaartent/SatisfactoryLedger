@@ -33,7 +33,8 @@ internal sealed class SnapshotFactories
 
     /// <summary>
     /// Who each machine belongs to, as matched in the snapshot (a missing one under its own id, which the snapshot
-    /// doesn't have). Of the factories that have one machine, from before BR-W5, the first in the order given.
+    /// doesn't have). Of the factories that have one machine, from before BR-W5, the oldest: the lowest id (ids are
+    /// <c>Guid</c> v7), whatever the order given (BR-W5).
     /// </summary>
     public IReadOnlyDictionary<BuildableId, Guid> Owners { get; }
 
@@ -53,11 +54,29 @@ internal sealed class SnapshotFactories
             traced.Add(new TracedFactory(factory, match, factory.ToDefinition(match), world, fluids));
             foreach (BuildableId id in match.Ids)
             {
-                owners.TryAdd(id, factory.Id);
+                if (!owners.TryGetValue(id, out Guid owner) || factory.Id.CompareTo(owner) < 0)
+                {
+                    owners[id] = factory.Id;
+                }
             }
         }
 
         return new SnapshotFactories(world, traced, owners);
+    }
+
+    /// <summary>
+    /// Who each machine belongs to as this factory sees it: its own machines are its own, even one an older factory
+    /// has too (BR-W5); the rest as <see cref="Owners"/> says. Only for a traceable factory.
+    /// </summary>
+    public IReadOnlyDictionary<BuildableId, Guid> OwnersSeenFrom(TracedFactory factory)
+    {
+        Dictionary<BuildableId, Guid> owners = factory.Members.Machines.ToDictionary(id => id, _ => factory.Factory.Id);
+        foreach ((BuildableId id, Guid owner) in Owners)
+        {
+            owners.TryAdd(id, owner);
+        }
+
+        return owners;
     }
 
     /// <summary>The factory with this id; null when it isn't one of them.</summary>

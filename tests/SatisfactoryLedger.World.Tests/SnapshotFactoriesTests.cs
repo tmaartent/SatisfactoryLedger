@@ -11,9 +11,11 @@ public class SnapshotFactoriesTests
 {
     private static StoredMachine Machine(string id) => StoredMachine.From(Document.Buildables.Single(buildable => buildable.Id == id));
 
-    private static StoredFactory Factory(string name, params string[] machines) => new()
+    private static StoredFactory Factory(string name, params string[] machines) => Factory(Guid.CreateVersion7(), name, machines);
+
+    private static StoredFactory Factory(Guid id, string name, params string[] machines) => new()
     {
-        Id = Guid.CreateVersion7(),
+        Id = id,
         World = "Development",
         Name = name,
         Machines = [.. machines.Select(Machine)],
@@ -110,14 +112,49 @@ public class SnapshotFactoriesTests
     }
 
     [Fact]
-    public void A_machine_two_factories_have_belongs_to_the_first_of_them_given()
+    public void A_machine_two_factories_have_belongs_to_the_oldest_of_them_whatever_the_order_given()
     {
-        StoredFactory smelting = Factory("Smelting", SmelterA);
-        StoredFactory plates = Factory("Plates", SmelterA, ConstructorC);
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterA, ConstructorC);
 
         SnapshotFactories factories = SnapshotFactories.Of(Document, [plates, smelting]);
 
-        Assert.Equal(plates.Id, factories.Owners[BuildableId.Of(SmelterA)]);
+        Assert.Equal(smelting.Id, factories.Owners[BuildableId.Of(SmelterA)]);
+    }
+
+    [Fact]
+    public void A_factory_counts_a_machine_it_shares_with_an_older_one_as_its_own()
+    {
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterA, ConstructorC);
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
+
+        IReadOnlyDictionary<BuildableId, Guid> owners = factories.OwnersSeenFrom(factories.Find(plates.Id)!);
+
+        Assert.Equal(plates.Id, owners[BuildableId.Of(SmelterA)]);
+    }
+
+    [Fact]
+    public void Seen_from_a_factory_the_machines_of_others_belong_to_their_owners()
+    {
+        StoredFactory smelting = Factory("Smelting", SmelterA);
+        StoredFactory plates = Factory("Plates", ConstructorC);
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
+
+        IReadOnlyDictionary<BuildableId, Guid> owners = factories.OwnersSeenFrom(factories.Find(plates.Id)!);
+
+        Assert.Equal(smelting.Id, owners[BuildableId.Of(SmelterA)]);
+    }
+
+    [Fact]
+    public void The_factories_keep_the_order_given()
+    {
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", ConstructorC);
+
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [plates, smelting]);
+
+        Assert.Equal([plates, smelting], factories.Factories.Select(traced => traced.Factory));
     }
 
     [Fact]
