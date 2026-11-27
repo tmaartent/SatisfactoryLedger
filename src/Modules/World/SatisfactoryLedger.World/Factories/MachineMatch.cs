@@ -15,31 +15,47 @@ internal sealed record MachineMatch(IReadOnlyList<BuildableId> Ids, IReadOnlyLis
     public const double Within = 100;
 
     /// <summary>
-    /// Finds each machine by its id, or else the machine of its class that stands closest to where it stood, within a
-    /// metre. A machine in the snapshot replaces one stored machine at most.
+    /// Finds every factory's machines in one pass: each by its id, or else the machine of its class that stands closest
+    /// to where it stood, within a metre. A machine in the snapshot replaces one stored machine at most, across all the
+    /// factories: the oldest factory's (the lowest id) first, and never a machine one of them has by its own id.
     /// </summary>
-    public static MachineMatch In(SnapshotDocument snapshot, IEnumerable<StoredMachine> machines)
+    /// <returns>Per factory, in the order given, its machines as matched.</returns>
+    public static IReadOnlyList<MachineMatch> In(SnapshotDocument snapshot, IReadOnlyList<StoredFactory> factories)
     {
         Dictionary<string, BuildableDocument> snapshotMachines = snapshot.Buildables
             .Where(snapshot.IsMachineOrGenerator)
             .ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
-        List<StoredMachine> stored = machines.ToList();
-        HashSet<string> taken = [.. stored.Select(machine => machine.Id).Where(snapshotMachines.ContainsKey)];
+        HashSet<string> taken = [.. factories.SelectMany(factory => factory.Machines).Select(machine => machine.Id).Where(snapshotMachines.ContainsKey)];
 
-        List<BuildableId> ids = [];
-        List<StoredMachine> missing = [];
-        foreach (StoredMachine machine in stored)
+        // A stored machine two factories have (from before BR-W5) is one machine: it gets one replacement, or none.
+        Dictionary<string, string?> replacements = new(StringComparer.Ordinal);
+        foreach (StoredMachine machine in factories.OrderBy(factory => factory.Id).SelectMany(factory => factory.Machines))
         {
-            string? id = snapshotMachines.ContainsKey(machine.Id) ? machine.Id : Replacement(machine);
-            if (id is null)
+            if (!snapshotMachines.ContainsKey(machine.Id) && !replacements.ContainsKey(machine.Id))
             {
-                missing.Add(machine);
+                replacements[machine.Id] = Replacement(machine);
             }
-
-            ids.Add(BuildableId.Of(id ?? machine.Id));
         }
 
-        return new MachineMatch(ids, missing);
+        return [.. factories.Select(factory => Matched(factory.Machines))];
+
+        MachineMatch Matched(List<StoredMachine> machines)
+        {
+            List<BuildableId> ids = [];
+            List<StoredMachine> missing = [];
+            foreach (StoredMachine machine in machines)
+            {
+                string? id = snapshotMachines.ContainsKey(machine.Id) ? machine.Id : replacements[machine.Id];
+                if (id is null)
+                {
+                    missing.Add(machine);
+                }
+
+                ids.Add(BuildableId.Of(id ?? machine.Id));
+            }
+
+            return new MachineMatch(ids, missing);
+        }
 
         string? Replacement(StoredMachine machine)
         {

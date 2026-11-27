@@ -170,6 +170,38 @@ public class SnapshotFactoriesTests
     }
 
     [Fact]
+    public void A_rebuilt_machine_two_factories_matched_is_the_oldest_ones_and_missing_from_the_other()
+    {
+        BuildableDocument smelter = Find(SmelterA);
+        SnapshotDocument rebuilt = Replaced(smelter, smelter with { Id = Id("Build_SmelterMk1_C_1") });
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredMachine nearby = new(Id("Build_SmelterMk1_C_9"), smelter.ClassName, smelter.Position!.X + 30, smelter.Position.Y, smelter.Position.Z);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", ConstructorC);
+        plates.Machines.Add(nearby);
+
+        SnapshotFactories factories = SnapshotFactories.Of(rebuilt, [plates, smelting]);
+
+        Assert.Contains(Id("Build_SmelterMk1_C_1"), factories.Find(smelting.Id)!.Machines.Select(id => id.Id));
+        Assert.Equal([nearby], factories.Find(plates.Id)!.Missing);
+        Assert.Equal(smelting.Id, factories.Owners[BuildableId.Of(Id("Build_SmelterMk1_C_1"))]);
+    }
+
+    [Fact]
+    public void A_machine_another_factory_has_by_its_id_replaces_no_older_factorys_machine()
+    {
+        BuildableDocument smelter = Find(SmelterB);
+        StoredMachine gone = new(Id("Build_SmelterMk1_C_9"), smelter.ClassName, smelter.Position!.X, smelter.Position.Y, smelter.Position.Z);
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        smelting.Machines.Add(gone);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterB);
+
+        SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
+
+        Assert.Equal([gone], factories.Find(smelting.Id)!.Missing);
+        Assert.Equal(plates.Id, factories.Owners[BuildableId.Of(SmelterB)]);
+    }
+
+    [Fact]
     public void A_factory_is_found_by_its_id()
     {
         StoredFactory smelting = Factory("Smelting", SmelterA);

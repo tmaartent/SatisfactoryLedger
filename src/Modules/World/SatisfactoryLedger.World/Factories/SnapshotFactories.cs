@@ -39,18 +39,20 @@ internal sealed class SnapshotFactories
     public IReadOnlyDictionary<BuildableId, Guid> Owners { get; }
 
     /// <summary>
-    /// Matches each factory's stored machines in the snapshot, in one pass. The world graph, which the world, whether a
+    /// Matches each factory's stored machines in the snapshot, in one pass. A rebuilt machine replaces one stored
+    /// machine at most across all of them, the oldest factory's first (BR-W11). The world graph, which the world, whether a
     /// factory is traceable and its members need, is built once, the first time one of them is read.
     /// </summary>
     public static SnapshotFactories Of(SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
     {
         Lazy<WorldGraph> world = new(snapshot.ToWorldGraph);
         HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
+        List<StoredFactory> stored = [.. factories];
+        IReadOnlyList<MachineMatch> matches = MachineMatch.In(snapshot, stored);
         List<TracedFactory> traced = [];
         Dictionary<BuildableId, Guid> owners = [];
-        foreach (StoredFactory factory in factories)
+        foreach ((StoredFactory factory, MachineMatch match) in stored.Zip(matches))
         {
-            MachineMatch match = MachineMatch.In(snapshot, factory.Machines);
             traced.Add(new TracedFactory(factory, match, factory.ToDefinition(match), world, fluids));
             foreach (BuildableId id in match.Ids)
             {
