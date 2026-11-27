@@ -59,18 +59,23 @@ internal sealed class DefineFactoryHandler(WorldDbContext db)
         return new DefineFactoryOutcome.Defined(factory);
     }
 
-    /// <summary>Another factory of the world with its name (BR-W11), or with any of its machines (BR-W5).</summary>
+    /// <summary>
+    /// Another factory of the world with its name (BR-W11), or with any of its machines (BR-W5). Machines are matched
+    /// across the world's factories as stored, this one's stored version included when it's edited, so a rebuilt
+    /// machine goes to the same factory as on every other page.
+    /// </summary>
     private async Task<DefineFactoryOutcome?> ClashAsync(StoredFactory factory, SnapshotDocument latest, CancellationToken cancellationToken)
     {
-        List<StoredFactory> others = await db.Factories
-            .Where(existing => existing.World == factory.World && existing.Id != factory.Id)
+        // Untracked, so an edited factory comes back as stored rather than with its new name and machines.
+        List<StoredFactory> stored = await db.Factories.AsNoTracking()
+            .Where(existing => existing.World == factory.World)
             .ToListAsync(cancellationToken);
-        if (others.Any(existing => existing.Name == factory.Name))
+        if (stored.Any(existing => existing.Id != factory.Id && existing.Name == factory.Name))
         {
             return new DefineFactoryOutcome.NameTaken();
         }
 
-        IReadOnlyList<TakenMachine> taken = ClaimedMachines.Among(factory.Machines.Select(machine => machine.Id), latest, others);
+        IReadOnlyList<TakenMachine> taken = ClaimedMachines.Among(factory.Machines.Select(machine => machine.Id), factory.Id, latest, stored);
         return taken.Count > 0 ? new DefineFactoryOutcome.MachinesTaken(taken) : null;
     }
 

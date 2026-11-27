@@ -33,8 +33,8 @@ internal sealed class SnapshotFactories
 
     /// <summary>
     /// Who each machine belongs to, as matched in the snapshot (a missing one under its own id, which the snapshot
-    /// doesn't have). Of the factories that have one machine, from before BR-W5, the oldest: the lowest id (ids are
-    /// <c>Guid</c> v7), whatever the order given (BR-W5).
+    /// doesn't have). Of the factories that have one machine, from before BR-W5, the oldest
+    /// (<see cref="StoredFactory.OldestFirst"/>), whatever the order given (BR-W5).
     /// </summary>
     public IReadOnlyDictionary<BuildableId, Guid> Owners { get; }
 
@@ -50,16 +50,17 @@ internal sealed class SnapshotFactories
         List<StoredFactory> stored = [.. factories];
         IReadOnlyList<MachineMatch> matches = MachineMatch.In(snapshot, stored);
         List<TracedFactory> traced = [];
-        Dictionary<BuildableId, Guid> owners = [];
         foreach ((StoredFactory factory, MachineMatch match) in stored.Zip(matches))
         {
             traced.Add(new TracedFactory(factory, match, factory.ToDefinition(match), world, fluids));
-            foreach (BuildableId id in match.Ids)
+        }
+
+        Dictionary<BuildableId, Guid> owners = [];
+        foreach (TracedFactory factory in traced.OrderBy(factory => factory.Factory, StoredFactory.OldestFirst))
+        {
+            foreach (BuildableId id in factory.Machines)
             {
-                if (!owners.TryGetValue(id, out Guid owner) || factory.Id.CompareTo(owner) < 0)
-                {
-                    owners[id] = factory.Id;
-                }
+                owners.TryAdd(id, factory.Factory.Id);
             }
         }
 

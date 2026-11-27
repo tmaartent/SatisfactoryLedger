@@ -147,7 +147,7 @@ public class SnapshotFactoriesTests
     }
 
     [Fact]
-    public void The_factories_keep_the_order_given()
+    public void Factories_in_a_snapshot_are_listed_as_given_not_oldest_first()
     {
         StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
         StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", ConstructorC);
@@ -202,7 +202,7 @@ public class SnapshotFactoriesTests
     }
 
     [Fact]
-    public void A_factory_is_found_by_its_id()
+    public void Each_factory_in_a_snapshot_is_the_stored_factory_of_its_id()
     {
         StoredFactory smelting = Factory("Smelting", SmelterA);
 

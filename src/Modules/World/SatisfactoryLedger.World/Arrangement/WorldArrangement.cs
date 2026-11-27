@@ -72,29 +72,28 @@ internal static class WorldArrangement
         (double belt, double pipe) = TopCapacities(snapshot);
 
         // Every factory traced, with the outline of its machines; those whose middle is inside the area are arranged.
-        List<(StoredFactory Factory, FactoryMembers Members, List<(double X, double Y)> Outline)> traced = [];
+        List<(TracedFactory Traced, List<(double X, double Y)> Outline)> traced = [];
         foreach (TracedFactory factory in inSnapshot.Factories.Where(factory => factory.IsTraceable))
         {
-            FactoryMembers members = factory.Members;
-            List<(double X, double Y)> outline = [.. members.Machines
+            List<(double X, double Y)> outline = [.. factory.Members.Machines
                 .Select(id => buildables.GetValueOrDefault(id.Id))
                 .OfType<BuildableDocument>()
                 .SelectMany(buildable => Outline(buildable, footprints))];
             if (outline.Count > 0)
             {
-                traced.Add((factory.Factory, members, outline));
+                traced.Add((factory, outline));
             }
         }
 
-        HashSet<string> chosen = [.. traced.Where(entry => Inside(entry.Outline, area)).Select(entry => entry.Factory.Id.ToString())];
+        HashSet<string> chosen = [.. traced.Where(entry => Inside(entry.Outline, area)).Select(entry => entry.Traced.Factory.Id.ToString())];
 
         // Where the existing belts from buildings wholly outside the area come into it (decided 2026-11-18): followed from
         // the building to the machines of the factories it supplies (or that send to it), not any arranged factory's: a
         // freight platform unloads onto belts of every item (2026-11-18: rubber was followed round the outside to
         // another factory). Of buildings merged onto one belt, the one with the shortest way outside.
         Dictionary<string, HashSet<string>> machinesOf = traced
-            .Where(entry => chosen.Contains(entry.Factory.Id.ToString()))
-            .ToDictionary(entry => entry.Factory.Id.ToString(), entry => entry.Members.Machines.Select(machine => machine.Id).ToHashSet(StringComparer.Ordinal));
+            .Where(entry => chosen.Contains(entry.Traced.Factory.Id.ToString()))
+            .ToDictionary(entry => entry.Traced.Factory.Id.ToString(), entry => entry.Traced.Members.Machines.Select(machine => machine.Id).ToHashSet(StringComparer.Ordinal));
         HashSet<string> arrangedMachines = [.. machinesOf.Values.SelectMany(machines => machines)];
         Dictionary<string, HashSet<string>> feeds = new(StringComparer.Ordinal);
         void Feeds(string building, string factory)
@@ -171,9 +170,10 @@ internal static class WorldArrangement
 
         // Per arranged factory and item, the extractors, stations and drone ports that feed it: merged onto belts afterwards.
         Dictionary<(string To, string Item), List<Supply>> supplies = [];
-        foreach ((StoredFactory factory, FactoryMembers members, List<(double X, double Y)> outline) in traced)
+        foreach ((TracedFactory factory, List<(double X, double Y)> outline) in traced)
         {
-            string to = factory.Id.ToString();
+            Guid factoryId = factory.Factory.Id;
+            string to = factoryId.ToString();
             if (chosen.Contains(to))
             {
                 arranged.Add(new ArrangedFactory(to, settings.Footprints ? grid.PlotsTouching(outline) : grid.PlotOf(outline)));
@@ -185,7 +185,7 @@ internal static class WorldArrangement
 
             // The sources of what the factory takes in, with the machines they start at. Rounded as the factory page
             // shows them, and left out when they round to nothing, as when the arrangement read the page's inputs (#54).
-            foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(snapshot, inSnapshot, inSnapshot.Find(factory.Id)!, readings).Inputs)
+            foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(snapshot, inSnapshot, factory, readings).Inputs)
             {
                 string item = input.Item.Id;
                 foreach ((IncomingSource source, double perMinute) in SnapshotAnalysis.Shown(input.Sources, source => source.PerMinute))
@@ -202,7 +202,7 @@ internal static class WorldArrangement
 
                     // Machines no factory owns, or a factory outside the area, feeding a factory being arranged: like a
                     // node's extractor, from a spot at the machine nearest the factory (decided 2026-11-25).
-                    bool fromOutside = source is { Kind: InputSourceKind.Factory, Owner: { } supplier } && supplier != factory.Id
+                    bool fromOutside = source is { Kind: InputSourceKind.Factory, Owner: { } supplier } && supplier != factoryId
                         && !chosen.Contains(supplier.ToString());
                     if (chosen.Contains(to) && (source.Kind == InputSourceKind.NoFactory || fromOutside))
                     {
@@ -216,7 +216,7 @@ internal static class WorldArrangement
                         continue;
                     }
 
-                    string? from = source is { Kind: InputSourceKind.Factory, Owner: { } other } && other != factory.Id ? other.ToString() : null;
+                    string? from = source is { Kind: InputSourceKind.Factory, Owner: { } other } && other != factoryId ? other.ToString() : null;
 
                     // Only links that touch a factory being arranged change with the arrangement.
                     if (from is null || !(chosen.Contains(to) || chosen.Contains(from)))
@@ -243,10 +243,10 @@ internal static class WorldArrangement
         // What the arranged factories send to stations and drone ports, merged the same way (decided 2026-11-18): a
         // shared belt leaves the factory and goes down a lift over the stations it serves. A factory's outputs can reach
         // one station over several lines, so each station's rate is added up first.
-        foreach ((StoredFactory factory, FactoryMembers members, _) in traced.Where(entry => readings is not null && chosen.Contains(entry.Factory.Id.ToString())))
+        foreach ((TracedFactory factory, _) in traced.Where(entry => readings is not null && chosen.Contains(entry.Traced.Factory.Id.ToString())))
         {
-            string from = factory.Id.ToString();
-            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryHandovers.Ends(world, readings!, members)
+            string from = factory.Factory.Id.ToString();
+            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryHandovers.Ends(world, readings!, factory.Members)
                 .Where(output => IsStation(output.End.Id) && buildables[output.End.Id].Position is not null)
                 .GroupBy(output => (output.End.Id, output.Item))
                 .GroupBy(
@@ -279,7 +279,7 @@ internal static class WorldArrangement
         }
 
         // Every machine no factory owns that reaches into the area keeps its plots, as a station does (decided 2026-11-25).
-        HashSet<string> owned = [.. traced.SelectMany(entry => entry.Members.Machines.Select(machine => machine.Id))];
+        HashSet<string> owned = [.. traced.SelectMany(entry => entry.Traced.Members.Machines.Select(machine => machine.Id))];
         foreach (BuildableDocument machine in snapshot.Buildables.Where(buildable => buildable.Position is not null && !owned.Contains(buildable.Id)
             && world.Find(BuildableId.Of(buildable.Id)) is Machine or Consumer { IsGenerator: true }))
         {

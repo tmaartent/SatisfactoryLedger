@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 using SatisfactoryLedger.World.Contracts.Arrangement;
 using SatisfactoryLedger.World.Domain.Arrangement;
+using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Persistence;
 using SatisfactoryLedger.World.Snapshots;
 
@@ -204,9 +205,9 @@ internal static class ArrangementEndpoints
 
         // Every factory of the world is matched, so a rebuilt machine goes to the factory it goes to everywhere (BR-W11).
         HashSet<Guid> ids = [.. ArrangementProblemDocument.FromJson(problemJson).Factories.Select(factory => Guid.Parse(factory.Id))];
-        List<Factories.StoredFactory> factories = await db.Factories.AsNoTracking().Where(factory => factory.World == run.World).ToListAsync(cancellationToken);
+        List<StoredFactory> factories = await db.Factories.AsNoTracking().Where(factory => factory.World == run.World).ToListAsync(cancellationToken);
         Dictionary<string, BuildableDocument> buildables = document.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
-        List<ArrangedMachineResponse> machines = [.. Factories.SnapshotFactories.Of(document, factories).Factories
+        List<ArrangedMachineResponse> machines = [.. SnapshotFactories.Of(document, factories).Factories
             .Where(traced => ids.Contains(traced.Factory.Id))
             .SelectMany(traced => traced.Machines
                 .Select(machine => buildables.GetValueOrDefault(machine.Id))

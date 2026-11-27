@@ -17,7 +17,8 @@ internal sealed record MachineMatch(IReadOnlyList<BuildableId> Ids, IReadOnlyLis
     /// <summary>
     /// Finds every factory's machines in one pass: each by its id, or else the machine of its class that stands closest
     /// to where it stood, within a metre. A machine in the snapshot replaces one stored machine at most, across all the
-    /// factories: the oldest factory's (the lowest id) first, and never a machine one of them has by its own id.
+    /// factories: the oldest factory's first (<see cref="StoredFactory.OldestFirst"/>), and never a machine one of them
+    /// has by its own id.
     /// </summary>
     /// <returns>Per factory, in the order given, its machines as matched.</returns>
     public static IReadOnlyList<MachineMatch> In(SnapshotDocument snapshot, IReadOnlyList<StoredFactory> factories)
@@ -29,7 +30,7 @@ internal sealed record MachineMatch(IReadOnlyList<BuildableId> Ids, IReadOnlyLis
 
         // A stored machine two factories have (from before BR-W5) is one machine: it gets one replacement, or none.
         Dictionary<string, string?> replacements = new(StringComparer.Ordinal);
-        foreach (StoredMachine machine in factories.OrderBy(factory => factory.Id).SelectMany(factory => factory.Machines))
+        foreach (StoredMachine machine in factories.Order(StoredFactory.OldestFirst).SelectMany(factory => factory.Machines))
         {
             if (!snapshotMachines.ContainsKey(machine.Id) && !replacements.ContainsKey(machine.Id))
             {

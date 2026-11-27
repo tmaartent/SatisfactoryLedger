@@ -10,14 +10,23 @@ namespace SatisfactoryLedger.World.Factories;
 internal static class ClaimedMachines
 {
     /// <summary>
-    /// The chosen machines that one of the factories already has in this snapshot: by its id, or as the machine that
-    /// replaced one of its own (BR-W11). In the order chosen.
+    /// The chosen machines that another factory already has in this snapshot: by its id, or as the machine that
+    /// replaced one of its own (BR-W11). In the order chosen. The factories are the world's, the claimant's stored
+    /// version among them when it has one, so a rebuilt machine is matched as on every other page; then the claimant's
+    /// own are left out of the claims.
     /// </summary>
-    public static IReadOnlyList<TakenMachine> Among(IEnumerable<string> chosen, SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
+    public static IReadOnlyList<TakenMachine> Among(IEnumerable<string> chosen, Guid claimant, SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
     {
         var inSnapshot = SnapshotFactories.Of(snapshot, factories);
-        return [.. chosen
-            .Where(id => inSnapshot.Owners.ContainsKey(BuildableId.Of(id)))
-            .Select(id => new TakenMachine(id, inSnapshot.Find(inSnapshot.Owners[BuildableId.Of(id)])!.Factory.Name))];
+        List<TakenMachine> taken = [];
+        foreach (string id in chosen)
+        {
+            if (inSnapshot.Owners.TryGetValue(BuildableId.Of(id), out Guid owner) && owner != claimant)
+            {
+                taken.Add(new TakenMachine(id, inSnapshot.Find(owner)!.Factory.Name));
+            }
+        }
+
+        return taken;
     }
 }

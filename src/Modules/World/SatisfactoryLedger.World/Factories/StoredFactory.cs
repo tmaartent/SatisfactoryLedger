@@ -8,6 +8,12 @@ namespace SatisfactoryLedger.World.Factories;
 /// </summary>
 internal sealed class StoredFactory
 {
+    /// <summary>
+    /// The oldest factory first: ids are <c>Guid</c> v7, so the lowest id is the oldest. Of factories that both have a
+    /// machine, from before BR-W5, or that both match a rebuilt one, the oldest owns it (BR-W5, BR-W11).
+    /// </summary>
+    public static IComparer<StoredFactory> OldestFirst { get; } = Comparer<StoredFactory>.Create((one, other) => one.Id.CompareTo(other.Id));
+
     public required Guid Id { get; init; }
 
     /// <summary>The session name of the world it belongs to.</summary>
