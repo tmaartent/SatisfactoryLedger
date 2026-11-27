@@ -24,6 +24,7 @@ import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
 import { boxGeometry } from '../area/box-geometry';
 import { flowArrow } from '../area/flow-arrow';
+import { ClickReach } from '../area/selection';
 import { sceneBackground } from '../area/scene-background';
 import { CatalogNames } from '../../shared/catalog-names';
 import {
@@ -150,6 +151,8 @@ export class BeltFloor3d {
   private renderer?: THREE.WebGLRenderer;
   private camera?: THREE.PerspectiveCamera;
   private controls?: OrbitControls;
+  /** Keeps the drawing at the stage's size; let go of with the view. */
+  private resizing?: ResizeObserver;
 
   constructor() {
     this.scene.add(this.content, this.arrows, new THREE.AmbientLight('#ffffff', 1.2));
@@ -200,7 +203,8 @@ export class BeltFloor3d {
       this.camera!.aspect = w / h;
       this.camera!.updateProjectionMatrix();
     };
-    new ResizeObserver(resize).observe(stage);
+    this.resizing = new ResizeObserver(resize);
+    this.resizing.observe(stage);
     resize();
     this.renderer.domElement.addEventListener('pointermove', (event) => this.point(event));
     // A finger leaves the canvas as it's lifted, right after a tap: the label it showed stays.
@@ -214,7 +218,7 @@ export class BeltFloor3d {
       down = { x: event.clientX, y: event.clientY };
     });
     this.renderer.domElement.addEventListener('pointerup', (event) => {
-      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 4) {
+      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) <= ClickReach) {
         this.pick(event);
         this.showArrows(event);
         if (event.pointerType !== 'mouse') this.tipAt(event);
@@ -230,6 +234,7 @@ export class BeltFloor3d {
 
   private stop(): void {
     this.renderer?.setAnimationLoop(null);
+    this.resizing?.disconnect();
     this.controls?.dispose();
     this.renderer?.dispose();
     this.clear();

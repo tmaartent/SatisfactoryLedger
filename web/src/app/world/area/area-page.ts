@@ -374,6 +374,8 @@ export class AreaPage {
   ].map((normal) => new THREE.Plane(normal, Infinity));
   private readonly clips = [this.clip, ...this.bounds];
   private framed = false;
+  /** Keeps the drawing at the stage's size; let go of with the view. */
+  private resizing?: ResizeObserver;
 
   constructor() {
     this.scene.add(this.content);
@@ -515,7 +517,8 @@ export class AreaPage {
       this.camera!.aspect = w / h;
       this.camera!.updateProjectionMatrix();
     };
-    new ResizeObserver(resize).observe(stage);
+    this.resizing = new ResizeObserver(resize);
+    this.resizing.observe(stage);
     resize();
     this.listenForClicks(this.renderer.domElement);
     this.listenForBoxes(stage);
@@ -528,6 +531,7 @@ export class AreaPage {
 
   private stop(): void {
     this.renderer?.setAnimationLoop(null);
+    this.resizing?.disconnect();
     this.controls?.dispose();
     this.renderer?.dispose();
     this.content.traverse((object) => (object as THREE.Mesh).geometry?.dispose());
