@@ -5,7 +5,6 @@ using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Snapshots;
-using SatisfactoryLedger.World.Simulation;
 
 namespace SatisfactoryLedger.World.Tests;
 
@@ -58,7 +57,8 @@ public class DronePortFindingsTests
             DronePorts = [new CatalogDronePort("Build_DroneStation_C", 24_000, 6, [new(RocketFuel, 7_200)])],
         };
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, catalog).ToJson());
-        return SnapshotAnalysis.For(snapshot, AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson()));
+        // The container's belt brings the hub all its drone burns. What each port burns comes from the snapshot (BR-A16).
+        return SnapshotAnalysis.For(snapshot, new TestAnalysis().Into(Belt, RocketFuel, 5.0 / 3).Build());
     }
 
     [Fact]

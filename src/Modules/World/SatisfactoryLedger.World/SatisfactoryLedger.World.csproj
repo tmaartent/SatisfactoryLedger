@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="SatisfactoryLedger.World.Tests" />
+    <InternalsVisibleTo Include="SatisfactoryLedger.World.Simulation.Tests" />
     <InternalsVisibleTo Include="SatisfactoryLedger.Api.IntegrationTests" />
   </ItemGroup>
 

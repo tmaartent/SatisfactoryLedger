@@ -7,6 +7,9 @@
 
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The test worlds, and their stored analyses that World.Tests reads instead of running the solver (issue #47). -->
+    <Content Include="..\SatisfactoryLedger.World.SaveFile.Tests\Fixtures\*.sav" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\SatisfactoryLedger.World.Tests\Fixtures\*.json" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World\SatisfactoryLedger.World.csproj" />
     <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World.Simulation\SatisfactoryLedger.World.Simulation.csproj" />
   </ItemGroup>
 
@@ -26,6 +30,8 @@
     <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\TestFlow.cs" Link="TestFlow.cs" />
     <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\Items.cs" Link="Items.cs" />
     <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\FlowResultQueries.cs" Link="FlowResultQueries.cs" />
+    <!-- The test worlds as stored snapshots (written once, in World.Tests). -->
+    <Compile Include="..\SatisfactoryLedger.World.Tests\TestWorldSnapshot.cs" Link="TestWorldSnapshot.cs" />
   </ItemGroup>
 
 </Project>

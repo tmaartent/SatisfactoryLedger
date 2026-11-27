@@ -1,20 +1,17 @@
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Analysis;
-using SatisfactoryLedger.World.Domain;
-using SatisfactoryLedger.World.Domain.Flow;
-using SatisfactoryLedger.World.Domain.Flow.Objects;
-using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Contracts.Analysis;
+using SatisfactoryLedger.World.Domain;
+using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
-using SatisfactoryLedger.World.Simulation;
-using MachineLimit = SatisfactoryLedger.World.Contracts.Analysis.MachineLimit;
 
 namespace SatisfactoryLedger.World.Tests;
 
 /// <summary>
-/// Machines running on stock (BR-A17): what a machine holds counts as supplied while it lasts 30 minutes, and its
-/// finding says how long it lasts. A small world: a smelter (30 ore a minute) with nothing bringing ore, and one fed
-/// from a container.
+/// Machines running on stock (BR-A17): a machine whose belts bring less than it uses says so, with how long its stock
+/// lasts. A small world: a smelter (30 ore a minute) holding 900 ore with nothing bringing ore, and one fed from a
+/// container. Both run at full speed in its analysis, built by hand; that the solver lets a machine run on half an hour
+/// of stock is tested end to end in World.Simulation.Tests.
 /// </summary>
 public class StockFindingsTests
 {
@@ -22,69 +19,56 @@ public class StockFindingsTests
     private static readonly string Holding = TestWorldSnapshot.Id("Build_SmelterMk1_C_1");
     private static readonly string Fed = TestWorldSnapshot.Id("Build_SmelterMk1_C_2");
 
-    private static AnalysisResponse Analyse(decimal holds)
+    private static readonly AnalysisResponse Analysis = Analyse();
+
+    private static AnalysisResponse Analyse()
     {
-        static BuildableId Id(string name) => BuildableId.Of(TestWorldSnapshot.Id(name));
-        SavedMachine Smelter(string id, decimal ore) =>
+        static string Id(string name) => TestWorldSnapshot.Id(name);
+        SavedMachine Smelter(string id) =>
             new(BuildableId.Of(id), "Build_SmelterMk1_C", "Recipe_IngotIron_C", ClockSpeed.Percent(100), 1)
             {
-                InputContents = new Dictionary<string, decimal> { [Ore] = ore },
+                InputContents = new Dictionary<string, decimal> { [Ore] = 900 },
             };
-        SavedLogistics Belt(string name) => new(Id(name), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt);
+        SavedLogistics Belt(string name) => new(BuildableId.Of(Id(name)), "Build_ConveyorBeltMk1_C", LogisticsKind.Belt);
+        Connection Link(string from, string to) => new(BuildableId.Of(from), BuildableId.Of(to));
 
         var saved = new SavedWorld(
             new SaveInfo("Stock", 517554, new DateTime(2026, 11, 7, 0, 0, 0, DateTimeKind.Utc)),
             [
-                Smelter(Holding, holds), Belt("out1"), new SavedConsumer(Id("sink1"), "Build_ResourceSink_C"),
-                new SavedLogistics(Id("box"), "Build_StorageContainerMk1_C", LogisticsKind.StorageContainer)
+                Smelter(Holding), Belt("out1"), new SavedConsumer(BuildableId.Of(Id("sink1")), "Build_ResourceSink_C"),
+                new SavedLogistics(BuildableId.Of(Id("box")), "Build_StorageContainerMk1_C", LogisticsKind.StorageContainer)
                 {
                     Stock = new Dictionary<string, decimal> { [Ore] = 5_000 },
                 },
-                Belt("in2"), Smelter(Fed, 900), Belt("out2"), new SavedConsumer(Id("sink2"), "Build_ResourceSink_C"),
+                Belt("in2"), Smelter(Fed), Belt("out2"), new SavedConsumer(BuildableId.Of(Id("sink2")), "Build_ResourceSink_C"),
             ],
             [
-                new Connection(BuildableId.Of(Holding), Id("out1")), new Connection(Id("out1"), Id("sink1")),
-                new Connection(Id("box"), Id("in2")), new Connection(Id("in2"), BuildableId.Of(Fed)),
-                new Connection(BuildableId.Of(Fed), Id("out2")), new Connection(Id("out2"), Id("sink2")),
+                Link(Holding, Id("out1")), Link(Id("out1"), Id("sink1")),
+                Link(Id("box"), Id("in2")), Link(Id("in2"), Fed), Link(Fed, Id("out2")), Link(Id("out2"), Id("sink2")),
             ],
             []);
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
-        return SnapshotAnalysis.For(snapshot, AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson()));
+        // Both smelters run at full speed: one on its stock, the other on the 30 ore a minute its belt brings.
+        AnalysisDocument analysis = new TestAnalysis().Running(Holding).Running(Fed).Into(Id("in2"), Ore, 30).Build();
+        return SnapshotAnalysis.For(snapshot, analysis);
     }
 
-    private static MachineFinding Machine(AnalysisResponse analysis, string id) => Assert.Single(analysis.Machines, machine => machine.Id == id);
+    private static MachineFinding Machine(string id) => Assert.Single(Analysis.Machines, machine => machine.Id == id);
 
     [Fact]
-    public void A_machine_holding_half_an_hour_of_its_input_runs_on_that_stock()
+    public void A_machine_running_on_its_stock_says_so_with_how_long_it_lasts()
     {
-        // 900 ore at 30 a minute.
-        MachineFinding smelter = Machine(Analyse(holds: 900), Holding);
+        // 900 ore at 30 a minute, with nothing coming in.
+        MachineFinding smelter = Machine(Holding);
 
-        Assert.Equal((1.0, MachineLimit.None, Ore, 30.0), (smelter.Utilisation, smelter.Limit, smelter.OnStock, smelter.StockMinutes));
-    }
-
-    [Fact]
-    public void A_machine_holding_less_is_starved_like_before()
-    {
-        MachineFinding smelter = Machine(Analyse(holds: 899), Holding);
-
-        Assert.Equal((MachineLimit.Starved, (string?)null), (smelter.Limit, smelter.OnStock));
-    }
-
-    [Fact]
-    public void A_starved_machine_names_every_input_it_is_short_of_with_the_share_it_is_offered()
-    {
-        MachineFinding smelter = Machine(Analyse(holds: 899), Holding);
-
-        Assert.Equal(new Dictionary<string, double> { [Ore] = 0 }, smelter.StarvedOf);
-        Assert.Empty(smelter.BlockedOn);
+        Assert.Equal((Ore, 30.0), (smelter.OnStock, smelter.StockMinutes));
     }
 
     [Fact]
     public void A_machine_whose_belts_bring_all_it_uses_is_not_running_on_stock()
     {
-        MachineFinding smelter = Machine(Analyse(holds: 900), Fed);
+        MachineFinding smelter = Machine(Fed);
 
-        Assert.Equal((1.0, (string?)null, (double?)null), (smelter.Utilisation, smelter.OnStock, smelter.StockMinutes));
+        Assert.Equal(((string?)null, (double?)null), (smelter.OnStock, smelter.StockMinutes));
     }
 }

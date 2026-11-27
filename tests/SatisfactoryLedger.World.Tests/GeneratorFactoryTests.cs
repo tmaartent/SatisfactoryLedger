@@ -1,7 +1,6 @@
 using SatisfactoryLedger.World.Analysis;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Contracts.Analysis;
-using SatisfactoryLedger.World.Simulation;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
 
@@ -22,7 +21,7 @@ public class GeneratorFactoryTests
     };
 
     private static readonly FactoryAnalysisResponse Analysis = SnapshotAnalysis.ForFactory(
-        WithGenerators, Power, AnalysisDocument.FromJson(AnalysisDocument.Compute(WithGenerators.ToFlowNetwork()).ToJson()), [Power])!;
+        WithGenerators, Power, WithGeneratorsAnalysis, [Power])!;
 
     [Fact]
     public void A_factory_of_a_nuclear_plant_is_traced_with_the_plant_as_its_machine()
@@ -45,7 +44,7 @@ public class GeneratorFactoryTests
     {
         // Asked 2026-11-24: power is what a generator puts out, beside the items that leave.
         FactoryPreview preview = FactoryTraces.Preview(
-            WithGenerators, [NuclearPlant], AnalysisDocument.FromJson(AnalysisDocument.Compute(WithGenerators.ToFlowNetwork()).ToJson()));
+            WithGenerators, [NuclearPlant], WithGeneratorsAnalysis);
 
         Assert.Equal(new FactoryPower(2500, 2500), preview.Power);
     }

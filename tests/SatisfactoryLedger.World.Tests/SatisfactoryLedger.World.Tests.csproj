@@ -9,6 +9,8 @@
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The test world the save-file adapter's tests use. -->
     <Content Include="..\SatisfactoryLedger.World.SaveFile.Tests\Fixtures\*.sav" LinkBase="Fixtures" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The test worlds' analyses, as stored: World.Simulation.Tests guards that the solver still computes them. -->
+    <Content Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,12 +23,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World\SatisfactoryLedger.World.csproj" />
-    <ProjectReference Include="..\..\src\Modules\World\SatisfactoryLedger.World.Simulation\SatisfactoryLedger.World.Simulation.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- The steady-state queries the tests share (written once, in World.Domain.Tests). -->
-    <Compile Include="..\SatisfactoryLedger.World.Domain.Tests\FlowResultQueries.cs" Link="FlowResultQueries.cs" />
   </ItemGroup>
 
 </Project>

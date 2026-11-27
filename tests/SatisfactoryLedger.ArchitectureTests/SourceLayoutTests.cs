@@ -58,6 +58,37 @@ public partial class SourceLayoutTests
         Assert.True(wrong.Count == 0, "Namespaces that don't follow their folder:\n" + string.Join("\n", wrong));
     }
 
+    /// <summary>
+    /// The projects that may reference the simulation (World.Simulation): the analysis service, which runs it
+    /// (ADR-0026); its own tests; and these, which check its rules. The API and the World module's tests read the stored
+    /// analysis instead (issue #47).
+    /// </summary>
+    private static readonly string[] SimulationUsers =
+    [
+        "SatisfactoryLedger.AnalysisService",
+        "SatisfactoryLedger.ArchitectureTests",
+        "SatisfactoryLedger.World.Simulation.Tests",
+    ];
+
+    [Fact]
+    public void Only_the_analysis_service_and_the_simulations_own_tests_reference_the_simulation()
+    {
+        string root = RepositoryRoot();
+
+        List<string> referencing =
+        [
+            .. SourceFolders
+                .Select(folder => Path.Combine(root, folder))
+                .Where(Directory.Exists)
+                .SelectMany(folder => Directory.EnumerateFiles(folder, "*.csproj", SearchOption.AllDirectories))
+                .Where(project => File.ReadAllText(project).Contains("SatisfactoryLedger.World.Simulation.csproj", StringComparison.Ordinal))
+                .Select(project => Path.GetFileNameWithoutExtension(project))
+                .Order(StringComparer.Ordinal),
+        ];
+
+        Assert.Equal(SimulationUsers, referencing);
+    }
+
     private static bool IsBuildOutput(string projectFolder, string file)
     {
         string first = Path.GetRelativePath(projectFolder, file).Split(Path.DirectorySeparatorChar)[0];

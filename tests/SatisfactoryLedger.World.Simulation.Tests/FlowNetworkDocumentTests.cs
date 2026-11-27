@@ -8,7 +8,7 @@ using SatisfactoryLedger.World.Simulation;
 using Carries = SatisfactoryLedger.World.Domain.Flow.Objects.Carries;
 using SortRuleKind = SatisfactoryLedger.World.Domain.SortRuleKind;
 
-namespace SatisfactoryLedger.World.Tests;
+namespace SatisfactoryLedger.World.Simulation.Tests;
 
 /// <summary>The flow network as the API sends it to the analysis service (ADR-0018), and back.</summary>
 public class FlowNetworkDocumentTests

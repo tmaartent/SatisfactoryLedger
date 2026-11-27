@@ -4,7 +4,6 @@ using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.SaveFile;
-using SatisfactoryLedger.World.Simulation;
 using SatisfactoryLedger.World.Snapshots;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
@@ -24,6 +23,9 @@ public class FactoryInputsTests
         Name = name,
         Machines = [.. machines.Select(id => StoredMachine.From(snapshot.Buildables.Single(buildable => buildable.Id == id)))],
     };
+
+    private const string Ore = "Desc_OreIron_C";
+    private const string Ingot = "Desc_IronIngot_C";
 
     private static readonly StoredFactory Smelting = Factory(Document, "Smelting", SmelterA);
     private static readonly StoredFactory Plates = Factory(Document, "Plates", ConstructorC);
@@ -94,7 +96,12 @@ public class FactoryInputsTests
             ],
             []);
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
+        // The merger takes 15 a minute from each miner; the smelter runs at full speed.
+        AnalysisDocument analysis = new TestAnalysis()
+            .Running(Id("smelter"))
+            .Into(Id("a"), Ore, 15).Into(Id("b"), Ore, 15).Into(Id("ore"), Ore, 30).Into(Id("ingots"), Ingot, 30)
+            .Unused(Id("miner A"), Ore, 60, 15).Unused(Id("miner B"), Ore, 60, 15)
+            .Build();
         StoredFactory smelting = Factory(snapshot, "Smelting", Id("smelter"));
 
         FactoryInput ore = Assert.Single(SnapshotAnalysis.ForFactory(snapshot, smelting, analysis, [smelting])!.Input);
@@ -122,7 +129,8 @@ public class FactoryInputsTests
             ],
             []);
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
+        // The smelter can't get its ingots away, so it stands still and the miner delivers nothing.
+        AnalysisDocument analysis = new TestAnalysis().Blocked(Id("smelter"), Ingot, 0).Unused(Id("miner"), Ore, 60, 0).Build();
         StoredFactory smelting = Factory(snapshot, "Smelting", Id("smelter"));
 
         FactoryInput ore = Assert.Single(SnapshotAnalysis.ForFactory(snapshot, smelting, analysis, [smelting])!.Input);
@@ -161,7 +169,11 @@ public class FactoryInputsTests
             ],
             []);
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
+        // The split shares the miner's 60 three ways: 20 for each smelter, 20 into the sink.
+        AnalysisDocument analysis = new TestAnalysis()
+            .Starved(Id("smelter A"), Ore, 2.0 / 3).Starved(Id("smelter B"), Ore, 2.0 / 3)
+            .Into(Id("line"), Ore, 60).Into(Id("to A"), Ore, 20).Into(Id("to B"), Ore, 20).Into(Id("overflow"), Ore, 20).Into(Id("into sink"), Ore, 20)
+            .Build();
         StoredFactory smelting = Factory(snapshot, "Smelting", Id("smelter A"));
 
         FactoryInput ore = Assert.Single(SnapshotAnalysis.ForFactory(snapshot, smelting, analysis, [smelting])!.Input);
@@ -202,7 +214,11 @@ public class FactoryInputsTests
 
         var saved = new SavedWorld(new SaveInfo("Nothing spills", 517554, new DateTime(2026, 11, 11, 0, 0, 0, DateTimeKind.Utc)), buildables, connections, []);
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
+        // The three smelters share the miner's 60: 20 each, and nothing spills.
+        AnalysisDocument analysis = new TestAnalysis()
+            .Starved(Id("smelter 1"), Ore, 2.0 / 3).Starved(Id("smelter 2"), Ore, 2.0 / 3).Starved(Id("smelter 3"), Ore, 2.0 / 3)
+            .Into(Id("line"), Ore, 60).Into(Id("main"), Ore, 60).Into(Id("to 1"), Ore, 20).Into(Id("to 2"), Ore, 20).Into(Id("to 3"), Ore, 20)
+            .Build();
         StoredFactory smelting = Factory(snapshot, "Smelting", Id("smelter 1"), Id("smelter 2"), Id("smelter 3"));
 
         FactoryInput ore = Assert.Single(SnapshotAnalysis.ForFactory(snapshot, smelting, analysis, [smelting])!.Input);
@@ -243,7 +259,8 @@ public class FactoryInputsTests
             ],
             []);
         SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
-        AnalysisDocument analysis = AnalysisDocument.FromJson(AnalysisDocument.Compute(snapshot.ToFlowNetwork()).ToJson());
+        // The smelter can't get its ingots away, so it stands still and the platform delivers nothing.
+        AnalysisDocument analysis = new TestAnalysis().Blocked(Id("smelter"), Ingot, 0).Build();
         StoredFactory smelting = Factory(snapshot, "Smelting", Id("smelter"));
         return Assert.Single(SnapshotAnalysis.ForFactory(snapshot, smelting, analysis, [smelting])!.Input);
     }

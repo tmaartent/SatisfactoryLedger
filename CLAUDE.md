@@ -72,6 +72,8 @@ Since 2026-11-26 (after step 113 had to merge five readers of the stored analysi
 dotnet build SatisfactoryLedger.slnx
 dotnet test SatisfactoryLedger.slnx
 dotnet run --project src/SatisfactoryLedger.AppHost
+# After a deliberate change to the solver or the analysis version: write the test worlds' stored analyses anew, then read the diff
+REGENERATE_ANALYSIS_FIXTURES=1 dotnet test tests/SatisfactoryLedger.World.Simulation.Tests
 cd web && npm start | npm test | npm run build | npm run lint | npm run format
 ```
 
