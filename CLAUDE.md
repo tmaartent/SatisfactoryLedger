@@ -9,6 +9,7 @@ Work follows the `mattpocock-skills` plugin, and its skills are the reference: `
 - **The owner decides the domain:** business rules, modelling choices and ADR decisions, settled through `/grill-with-docs`. Technical choices with a sensible default may be made, but are named in the step log so the owner can overrule them.
 - **Seams in an `/implement-spec` run** are the ones named in the spec or its tickets; they count as agreed for `tdd`.
 - **Reviews** run `/code-review`, which reads `CODING_STANDARDS.md`.
+- **PR bodies** are written with `/pr`.
 - **`/improve-codebase-architecture`** runs every ten steps, or sooner when one concept spreads over more than three files.
 - **A run that stops partway** ends with `/handoff`.
 
@@ -35,7 +36,9 @@ REGENERATE_ANALYSIS_FIXTURES=1 dotnet test tests/SatisfactoryLedger.World.Simula
 cd web && npm start | npm test | npm run build | npm run lint | npm run format
 ```
 
-A new git worktree needs `git submodule update --init` before it builds; removing one takes `git worktree remove --force`, once its submodule shows no changes.
+A new git worktree needs `git submodule update --init` before it builds; removing one takes `git worktree remove --force`, once its submodule shows no changes. To put a worktree's branch on the integration branch, use `git switch -C <branch> <integration-branch>`: a global git guardrail blocks `reset --hard`, `branch -D`, `push --force` and a push to a branch whose PR is merged.
+
+Claude may stop and restart the AppHost whenever a step needs it.
 
 ## Agent skills
 
