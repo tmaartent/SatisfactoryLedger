@@ -44,6 +44,8 @@ internal static class SnapshotAnalysis
             // A drone port is never part of a factory (BR-W1, BR-W8); a generator is, when chosen as one of its machines.
             wholeWorld: false);
         FlowReadings readings = AnalysisReadings.Of(world, analysis);
+        FactoryHandovers handovers = SnapshotHandovers.Of(snapshot, world, factory, members, readings, factories);
+        Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, factories);
 
         return new FactoryAnalysisResponse(
             factory.Id,
@@ -51,8 +53,8 @@ internal static class SnapshotAnalysis
             findings.Settled,
             findings.Summary,
             findings.GeneratorSummary,
-            FactoryOutputs.Of(snapshot, world, factory, members, readings, factories),
-            FactoryInputs.Of(snapshot, world, factory, members, readings, factories),
+            FactoryOutputs.Of(handovers, names),
+            FactoryInputs.Of(handovers, names),
             PowerOf(snapshot, members, readings),
             findings.Machines,
             findings.Generators,
@@ -296,4 +298,11 @@ internal static class SnapshotAnalysis
     }
 
     internal static double Round(double value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// Sources or destinations as the factory page shows them: each with its rate per minute rounded (BR-A10), and left
+    /// out when that rounds to nothing (#52). The factory page and the arrangement both list them this way.
+    /// </summary>
+    internal static IEnumerable<(T Value, double PerMinute)> Shown<T>(IEnumerable<T> values, Func<T, double> perMinute) =>
+        values.Select(value => (Value: value, PerMinute: Round(perMinute(value)))).Where(shown => shown.PerMinute > 0);
 }

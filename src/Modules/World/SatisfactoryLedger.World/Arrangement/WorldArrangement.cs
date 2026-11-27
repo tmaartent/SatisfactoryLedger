@@ -17,7 +17,7 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// <item>The factories inside it (their machines' middle): each on one plot, where its machines' middle is (decided
 /// 2026-11-18: every factory is built to fit a plot); or, on footprints (decided 2026-11-25), on the whole foundations
 /// its machines cover, with the roads kept between factories as gaps.</item>
-/// <item>Their links: what inputs bring now (<see cref="FactoryInputs"/>, BR-A19) from another factory, to or from a
+/// <item>Their links: what inputs bring now (the sources of its <see cref="FactoryHandovers"/>, BR-A19) from another factory, to or from a
 /// factory inside, each item weighing the belts (or, for a fluid, pipes) it needs: its rate over the top tier's
 /// capacity, rounded up.
 /// Inputs from nodes and stations don't count, as a first step (decided 2026-11-12).</item>
@@ -188,37 +188,40 @@ internal static class WorldArrangement
                 fixedPlaces[to] = new FixedPlace(to, grid.PlotsTouching(outline), Blocks: true);
             }
 
-            foreach (FactoryInput input in readings is null ? [] : FactoryInputs.Of(snapshot, world, factory, members, readings, factories))
+            // The sources of what the factory takes in, with the machines they start at. Rounded as the factory page
+            // shows them, and left out when they round to nothing, as when the arrangement read the page's inputs (#54).
+            foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(snapshot, world, factory, members, readings, factories).Inputs)
             {
-                foreach (InputSource source in input.Sources)
+                string item = input.Item.Id;
+                foreach ((IncomingSource source, double perMinute) in SnapshotAnalysis.Shown(input.Sources, source => source.PerMinute))
                 {
                     // A node's extractor, a station or a drone port feeding a factory being arranged: merged with the
                     // others that bring it the item.
-                    if (chosen.Contains(to) && source is { Kind: InputSourceKind.Building, Id: { } building } && IsSpot(building)
+                    if (chosen.Contains(to) && source is { Kind: InputSourceKind.Building, Id.Id: { } building } && IsSpot(building)
                         && buildables.GetValueOrDefault(building)?.Position is { } position)
                     {
-                        List<Supply> feeding = supplies.TryGetValue((to, input.Item), out List<Supply>? found) ? found : supplies[(to, input.Item)] = [];
-                        feeding.Add(new Supply(building, position.X, position.Y, source.PerMinute));
+                        List<Supply> feeding = supplies.TryGetValue((to, item), out List<Supply>? found) ? found : supplies[(to, item)] = [];
+                        feeding.Add(new Supply(building, position.X, position.Y, perMinute));
                         Feeds(building, to);
                     }
 
                     // Machines no factory owns, or a factory outside the area, feeding a factory being arranged: like a
                     // node's extractor, from a spot at the machine nearest the factory (decided 2026-11-25).
-                    bool fromOutside = source is { Kind: InputSourceKind.Factory, FactoryId: { } supplier } && supplier != factory.Id
+                    bool fromOutside = source is { Kind: InputSourceKind.Factory, Owner: { } supplier } && supplier != factory.Id
                         && !chosen.Contains(supplier.ToString());
                     if (chosen.Contains(to) && (source.Kind == InputSourceKind.NoFactory || fromOutside))
                     {
-                        if (Nearest(source.Machines ?? [], outline) is { } machine)
+                        if (Nearest(source.Machines.Select(machine => machine.Id), outline) is { } machine)
                         {
-                            List<Supply> feeding = supplies.TryGetValue((to, input.Item), out List<Supply>? found) ? found : supplies[(to, input.Item)] = [];
-                            feeding.Add(new Supply(machine.Id, machine.Position!.X, machine.Position.Y, source.PerMinute));
+                            List<Supply> feeding = supplies.TryGetValue((to, item), out List<Supply>? found) ? found : supplies[(to, item)] = [];
+                            feeding.Add(new Supply(machine.Id, machine.Position!.X, machine.Position.Y, perMinute));
                             Feeds(machine.Id, to);
                         }
 
                         continue;
                     }
 
-                    string? from = source is { Kind: InputSourceKind.Factory, FactoryId: { } other } && other != factory.Id ? other.ToString() : null;
+                    string? from = source is { Kind: InputSourceKind.Factory, Owner: { } other } && other != factory.Id ? other.ToString() : null;
 
                     // Only links that touch a factory being arranged change with the arrangement.
                     if (from is null || !(chosen.Contains(to) || chosen.Contains(from)))
@@ -226,7 +229,7 @@ internal static class WorldArrangement
                         continue;
                     }
 
-                    factoryRates[(from, to, input.Item)] = factoryRates.GetValueOrDefault((from, to, input.Item)) + source.PerMinute;
+                    factoryRates[(from, to, item)] = factoryRates.GetValueOrDefault((from, to, item)) + perMinute;
                 }
             }
         }
@@ -248,7 +251,7 @@ internal static class WorldArrangement
         foreach ((StoredFactory factory, FactoryMembers members, _) in traced.Where(entry => readings is not null && chosen.Contains(entry.Factory.Id.ToString())))
         {
             string from = factory.Id.ToString();
-            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryOutputs.Ends(world, members, readings!)
+            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryHandovers.Ends(world, readings!, members)
                 .Where(output => IsStation(output.End.Id) && buildables[output.End.Id].Position is not null)
                 .GroupBy(output => (output.End.Id, output.Item))
                 .GroupBy(

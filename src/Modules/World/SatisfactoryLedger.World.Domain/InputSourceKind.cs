@@ -1,7 +1,7 @@
-namespace SatisfactoryLedger.World.Analysis;
+namespace SatisfactoryLedger.World.Domain;
 
 /// <summary>What kind of start what arrives over a factory's input comes from (decided 2026-11-11).</summary>
-internal enum InputSourceKind
+public enum InputSourceKind
 {
     /// <summary>A machine or generator of a factory: another one, or this one when its own output comes back.</summary>
     Factory,

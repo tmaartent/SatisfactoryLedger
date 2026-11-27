@@ -1,3 +1,5 @@
+using SatisfactoryLedger.World.Domain;
+
 namespace SatisfactoryLedger.World.Analysis;
 
 /// <summary>Where some of a factory's output goes, per minute (BR-A18).</summary>

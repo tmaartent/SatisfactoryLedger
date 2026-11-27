@@ -1,7 +1,7 @@
-namespace SatisfactoryLedger.World.Analysis;
+namespace SatisfactoryLedger.World.Domain;
 
 /// <summary>What kind of end a factory's output reaches (BR-A18).</summary>
-internal enum OutputDestinationKind
+public enum OutputDestinationKind
 {
     /// <summary>A machine or generator of a factory: another one, or this one when its line loops back.</summary>
     Factory,

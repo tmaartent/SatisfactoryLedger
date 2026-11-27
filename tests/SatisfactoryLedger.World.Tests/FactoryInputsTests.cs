@@ -52,16 +52,6 @@ public class FactoryInputsTests
     }
 
     [Fact]
-    public void A_source_of_machines_names_the_machines_it_starts_at()
-    {
-        FactoryInput ingots = Input(Plates, "Desc_IronIngot_C", Smelting, Plates);
-
-        Assert.Equal(
-            [$"Factory: {SmelterA}", $"NoFactory: {SmelterB}"],
-            ingots.Sources.Select(source => $"{source.Kind}: {string.Join(", ", source.Machines!)}"));
-    }
-
-    [Fact]
     public void Ore_from_a_miner_comes_from_that_building()
     {
         StoredFactory ironPlates = Factory(Document, "Iron plates", SmelterA, SmelterB, ConstructorC);
