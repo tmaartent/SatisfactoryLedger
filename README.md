@@ -152,6 +152,6 @@ tools/
 ## Documentation
 
 - [Architecture overview](docs/architecture/overview.md)
-- [Domain: glossary](docs/domain/glossary.md) · [context map](docs/domain/context-map.md) · [business rules](docs/domain/business-rules.md)
+- [Glossary](GLOSSARY.md) · [context map](docs/domain/context-map.md) · [business rules](docs/domain/business-rules.md)
 - [Architecture Decision Records](docs/adr/README.md)
 - [Learning guide: step by step, with best practices](docs/guide/README.md)
