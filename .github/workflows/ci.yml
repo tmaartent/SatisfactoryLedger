@@ -18,6 +18,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # No AI attribution in commits or PR descriptions (CLAUDE.md): the PR's commits and its description, or the commits a
+  # push to main brings. The rule is in .github/scripts/no-ai-attribution.sh.
+  attribution:
+    name: No AI attribution
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The whole history, so the commits between the base and the head are there to read.
+          fetch-depth: 0
+
+      - name: Commits
+        env:
+          RANGE: ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || format('{0}..{1}', github.event.before, github.sha) }}
+        run: git log --format=%B "$RANGE" | .github/scripts/no-ai-attribution.sh
+
+      # Through an environment variable, never spliced into the script: a description is text anyone can write.
+      - name: PR description
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$BODY" | .github/scripts/no-ai-attribution.sh
+
   backend:
     name: Backend (.NET)
     runs-on: ubuntu-latest

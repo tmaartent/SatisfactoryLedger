@@ -38,6 +38,21 @@ module.exports = defineConfig([
     },
   },
   {
+    // A route's providers make an injector the first time the route is used and keep it for the app's life, so a
+    // service meant for one page would outlive it (step 123). Put it in the component's providers instead.
+    files: ['**/*.routes.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Property[key.name="providers"]',
+          message:
+            "A route's providers outlive the route: give a per-page service through the component's providers (primer: A route's providers outlive the route).",
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {},

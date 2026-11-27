@@ -24,6 +24,7 @@ One workflow, `.github/workflows/ci.yml`, on every PR and push to `main`:
 
 | Job | Steps |
 |---|---|
+| **attribution** | checkout with the whole history → the PR's commits (base..head), or a push's (before..after), and the PR's description through `.github/scripts/no-ai-attribution.sh`: it fails on an AI co-author line, session link or "Generated with" line (CLAUDE.md, Project conventions). The description reaches the script as an environment variable, never spliced into it. Step 123's retro. |
 | **backend** | checkout → setup-dotnet (from `global.json`) → `dotnet restore` → `dotnet build --no-restore` → `dotnet test --no-build` (Testcontainers works on GitHub's Ubuntu runners) → upload test results |
 | **contract** | A step in the **backend** job, right after the build (which regenerates `api/openapi.json`): fail when `git status --porcelain -- api/` isn't empty. `git status` rather than `git diff --exit-code`, because a new, untracked document doesn't show up in `git diff`. |
 | **frontend** | setup-node 22 → `npm ci` → `npm run format:check` → `npm run lint` → `npm test -- --watch=false` (its `pretest` generates the API client) → `npm run build` |

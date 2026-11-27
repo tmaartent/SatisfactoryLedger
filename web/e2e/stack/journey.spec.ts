@@ -24,16 +24,30 @@ const name = 'Journey Plates';
 let snapshot: string | undefined;
 let factory: string | undefined;
 
-/** The journey's factory a failed run left behind: its machines would be taken (BR-W5). */
-async function leftBehind(request: APIRequestContext): Promise<string[]> {
+/** The test world's factories: the journey's own a failed run left behind, and any other. */
+async function factoriesOfTheWorld(
+  request: APIRequestContext,
+): Promise<{ own: string[]; others: { id: string; name: string }[] }> {
   const answer = await request.get(`/api/v1/world/factories?world=${world}`);
   expect(answer.ok()).toBe(true);
   const factories = (await answer.json()) as { id: string; name: string }[];
-  return factories.filter((candidate) => candidate.name === name).map(({ id }) => id);
+  return {
+    own: factories.filter((candidate) => candidate.name === name).map(({ id }) => id),
+    others: factories.filter((candidate) => candidate.name !== name),
+  };
 }
 
 test.beforeAll(async ({ request }) => {
-  for (const id of await leftBehind(request)) await request.delete(`/api/v1/world/factories/${id}`);
+  const { own, others } = await factoriesOfTheWorld(request);
+  // Its own leftovers would hold the machines it chooses (BR-W5): they go.
+  for (const id of own) await request.delete(`/api/v1/world/factories/${id}`);
+  // Another factory may hold them too, and then the factory saved is missing them and its page shows the wrong items,
+  // far from the cause (step 123). It isn't the journey's to delete: it says which, and stops.
+  expect(
+    others,
+    `The ${world} world has factories that may own the machines this journey chooses (BR-W5). Delete them first: ` +
+      others.map((factory) => `${factory.name} (${factory.id})`).join(', '),
+  ).toEqual([]);
 
   // A new database knows no buildings or recipes yet: the import needs them (BR-W10). One that has a Catalog keeps it.
   const items = await request.get('/api/v1/catalog/items');
