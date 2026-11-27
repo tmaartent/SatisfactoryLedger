@@ -12,7 +12,6 @@ import {
   viewChild,
 } from '@angular/core';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import { ArrangedMachineResponse } from '../../api/models/arranged-machine-response';
@@ -23,8 +22,8 @@ import { WorldPoint } from '../../api/models/world-point';
 import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
 import { boxGeometry } from '../area/box-geometry';
-import { flowArrow } from '../area/flow-arrow';
-import { sceneBackground } from '../area/scene-background';
+import { FlowArrow } from '../stage/flow-arrow';
+import { Stage } from '../stage/stage';
 import { CatalogNames } from '../../shared/catalog-names';
 import {
   beltStretches3d,
@@ -135,27 +134,15 @@ export class BeltFloor3d {
   protected readonly tip = signal<{ html: string; x: number; y: number } | null>(null);
 
   private readonly names = inject(CatalogNames);
-  // A thin line is found within a metre of the pointer's ray.
-  private readonly pointer = Object.assign(new THREE.Raycaster(), {
-    params: { ...new THREE.Raycaster().params, Line: { threshold: 1 } },
-  });
-  private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
-  private readonly scene = new THREE.Scene();
+  private readonly element = viewChild.required<ElementRef<HTMLElement>>('stage');
+  /** Where the floor is drawn, once the view is on the page. */
+  private stage?: Stage;
   private readonly content = new THREE.Group();
-  /** The arrows of the splitter or merger clicked: its ways in and out (asked 2026-11-26). */
-  private readonly arrows = new THREE.Group();
-  /** The splitter or merger whose arrows show; none when none is clicked. */
+  /** The splitter or merger whose arrows show, its ways in and out (asked 2026-11-26); none when none is clicked. */
   private arrowsOf: THREE.Object3D | null = null;
   private readonly materials = new Map<string, THREE.Material>();
-  private renderer?: THREE.WebGLRenderer;
-  private camera?: THREE.PerspectiveCamera;
-  private controls?: OrbitControls;
 
   constructor() {
-    this.scene.add(this.content, this.arrows, new THREE.AmbientLight('#ffffff', 1.2));
-    const sun = new THREE.DirectionalLight('#ffffff', 1.6);
-    sun.position.set(0.4, 1, 0.3);
-    this.scene.add(sun);
     afterNextRender(() => this.start());
     inject(DestroyRef).onDestroy(() => this.stop());
     effect(() => {
@@ -163,7 +150,7 @@ export class BeltFloor3d {
       const colourOf = this.colourOf();
       const machines = this.machines();
       this.ownerOf();
-      if (this.renderer) this.draw(arrangement, colourOf, machines);
+      if (this.stage) this.draw(arrangement, colourOf, machines);
     });
     effect(() => {
       const [arrangement, levels, machines, focused] = [
@@ -172,66 +159,35 @@ export class BeltFloor3d {
         this.showMachines(),
         this.focused(),
       ];
-      if (this.renderer) this.show(arrangement, levels, machines, focused);
+      if (this.stage) this.show(arrangement, levels, machines, focused);
     });
   }
 
   private start(): void {
-    const stage = this.stage().nativeElement;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    // As big as the stage: the styles above don't reach a canvas three.js makes (see AreaPage.start).
-    Object.assign(this.renderer.domElement.style, {
-      display: 'block',
-      width: '100%',
-      height: '100%',
-    });
-    stage.append(this.renderer.domElement);
-    this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 50000);
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.screenSpacePanning = true;
-    // The stage's own background, as the browser worked it out: the site's colours, never white (asked 2026-11-20).
-    this.scene.background = new THREE.Color(
-      sceneBackground(getComputedStyle(stage).backgroundColor),
-    );
-    const resize = () => {
-      const { clientWidth: w, clientHeight: h } = stage;
-      this.renderer!.setSize(w, h, false);
-      this.camera!.aspect = w / h;
-      this.camera!.updateProjectionMatrix();
-    };
-    new ResizeObserver(resize).observe(stage);
-    resize();
-    this.renderer.domElement.addEventListener('pointermove', (event) => this.point(event));
+    const stage = new Stage(this.element().nativeElement, { far: 50000 });
+    this.stage = stage;
+    const sun = new THREE.DirectionalLight('#ffffff', 1.6);
+    sun.position.set(0.4, 1, 0.3);
+    stage.scene.add(this.content, new THREE.AmbientLight('#ffffff', 1.2), sun);
+    const canvas = stage.canvas;
+    canvas.addEventListener('pointermove', (event) => this.point(event));
     // A finger leaves the canvas as it's lifted, right after a tap: the label it showed stays.
-    this.renderer.domElement.addEventListener('pointerleave', (event) => {
+    canvas.addEventListener('pointerleave', (event) => {
       if (event.pointerType === 'mouse') this.tip.set(null);
     });
     // A click picks the factory under it; a drag turns the view and picks nothing. On a touch screen, where nothing
     // hovers, a tap also shows what it's on, as a tap on the map does (asked 2026-11-25); a tap on nothing closes it.
-    let down: { x: number; y: number } | null = null;
-    this.renderer.domElement.addEventListener('pointerdown', (event) => {
-      down = { x: event.clientX, y: event.clientY };
-    });
-    this.renderer.domElement.addEventListener('pointerup', (event) => {
-      if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) < 4) {
-        this.pick(event);
-        this.showArrows(event);
-        if (event.pointerType !== 'mouse') this.tipAt(event);
-      }
-      down = null;
-    });
-    this.renderer.setAnimationLoop(() => {
-      this.controls!.update();
-      this.renderer!.render(this.scene, this.camera!);
+    stage.onPress((press) => {
+      const hits = press.hits(this.content.children).filter((hit) => hit.object.visible);
+      this.pick(hits);
+      this.toggleArrows(stage, hits);
+      if (press.pointerType !== 'mouse') this.tipAt(press, hits);
     });
     this.draw(this.arrangement(), this.colourOf(), this.machines());
   }
 
   private stop(): void {
-    this.renderer?.setAnimationLoop(null);
-    this.controls?.dispose();
-    this.renderer?.dispose();
+    this.stage?.dispose();
     this.clear();
     this.materials.forEach((material) => material.dispose());
   }
@@ -550,50 +506,21 @@ export class BeltFloor3d {
    * A click on a splitter or merger on the floor shows its ways in and out as arrows (asked 2026-11-26); a click on it
    * again, or anywhere else, lets go of them.
    */
-  private showArrows(event: PointerEvent): void {
-    const canvas = this.renderer!.domElement;
-    const rect = canvas.getBoundingClientRect();
-    this.pointer.setFromCamera(
-      new THREE.Vector2(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        -((event.clientY - rect.top) / rect.height) * 2 + 1,
-      ),
-      this.camera!,
-    );
-    const hit = this.pointer
-      .intersectObjects(this.content.children, false)
-      .find((candidate) => candidate.object.visible && candidate.object.userData['arrows']);
+  private toggleArrows(stage: Stage, hits: readonly THREE.Intersection[]): void {
+    const hit = hits.find((candidate) => candidate.object.userData['arrows']);
     const clicked = hit && hit.object !== this.arrowsOf ? hit.object : null;
-    this.clearArrows();
-    if (!clicked) return;
     this.arrowsOf = clicked;
-    const arrows = clicked.userData['arrows'] as {
-      at: THREE.Vector3;
-      along: { x: number; y: number };
-      way: 'in' | 'out';
-    }[];
-    for (const arrow of arrows) this.arrows.add(flowArrow(arrow.at, arrow.along, arrow.way));
+    stage.showArrows(clicked ? (clicked.userData['arrows'] as FlowArrow[]) : []);
   }
 
   private clearArrows(): void {
-    this.arrows.clear();
     this.arrowsOf = null;
+    this.stage?.showArrows([]);
   }
 
   /** The factory under a click, picked or unpicked: its slab or its machines, not a belt in front of it. */
-  private pick(event: PointerEvent): void {
-    const canvas = this.renderer!.domElement;
-    const rect = canvas.getBoundingClientRect();
-    this.pointer.setFromCamera(
-      new THREE.Vector2(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        -((event.clientY - rect.top) / rect.height) * 2 + 1,
-      ),
-      this.camera!,
-    );
-    const hit = this.pointer
-      .intersectObjects(this.content.children, false)
-      .find((candidate) => candidate.object.visible && candidate.object.userData['factory']);
+  private pick(hits: readonly THREE.Intersection[]): void {
+    const hit = hits.find((candidate) => candidate.object.userData['factory']);
     if (hit) this.picked.emit(hit.object.userData['factory'] as string);
   }
 
@@ -607,23 +534,19 @@ export class BeltFloor3d {
       this.tip.set(null);
       return;
     }
-    if (event.pointerType === 'mouse') this.tipAt(event);
+    if (event.pointerType !== 'mouse' || !this.stage) return;
+    const rect = this.stage.canvas.getBoundingClientRect();
+    const hits = this.stage
+      .hitsAt(event, this.content.children)
+      .filter((hit) => hit.object.visible);
+    this.tipAt({ x: event.clientX - rect.left, y: event.clientY - rect.top }, hits);
   }
 
   /** The label of what's under a pointer, beside it; none on nothing. */
-  private tipAt(event: PointerEvent): void {
-    const canvas = this.renderer!.domElement;
-    const rect = canvas.getBoundingClientRect();
-    const [x, y] = [event.clientX - rect.left, event.clientY - rect.top];
-    this.pointer.setFromCamera(
-      new THREE.Vector2((x / rect.width) * 2 - 1, -(y / rect.height) * 2 + 1),
-      this.camera!,
-    );
-    const hits = this.pointer
-      .intersectObjects(this.content.children, false)
-      .filter((hit) => hit.object.visible && hit.object.userData['tooltip']);
-    const hit = hits.find((candidate) => candidate.object.userData['belt']) ?? hits[0];
-    this.tip.set(hit ? { html: hit.object.userData['tooltip'] as string, x, y } : null);
+  private tipAt(at: { x: number; y: number }, hits: readonly THREE.Intersection[]): void {
+    const labelled = hits.filter((hit) => hit.object.userData['tooltip']);
+    const hit = labelled.find((candidate) => candidate.object.userData['belt']) ?? labelled[0];
+    this.tip.set(hit ? { html: hit.object.userData['tooltip'] as string, x: at.x, y: at.y } : null);
   }
 
   /**
@@ -700,15 +623,10 @@ export class BeltFloor3d {
 
   /** Looks at the whole floor from the south-east, a little from above. */
   private frame(): void {
-    const bounds = new THREE.Box3().setFromObject(this.content);
-    const middle = bounds.getCenter(new THREE.Vector3());
-    const size = bounds.getSize(new THREE.Vector3());
-    const reach = Math.max(size.x, size.y, size.z, 20);
-    this.camera!.position.copy(middle).add(
-      new THREE.Vector3(1, 0.6, 1.15)
-        .normalize()
-        .multiplyScalar(floorDistance(reach, this.camera!.aspect)),
+    this.stage?.frame(
+      new THREE.Box3().setFromObject(this.content),
+      new THREE.Vector3(1, 0.6, 1.15),
+      (size, aspect) => floorDistance(Math.max(size.x, size.y, size.z, 20), aspect),
     );
-    this.controls!.target.copy(middle);
   }
 }

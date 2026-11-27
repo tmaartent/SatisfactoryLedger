@@ -12,6 +12,13 @@ const materials = {
 };
 const up = new THREE.Vector3(0, 1, 0);
 
+/** An arrow in a 3D view: its middle in the scene, which way the items go along the game's x and y, in or out. */
+export interface FlowArrow {
+  at: THREE.Vector3;
+  along: { x: number; y: number };
+  way: 'in' | 'out';
+}
+
 /**
  * An arrow on a splitter's or merger's way in or out (asked 2026-11-26), in a 3D view: 3 metres long, lying flat, its
  * middle at `at`, pointing the way the items go, `along` the game's x and y (the scene's x and z). Drawn over

@@ -22,7 +22,6 @@ import { MatSliderModule } from '@angular/material/slider';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import { Api } from '../../api/api';
@@ -53,7 +52,6 @@ import {
   MachineStatus,
 } from '../map/map-model';
 import { boxGeometry } from './box-geometry';
-import { sceneBackground } from './scene-background';
 import {
   Area,
   areaAround,
@@ -65,7 +63,7 @@ import {
   toScene,
   tubeColour,
 } from './area-model';
-import { flowArrow } from './flow-arrow';
+import { ScreenPoint, Stage } from '../stage/stage';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { framingDistance, pointsToFrame } from './framing';
@@ -76,16 +74,7 @@ import { FactoryDraft, ownDraftOrThePages } from '../factory-draft';
 import { factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
 import { pieceAt, pieceStarts } from './merged-pieces';
-import {
-  choicesTop,
-  ClickReach,
-  isTap,
-  rectBetween,
-  ScreenPoint,
-  ScreenRect,
-  SeenRange,
-  inBox,
-} from './selection';
+import { choicesTop, isTap, rectBetween, ScreenRect, SeenRange, inBox } from './selection';
 import { GameIcon } from '../../shared/game-icon';
 import { loaded } from '../../shared/loaded';
 
@@ -335,8 +324,6 @@ export class AreaPage {
   private readonly previewLayer = new THREE.Group();
   /** The belt, pipe or lift looked at, drawn again over itself, glowing. */
   private readonly selectionLayer = new THREE.Group();
-  /** The ways in and out of the splitter or merger looked at, as arrows (asked 2026-11-26). */
-  private readonly attachmentLayer = new THREE.Group();
   /** The box being dragged, on screen, while shift or alt is held, or while boxing on a touch screen. */
   protected readonly dragBox = signal<ScreenRect | null>(null);
   /**
@@ -354,11 +341,9 @@ export class AreaPage {
   protected readonly megawatts = megawatts;
   protected readonly position = positionInMetres;
 
-  private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
-  private renderer?: THREE.WebGLRenderer;
-  private camera?: THREE.PerspectiveCamera;
-  private controls?: OrbitControls;
-  private readonly scene = new THREE.Scene();
+  private readonly element = viewChild.required<ElementRef<HTMLElement>>('stage');
+  /** Where the area is drawn, once the view is on the page. */
+  private stage?: Stage;
   private readonly content = new THREE.Group();
   private readonly materials = new Map<string, THREE.MeshLambertMaterial>();
   /** Cuts belts and pipes off above the roof of the highest floor still shown (see applyCutOff). */
@@ -376,15 +361,6 @@ export class AreaPage {
   private framed = false;
 
   constructor() {
-    this.scene.add(this.content);
-    this.scene.add(this.previewLayer);
-    this.scene.add(this.selectionLayer);
-    this.scene.add(this.attachmentLayer);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-    sun.position.set(60, 140, 90);
-    this.scene.add(sun);
-
     this.draft.within({
       snapshotId: this.id,
       world: computed(() => loaded(this.snapshot)?.sessionName),
@@ -439,15 +415,14 @@ export class AreaPage {
     const on = !this.boxing();
     this.boxing.set(on);
     this.letGoOfBox();
-    if (this.controls) this.controls.enabled = !on;
+    if (this.stage) this.stage.orbiting = !on;
   }
 
   /** Adds or takes out every machine in the box drawn. Boxing goes on, so the next box can be drawn at once. */
   protected useBox(mode: 'add' | 'remove'): void {
     const box = this.drawnBox();
-    if (!box) return;
-    const stage = this.stage().nativeElement;
-    this.draft.box(inBox(this.machinesOnScreen(stage), box), mode);
+    if (!box || !this.stage) return;
+    this.draft.box(inBox(this.machinesOnScreen(this.stage), box), mode);
     this.letGoOfBox();
     // What they make and take now, in the Info tab, as after a tap on a machine.
     this.sidebar.show('info');
@@ -489,47 +464,26 @@ export class AreaPage {
   }
 
   private start(): void {
-    const stage = this.stage().nativeElement;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.localClippingEnabled = true;
-    // As big as the stage. Its stylesheet can't say so: three.js makes the canvas, so it lacks the attribute Angular
-    // scopes the component's styles by. Unsized, it would show at its pixels' size: twice the stage on a phone's screen.
-    Object.assign(this.renderer.domElement.style, {
-      display: 'block',
-      width: '100%',
-      height: '100%',
-    });
-    stage.prepend(this.renderer.domElement);
-    this.camera = new THREE.PerspectiveCamera(45, 1, 0.5, 20000);
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.screenSpacePanning = true;
-    // The stage's own background, as the browser worked it out: the site's colours, never white (asked 2026-11-20).
-    this.scene.background = new THREE.Color(
-      sceneBackground(getComputedStyle(stage).backgroundColor),
+    const element = this.element().nativeElement;
+    this.stage = new Stage(element, { far: 20000, canvasFirst: true, clipping: true });
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(60, 140, 90);
+    this.stage.scene.add(
+      this.content,
+      this.previewLayer,
+      this.selectionLayer,
+      new THREE.HemisphereLight(0xffffff, 0x445566, 2.2),
+      sun,
     );
-
-    const resize = () => {
-      const { clientWidth: w, clientHeight: h } = stage;
-      this.renderer!.setSize(w, h, false);
-      this.camera!.aspect = w / h;
-      this.camera!.updateProjectionMatrix();
-    };
-    new ResizeObserver(resize).observe(stage);
-    resize();
-    this.listenForClicks(this.renderer.domElement);
-    this.listenForBoxes(stage);
-    this.renderer.setAnimationLoop(() => {
-      this.controls!.update();
-      this.renderer!.render(this.scene, this.camera!);
-    });
+    this.listenForClicks(this.stage);
+    this.listenForBoxes(this.stage, element);
     this.draw();
+    // The arrows of a splitter looked at before the stage was there.
+    this.drawAttachmentArrows();
   }
 
   private stop(): void {
-    this.renderer?.setAnimationLoop(null);
-    this.controls?.dispose();
-    this.renderer?.dispose();
+    this.stage?.dispose();
     this.content.traverse((object) => (object as THREE.Mesh).geometry?.dispose());
     this.materials.forEach((material) => material.dispose());
     this.outlineMaterials.forEach((material) => material.dispose());
@@ -576,7 +530,8 @@ export class AreaPage {
     const owners = this.owners();
     const connected = this.connected();
     const faded = (id: string) => connected !== null && !connected.has(id);
-    if (!this.renderer || !world) return;
+    const stage = this.stage;
+    if (!stage || !world) return;
 
     this.content.clear();
     const area = this.area();
@@ -644,7 +599,7 @@ export class AreaPage {
     }
 
     if (!this.framed && this.content.children.length) {
-      this.frame(world.conveyors, area, at);
+      this.frame(stage, world.conveyors, area, at);
       this.framed = true;
     }
 
@@ -709,21 +664,23 @@ export class AreaPage {
    * nothing while defining, as with a building.
    */
   private drawAttachmentArrows(): void {
+    // Every signal read before the stage is asked for: an effect only hears again the signals its last run read.
     const building = this.selected();
     const world = loaded(this.world);
-    this.attachmentLayer.clear();
-    if (
-      this.draft.defining() ||
-      !world ||
-      !building?.className.startsWith('Build_ConveyorAttachment')
-    )
-      return;
     const area = this.area();
+    const defining = this.draft.defining();
+    if (!this.stage) return;
+    if (defining || !world || !building?.className.startsWith('Build_ConveyorAttachment')) {
+      this.stage.showArrows([]);
+      return;
+    }
     const middle = { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
-    for (const arrow of attachmentArrows(building.position, world.conveyors))
-      this.attachmentLayer.add(
-        flowArrow(new THREE.Vector3(...toScene(arrow.at, middle)), arrow.along, arrow.way),
-      );
+    this.stage.showArrows(
+      attachmentArrows(building.position, world.conveyors).map((arrow) => ({
+        ...arrow,
+        at: new THREE.Vector3(...toScene(arrow.at, middle)),
+      })),
+    );
   }
 
   /** The belt, pipe or lift looked at, a little thicker and glowing; nothing while defining, as with a building. */
@@ -795,7 +752,12 @@ export class AreaPage {
    * out of a factory runs on in the scene, cut off only where the area ends, and would pull the middle its way. An area
    * with no buildings, only belts and pipes, is framed at them where they lie in it.
    */
-  private frame(conveyors: MapConveyor[], area: Area, at: (p: Position) => THREE.Vector3): void {
+  private frame(
+    stage: Stage,
+    conveyors: MapConveyor[],
+    area: Area,
+    at: (p: Position) => THREE.Vector3,
+  ): void {
     const bounds = new THREE.Box3();
     for (const object of this.content.children)
       if (object.userData['building']) bounds.expandByObject(object);
@@ -805,45 +767,24 @@ export class AreaPage {
         area,
       ))
         bounds.expandByPoint(at(point));
-    const middle = bounds.getCenter(new THREE.Vector3());
-    const size = bounds.getSize(new THREE.Vector3());
     // Seen from a corner, a floor's width across is its diagonal.
-    const across = Math.max(Math.hypot(size.x, size.z), 20);
-    this.camera!.position.copy(middle).add(
-      new THREE.Vector3(1, 0.75, 1.15)
-        .normalize()
-        .multiplyScalar(framingDistance({ across, high: size.y }, this.camera!.aspect)),
+    stage.frame(bounds, new THREE.Vector3(1, 0.75, 1.15), (size, aspect) =>
+      framingDistance({ across: Math.max(Math.hypot(size.x, size.z), 20), high: size.y }, aspect),
     );
-    this.controls!.target.copy(middle);
   }
 
   /**
    * A click without a drag selects the building, belt, pipe or lift under the pointer; a click on nothing clears the
    * selection. While defining a factory, a click on a machine or generator also adds it or takes it out.
    */
-  private listenForClicks(canvas: HTMLCanvasElement): void {
-    let down = { x: 0, y: 0 };
-    const ray = new THREE.Raycaster();
-    canvas.addEventListener(
-      'pointerdown',
-      (event) => (down = { x: event.clientX, y: event.clientY }),
-    );
-    canvas.addEventListener('pointerup', (event) => {
-      if (Math.hypot(event.clientX - down.x, event.clientY - down.y) > ClickReach) return;
-      const rect = canvas.getBoundingClientRect();
-      ray.setFromCamera(
-        new THREE.Vector2(
-          ((event.clientX - rect.left) / rect.width) * 2 - 1,
-          -((event.clientY - rect.top) / rect.height) * 2 + 1,
-        ),
-        this.camera!,
-      );
+  private listenForClicks(stage: Stage): void {
+    stage.onPress((press) => {
       const shown = this.content.children.filter(
         (o) => o.visible && (o.userData['building'] || o.userData['conveyors']),
       );
       // The ray passes through what the cut-off and the area's bounds clip away: a belt counts only where it's still drawn.
-      const hit = ray
-        .intersectObjects(shown, false)
+      const hit = press
+        .hits(shown)
         .find(
           (h) =>
             !h.object.userData['conveyors'] ||
@@ -872,23 +813,23 @@ export class AreaPage {
    * to add or take out its machines. A tap draws none: the click on the machine under it adds or takes it out. The
    * pointer isn't captured then: a touch stays with the canvas it pressed, whose click listens for the release.
    */
-  private listenForBoxes(stage: HTMLElement): void {
+  private listenForBoxes(stage: Stage, element: HTMLElement): void {
     let start: ScreenPoint | null = null;
     let mode: 'add' | 'remove' | 'offer' = 'add';
     const at = (event: PointerEvent): ScreenPoint => {
-      const rect = stage.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     };
-    stage.addEventListener(
+    element.addEventListener(
       'pointerdown',
       (event) => {
         if (!this.draft.defining() || event.button !== 0) return;
         if (event.shiftKey || event.altKey) {
           mode = event.altKey ? 'remove' : 'add';
-          this.controls!.enabled = false;
-          stage.setPointerCapture(event.pointerId);
+          stage.orbiting = false;
+          element.setPointerCapture(event.pointerId);
           event.preventDefault();
-        } else if (this.boxing() && event.isPrimary && event.target === this.renderer?.domElement) {
+        } else if (this.boxing() && event.isPrimary && event.target === stage.canvas) {
           // On the canvas only: a press on the choices or the select button, which lie over it, would let go of the box
           // before the button's click comes to use it (asked 2026-11-24: Add did nothing).
           mode = 'offer';
@@ -898,7 +839,7 @@ export class AreaPage {
       },
       { capture: true },
     );
-    stage.addEventListener('pointermove', (event) => {
+    element.addEventListener('pointermove', (event) => {
       if (start && event.isPrimary) this.dragBox.set(rectBetween(start, at(event)));
     });
     const letGo = (event: PointerEvent) => {
@@ -908,18 +849,18 @@ export class AreaPage {
       if (mode === 'offer') {
         if (isTap(box)) this.letGoOfBox();
         else {
-          this.choicesAt.set(choicesTop(box, this.seenRange(stage)));
+          this.choicesAt.set(choicesTop(box, this.seenRange(element)));
           this.drawnBox.set(box);
         }
         return;
       }
       this.dragBox.set(null);
-      this.controls!.enabled = true;
-      stage.releasePointerCapture(event.pointerId);
+      stage.orbiting = true;
+      element.releasePointerCapture(event.pointerId);
       this.draft.box(inBox(this.machinesOnScreen(stage), box), mode);
     };
-    stage.addEventListener('pointerup', letGo);
-    stage.addEventListener('pointercancel', letGo);
+    element.addEventListener('pointerup', letGo);
+    element.addEventListener('pointercancel', letGo);
   }
 
   /**
@@ -946,12 +887,10 @@ export class AreaPage {
   }
 
   /**
-   * Where the middle of every machine shown lies on screen, in pixels from the stage's top left. Machines of another
-   * factory are left out: a machine belongs to one factory at most (BR-W5).
+   * Where the middle of every machine or generator shown lies on screen, in pixels from the stage's top left; none
+   * behind the camera. The draft leaves out another factory's (BR-W5).
    */
-  private machinesOnScreen(stage: HTMLElement): (ScreenPoint & { id: string })[] {
-    const { clientWidth: width, clientHeight: height } = stage;
-    const middle = new THREE.Vector3();
+  private machinesOnScreen(stage: Stage): (ScreenPoint & { id: string })[] {
     return this.content.children
       .filter((o) => {
         const building = o.userData['building'] as AreaBuilding | undefined;
@@ -960,16 +899,8 @@ export class AreaPage {
       .flatMap((o) => {
         const geometry = (o as THREE.Mesh).geometry;
         if (!geometry.boundingBox) geometry.computeBoundingBox();
-        geometry.boundingBox!.getCenter(middle).project(this.camera!);
-        // Behind the camera: projecting goes through it, so the machine would land on screen mirrored.
-        if (middle.z > 1) return [];
-        return [
-          {
-            id: (o.userData['building'] as AreaBuilding).id,
-            x: ((middle.x + 1) / 2) * width,
-            y: ((1 - middle.y) / 2) * height,
-          },
-        ];
+        const at = stage.onScreen(geometry.boundingBox!.getCenter(new THREE.Vector3()));
+        return at ? [{ id: (o.userData['building'] as AreaBuilding).id, ...at }] : [];
       });
   }
 
