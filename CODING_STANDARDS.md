@@ -24,6 +24,7 @@ Structure is described in the vocabulary of the `codebase-design` skill: **modul
 ## Commits
 
 - **One feature per commit.** Unrelated changes go into separate commits, even when they touch the same files.
+- **A refactor changes no behaviour.** A behaviour change agreed for a refactor goes into its own `fix:` or `feat:` commit, before the `refactor:` one, and builds on its own. Example: step 124's 4-pixel press on the belt floor, which first sat inside the refactor.
 
 ## Tests
 
