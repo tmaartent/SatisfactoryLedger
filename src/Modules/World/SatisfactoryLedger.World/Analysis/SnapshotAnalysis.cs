@@ -44,6 +44,8 @@ internal static class SnapshotAnalysis
             // A drone port is never part of a factory (BR-W1, BR-W8); a generator is, when chosen as one of its machines.
             wholeWorld: false);
         FlowReadings readings = AnalysisReadings.Of(world, analysis);
+        FactoryHandovers handovers = SnapshotHandovers.Of(snapshot, world, factory, members, readings, factories);
+        Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, factories);
 
         return new FactoryAnalysisResponse(
             factory.Id,
@@ -51,8 +53,8 @@ internal static class SnapshotAnalysis
             findings.Settled,
             findings.Summary,
             findings.GeneratorSummary,
-            FactoryOutputs.Of(snapshot, world, factory, members, readings, factories),
-            FactoryInputs.Of(snapshot, world, factory, members, readings, factories),
+            FactoryOutputs.Of(handovers, names),
+            FactoryInputs.Of(handovers, names),
             PowerOf(snapshot, members, readings),
             findings.Machines,
             findings.Generators,
