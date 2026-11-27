@@ -4,7 +4,7 @@ The domain projects (`*.Domain`, `SharedKernel`) are the heart of the showcase. 
 
 ## 1. Language first
 
-- Every class, method and property name comes from the [glossary](../domain/glossary.md). If you're tempted to write `CalculateRatio` or `FactoryManager`, stop and find the domain word.
+- Every class, method and property name comes from the [glossary](../../GLOSSARY.md). If you're tempted to write `CalculateRatio` or `FactoryManager`, stop and find the domain word.
 - Methods express **intent**, not data changes: `blueprint.AddStep(recipe, machines)` rather than `blueprint.Steps.Add(...)`, and `factory.Restack(height)` rather than `factory.StackHeight = 3`.
 - When the code needs a new concept, add it to the glossary in the same commit.
 

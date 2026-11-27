@@ -4,9 +4,9 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **`docs/domain/glossary.md`**: the ubiquitous language. Terms are used identically in conversation, docs, code, API routes and the UI.
-- **`docs/domain/business-rules.md`**: the business rules (`BR-*`) the code refers to.
-- **`docs/domain/context-map.md`**: the modules (bounded contexts) and how they relate.
+- **`GLOSSARY.md`** at the repo root: the ubiquitous language.
+- **`docs/domain/business-rules.md`**: the business rules (`BR-*`) the glossary and the code refer to.
+- **`docs/domain/context-map.md`**: the modules and how they relate.
 - **`docs/adr/`**: read ADRs that touch the area you're about to work in.
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
@@ -17,12 +17,12 @@ Single-context repo: one glossary for the whole modular monolith, one set of ADR
 
 ```
 /
+├── GLOSSARY.md
 ├── docs/
 │   ├── adr/
 │   │   ├── 0001-record-architecture-decisions.md
 │   │   └── 0002-modular-monolith.md
 │   └── domain/
-│       ├── glossary.md
 │       ├── business-rules.md
 │       └── context-map.md
 └── src/
@@ -30,7 +30,7 @@ Single-context repo: one glossary for the whole modular monolith, one set of ADR
 
 ## Use the glossary's vocabulary
 
-When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `docs/domain/glossary.md`. Don't drift to synonyms the glossary explicitly avoids.
+When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `GLOSSARY.md`. Don't drift to synonyms the glossary explicitly avoids.
 
 If the concept you need isn't in the glossary yet, that's a signal: either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
 

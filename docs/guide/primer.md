@@ -355,7 +355,7 @@ Java has no counterpart for this part: in a browser, the layout follows the scre
 | Term | What it is | In this project |
 |---|---|---|
 | **DDD (Domain-Driven Design)** | Designing software around the business domain and its language. | The whole project |
-| **Ubiquitous language** | The same words in conversation, docs and code. | `docs/domain/glossary.md` |
+| **Ubiquitous language** | The same words in conversation, docs and code. | `GLOSSARY.md` |
 | **Bounded context** | A part of the domain with its own model and language. | Catalog, Blueprint Design, Factory Network |
 | **Module** | The code that implements one bounded context. | `src/Modules/*` |
 | **Modular monolith** | One application, internally divided into strictly separated modules. | ADR-0002 |
