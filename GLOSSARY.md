@@ -160,6 +160,10 @@ _Avoid_: factory for a blueprint design (see **Blueprint**); output belt (factor
 **Factory Preview**:
 What the machines chosen so far would make a factory, traced in a snapshot without saving it: the logistics it would own and its outputs and inputs (BR-W3, BR-W4).
 
+**Factory Draft**:
+A factory being defined or edited and not saved yet: the machines chosen so far, none of them another factory's (BR-W5), its name and its **Factory Preview**. Saving it stores the factory; stopping throws it away.
+_Avoid_: factory definition for the unsaved one (a definition is what's stored)
+
 **Factories in a snapshot**:
 A world's stored factories matched in one of its snapshots all at once: per factory its machines found or missing, whether it's traceable there and its members, and who owns each machine (BR-W5, BR-W11).
 

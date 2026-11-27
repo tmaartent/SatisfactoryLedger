@@ -67,24 +67,18 @@ export function choicesTop(box: ScreenRect, seen: SeenRange): number {
   return seen.bottom - box.bottom > box.top - seen.top ? lowest : highest;
 }
 
-/** A box adds (shift) or takes out (alt) every machine whose middle lies inside it on screen, edges included. */
-export function boxSelect(
-  selection: ReadonlySet<string>,
+/** The machines whose middle lies inside a box on screen, edges included: a box adds them (shift) or takes them out (alt). */
+export function inBox(
   onScreen: readonly (ScreenPoint & { id: string })[],
   box: ScreenRect,
-  mode: 'add' | 'remove',
-): Set<string> {
-  const next = new Set(selection);
-  for (const machine of onScreen) {
-    if (
-      machine.x < box.left ||
-      machine.x > box.right ||
-      machine.y < box.top ||
-      machine.y > box.bottom
+): string[] {
+  return onScreen
+    .filter(
+      (machine) =>
+        machine.x >= box.left &&
+        machine.x <= box.right &&
+        machine.y >= box.top &&
+        machine.y <= box.bottom,
     )
-      continue;
-    if (mode === 'add') next.add(machine.id);
-    else next.delete(machine.id);
-  }
-  return next;
+    .map((machine) => machine.id);
 }

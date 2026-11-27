@@ -11,27 +11,27 @@
       >{{ machineCount() }} machines, {{ buildings().length }} buildings in the area</span
     >
     <!-- While defining, the name and Save and Cancel are here, as on a factory's own page (asked 2026-11-22). -->
-    @if (defining()) {
+    @if (draft.defining()) {
       <input
         class="name"
         aria-label="Name"
         placeholder="Name"
-        [(ngModel)]="factoryName"
-        (keydown.enter)="save()"
+        [(ngModel)]="draft.name"
+        (keydown.enter)="draft.save()"
       />
-      <button mat-button type="button" (click)="stopDefining()">Cancel</button>
-      <button mat-flat-button type="button" (click)="save()" [disabled]="!canSave()">
+      <button mat-button type="button" (click)="draft.stop()">Cancel</button>
+      <button mat-flat-button type="button" (click)="draft.save()" [disabled]="!draft.canSave()">
         <mat-icon>save</mat-icon> Save
       </button>
     } @else {
-      <button mat-flat-button (click)="startDefining()">
+      <button mat-flat-button (click)="draft.start()">
         <mat-icon>add</mat-icon> Define a factory
       </button>
     }
   }
 </div>
-@if (!embedded() && saveError()) {
-  <p class="error">{{ saveError() }}</p>
+@if (!embedded() && draft.saveError()) {
+  <p class="error">{{ draft.saveError() }}</p>
 }
 
 @if (world.isLoading()) {
@@ -65,7 +65,7 @@
         [style.height.px]="box.bottom - box.top"
       ></div>
     }
-    @if (defining()) {
+    @if (draft.defining()) {
       <!-- On a touch screen, with no keys to hold: box machines, then say what to do with them (asked 2026-11-24). -->
       <button
         mat-mini-fab
@@ -90,7 +90,7 @@
       }
     }
     <span class="hint">
-      @if (defining()) {
+      @if (draft.defining()) {
         <span class="mouse"
           >Click a machine to add it, click it again to take it out. Shift-drag to add a box of
           them, alt-drag to take them out.</span
@@ -134,7 +134,7 @@
 <!-- The building or belt clicked, or the steps of defining a factory: the sidebar's Info tab (asked 2026-11-22). -->
 <ng-template appSidebarTab="info" label="Info" icon="info">
   <div class="panel" aria-live="polite">
-    @if (!defining() && infoTop(); as top) {
+    @if (!draft.defining() && infoTop(); as top) {
       <ng-container *ngTemplateOutlet="top" />
     }
     <!-- What something holds, each item with its icon: "Bauxite × 100, Water × 50". -->
@@ -148,14 +148,14 @@
         empty
       }
     </ng-template>
-    @if (defining()) {
+    @if (draft.defining()) {
       <section class="factory">
-        <h2>{{ editing() ? 'Edit factory' : 'New factory' }}</h2>
+        <h2>{{ draft.editing() ? 'Edit factory' : 'New factory' }}</h2>
         <p>
-          {{ chosen().size }} {{ chosen().size === 1 ? 'machine' : 'machines' }} chosen, generators
-          included
+          {{ draft.chosen().size }} {{ draft.chosen().size === 1 ? 'machine' : 'machines' }} chosen,
+          generators included
         </p>
-        @if (loaded(preview); as preview) {
+        @if (loaded(draft.preview); as preview) {
           <div class="preview">
             <!-- Output and input, power among the output, now, as the items (asked 2026-11-24). -->
             <p><span class="swatch output"></span> Output</p>
@@ -193,7 +193,7 @@
               }
             </ul>
           </div>
-        } @else if (preview.isLoading()) {
+        } @else if (draft.preview.isLoading()) {
           <p class="muted">Tracing…</p>
         }
         @if (clickedMachine(); as building) {
@@ -217,7 +217,7 @@
           <li>Hold <b>Alt</b> and drag a box to take them out.</li>
           <li>
             Machines outlined in colour are another factory's and can't be added{{
-              editing() ? "; this factory's own can be taken out" : ''
+              draft.editing() ? "; this factory's own can be taken out" : ''
             }}.
           </li>
           <li>
@@ -227,7 +227,7 @@
         </ul>
       </section>
     }
-    @if (defining()) {
+    @if (draft.defining()) {
       <!-- While defining, the panel names the machine clicked and nothing more. -->
     } @else if (selected(); as building) {
       <h2>
@@ -387,11 +387,11 @@
             <a [routerLink]="['/snapshots', id(), 'factories', factory.factoryId]">{{
               factory.name
             }}</a>
-            @if (!defining()) {
+            @if (!draft.defining()) {
               <span class="legend-actions">
                 <button
                   mat-icon-button
-                  (click)="startEditing(factory)"
+                  (click)="draft.edit(factory.factoryId)"
                   [attr.aria-label]="'Edit ' + factory.name"
                 >
                   <mat-icon>edit</mat-icon>

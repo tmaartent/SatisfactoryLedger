@@ -1,4 +1,4 @@
-import { boxSelect, choicesTop, isTap, rectBetween, toggle } from './selection';
+import { choicesTop, inBox, isTap, rectBetween, toggle } from './selection';
 
 describe('selecting machines for a factory', () => {
   describe('a click', () => {
@@ -77,18 +77,8 @@ describe('selecting machines for a factory', () => {
       { id: 'outside', x: 250, y: 150 },
     ];
 
-    it('adds every machine inside it, with shift', () => {
-      expect([...boxSelect(new Set(['kept']), onScreen, box, 'add')]).toEqual([
-        'kept',
-        'inside',
-        'on-the-edge',
-      ]);
-    });
-
-    it('takes out every machine inside it, with alt', () => {
-      expect([...boxSelect(new Set(['inside', 'outside']), onScreen, box, 'remove')]).toEqual([
-        'outside',
-      ]);
+    it('takes in every machine whose middle lies inside it, edges included', () => {
+      expect(inBox(onScreen, box)).toEqual(['inside', 'on-the-edge']);
     });
   });
 });

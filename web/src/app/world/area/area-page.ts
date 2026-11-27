@@ -8,7 +8,6 @@ import {
   effect,
   inject,
   input,
-  output,
   resource,
   signal,
   untracked,
@@ -20,6 +19,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSliderModule } from '@angular/material/slider';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -27,8 +27,6 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 import { Api } from '../../api/api';
 import { analyseSnapshot } from '../../api/fn/world/analyse-snapshot';
-import { defineFactory } from '../../api/fn/world/define-factory';
-import { editFactory } from '../../api/fn/world/edit-factory';
 import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { traceFactories } from '../../api/fn/world/trace-factories';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
@@ -74,16 +72,11 @@ import { framingDistance, pointsToFrame } from './framing';
 import { coveredSides } from '../map/visible-part';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
-import {
-  blockedMachines,
-  factoriesInArea,
-  machineOwners,
-  OutlinedFactory,
-} from './factory-outlines';
+import { FactoryDraft, ownDraftOrThePages } from '../factory-draft';
+import { factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
 import { pieceAt, pieceStarts } from './merged-pieces';
 import {
-  boxSelect,
   choicesTop,
   ClickReach,
   isTap,
@@ -91,7 +84,7 @@ import {
   ScreenPoint,
   ScreenRect,
   SeenRange,
-  toggle,
+  inBox,
 } from './selection';
 import { GameIcon } from '../../shared/game-icon';
 import { loaded } from '../../shared/loaded';
@@ -143,12 +136,16 @@ function choosable(building: AreaBuilding | null | undefined): building is AreaB
     MatSliderModule,
     SidebarTab,
   ],
+  // The factory's page's draft when it's inside one, else its own: either way gone with the page.
+  providers: [ownDraftOrThePages],
   templateUrl: './area-page.html',
   styleUrl: './area-page.scss',
 })
 export class AreaPage {
   private readonly api = inject(Api);
   private readonly factoryDeletion = inject(FactoryDeletion);
+  /** The factory being defined or edited here: the page's, shared with the factory's page around this view. */
+  protected readonly draft = inject(FactoryDraft);
   protected readonly names = inject(CatalogNames);
   protected readonly explainer = inject(Explainer);
   private readonly sidebar = inject(SidebarTabs);
@@ -167,8 +164,6 @@ export class AreaPage {
    * 2026-11-23). Not while defining, where the tab has the steps.
    */
   readonly infoTop = input<TemplateRef<unknown> | null>(null);
-  /** A factory saved here, new or edited: its id. */
-  readonly saved = output<string>();
 
   /** What the machines' colours mean: how they run (BR-A11). */
   /** The legend's last entry: what a red belt, lift or pipe means. */
@@ -279,8 +274,6 @@ export class AreaPage {
     loader: ({ params }) => this.api.invoke(traceFactories, params),
   });
   private readonly owners = computed(() => machineOwners(loaded(this.factories) ?? []));
-  /** The machines that can't be chosen: every factory's, or while editing one, the other factories' (BR-W5). */
-  private readonly blocked = computed(() => blockedMachines(this.owners(), this.editing()));
   protected readonly factoriesShown = computed(() =>
     factoriesInArea(loaded(this.factories) ?? [], new Set(this.buildings().map((b) => b.id))),
   );
@@ -317,7 +310,7 @@ export class AreaPage {
   protected readonly headLiftColour = conveyorColours.headLift;
   /** The building that glows: the one looked at, except while defining, where a click only turns a machine blue or back. */
   private readonly glowing = computed(() =>
-    this.defining() ? null : (this.selected()?.id ?? null),
+    this.draft.defining() ? null : (this.selected()?.id ?? null),
   );
   /** While defining, the machine or generator clicked, to name in the panel; any other building isn't named. */
   protected readonly clickedMachine = computed(() => {
@@ -338,32 +331,7 @@ export class AreaPage {
   });
   protected readonly cutOff = signal<number | null>(null);
 
-  /**
-   * Defining a factory: the machines chosen so far, by id, and what to call it. Public, with saving and stopping: a
-   * factory's page edits its factory from its own header (asked 2026-11-19).
-   */
-  readonly defining = signal(false);
-  /** The factory being edited; null when a new one is defined. */
-  protected readonly editing = signal<string | null>(null);
-  protected readonly chosen = signal<ReadonlySet<string>>(new Set());
-  readonly factoryName = signal('');
-  protected readonly saving = signal(false);
-  readonly saveError = signal<string | null>(null);
-  readonly canSave = computed(
-    () => this.chosen().size > 0 && this.factoryName().trim() !== '' && !this.saving(),
-  );
-
-  /** The chosen machines once the choosing pauses: the preview follows them (part 2b(2)). */
-  private readonly settled = signal<readonly string[]>([]);
-  /** What the chosen machines would make a factory, traced without saving it: what it would own and hand over. */
-  protected readonly preview = resource({
-    params: () =>
-      this.defining() && this.settled().length > 0
-        ? { id: this.id(), body: { machines: [...this.settled()] } }
-        : undefined,
-    loader: ({ params }) => this.api.invoke(previewFactory, params),
-  });
-  private readonly owned = computed(() => new Set(loaded(this.preview)?.logistics ?? []));
+  private readonly owned = computed(() => new Set(loaded(this.draft.preview)?.logistics ?? []));
   private readonly previewLayer = new THREE.Group();
   /** The belt, pipe or lift looked at, drawn again over itself, glowing. */
   private readonly selectionLayer = new THREE.Group();
@@ -417,6 +385,23 @@ export class AreaPage {
     sun.position.set(60, 140, 90);
     this.scene.add(sun);
 
+    this.draft.within({
+      snapshotId: this.id,
+      world: computed(() => loaded(this.snapshot)?.sessionName),
+      factories: computed(() => loaded(this.factories)),
+    });
+    // Defining shows the Info tab, which has the steps, also when the factory's page started it from its header;
+    // stopping lets go of a box being drawn.
+    effect(() => {
+      if (this.draft.defining()) untracked(() => this.showStepsBeside());
+      else if (untracked(this.boxing)) untracked(() => this.toggleBoxing());
+    });
+    // Saved: its machines as they are now, edged in its colour. The factory's own page has no Factories tab.
+    this.draft.saved$.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.factories.reload();
+      if (!this.embedded()) this.sidebar.show('factories');
+    });
+
     afterNextRender(() => this.start());
     // Where the open tab would lie over the view, it starts closed, until something in the view is clicked.
     this.sidebar.closeWhereItCovers();
@@ -425,39 +410,11 @@ export class AreaPage {
     // Redraw when the world or its analysis arrives; three.js knows nothing about signals.
     effect(() => this.draw());
     effect(() => this.applyCutOff(this.cutOff()));
-    effect(() => this.paint(this.glowing(), this.chosen(), this.owned()));
+    effect(() => this.paint(this.glowing(), this.draft.chosen(), this.owned()));
 
-    // The preview follows the choice once it pauses for a moment, not every machine a dragged box sweeps in.
-    effect((onCleanup) => {
-      const chosen = [...this.chosen()];
-      const timer = setTimeout(() => this.settled.set(chosen), 300);
-      onCleanup(() => clearTimeout(timer));
-    });
     effect(() => this.drawPreview());
     effect(() => this.drawSelectedConveyor());
     effect(() => this.drawAttachmentArrows());
-  }
-
-  /** Defining a factory shows the Info tab, which has the steps; the name and Save are in the page's header. */
-  protected startDefining(): void {
-    this.showStepsBeside();
-    this.defining.set(true);
-    this.settled.set([]);
-    this.saveError.set(null);
-  }
-
-  /** Edits a factory as a new one is defined: its machines chosen, its name filled in. */
-  protected startEditing(factory: Pick<OutlinedFactory, 'factoryId' | 'name'>): void {
-    const machines =
-      loaded(this.factories)?.find((trace) => trace.factoryId === factory.factoryId)?.machines ??
-      [];
-    this.editing.set(factory.factoryId);
-    this.chosen.set(new Set(machines.map((machine) => machine.id)));
-    this.factoryName.set(factory.name);
-    this.settled.set([]);
-    this.saveError.set(null);
-    this.showStepsBeside();
-    this.defining.set(true);
   }
 
   /**
@@ -470,16 +427,10 @@ export class AreaPage {
     this.sidebar.closeWhereItCovers();
   }
 
-  /** Edits a factory by its id, once its machines are known: the factory's page asks this from its Edit button. */
-  edit(factoryId: string): void {
-    const trace = loaded(this.factories)?.find((candidate) => candidate.factoryId === factoryId);
-    if (trace) this.startEditing({ factoryId, name: trace.name });
-  }
-
   /** After asking; then the factories again, without it. */
   protected async deleteFactory(factory: OutlinedFactory): Promise<void> {
     if (!(await this.factoryDeletion.confirmAndDelete(factory))) return;
-    if (this.editing() === factory.factoryId) this.stopDefining();
+    if (this.draft.editing() === factory.factoryId) this.draft.stop();
     this.factories.reload();
   }
 
@@ -496,7 +447,7 @@ export class AreaPage {
     const box = this.drawnBox();
     if (!box) return;
     const stage = this.stage().nativeElement;
-    this.chosen.update((chosen) => boxSelect(chosen, this.machinesOnScreen(stage), box, mode));
+    this.draft.box(inBox(this.machinesOnScreen(stage), box), mode);
     this.letGoOfBox();
     // What they make and take now, in the Info tab, as after a tap on a machine.
     this.sidebar.show('info');
@@ -505,47 +456,6 @@ export class AreaPage {
   protected letGoOfBox(): void {
     this.drawnBox.set(null);
     this.dragBox.set(null);
-  }
-
-  stopDefining(): void {
-    if (this.boxing()) this.toggleBoxing();
-    this.defining.set(false);
-    this.editing.set(null);
-    this.chosen.set(new Set());
-    this.settled.set([]);
-    this.factoryName.set('');
-    this.saveError.set(null);
-  }
-
-  /**
-   * Stores the factory, new or edited, in the snapshot's world, and stays: in the 3D view of an area the Factories tab
-   * shows it among the others, so the next one can be defined (asked 2026-11-23). It no longer opens the factory's page.
-   */
-  async save(): Promise<void> {
-    const snapshot = loaded(this.snapshot);
-    if (!snapshot || !this.canSave()) return;
-    this.saving.set(true);
-    this.saveError.set(null);
-    try {
-      const name = this.factoryName().trim();
-      const machines = [...this.chosen()];
-      const editing = this.editing();
-      const factory = editing
-        ? await this.api.invoke(editFactory, { id: editing, body: { name, machines } })
-        : await this.api.invoke(defineFactory, {
-            body: { world: snapshot.sessionName, name, machines },
-          });
-      this.saved.emit(factory.id);
-      // Stop defining, and show its machines as they are now, edged in its colour.
-      this.stopDefining();
-      this.factories.reload();
-      // The factory's own page has no Factories tab: it reloads its findings on saved.
-      if (!this.embedded()) this.sidebar.show('factories');
-    } catch (error) {
-      this.saveError.set(problemMessage(error));
-    } finally {
-      this.saving.set(false);
-    }
   }
 
   /** What the panel says about why the selected machine runs as it does: words around its items, each with its icon. */
@@ -741,7 +651,7 @@ export class AreaPage {
     // A redraw makes new meshes: the cut-off and the colours of the selection apply to those too.
     untracked(() => {
       this.applyCutOff(this.cutOff());
-      this.paint(this.glowing(), this.chosen(), this.owned());
+      this.paint(this.glowing(), this.draft.chosen(), this.owned());
     });
   }
 
@@ -750,7 +660,7 @@ export class AreaPage {
    * marker where each of its lines crosses: green going out, orange coming in.
    */
   private drawPreview(): void {
-    const preview = loaded(this.preview);
+    const preview = loaded(this.draft.preview);
     const world = loaded(this.world);
     this.previewLayer.clear();
     if (!preview || !world) return;
@@ -802,7 +712,11 @@ export class AreaPage {
     const building = this.selected();
     const world = loaded(this.world);
     this.attachmentLayer.clear();
-    if (this.defining() || !world || !building?.className.startsWith('Build_ConveyorAttachment'))
+    if (
+      this.draft.defining() ||
+      !world ||
+      !building?.className.startsWith('Build_ConveyorAttachment')
+    )
       return;
     const area = this.area();
     const middle = { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
@@ -815,7 +729,7 @@ export class AreaPage {
   /** The belt, pipe or lift looked at, a little thicker and glowing; nothing while defining, as with a building. */
   private drawSelectedConveyor(): void {
     const conveyor = this.selectedConveyor();
-    const defining = this.defining();
+    const defining = this.draft.defining();
     this.selectionLayer.traverse((object) => (object as THREE.Mesh).geometry?.dispose());
     this.selectionLayer.clear();
     if (!conveyor || defining || conveyor.curve.length < 2) return;
@@ -945,8 +859,7 @@ export class AreaPage {
       );
       // What was clicked is in the Info tab: shown, and the sidebar opened, also when it was collapsed (asked 2026-11-22).
       if (building || this.selectedConveyor()) this.sidebar.show('info');
-      if (this.defining() && choosable(building) && !this.blocked().has(building.id))
-        this.chosen.update((chosen) => toggle(chosen, building.id));
+      if (choosable(building)) this.draft.choose(building.id);
     });
   }
 
@@ -969,7 +882,7 @@ export class AreaPage {
     stage.addEventListener(
       'pointerdown',
       (event) => {
-        if (!this.defining() || event.button !== 0) return;
+        if (!this.draft.defining() || event.button !== 0) return;
         if (event.shiftKey || event.altKey) {
           mode = event.altKey ? 'remove' : 'add';
           this.controls!.enabled = false;
@@ -1000,12 +913,10 @@ export class AreaPage {
         }
         return;
       }
-      // A const, as the callback below can't rely on a narrowed outer variable.
-      const keyed = mode;
       this.dragBox.set(null);
       this.controls!.enabled = true;
       stage.releasePointerCapture(event.pointerId);
-      this.chosen.update((chosen) => boxSelect(chosen, this.machinesOnScreen(stage), box, keyed));
+      this.draft.box(inBox(this.machinesOnScreen(stage), box), mode);
     };
     stage.addEventListener('pointerup', letGo);
     stage.addEventListener('pointercancel', letGo);
@@ -1041,11 +952,10 @@ export class AreaPage {
   private machinesOnScreen(stage: HTMLElement): (ScreenPoint & { id: string })[] {
     const { clientWidth: width, clientHeight: height } = stage;
     const middle = new THREE.Vector3();
-    const blocked = this.blocked();
     return this.content.children
       .filter((o) => {
         const building = o.userData['building'] as AreaBuilding | undefined;
-        return o.visible && choosable(building) && !blocked.has(building.id);
+        return o.visible && choosable(building);
       })
       .flatMap((o) => {
         const geometry = (o as THREE.Mesh).geometry;
