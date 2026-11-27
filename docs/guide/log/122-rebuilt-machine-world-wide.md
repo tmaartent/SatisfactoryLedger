@@ -44,7 +44,7 @@ Test run: 1333 passed, 0 failed (two more than step 121).
 
 ## Choices to overrule
 
-- **A stored machine two factories have (from before BR-W5) gets one replacement, which both keep.** It's one machine with one id, so "replaces at most one stored machine" holds; the oldest factory owns the replacement (BR-W5), and the younger one still counts it as its own from inside (`OwnersSeenFrom`). The alternative, the younger one reporting its copy as missing, would make an overlap look different once the machine is rebuilt than before. I chose the first; say if you want the other.
+- **A stored machine two factories have (from before BR-W5) gets one replacement, which both keep.** It's one machine with one id, so "replaces at most one stored machine" holds; the oldest factory owns the replacement (BR-W5), and the younger one still counts it as its own from inside (`OwnersSeenFrom`). The alternative, the younger one reporting its copy as missing, would make an overlap look different once the machine is rebuilt than before. I chose the first; say if you want the other. *Kept by the owner: see Owner decisions after review, B.*
 - **The define check doesn't include the factory being edited.** When you edit an older factory X whose stored machine was rebuilt, and a younger factory Y's stored machine also matches the rebuilt one, the check matches without X, so Y gets the rebuilt machine there and choosing it for X is refused as Y's. Everywhere else it's X's. Fixing it means passing X's stored version too and leaving X out of the claims; I left `ClaimedMachines` as it is, since the case needs two factories' machines within a metre of each other, which BR-W5 has refused since 2026-11-11. *Fixed in the review: see Review fixes, A.*
 - **Greedy, per stored machine.** Within the oldest factory each stored machine takes the closest free one in its order, as before. A younger factory's closer stored machine still loses to an older factory's farther one: that's the rule as decided ("the oldest factory gets it").
 
@@ -69,3 +69,40 @@ Primer: new row *A tracking query returns the entity you're changing* (identity 
 
 Test run: 1334 passed, 0 failed (one more than before the review).
 
+
+## Owner decisions after review
+
+The owner's decisions on the review of spec #56 (2026-11-27).
+
+### A. A factory's own view of who owns its machines: `TracedFactory.Owners`
+
+**Design.**
+
+- **Module:** `SnapshotFactories` (Factories in a snapshot) still owns ownership, both halves of BR-W5. What changes is where each half is read:
+  - the world-wide answer stays `SnapshotFactories.Owners` (the oldest factory);
+  - the exception "a factory counts its own machines as its own" moves from the method `SnapshotFactories.OwnersSeenFrom(TracedFactory)` onto the factory, as `TracedFactory.Owners`.
+- **Interface change:** `OwnersSeenFrom` is gone; `TracedFactory.Owners` replaces it. `TracedFactory.Machines` stays. A caller now asks the factory it already holds (`factory.Owners`) instead of passing it back to the collection it came from (`factories.OwnersSeenFrom(factory)`).
+- **Implementation:** `SnapshotFactories.Of` works out the world-wide owners first, from the matches (oldest first, `TryAdd`), then hands that one dictionary to each `TracedFactory`. Each factory builds its own view in a `Lazy` the first time it's read (its traced machines first, then the rest as the world-wide owners say) and keeps it. `OwnersSeenFrom` built a new dictionary on every call.
+- **Deletion test:** delete `TracedFactory.Owners` and its one production caller, `SnapshotHandovers.Of`, has to merge the factory's machines into `SnapshotFactories.Owners` itself. That's the helper (`OwnersFor`) that step 121 moved into the module. It earns its keep.
+- **Glossary:** *Factories in a snapshot* names both members in its code column: `SnapshotFactories.Owners` for the world-wide owner, `TracedFactory.Owners` for how one factory sees it. That's one term with two members, but they're two answers to two questions, both in the one module, not a second copy.
+
+**Tests, at `SnapshotFactories`' interface** (through `SnapshotFactories.Of(...).Find(id)`). Replaced, not layered:
+
+- `A_factory_counts_a_machine_it_shares_with_an_older_one_as_its_own` now reads `factories.Find(plates.Id)!.Owners`. Red first: a compile error (no `TracedFactory.Owners`), then green.
+- `Seen_from_a_factory_the_machines_of_others_belong_to_their_owners` is now `To_a_factory_the_machines_of_others_belong_to_their_owners`, and reads `TracedFactory.Owners`.
+
+**Choice to overrule:** the name `Owners` on both types. On `TracedFactory` it reads as "the owners, as this factory has them". `OwnersAsSeenBy` is the private helper that builds it.
+
+**C# point:** a `Lazy<T>` captured in another `Lazy`'s factory. `TracedFactory.Owners` reads `members.Value` inside its own `Lazy`, so it traces the members only when someone asks for owners. It throws the same `InvalidOperationException` as `Members` for a factory that can't be traced (primer: *One `Lazy<T>` shared by others*). Java: two `Suppliers.memoize`, one calling the other.
+
+### B. BR-W11: a shared stored machine gets one replacement, which both keep
+
+That's what the code already did (see *Choices to overrule* above), and now it's written down: BR-W11 has a sentence for it. No test covered it, so there's one now: `SnapshotFactoriesTests.A_rebuilt_stored_machine_two_factories_share_gets_one_replacement_which_both_keep`. It passed at once, so it guards the rule rather than driving code.
+
+### C. ADR-0025: the ownership rule
+
+ADR-0025 has an *Update 2026-11-27* section: the oldest factory (lowest `Guid` v7 id) owns a shared machine, a factory counts its own as its own, and a rebuilt machine replaces at most one stored machine world-wide. It points to BR-W5 and BR-W11.
+
+**Files:** `src/Modules/World/SatisfactoryLedger.World/Factories/SnapshotFactories.cs`, `Factories/TracedFactory.cs`, `Analysis/SnapshotHandovers.cs`; `tests/SatisfactoryLedger.World.Tests/SnapshotFactoriesTests.cs`; `docs/domain/business-rules.md` (BR-W11), `docs/domain/glossary.md` (Factories in a snapshot), `docs/adr/0025-factories-defined-by-their-machines.md`, this log.
+
+Test run: 1335 passed, 0 failed (one more than after the review fixes).

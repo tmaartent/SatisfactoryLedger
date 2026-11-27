@@ -129,21 +129,17 @@ public class SnapshotFactoriesTests
         StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterA, ConstructorC);
         SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
 
-        IReadOnlyDictionary<BuildableId, Guid> owners = factories.OwnersSeenFrom(factories.Find(plates.Id)!);
-
-        Assert.Equal(plates.Id, owners[BuildableId.Of(SmelterA)]);
+        Assert.Equal(plates.Id, factories.Find(plates.Id)!.Owners[BuildableId.Of(SmelterA)]);
     }
 
     [Fact]
-    public void Seen_from_a_factory_the_machines_of_others_belong_to_their_owners()
+    public void To_a_factory_the_machines_of_others_belong_to_their_owners()
     {
         StoredFactory smelting = Factory("Smelting", SmelterA);
         StoredFactory plates = Factory("Plates", ConstructorC);
         SnapshotFactories factories = SnapshotFactories.Of(Document, [smelting, plates]);
 
-        IReadOnlyDictionary<BuildableId, Guid> owners = factories.OwnersSeenFrom(factories.Find(plates.Id)!);
-
-        Assert.Equal(smelting.Id, owners[BuildableId.Of(SmelterA)]);
+        Assert.Equal(smelting.Id, factories.Find(plates.Id)!.Owners[BuildableId.Of(SmelterA)]);
     }
 
     [Fact]
@@ -183,6 +179,22 @@ public class SnapshotFactoriesTests
 
         Assert.Contains(Id("Build_SmelterMk1_C_1"), factories.Find(smelting.Id)!.Machines.Select(id => id.Id));
         Assert.Equal([nearby], factories.Find(plates.Id)!.Missing);
+        Assert.Equal(smelting.Id, factories.Owners[BuildableId.Of(Id("Build_SmelterMk1_C_1"))]);
+    }
+
+    [Fact]
+    public void A_rebuilt_stored_machine_two_factories_share_gets_one_replacement_which_both_keep()
+    {
+        BuildableDocument smelter = Find(SmelterA);
+        SnapshotDocument rebuilt = Replaced(smelter, smelter with { Id = Id("Build_SmelterMk1_C_1") });
+        StoredFactory smelting = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000001"), "Smelting", SmelterA);
+        StoredFactory plates = Factory(Guid.Parse("019ac000-0000-7000-8000-000000000002"), "Plates", SmelterA, ConstructorC);
+
+        SnapshotFactories factories = SnapshotFactories.Of(rebuilt, [plates, smelting]);
+
+        Assert.Equal([Id("Build_SmelterMk1_C_1")], factories.Find(smelting.Id)!.Machines.Select(id => id.Id));
+        Assert.Equal([Id("Build_SmelterMk1_C_1"), ConstructorC], factories.Find(plates.Id)!.Machines.Select(id => id.Id));
+        Assert.Empty(factories.Find(plates.Id)!.Missing);
         Assert.Equal(smelting.Id, factories.Owners[BuildableId.Of(Id("Build_SmelterMk1_C_1"))]);
     }
 

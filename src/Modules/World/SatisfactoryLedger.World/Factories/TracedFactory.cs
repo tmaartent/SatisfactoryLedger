@@ -8,10 +8,18 @@ internal sealed class TracedFactory
 {
     private readonly Lazy<bool> isTraceable;
     private readonly Lazy<FactoryMembers> members;
+    private readonly Lazy<IReadOnlyDictionary<BuildableId, Guid>> owners;
 
     /// <param name="definition">Its definition as matched; null when it has no machines.</param>
     /// <param name="world">The snapshot's world graph, built the first time one of the factories needs it.</param>
-    internal TracedFactory(StoredFactory factory, MachineMatch match, FactoryDefinition? definition, Lazy<WorldGraph> world, IReadOnlySet<ItemId> fluids)
+    /// <param name="owners">Who each machine belongs to world-wide: <see cref="SnapshotFactories.Owners"/>.</param>
+    internal TracedFactory(
+        StoredFactory factory,
+        MachineMatch match,
+        FactoryDefinition? definition,
+        Lazy<WorldGraph> world,
+        IReadOnlySet<ItemId> fluids,
+        IReadOnlyDictionary<BuildableId, Guid> owners)
     {
         Factory = factory;
         Machines = match.Ids;
@@ -20,6 +28,7 @@ internal sealed class TracedFactory
         members = new Lazy<FactoryMembers>(() => !isTraceable.Value
             ? throw new InvalidOperationException($"Factory {factory.Id} can't be traced in this snapshot.")
             : definition!.TraceMembers(world.Value, fluids));
+        this.owners = new Lazy<IReadOnlyDictionary<BuildableId, Guid>>(() => OwnersAsSeenBy(factory.Id, members.Value, owners));
     }
 
     public StoredFactory Factory { get; }
@@ -41,4 +50,22 @@ internal sealed class TracedFactory
     /// traceable factory.
     /// </summary>
     public FactoryMembers Members => members.Value;
+
+    /// <summary>
+    /// Who each machine belongs to as this factory sees it: its own machines are its own, even one an older factory
+    /// has too (BR-W5); the rest as <see cref="SnapshotFactories.Owners"/> says. Built the first time it's read, then
+    /// kept. Only for a traceable factory.
+    /// </summary>
+    public IReadOnlyDictionary<BuildableId, Guid> Owners => owners.Value;
+
+    private static Dictionary<BuildableId, Guid> OwnersAsSeenBy(Guid id, FactoryMembers members, IReadOnlyDictionary<BuildableId, Guid> owners)
+    {
+        Dictionary<BuildableId, Guid> seen = members.Machines.ToDictionary(machine => machine, _ => id);
+        foreach ((BuildableId machine, Guid owner) in owners)
+        {
+            seen.TryAdd(machine, owner);
+        }
+
+        return seen;
+    }
 }

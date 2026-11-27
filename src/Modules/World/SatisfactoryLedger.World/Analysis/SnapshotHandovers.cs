@@ -23,7 +23,7 @@ internal static class SnapshotHandovers
             factories.World,
             readings,
             factory.Members,
-            factories.OwnersSeenFrom(factory),
+            factory.Owners,
             snapshot.Buildables.Where(buildable => buildable.ClassName == SinkClass).Select(buildable => BuildableId.Of(buildable.Id)).ToHashSet(),
             snapshot.Buildables.Where(buildable => UsesUp.Contains(buildable.ClassName)).Select(buildable => BuildableId.Of(buildable.Id)).ToHashSet(),
             snapshot.Buildables.ToDictionary(buildable => BuildableId.Of(buildable.Id), buildable => buildable.ClassName));

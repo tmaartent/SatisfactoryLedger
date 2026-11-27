@@ -34,7 +34,8 @@ internal sealed class SnapshotFactories
     /// <summary>
     /// Who each machine belongs to, as matched in the snapshot (a missing one under its own id, which the snapshot
     /// doesn't have). Of the factories that have one machine, from before BR-W5, the oldest
-    /// (<see cref="StoredFactory.OldestFirst"/>), whatever the order given (BR-W5).
+    /// (<see cref="StoredFactory.OldestFirst"/>), whatever the order given (BR-W5). How one factory sees it is
+    /// <see cref="TracedFactory.Owners"/>.
     /// </summary>
     public IReadOnlyDictionary<BuildableId, Guid> Owners { get; }
 
@@ -49,37 +50,22 @@ internal sealed class SnapshotFactories
         HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         List<StoredFactory> stored = [.. factories];
         IReadOnlyList<MachineMatch> matches = MachineMatch.In(snapshot, stored);
-        List<TracedFactory> traced = [];
-        foreach ((StoredFactory factory, MachineMatch match) in stored.Zip(matches))
-        {
-            traced.Add(new TracedFactory(factory, match, factory.ToDefinition(match), world, fluids));
-        }
-
         Dictionary<BuildableId, Guid> owners = [];
-        foreach (TracedFactory factory in traced.OrderBy(factory => factory.Factory, StoredFactory.OldestFirst))
+        foreach ((StoredFactory factory, MachineMatch match) in stored.Zip(matches).OrderBy(pair => pair.First, StoredFactory.OldestFirst))
         {
-            foreach (BuildableId id in factory.Machines)
+            foreach (BuildableId id in match.Ids)
             {
-                owners.TryAdd(id, factory.Factory.Id);
+                owners.TryAdd(id, factory.Id);
             }
         }
 
-        return new SnapshotFactories(world, traced, owners);
-    }
-
-    /// <summary>
-    /// Who each machine belongs to as this factory sees it: its own machines are its own, even one an older factory
-    /// has too (BR-W5); the rest as <see cref="Owners"/> says. Only for a traceable factory.
-    /// </summary>
-    public IReadOnlyDictionary<BuildableId, Guid> OwnersSeenFrom(TracedFactory factory)
-    {
-        Dictionary<BuildableId, Guid> owners = factory.Members.Machines.ToDictionary(id => id, _ => factory.Factory.Id);
-        foreach ((BuildableId id, Guid owner) in Owners)
+        List<TracedFactory> traced = [];
+        foreach ((StoredFactory factory, MachineMatch match) in stored.Zip(matches))
         {
-            owners.TryAdd(id, owner);
+            traced.Add(new TracedFactory(factory, match, factory.ToDefinition(match), world, fluids, owners));
         }
 
-        return owners;
+        return new SnapshotFactories(world, traced, owners);
     }
 
     /// <summary>The factory with this id; null when it isn't one of them.</summary>
