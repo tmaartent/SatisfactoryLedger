@@ -18,6 +18,12 @@ Structure is described in the vocabulary of the `codebase-design` skill: **modul
 - **Names come from `GLOSSARY.md`.** A type, member, test or route named outside it is a finding, and so are "manager", "helper" and "util": a domain service is named after what it does.
 - **A rule changed in code is changed in the docs:** the business rule in `docs/domain/business-rules.md`, the term in `GLOSSARY.md`, the ADR when a decision changes.
 - **A case the ticket's rule doesn't hold for** is flagged, even when the step log calls it narrow: the owner decides the domain.
+- **The model is not the game.** Docs, step logs, UI text and replies say what happens *in the model*; a model result stated as what happens in the owner's game is a finding.
+- **Items and buildings go by their in-game display names** (Ficsite Trigon, not "ficsite mesh"), as the Docs file fixture names them.
+
+## Commits
+
+- **One feature per commit.** Unrelated changes go into separate commits, even when they touch the same files.
 
 ## Tests
 
