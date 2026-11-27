@@ -2,6 +2,7 @@ using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Flow;
 using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Contracts.Analysis;
+using SatisfactoryLedger.World.Factories;
 using SatisfactoryLedger.World.Snapshots;
 namespace SatisfactoryLedger.World.Analysis;
 
@@ -12,30 +13,38 @@ internal static class SnapshotAnalysis
     private const int Decimals = 4;
 
     /// <summary>The findings of the whole world.</summary>
-    public static AnalysisResponse For(SnapshotDocument snapshot, AnalysisDocument analysis) =>
-        Findings(snapshot, analysis, analysis.UnsettledParts, _ => true, _ => true, _ => true, wholeWorld: true);
+    public static AnalysisResponse For(SnapshotDocument snapshot, AnalysisDocument analysis)
+    {
+        WorldGraph world = snapshot.ToWorldGraph();
+        return Findings(snapshot, world, AnalysisReadings.Of(world, analysis), analysis, analysis.UnsettledParts, _ => true, _ => true, _ => true, wholeWorld: true);
+    }
 
     /// <summary>
     /// The findings of one factory (BR-A14): its machines and logistics, and its suppliers. The simulation was of the
     /// whole world, because a factory depends on its supply. Null when the factory can't be traced in this snapshot
     /// (BR-W11).
     /// </summary>
-    /// <param name="factories">The world's factories: where its output goes (BR-A18).</param>
+    /// <param name="factories">The world's factories: where its output goes (BR-A18). This one is added when it isn't among them.</param>
     public static FactoryAnalysisResponse? ForFactory(
-        SnapshotDocument snapshot, Factories.StoredFactory factory, AnalysisDocument analysis, IEnumerable<Factories.StoredFactory> factories)
+        SnapshotDocument snapshot, StoredFactory factory, AnalysisDocument analysis, IEnumerable<StoredFactory> factories)
     {
-        WorldGraph world = snapshot.ToWorldGraph();
-        FactoryDefinition? definition = factory.ToDefinition(Factories.MachineMatch.In(snapshot, factory.Machines));
-        if (definition is null || !definition.IsTraceableIn(world))
+        List<StoredFactory> all = [.. factories];
+        var inSnapshot = SnapshotFactories.Of(snapshot, all.Any(other => other.Id == factory.Id) ? all : [.. all, factory]);
+        TracedFactory traced = inSnapshot.Find(factory.Id)!;
+        if (!traced.IsTraceable)
         {
             return null;
         }
 
-        FactoryMembers members = definition.TraceMembers(world, snapshot.Fluids.Select(ItemId.Of).ToHashSet());
+        WorldGraph world = inSnapshot.World;
+        FlowReadings readings = AnalysisReadings.Of(world, analysis);
+        FactoryMembers members = traced.Members;
         bool IsMember(string id) => members.Contains(BuildableId.Of(id));
         List<UnsettledPartDocument> parts = [.. analysis.UnsettledParts.Where(part => part.Buildables.Any(IsMember))];
         AnalysisResponse findings = Findings(
             snapshot,
+            world,
+            readings,
             analysis,
             parts,
             id => members.Machines.Contains(BuildableId.Of(id)),
@@ -43,9 +52,8 @@ internal static class SnapshotAnalysis
             id => members.Suppliers.Contains(BuildableId.Of(id)),
             // A drone port is never part of a factory (BR-W1, BR-W8); a generator is, when chosen as one of its machines.
             wholeWorld: false);
-        FlowReadings readings = AnalysisReadings.Of(world, analysis);
-        FactoryHandovers handovers = SnapshotHandovers.Of(snapshot, world, factory, members, readings, factories);
-        Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, factories);
+        FactoryHandovers handovers = SnapshotHandovers.Of(snapshot, inSnapshot, traced, readings);
+        Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, all);
 
         return new FactoryAnalysisResponse(
             factory.Id,
@@ -88,9 +96,12 @@ internal static class SnapshotAnalysis
     /// The findings of the machines, conduits and suppliers the filters let through; worst first. Whether they settled
     /// is read from <paramref name="unsettled"/>: the parts of the world they're in that didn't settle.
     /// </summary>
+    /// <param name="world">The snapshot's world graph, and <paramref name="readings"/> the analysis read in it: built once by the caller.</param>
     /// <param name="wholeWorld">True for the whole world: drone ports are listed too.</param>
     private static AnalysisResponse Findings(
         SnapshotDocument snapshot,
+        WorldGraph world,
+        FlowReadings readings,
         AnalysisDocument analysis,
         IReadOnlyCollection<UnsettledPartDocument> unsettled,
         Func<string, bool> isMachine,
@@ -100,8 +111,6 @@ internal static class SnapshotAnalysis
     {
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         HashSet<string> approximate = analysis.Approximate();
-        WorldGraph world = snapshot.ToWorldGraph();
-        FlowReadings readings = AnalysisReadings.Of(world, analysis);
         (string? Item, double? Minutes) Stock(MachineStateDocument state) => OnStock(world, readings, state);
 
         // The flow simulates generators like machines (BR-A8), but they're consumers: their own findings (BR-A15).

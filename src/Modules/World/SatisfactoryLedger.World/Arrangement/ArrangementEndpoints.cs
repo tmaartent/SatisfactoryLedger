@@ -205,12 +205,12 @@ internal static class ArrangementEndpoints
         List<Guid> ids = [.. ArrangementProblemDocument.FromJson(problemJson).Factories.Select(factory => Guid.Parse(factory.Id))];
         List<Factories.StoredFactory> factories = await db.Factories.AsNoTracking().Where(factory => ids.Contains(factory.Id)).ToListAsync(cancellationToken);
         Dictionary<string, BuildableDocument> buildables = document.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
-        List<ArrangedMachineResponse> machines = [.. factories
-            .SelectMany(factory => Factories.MachineMatch.In(document, factory.Machines).Ids
+        List<ArrangedMachineResponse> machines = [.. Factories.SnapshotFactories.Of(document, factories).Factories
+            .SelectMany(traced => traced.Machines
                 .Select(machine => buildables.GetValueOrDefault(machine.Id))
                 .OfType<BuildableDocument>()
                 .Where(machine => machine.Position is not null)
-                .Select(machine => new ArrangedMachineResponse(factory.Id, machine.Id, machine.ClassName, machine.Position!, machine.Yaw ?? 0)))];
+                .Select(machine => new ArrangedMachineResponse(traced.Factory.Id, machine.Id, machine.ClassName, machine.Position!, machine.Yaw ?? 0)))];
         HashSet<string> classes = [.. machines.Select(machine => machine.ClassName)];
         return TypedResults.Ok(new ArrangementMachinesResponse(machines, [.. (document.Footprints ?? []).Where(footprint => classes.Contains(footprint.Id))]));
     }

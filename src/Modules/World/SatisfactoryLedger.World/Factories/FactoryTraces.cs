@@ -9,26 +9,23 @@ namespace SatisfactoryLedger.World.Factories;
 /// <summary>Factory definitions traced in a stored snapshot.</summary>
 internal static class FactoryTraces
 {
-    /// <summary>Builds the snapshot's graph once and traces every factory in it.</summary>
+    /// <summary>Every factory traced in the snapshot, matched once (<see cref="SnapshotFactories"/>), in the order given.</summary>
     public static IReadOnlyList<FactoryTrace> TraceAll(SnapshotDocument snapshot, IEnumerable<StoredFactory> factories)
     {
-        WorldGraph world = snapshot.ToWorldGraph();
-        HashSet<ItemId> fluids = [.. snapshot.Fluids.Select(ItemId.Of)];
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
 
         return
         [
-            .. factories.Select(factory =>
+            .. SnapshotFactories.Of(snapshot, factories).Factories.Select(traced =>
             {
-                MachineMatch match = MachineMatch.In(snapshot, factory.Machines);
-                List<BuildableReference> missing = [.. match.Missing.Select(machine => new BuildableReference(machine.Id, machine.ClassName))];
-                FactoryDefinition? definition = factory.ToDefinition(match);
-                if (definition is null || !definition.IsTraceableIn(world))
+                StoredFactory factory = traced.Factory;
+                List<BuildableReference> missing = [.. traced.Missing.Select(machine => new BuildableReference(machine.Id, machine.ClassName))];
+                if (!traced.IsTraceable)
                 {
                     return new FactoryTrace(factory.Id, factory.Name, false, [], 0, [], [], missing);
                 }
 
-                FactoryMembers members = definition.TraceMembers(world, fluids);
+                FactoryMembers members = traced.Members;
                 return new FactoryTrace(
                     factory.Id,
                     factory.Name,
