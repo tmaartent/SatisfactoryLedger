@@ -450,3 +450,13 @@ The segment-by-segment result for a supply line: flow, remaining, deficits, over
 
 **Consumer Link**:
 A record that one placed blueprint consumes part of another's main product or byproduct.
+
+## The 3D views
+
+**3D Stage**:
+Where a 3D view draws, the area's or an arrangement's belt floor: its scene, the camera turned by dragging, presses and framing. Each view puts in it what it draws (step 124).
+_Avoid_: scene for the stage (the scene is three.js's, inside it); canvas
+
+**Press**:
+A pointer pressed and let go on a 3D view within 4 pixels of where it was pressed: a click with a mouse, a tap with a finger. Moved further, it turns the view instead. The UI says *click* or *tap*, as the player does it.
+_Avoid_: tap in code and docs (a **Tap** is a consumer on a line)

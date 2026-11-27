@@ -42,10 +42,12 @@ Each slice started red (a compile error: no such member), then went green.
 
 Two axes, `/code-review` against `main`. Fixed:
 
-- **`Tap` clashed with the glossary** (Standards, hard): a **Tap** is a consumer on a line. The stage's type is now `Press`, `onTap` is `onPress`, `ClickReach` is `PressReach` (the owner's choice); *press* is explained in the primer, beside *stage*.
+- **`Tap` clashed with the glossary** (Standards, hard): a **Tap** is a consumer on a line. The stage's type is now `Press`, `onTap` is `onPress`, `ClickReach` is `PressReach` (the owner's choice); **Press** is a glossary term, beside **3D Stage**.
 - **A stale doc comment** on `BeltFloor3d.toggleArrows` (two in a row): the new one went, the dated one stays.
 - **Data clumps:** the arrow's `{ at, along, way }` written out in three places is one `FlowArrow`; `Press` and `onScreen` use `ScreenPoint`, which moved from `area/selection.ts` to the stage, so the stage doesn't depend on the area.
 - **`this.stage!`:** the area's `frame`, `machinesOnScreen` and `listenForBoxes` take the stage they use as a parameter; `useBox` checks it once. In the belt floor, `start` hands its stage to the press handler, and `frame` asks `this.stage?.`.
+
+**Overruled at the retro:** Q6(b). The glossary holds the screen's words too, so **3D Stage** and **Press** are glossary terms, under *The 3D views*, and the primer points to them.
 
 Accepted by the owner: `orbiting` (wider than Q8, one caller), `lineReach` not built, and a release with no press before it no longer counting as a press in the area (the area's `down` started at `{ 0, 0 }`; the belt floor's never did). Left: the belt floor's `point()` works out the canvas offset for hover itself, since hover has a pointer event, not a press. Split on the owner's request: the behaviour changes (≤ 4 px, the `ResizeObserver`) went into a `fix:` commit of their own, before the refactor.
 
