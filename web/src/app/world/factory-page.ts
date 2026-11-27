@@ -1,4 +1,5 @@
-import { Component, inject, input, resource, viewChild } from '@angular/core';
+import { Component, inject, input, resource } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -19,6 +20,7 @@ import { megawatts, perMinute } from '../shared/display';
 import { problemMessage, whenAnalysed } from '../shared/problem';
 import { AreaPage } from './area/area-page';
 import { FactoryDeletion } from './factory-deletion';
+import { FactoryDraft } from './factory-draft';
 import { FindingsSummary } from './findings-summary';
 import { GameIcon } from '../shared/game-icon';
 import { loaded } from '../shared/loaded';
@@ -41,6 +43,8 @@ import { loaded } from '../shared/loaded';
     FindingsSummary,
     AreaPage,
   ],
+  // Its own draft, which the 3D view inside it shares: the name and Save are in this page's header.
+  providers: [FactoryDraft],
   templateUrl: './factory-page.html',
   styles: `
     .output {
@@ -116,6 +120,8 @@ export class FactoryPage {
   private readonly router = inject(Router);
   private readonly deletion = inject(FactoryDeletion);
   protected readonly names = inject(CatalogNames);
+  /** The factory being edited, in the 3D view below and in this page's header. */
+  protected readonly draft = inject(FactoryDraft);
 
   /** From the route: /snapshots/:id/factories/:factoryId. */
   readonly id = input.required<string>();
@@ -127,6 +133,11 @@ export class FactoryPage {
     loader: ({ params, abortSignal }) =>
       whenAnalysed(() => this.api.invoke$Response(analyseFactory, params), abortSignal),
   });
+
+  constructor() {
+    // Saved: its findings as its machines are now.
+    this.draft.saved$.pipe(takeUntilDestroyed()).subscribe(() => this.analysis.reload());
+  }
 
   protected readonly outputColumns = [
     'item',
@@ -180,9 +191,6 @@ export class FactoryPage {
     }
     return destination.factory ?? this.destinationLabels[destination.kind];
   }
-
-  /** The factory in 3D: its Edit button edits it there. */
-  protected readonly area = viewChild<AreaPage>('area');
 
   /** After asking; then there's nothing left to show of it, so back to the map. */
   protected async delete(): Promise<void> {

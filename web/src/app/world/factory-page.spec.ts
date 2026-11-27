@@ -1,16 +1,18 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, TemplateRef, input, output, signal } from '@angular/core';
+import { Component, TemplateRef, inject, input, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 
 import { Api } from '../api/api';
+import { editFactory } from '../api/fn/world/edit-factory';
 import { FactoryAnalysisResponse } from '../api/models/factory-analysis-response';
 import { CatalogNames } from '../shared/catalog-names';
 import { FactoryDeletion } from './factory-deletion';
+import { FactoryDraft } from './factory-draft';
 import { AreaPage } from './area/area-page';
 import { FactoryPage } from './factory-page';
 
-/** The 3D view, without WebGL (jsdom has none): what the factory page gives it, and what it says back. */
+/** The 3D view, without WebGL (jsdom has none): what the factory page gives it, and the draft the two share. */
 @Component({
   selector: 'app-area-page',
   imports: [NgTemplateOutlet],
@@ -22,18 +24,15 @@ class AreaPageStub {
   readonly id = input<string>();
   readonly factory = input<string>();
   readonly embedded = input(false);
-  readonly saved = output<string>();
-  // Editing, as the 3D view keeps it: the page reads it and drives it from its header.
-  readonly defining = signal(false);
-  readonly factoryName = signal('');
-  readonly canSave = signal(true);
-  readonly saveError = signal<string | null>(null);
-  readonly edit = vi.fn(() => {
-    this.defining.set(true);
-    this.factoryName.set('Rubber');
-  });
-  readonly save = vi.fn();
-  readonly stopDefining = vi.fn(() => this.defining.set(false));
+
+  constructor() {
+    // As the 3D view does, once it has them: the snapshot, its world and the world's factories as traced there.
+    inject(FactoryDraft).within({
+      snapshotId: signal('snapshot-1'),
+      world: signal('Ficsit'),
+      factories: signal([{ factoryId: 'f-1', name: 'Rubber', machines: [{ id: 'm-1' }] }]),
+    });
+  }
 }
 
 const rubber: FactoryAnalysisResponse = {
@@ -66,9 +65,17 @@ const rubber: FactoryAnalysisResponse = {
 } as unknown as FactoryAnalysisResponse;
 
 describe("a factory's page", () => {
-  async function render(confirmed = true) {
+  async function render(
+    confirmed = true,
+    save: () => Promise<unknown> = () =>
+      Promise.resolve({ id: 'f-1', name: 'Rubber', machines: [], world: 'Ficsit' }),
+  ) {
     const deletion = { confirmAndDelete: vi.fn(() => Promise.resolve(confirmed)) };
-    const api = { invoke$Response: vi.fn(() => Promise.resolve({ status: 200, body: rubber })) };
+    const api = {
+      invoke$Response: vi.fn(() => Promise.resolve({ status: 200, body: rubber })),
+      // Saving; the 3D view's preview isn't asked for here, its stand-in has none.
+      invoke: vi.fn(save),
+    };
     TestBed.configureTestingModule({
       imports: [FactoryPage],
       providers: [
@@ -161,16 +168,6 @@ describe("a factory's page", () => {
     expect([area().id(), area().factory(), area().embedded()]).toEqual(['snapshot-1', 'f-1', true]);
   });
 
-  it('asks for its findings again once its machines are changed in 3D', async () => {
-    const { fixture, api, area } = await render();
-    api.invoke$Response.mockClear();
-
-    area().saved.emit('f-1');
-    await fixture.whenStable();
-
-    expect(api.invoke$Response).toHaveBeenCalled();
-  });
-
   it('goes back to the map with the factory highlighted, not to the findings', async () => {
     const { element } = await render();
 
@@ -184,15 +181,6 @@ describe("a factory's page", () => {
     expect(button('Edit')).toBeDefined();
     expect(button('Delete')).toBeDefined();
     expect(button('Map')).toBeUndefined();
-  });
-
-  it('edits the factory in its 3D view', async () => {
-    const { fixture, area, button } = await render();
-
-    button('Edit')!.click();
-    await fixture.whenStable();
-
-    expect(area().edit).toHaveBeenCalledWith('f-1');
   });
 
   it('goes to the map once the factory is deleted, after asking', async () => {
@@ -224,16 +212,11 @@ describe("a factory's page", () => {
       return rendered;
     }
 
-    it('makes the name at the top editable', async () => {
-      const { fixture, element, area } = await editing();
+    it('makes the name at the top editable, filled in with its own', async () => {
+      const { element } = await editing();
       const name = element.querySelector('.page-header input') as HTMLInputElement;
 
       expect(name.value).toBe('Rubber');
-      name.value = 'Rubber and plastic';
-      name.dispatchEvent(new Event('input'));
-      await fixture.whenStable();
-
-      expect(area().factoryName()).toBe('Rubber and plastic');
       expect(element.querySelector('.page-header h1')).toBeNull();
     });
 
@@ -245,23 +228,49 @@ describe("a factory's page", () => {
       expect(button('Cancel')).toBeDefined();
     });
 
-    it('saves in the 3D view', async () => {
-      const { fixture, area, button } = await editing();
+    it('saves its machines under the name typed, then asks for its findings again', async () => {
+      const { fixture, element, api, button } = await editing();
+      const name = element.querySelector('.page-header input') as HTMLInputElement;
+      name.value = 'Rubber and plastic';
+      name.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      api.invoke$Response.mockClear();
 
       button('Save')!.click();
       await fixture.whenStable();
 
-      expect(area().save).toHaveBeenCalled();
+      expect(api.invoke).toHaveBeenCalledWith(editFactory, {
+        id: 'f-1',
+        body: { name: 'Rubber and plastic', machines: ['m-1'] },
+      });
+      expect(api.invoke$Response).toHaveBeenCalled();
+      expect(element.querySelector('.page-header h1')).not.toBeNull();
+    });
+
+    it('says why, and stays editing, when the API refuses the save', async () => {
+      const rendered = await render(true, () =>
+        Promise.reject(new Error('A machine is in another factory')),
+      );
+      rendered.button('Edit')!.click();
+      await rendered.fixture.whenStable();
+
+      rendered.button('Save')!.click();
+      await rendered.fixture.whenStable();
+
+      expect(rendered.element.querySelector('.error')?.textContent).toContain(
+        'A machine is in another factory',
+      );
+      expect(rendered.button('Save')).toBeDefined();
     });
 
     it('stops editing on Cancel, and shows the name again', async () => {
-      const { fixture, element, area, button } = await editing();
+      const { fixture, element, button } = await editing();
 
       button('Cancel')!.click();
       await fixture.whenStable();
 
-      expect(area().stopDefining).toHaveBeenCalled();
       expect(element.querySelector('.page-header h1')?.textContent).toContain('Rubber');
+      expect(button('Edit')).toBeDefined();
     });
   });
 });

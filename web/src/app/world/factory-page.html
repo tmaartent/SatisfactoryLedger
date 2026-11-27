@@ -1,6 +1,4 @@
 <!-- While editing, in the 3D view below, the name is edited here and saved or cancelled here (asked 2026-11-19). -->
-@let editor = area();
-@let editing = editor?.defining() ?? false;
 <div class="page-header">
   <!-- Back to the map, the factory highlighted and zoomed to (asked 2026-11-23); no longer the findings. -->
   <a
@@ -11,23 +9,23 @@
     title="Back to the map"
     ><mat-icon>arrow_back</mat-icon></a
   >
-  @if (editing && editor) {
+  @if (draft.defining()) {
     <input
       class="name"
       aria-label="Name"
-      [value]="editor.factoryName()"
-      (input)="editor.factoryName.set($any($event.target).value)"
-      (keydown.enter)="editor.save()"
+      [value]="draft.name()"
+      (input)="draft.name.set($any($event.target).value)"
+      (keydown.enter)="draft.save()"
     />
     <span class="spacer"></span>
-    <button mat-button type="button" (click)="editor.stopDefining()">Cancel</button>
-    <button mat-flat-button type="button" (click)="editor.save()" [disabled]="!editor.canSave()">
+    <button mat-button type="button" (click)="draft.stop()">Cancel</button>
+    <button mat-flat-button type="button" (click)="draft.save()" [disabled]="!draft.canSave()">
       <mat-icon>save</mat-icon> Save
     </button>
   } @else {
     <h1>{{ loaded(analysis)?.name ?? 'Factory' }}</h1>
     <span class="spacer"></span>
-    <button mat-stroked-button type="button" (click)="editor?.edit(factoryId())">
+    <button mat-stroked-button type="button" (click)="draft.edit(factoryId())">
       <mat-icon>edit</mat-icon> Edit
     </button>
     <button mat-stroked-button type="button" (click)="delete()">
@@ -35,7 +33,7 @@
     </button>
   }
 </div>
-@if (editor?.saveError(); as message) {
+@if (draft.saveError(); as message) {
   <p class="error">{{ message }}</p>
 }
 
@@ -84,14 +82,7 @@
       </ul>
     </section>
   </ng-template>
-  <app-area-page
-    #area
-    [id]="id()"
-    [factory]="factoryId()"
-    [embedded]="true"
-    [infoTop]="totals"
-    (saved)="analysis.reload()"
-  />
+  <app-area-page [id]="id()" [factory]="factoryId()" [embedded]="true" [infoTop]="totals" />
 
   <h2>Input</h2>
   @if (factory.input.length === 0) {
