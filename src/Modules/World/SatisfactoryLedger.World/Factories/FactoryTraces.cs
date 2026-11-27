@@ -73,7 +73,7 @@ internal static class FactoryTraces
             Summaries(members.Outputs, buildables),
             Summaries(members.Inputs, buildables),
             PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, readings!).GetValueOrDefault(item), readings is not null),
-            PerItem(members.Inputs, (input, item) => FactoryInputs.Arriving(input, item, world, readings!, members), readings is not null),
+            PerItem(members.Inputs, (input, item) => FactoryHandovers.Arriving(world, readings!, members, input, item), readings is not null),
             [.. definition.ConnectedIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
             [.. definition.SuppliesIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
             readings is null ? null : SnapshotAnalysis.PowerOf(snapshot, members, readings));

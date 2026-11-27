@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SatisfactoryLedger.World.Domain;
 
 namespace SatisfactoryLedger.World.Analysis;
 
