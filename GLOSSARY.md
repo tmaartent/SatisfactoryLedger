@@ -176,10 +176,10 @@ Where a factory hands over to the world, or the world to it: its machine or logi
 Logistics connected to each other, with the machines, providers and consumers at its ends. It belongs to a factory when every machine on it is the factory's; one that touches machines of several factories connects them (BR-W3).
 
 **Connected** (to a factory):
-Its machines, and everything reached from them through logistics up to the buildings at the lines' ends, the walk stopping at another machine. Wider than what the factory owns.
+Its machines, and everything reached from them through logistics up to the buildings at the lines' ends, the walk stopping at another machine. Wider than what the factory owns (BR-W13).
 
 **Supplies** (of a factory):
-What feeds a factory, walking upstream only from its machines: where its lines start, the machines of the factories that feed them, and the logistics in between. Not its own machines, nor its belts between them.
+What feeds a factory, walking upstream only from its machines: where its lines start, the machines of the factories that feed them, and the logistics in between. Not its own machines, nor its belts between them (BR-W14).
 
 **Supplier**:
 A provider, station or container that nothing feeds, upstream of a factory's inputs. Never part of the factory; it can supply several (BR-W1, BR-A14).
@@ -223,7 +223,7 @@ Something the analysis reports about a snapshot, with where it stands in the gam
 The share of 100% a machine runs at: the lowest of what its inputs supply and its outputs take (BR-A1).
 
 **Carries / Reaches / Takes**:
-How every finding and trace reads the analysis (decided 2026-11-26): what a piece of logistics **carries**, what **reaches** a buildable over the logistics ending at it, and what a machine or generator **takes** at the rate it runs.
+How every finding and trace reads the analysis (decided 2026-11-26): what a piece of logistics **carries**, what **reaches** a buildable over the logistics ending at it, and what a machine or generator **takes** at the rate it runs (BR-A23).
 
 **Starved / Output Blocked**:
 Why a machine runs below 100% (below 99.9%): too little of an input is offered, or an output can't leave (BR-A11).
