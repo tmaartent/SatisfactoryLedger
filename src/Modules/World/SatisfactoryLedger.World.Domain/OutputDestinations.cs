@@ -1,4 +1,3 @@
-using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain.Tracing;
 
 namespace SatisfactoryLedger.World.Domain;
@@ -52,50 +51,5 @@ public static class OutputDestinations
         }
 
         void Reach(BuildableId end, double amount) => ends[end] = ends.GetValueOrDefault(end) + amount;
-    }
-
-    /// <summary>
-    /// What the machines and generators the lines from <paramref name="from"/> reach would take of
-    /// <paramref name="item"/> at 100%: a machine what its recipe asks for at its clock speed, a generator its fuel or
-    /// water. Whatever else feeds them, and each once, however many of the lines reach it. Sinks, stations and
-    /// containers ask for nothing in particular.
-    /// </summary>
-    public static Rate ReceiversNeed(WorldGraph world, IEnumerable<BuildableId> from, ItemId item) =>
-        Receivers(world, from).Aggregate(Rate.Zero, (need, receiver) => need + Asks(receiver, item));
-
-    /// <summary>
-    /// What those same receivers, the ones that ask for <paramref name="item"/>, take of it now, from whatever source:
-    /// what flows into each of them as <paramref name="readings"/> found it (<see cref="FlowReadings.Into"/>), each once
-    /// (decided 2026-11-11).
-    /// </summary>
-    public static double ReceiversGet(WorldGraph world, IEnumerable<BuildableId> from, ItemId item, FlowReadings readings) =>
-        Receivers(world, from).Where(receiver => Asks(receiver, item) > Rate.Zero).Sum(receiver => readings.Into(receiver.Id, item));
-
-    /// <summary>What a receiver asks for of an item at 100%: its <see cref="Buildable.Demand"/>.</summary>
-    private static Rate Asks(Buildable receiver, ItemId item) => receiver.Demand.GetValueOrDefault(item) ?? Rate.Zero;
-
-    /// <summary>The machines and consumers the lines from <paramref name="from"/> reach through logistics, each once.</summary>
-    private static IEnumerable<Buildable> Receivers(WorldGraph world, IEnumerable<BuildableId> from)
-    {
-        HashSet<BuildableId> seen = [.. from];
-        Queue<BuildableId> next = new(seen);
-        while (next.TryDequeue(out BuildableId? at))
-        {
-            Buildable? buildable = world.Find(at);
-            if (buildable is not Logistics)
-            {
-                if (buildable is not null)
-                {
-                    yield return buildable;
-                }
-
-                continue;
-            }
-
-            foreach (Buildable onwards in world.Downstream(at).Where(onwards => seen.Add(onwards.Id)))
-            {
-                next.Enqueue(onwards.Id);
-            }
-        }
     }
 }

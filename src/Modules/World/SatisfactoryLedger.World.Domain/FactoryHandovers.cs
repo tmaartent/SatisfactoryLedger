@@ -1,11 +1,12 @@
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain.Flow;
+using SatisfactoryLedger.World.Domain.Flow.Objects;
 using SatisfactoryLedger.World.Domain.Tracing;
 
 namespace SatisfactoryLedger.World.Domain;
 
 /// <summary>
-/// A factory's handovers (card 3, decided 2026-11-27): per item, what crosses its inputs. What it can't derive from the
+/// A factory's handovers (card 3, decided 2026-11-27): per item, what crosses its inputs and its outputs. What it can't derive from the
 /// world and the analysis yet comes from its caller as facts; every rule on them is here.
 /// </summary>
 public sealed class FactoryHandovers
@@ -13,16 +14,61 @@ public sealed class FactoryHandovers
     /// <summary>Machines ordered by id, as the factory page and the arrangement list them.</summary>
     private static readonly IComparer<BuildableId> ById = Comparer<BuildableId>.Create((a, b) => string.CompareOrdinal(a.Id, b.Id));
 
-    private FactoryHandovers(IReadOnlyList<IncomingItem> inputs) => Inputs = inputs;
+    private FactoryHandovers(IReadOnlyList<IncomingItem> inputs, IReadOnlyList<OutgoingItem> outputs)
+    {
+        Inputs = inputs;
+        Outputs = outputs;
+    }
 
     /// <summary>What it takes in, per item, ordered by item id.</summary>
     public IReadOnlyList<IncomingItem> Inputs { get; }
 
+    /// <summary>What it makes, per item that leaves, ordered by item id.</summary>
+    public IReadOnlyList<OutgoingItem> Outputs { get; }
+
     /// <param name="members">The factory's members in <paramref name="world"/>.</param>
     /// <param name="owners">Who each machine belongs to: this factory's own members, and the other factories' machines.</param>
     /// <param name="sinks">The AWESOME Sinks: what reaches them is sunk.</param>
+    /// <param name="usedUp">The consumers that use up what they get, such as a portal: shown by building (decided 2026-11-11).</param>
     /// <param name="buildingOf">The class of each building, such as <c>Build_MinerMk3_C</c>.</param>
     public static FactoryHandovers Of(
+        WorldGraph world,
+        FlowReadings readings,
+        FactoryMembers members,
+        IReadOnlyDictionary<BuildableId, Guid> owners,
+        IReadOnlySet<BuildableId> sinks,
+        IReadOnlySet<BuildableId> usedUp,
+        IReadOnlyDictionary<BuildableId, string> buildingOf) =>
+        new(IncomingOf(world, readings, members, owners, sinks, buildingOf), OutgoingOf(world, readings, members, owners, sinks, usedUp, buildingOf));
+
+    /// <summary>
+    /// What leaves over an output of one item now, read from the stored flows: they keep what flows into each belt, lift,
+    /// pipe and container in a line (ADR-0017).
+    /// <list type="bullet">
+    /// <item>into a storage container at the end of the line: what flows into the logistics that feed it;</item>
+    /// <item>from logistics with one way out: what flows into it;</item>
+    /// <item>otherwise into the logistics across. When that's fed from elsewhere too, such as a pipe network shared
+    /// with other factories, this counts their part as well.</item>
+    /// </list>
+    /// The factory preview reads it per output, before there's a factory that owns machines.
+    /// </summary>
+    public static double Leaving(WorldGraph world, FlowReadings readings, FactoryConnection output, ItemId item)
+    {
+        if (output.Outside is not { } outside)
+        {
+            return world.Upstream(output.Inside).Sum(feeder => readings.Carries(feeder.Id, item));
+        }
+
+        if (world.Find(output.Inside) is Logistics && world.Downstream(output.Inside).Count() == 1)
+        {
+            return readings.Carries(output.Inside, item);
+        }
+
+        return world.Find(outside) is Logistics ? readings.Carries(outside, item) : 0;
+    }
+
+    /// <summary>What it takes in, per item: see <see cref="IncomingItem"/>.</summary>
+    private static List<IncomingItem> IncomingOf(
         WorldGraph world,
         FlowReadings readings,
         FactoryMembers members,
@@ -76,7 +122,7 @@ public sealed class FactoryHandovers
             }
         }
 
-        return new FactoryHandovers(
+        return
         [
             .. now.Keys.OrderBy(item => item.Id, StringComparer.Ordinal)
                 .Select(item => new IncomingItem(
@@ -93,7 +139,7 @@ public sealed class FactoryHandovers
                             startMachines.TryGetValue((item, entry.Key), out SortedSet<BuildableId>? machines) ? [.. machines] : [])),
                     ],
                     () => CouldBringMore(world, readings, startsOf[item], item, id => Spare(id, item), id => Sunk(id, item)))),
-        ]);
+        ];
 
         // Machines by factory; a building on its own, so two miners on one belt are two sources (decided 2026-11-11).
         Source SourceOf(BuildableId start) => world.Find(start) switch
@@ -151,6 +197,165 @@ public sealed class FactoryHandovers
                     }
 
                     toVisit.Enqueue(next.Id);
+                }
+            }
+        }
+    }
+
+    /// <summary>What it makes, per item that leaves: see <see cref="OutgoingItem"/>.</summary>
+    private static List<OutgoingItem> OutgoingOf(
+        WorldGraph world,
+        FlowReadings readings,
+        FactoryMembers members,
+        IReadOnlyDictionary<BuildableId, Guid> owners,
+        IReadOnlySet<BuildableId> sinks,
+        IReadOnlySet<BuildableId> usedUp,
+        IReadOnlyDictionary<BuildableId, string> buildingOf)
+    {
+        Dictionary<ItemId, double> now = [];
+        Dictionary<ItemId, List<BuildableId>> startsOf = [];
+        foreach (FactoryConnection output in members.Outputs)
+        {
+            foreach (ItemId item in output.Items)
+            {
+                now[item] = now.GetValueOrDefault(item) + Leaving(world, readings, output, item);
+                startsOf.TryAdd(item, []);
+                startsOf[item].Add(output.Outside ?? output.Inside);
+            }
+        }
+
+        Dictionary<ItemId, Dictionary<Destination, double>> destinations = [];
+        Dictionary<ItemId, double> brings = [];
+        foreach ((BuildableId end, ItemId item, double perMinute) in Ends(world, readings, members))
+        {
+            Dictionary<Destination, double> to = destinations.TryGetValue(item, out var found) ? found : destinations[item] = [];
+            Destination key = DestinationOf(end);
+            to[key] = to.GetValueOrDefault(key) + perMinute;
+
+            // What this factory brings its receivers: what reaches one that asks for the item, a drone port too.
+            if (world.Find(end)?.Demand.GetValueOrDefault(item) is { } asks && asks > Rate.Zero)
+            {
+                brings[item] = brings.GetValueOrDefault(item) + perMinute;
+            }
+        }
+
+        // At 100%, what its machines make of it less what its own machines take of it (decided 2026-11-11): a loop
+        // that makes rubber and takes some back for its plastic only lets the rest leave. Only what leaves: a product
+        // its own machines take all of, such as gas unpacked for its blenders, isn't output.
+        Dictionary<ItemId, double> atFullSpeed = [];
+        foreach (Buildable member in members.Machines.Select(id => world.Find(id)).OfType<Buildable>())
+        {
+            foreach ((ItemId item, Rate rate) in member.Production.Where(product => now.ContainsKey(product.Key)))
+            {
+                atFullSpeed[item] = atFullSpeed.GetValueOrDefault(item) + rate.ToDouble();
+            }
+
+            foreach ((ItemId item, Rate rate) in member.Demand.Where(input => now.ContainsKey(input.Key)))
+            {
+                atFullSpeed[item] = atFullSpeed.GetValueOrDefault(item) - rate.ToDouble();
+            }
+        }
+
+        // What an output blocked producer would make at 100% but can't get out.
+        Dictionary<ItemId, double> cannotLeave = [];
+        foreach (Buildable producer in members.Producers.Select(id => world.Find(id)).OfType<Buildable>())
+        {
+            if (readings.Machine(producer.Id) is not { Limit: MachineLimit.OutputBlocked } state)
+            {
+                continue;
+            }
+
+            foreach ((ItemId item, Rate rate) in producer.Production.Where(product => now.ContainsKey(product.Key)))
+            {
+                cannotLeave[item] = cannotLeave.GetValueOrDefault(item) + (rate.ToDouble() * (1 - state.Utilisation));
+            }
+        }
+
+        return
+        [
+            .. now.Keys.OrderBy(item => item.Id, StringComparer.Ordinal).Select(item =>
+            {
+                Dictionary<Destination, double> to = destinations.GetValueOrDefault(item) ?? [];
+                List<Buildable> receivers = [.. Receivers(world, startsOf[item])];
+                double need = receivers.Aggregate(Rate.Zero, (sum, receiver) => sum + Asks(receiver, item)).ToDouble();
+                double get = receivers.Where(receiver => Asks(receiver, item) > Rate.Zero).Sum(receiver => readings.Into(receiver.Id, item));
+                return new OutgoingItem(
+                    item,
+                    now[item],
+                    Math.Max(0, atFullSpeed.GetValueOrDefault(item)),
+                    need,
+                    Math.Max(0, get - brings.GetValueOrDefault(item)),
+                    Math.Max(0, need - get),
+                    to.Where(entry => entry.Key.Kind == OutputDestinationKind.Sink).Sum(entry => entry.Value),
+                    cannotLeave.GetValueOrDefault(item),
+                    [
+                        .. to.OrderByDescending(entry => entry.Value)
+                            .Select(entry => new OutgoingDestination(entry.Key.Kind, entry.Key.Owner, entry.Key.Building, entry.Value)),
+                    ]);
+            }),
+        ];
+
+        // The machines and generators of a factory by that factory; a consumer that uses up what it gets by its building.
+        Destination DestinationOf(BuildableId end) => world.Find(end) switch
+        {
+            Machine or Consumer { IsGenerator: true } when owners.TryGetValue(end, out Guid owner) => new(OutputDestinationKind.Factory, owner, null),
+            Machine or Consumer { IsGenerator: true } => new(OutputDestinationKind.NoFactory, null, null),
+            Consumer when sinks.Contains(end) => new(OutputDestinationKind.Sink, null, null),
+            Consumer when usedUp.Contains(end) => new(OutputDestinationKind.Consumer, null, buildingOf.GetValueOrDefault(end)),
+            Logistics { Kind: LogisticsKind.Belt or LogisticsKind.Lift or LogisticsKind.Pipe or LogisticsKind.PipeNetwork } => new(OutputDestinationKind.Nowhere, null, null),
+            _ => new(OutputDestinationKind.Storage, null, null),
+        };
+    }
+
+    /// <summary>
+    /// What a receiver asks for of an item at 100%: its <see cref="Buildable.Demand"/>. A machine what its recipe asks for
+    /// at its clock speed, a generator its fuel or water, a drone port the fuel its drones burn; sinks, stations and
+    /// containers ask for nothing in particular.
+    /// </summary>
+    private static Rate Asks(Buildable receiver, ItemId item) => receiver.Demand.GetValueOrDefault(item) ?? Rate.Zero;
+
+    /// <summary>
+    /// The machines and consumers the lines from <paramref name="from"/> reach through logistics, each once, however
+    /// many of the lines reach it. Whatever else feeds them.
+    /// </summary>
+    private static IEnumerable<Buildable> Receivers(WorldGraph world, IEnumerable<BuildableId> from)
+    {
+        HashSet<BuildableId> seen = [.. from];
+        Queue<BuildableId> next = new(seen);
+        while (next.TryDequeue(out BuildableId? at))
+        {
+            Buildable? buildable = world.Find(at);
+            if (buildable is not Logistics)
+            {
+                if (buildable is not null)
+                {
+                    yield return buildable;
+                }
+
+                continue;
+            }
+
+            foreach (Buildable onwards in world.Downstream(at).Where(onwards => seen.Add(onwards.Id)))
+            {
+                next.Enqueue(onwards.Id);
+            }
+        }
+    }
+
+    /// <summary>
+    /// What leaves a factory over its outputs, per building at the end of its lines and item, per minute (BR-A18): a
+    /// machine of another factory, a sink, a station. In the order its outputs come, as the arrangement reads them.
+    /// </summary>
+    public static IEnumerable<(BuildableId End, ItemId Item, double PerMinute)> Ends(WorldGraph world, FlowReadings readings, FactoryMembers members)
+    {
+        foreach (FactoryConnection output in members.Outputs)
+        {
+            BuildableId start = output.Outside ?? output.Inside;
+            foreach (ItemId item in output.Items)
+            {
+                foreach ((BuildableId end, double perMinute) in OutputDestinations.Of(world, start, item, Leaving(world, readings, output, item), readings))
+                {
+                    yield return (end, item, perMinute);
                 }
             }
         }
@@ -295,6 +500,9 @@ public sealed class FactoryHandovers
 
     /// <summary>A source as it's grouped: what arrives from the same one adds up.</summary>
     private readonly record struct Source(InputSourceKind Kind, Guid? Owner, string? Building, BuildableId? Id);
+
+    /// <summary>A destination as it's grouped: what goes to the same one adds up.</summary>
+    private readonly record struct Destination(OutputDestinationKind Kind, Guid? Owner, string? Building);
 
     /// <summary>A maximum flow by shortest augmenting paths (Edmonds-Karp): the graphs here are a line or two upstream.</summary>
     private sealed class MaximumFlow(int points)

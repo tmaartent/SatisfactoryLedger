@@ -72,7 +72,7 @@ internal static class FactoryTraces
             [.. members.Logistics.Select(id => id.Id).Order(StringComparer.Ordinal)],
             Summaries(members.Outputs, buildables),
             Summaries(members.Inputs, buildables),
-            PerItem(members.Outputs, (output, item) => FactoryOutputs.Over(output, world, readings!).GetValueOrDefault(item), readings is not null),
+            PerItem(members.Outputs, (output, item) => FactoryHandovers.Leaving(world, readings!, output, item), readings is not null),
             PerItem(members.Inputs, (input, item) => FactoryHandovers.Arriving(world, readings!, members, input, item), readings is not null),
             [.. definition.ConnectedIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],
             [.. definition.SuppliesIn(world).Select(id => id.Id).Order(StringComparer.Ordinal)],

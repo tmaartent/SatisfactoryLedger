@@ -20,15 +20,8 @@ internal static class FactoryInputs
         FlowReadings readings,
         IEnumerable<StoredFactory> factories)
     {
-        Dictionary<BuildableId, StoredFactory> owners = FactoryOutputs.OwnersIn(snapshot, factory, members, factories);
-        Dictionary<Guid, string> names = owners.Values.DistinctBy(owner => owner.Id).ToDictionary(owner => owner.Id, owner => owner.Name);
-        FactoryHandovers handovers = FactoryHandovers.Of(
-            world,
-            readings,
-            members,
-            owners.ToDictionary(owner => owner.Key, owner => owner.Value.Id),
-            snapshot.Buildables.Where(buildable => buildable.ClassName == FactoryOutputs.SinkClass).Select(buildable => BuildableId.Of(buildable.Id)).ToHashSet(),
-            snapshot.Buildables.ToDictionary(buildable => BuildableId.Of(buildable.Id), buildable => buildable.ClassName));
+        FactoryHandovers handovers = SnapshotHandovers.Of(snapshot, world, factory, members, readings, factories);
+        Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, factories);
 
         return
         [

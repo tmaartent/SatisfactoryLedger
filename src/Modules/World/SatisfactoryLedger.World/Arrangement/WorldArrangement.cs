@@ -248,7 +248,7 @@ internal static class WorldArrangement
         foreach ((StoredFactory factory, FactoryMembers members, _) in traced.Where(entry => readings is not null && chosen.Contains(entry.Factory.Id.ToString())))
         {
             string from = factory.Id.ToString();
-            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryOutputs.Ends(world, members, readings!)
+            IEnumerable<IGrouping<ItemId, Supply>> sent = FactoryHandovers.Ends(world, readings!, members)
                 .Where(output => IsStation(output.End.Id) && buildables[output.End.Id].Position is not null)
                 .GroupBy(output => (output.End.Id, output.Item))
                 .GroupBy(
