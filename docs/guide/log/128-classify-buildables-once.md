@@ -43,3 +43,20 @@ Card D of the architecture review of 2026-11-28 (`docs/architecture/reviews/2026
 - **The review's Status line for card D** names the step and branch; the PR number goes in once it's opened.
 
 **Files:** `World.SaveFile/BuildableKind.cs` (new), `GameClasses.cs`, `SaveFileReader.cs`; `World/Snapshots/BuildableDocument.cs`, `SnapshotDocument.cs`, `TransportTierDocument.cs`; `World/Arrangement/WorldArrangement.cs`; `World/Analysis/SnapshotHandovers.cs`; `tests/SatisfactoryLedger.World.Tests/WorldArrangementTests.cs`, `tests/SatisfactoryLedger.World.SaveFile.Tests/GameClassesTests.cs`; `GLOSSARY.md`; `docs/domain/business-rules.md`; `docs/guide/primer.md`; `docs/architecture/reviews/2026-11-28.md`; this log.
+
+## Review fixes
+
+From the code review of PR #82.
+
+1. **The web's station lists left out the fluid truck station.** `arrangement-model.ts` and `arrangement-page.ts` each kept a `stationClasses` set, and neither held `Build_FluidTruckStation_C`: a line from one was marked as an undefined factory, and the page drew it as a plain building. The model's set is now the only one, exported, and the page imports it. Red first: `marks a fluid truck station with the map's dark dot, as a station` in `arrangement-model.spec.ts`. No API change: the web still decides it from the class name in a spot's id, as before. A `fix(web):` commit.
+2. **`SaveFileReader` asks `GameClasses.KindOf` once per buildable**, into a local `kind`, instead of three times in the consumer's initialiser.
+3. **`BuildableDocument.IsGenerator(burnRateCopied)`** takes a `Func<string, bool>`: whether the Catalog copied at import has a generator of that class. `ToBuildable` passes `catalog.Generators.ContainsKey`, a method group, so it stays a key lookup in the dictionary it already had; `SnapshotDocument.IsMachineOrGenerator` passes a lambda over its list, as it searched before. The old `IEnumerable<GeneratorDocument> copied` made `ToBuildable` hand over `.Values` and search them in a line. Behaviour unchanged.
+4. **`GameClasses.RoleOf` is left as it is.** It names the four consumer kinds once, and that's a different fact from the `Kinds` table: the table says what a class is, `RoleOf` says which kinds the reader turns into a consumer. Putting the role into the table would repeat it on every row; a set of consumer kinds, or a method on the enum, would only move the same four names elsewhere.
+5. Card D's **Status:** line names the branch, `fix/classify-buildables-once`, and PR #82.
+
+**Points worth noticing:**
+
+| Here | In Java / TypeScript |
+|---|---|
+| **A method group as the predicate** (`IsGenerator(catalog.Generators.ContainsKey)`): the dictionary's own `ContainsKey` is the `Func<string, bool>`, no lambda (see the primer's *Method groups as delegates*). Taking a predicate rather than a collection lets each caller keep its own lookup. | Java's `IsGenerator(catalog.generators()::containsKey)` into a `Predicate<String>`. |
+| **`export const stationClasses: ReadonlySet<string>`**: the page imports the model's set, typed read-only, so neither file can `add` to the other's list. | TypeScript only; a Java `Set.of(...)` is immutable at run time, `ReadonlySet` only at compile time. |
