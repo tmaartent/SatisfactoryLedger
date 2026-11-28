@@ -35,9 +35,19 @@ From *Seen, not carded* in the architecture review of 2026-11-28 (`docs/architec
 ## Choices to overrule
 
 - **The return type:** a list of sets, as the spec said, rather than a lookup "network of piece". `HubsOf` builds that lookup itself from the list; `CarryingGas` doesn't need it.
-- **Which buildables are pieces:** the logistics kinds `Pipe` (pipes, pumps, valves), `PipeJunction` and `FluidBuffer`, the same three `PipeHeadLifts.IsPiece` names, plus any id a pipe link names. The hub (`PipeNetwork`) is in none.
+- **Which buildables are pieces:** the logistics kinds `Pipe` (pipes, pumps, valves), `PipeJunction` and `FluidBuffer`, the same three `PipeHeadLifts.IsPiece` named (now `BuildableDocument.IsPipePiece`, see *Review fixes*), plus any id a pipe link names. The hub (`PipeNetwork`) is in none.
 - **Order of the networks:** in the order of the buildables, then of the links; nothing relies on it.
 - **A network touching two hubs** (not seen in the model) keeps the first hub found, as before. The save reader makes one hub per network, so it shouldn't happen.
-- **The review's Status line** names the step and branch; the PR number goes in once it's opened.
+- **The review's Status line** names the step, branch and PR #84.
 
-**Files:** `src/Modules/World/SatisfactoryLedger.World/Snapshots/SnapshotDocument.cs`, `Analysis/PipeFlows.cs`, `Map/PipeHeadLifts.cs`; `tests/SatisfactoryLedger.World.Tests/SnapshotDocumentTests.cs`; `docs/guide/primer.md`; `docs/architecture/reviews/2026-11-28.md`; this log.
+## Review fixes
+
+From `/code-review` of PR #84; no behaviour change, the stored analyses unchanged.
+
+- **The pipe-piece filter had two copies** (`PipeNetworks()` and `PipeHeadLifts.IsPiece`). It now has one home, `BuildableDocument.IsPipePiece`, next to `IsGenerator`; both ask it ("The second copy moves home").
+- **`PipeFlows.HubsOf` says it relies on insertion order:** the comment at the loop over `hubNextTo` names it, as the primer row asks. An ordered source (looping over the connections) wasn't taken: a piece next to two hubs would then keep the first hub instead of the last, a behaviour change.
+- **Tests:** the belt exclusion is its own test, `A_belt_is_in_no_pipe_network`; the `Piece` helper gives each kind its own class (`Build_Pipeline_C`, `Build_PipelineJunction_Cross_C`, `Build_PipeStorageTank_C`).
+
+**Test runs:** .NET 1373 passed (integration tests included, Docker running).
+
+**Files:** `src/Modules/World/SatisfactoryLedger.World/Snapshots/SnapshotDocument.cs`, `Snapshots/BuildableDocument.cs`, `Analysis/PipeFlows.cs`, `Map/PipeHeadLifts.cs`; `tests/SatisfactoryLedger.World.Tests/SnapshotDocumentTests.cs`; `docs/guide/primer.md`; `docs/architecture/reviews/2026-11-28.md`; this log.
