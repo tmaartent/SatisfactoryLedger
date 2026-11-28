@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 
 import { ArrangementSummary } from '../../api/models/arrangement-summary';
-import { runStatus, runSummary } from './arrangement-model';
+import { runStatus, runSummary } from './run-settings';
 
 /**
  * The runs of the optimal arrangement for a world, as the snapshot picker lists snapshots (asked 2026-11-25): the run

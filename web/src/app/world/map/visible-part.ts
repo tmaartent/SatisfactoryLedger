@@ -45,6 +45,35 @@ export function coveredSides(map: ScreenBox, tab: ScreenBox | null): Sides {
     const [[aw, ah], [bw, bh]] = [left(a), left(b)];
     return bw * bh > aw * ah ? b : a;
   });
-  const [w, h] = left(best);
-  return w < least || h < least ? none : best;
+  return tooLittleLeft(map, best) ? none : best;
+}
+
+/** Whether what a cut leaves of the map in view is too little, in either direction, to centre anything in. */
+function tooLittleLeft(map: ScreenBox, cut: Sides): boolean {
+  const width = map.right - map.left - cut.left - cut.right;
+  const height = map.bottom - map.top - cut.top - cut.bottom;
+  return width < least || height < least;
+}
+
+/**
+ * How much of each side of a part of the page the sidebar covers, as the browser has laid it out (decided
+ * 2026-11-28): whatever of it lies over the page, closed or open. Its own box, the rail or, on a phone, the bar of
+ * tabs and the snapshot picker along the bottom with the sheet above them; and the open tab, which on a narrow screen
+ * lies over the page outside that box. One read for the area page and the world map. Nothing when they leave too
+ * little in view together, as `coveredSides` for one.
+ */
+export function coveredBySidebar(page: ScreenBox): Sides {
+  const sidebar = document.querySelector('app-sidebar');
+  const covered = [sidebar, sidebar?.querySelector('.tab')]
+    .filter((element) => element != null)
+    .map((element) => coveredSides(page, element.getBoundingClientRect()));
+  const most = (side: keyof Sides) => Math.max(0, ...covered.map((sides) => sides[side]));
+  const cut = {
+    top: most('top'),
+    right: most('right'),
+    bottom: most('bottom'),
+    left: most('left'),
+  };
+  // Too little left between the two, as under one alone: nothing to centre on.
+  return tooLittleLeft(page, cut) ? { top: 0, right: 0, bottom: 0, left: 0 } : cut;
 }

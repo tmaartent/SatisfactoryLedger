@@ -35,11 +35,11 @@ import { getSnapshot } from '../../api/fn/world/get-snapshot';
 import { getWorldMap } from '../../api/fn/world/get-world-map';
 import { requestArrangement } from '../../api/fn/world/request-arrangement';
 import { traceFactories } from '../../api/fn/world/trace-factories';
-import { ArrangementResponse } from '../../api/models/arrangement-response';
 import { ArrangementSummary } from '../../api/models/arrangement-summary';
+import { WorldPoint } from '../../api/models/world-point';
 import { WorldRectangle } from '../../api/models/world-rectangle';
 import { problemMessage } from '../../shared/problem';
-import { TracedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
+import { factoryColour, machineOwners } from '../area/factory-outlines';
 import { ArrangementDeletion } from './arrangement-deletion';
 import { BeltFloor3d } from './belt-floor-3d';
 import { CatalogNames } from '../../shared/catalog-names';
@@ -52,6 +52,7 @@ import { MapArt } from '../map/map-art';
 import { removeMap } from '../map/remove-map';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
+import { BeltFloor, beltFloor } from './belt-floor';
 import { RunPicker } from './run-picker';
 import {
   dragColours,
@@ -63,31 +64,14 @@ import {
   escapeHtml,
 } from '../map/map-model';
 import {
-  beltEnds,
   beltLevels,
   shownLevels,
   beltLine,
-  beltTooltip,
-  factoryTooltip,
-  joinedWays,
-  ceilingHeights,
-  ceilingMetres,
-  foundations,
   mapBounds,
-  metres,
-  lineJoints,
-  crossingMarks,
   placedMachines,
-  movedMetres,
   relatedFactories,
-  jointColours,
-  spotMark,
   spotNames,
-  wayMark,
   pickedAlone,
-  SolverTime,
-  solverTime,
-  solverTimeOf,
   areaFromQuery,
   PickedConnections,
   relationsOf,
@@ -97,11 +81,17 @@ import {
   AreaFactory,
   arrangedFactories,
   factoriesInArea,
-  beltsToLabel,
-  suppliedBelts,
-  halfway,
   stationClasses,
 } from './arrangement-model';
+import {
+  SolverTime,
+  ceilingHeights,
+  ceilingMetres,
+  foundations,
+  metres,
+  solverTime,
+  solverTimeOf,
+} from './run-settings';
 import { loaded } from '../../shared/loaded';
 
 /** What stays where it is and takes its plots: the stations' classes, as the arrangement counts them. */
@@ -876,8 +866,9 @@ export class ArrangementPage {
    */
   private drawRun(): void {
     const arrangement = loaded(this.arrangement);
-    const traces = loaded(this.factories) ?? [];
     const focused = this.focused();
+    const colourOf = this.colourOf();
+    const ownerOf = this.ownerOf();
     const machines = loaded(this.machines);
     const footprints = new Map(
       (machines?.footprints ?? []).map((footprint) => [footprint.id, footprint]),
@@ -889,6 +880,13 @@ export class ArrangementPage {
     this.runLayer.clearLayers();
     this.beltLayer.clearLayers();
     if (!arrangement || arrangement.factories.length === 0) return;
+    const floor = beltFloor({
+      arrangement,
+      colourOf,
+      names: spotNames(this.names, ownerOf),
+      focused,
+      levels: null,
+    });
 
     if (arrangement.summary.area) {
       L.rectangle(L.latLngBounds(mapBounds(arrangement.summary.area)), {
@@ -901,45 +899,38 @@ export class ArrangementPage {
     }
 
     // Always (asked 2026-11-23): the belts and pipes on the floor below are part of the proposal.
-    this.drawBelts(arrangement, traces, focused);
+    this.drawBelts(floor);
     // With a factory picked, what its long belts and pipes carry, as the lines before a run (asked 2026-11-25).
-    for (const belt of beltsToLabel(arrangement.belts, focused))
-      this.itemPill([belt.item!], toMapPoint({ ...halfway(belt.corners), z: 0 })).addTo(
-        this.beltLayer,
-      );
+    for (const { label } of floor.belts)
+      if (label)
+        this.itemPill([label.item], toMapPoint({ ...label.at, z: 0 })).addTo(this.beltLayer);
 
     // With factories picked, the others fade, unless they feed one picked.
-    const related = relatedFactories(focused, arrangement.links);
-    for (const factory of arrangement.factories) {
-      if (!factory.proposed) continue;
-      const colour = factoryColour(traces, factory.factoryId) ?? '#90a4ae';
-      const name = factory.name ?? '(deleted)';
-      const proposed = L.latLngBounds(mapBounds(factory.proposed));
-      const metres = movedMetres(factory.now, factory.proposed);
+    for (const factory of floor.factories) {
       const standing = owned.get(factory.factoryId) ?? [];
-      const fade = related !== null && !related.has(factory.factoryId) ? 0.25 : 1;
-      L.rectangle(proposed, {
-        color: colour,
-        weight: focused.has(factory.factoryId) ? 4 : 2,
+      const fade = factory.faded ? 0.25 : 1;
+      L.rectangle(L.latLngBounds(mapBounds(factory.plot)), {
+        color: factory.colour,
+        weight: factory.standsOut ? 4 : 2,
         opacity: fade,
-        fillColor: colour,
+        fillColor: factory.colour,
         fillOpacity: (standing.length > 0 ? 0.15 : 0.45) * fade,
       })
-        .bindTooltip(factoryTooltip(name, metres))
+        .bindTooltip(factory.tooltip)
         .on('click', () => this.toggleFocus(factory.factoryId))
         .addTo(this.runLayer);
 
       // Its machines in the middle of the plot, as the map draws them, facing the same way (decided 2026-11-18).
-      for (const moved of placedMachines(standing, footprints, factory.proposed)) {
+      for (const moved of placedMachines(standing, footprints, factory.plot)) {
         if (!footprints.has(moved.className)) continue;
         L.polygon(
           footprintShapes(moved, footprints).map((ring) => [ring]),
           {
             fillRule: 'nonzero',
-            color: colour,
+            color: factory.colour,
             weight: 1,
             opacity: fade,
-            fillColor: colour,
+            fillColor: factory.colour,
             fillOpacity: 0.85 * fade,
             interactive: false,
           },
@@ -949,165 +940,126 @@ export class ArrangementPage {
   }
 
   /**
-   * The belts routed on the floor below (BR-O2): a thin line each, in the colour of the factory it serves, with a dot at
-   * each lift; at a miner a red circle, at an extractor one in the colour of its fluid (asked 2026-11-19); at a station
-   * or drone port the dot is dark. Where a belt leaves the floor for one outside
-   * the area, an amber ring. Belts on one square are stacked, so their lines lie on each other. With factories picked,
-   * the belts that supply them, back to where it starts, and what they make stand out (suppliedBelts, step 104). Where a belt crosses another as a last resort, an amber × (step 102).
+   * The belt floor on the map (BR-O2), as `beltFloor` says it: a thin line per belt, dashed for a pipe, wider where it
+   * stands out, with a dot at each lift; at a miner or extractor a circle, at a station or drone port a dark dot; an
+   * amber ring where a belt leaves the floor. Belts on one square are stacked, so their lines lie on each other.
+   * Outside the area, the existing belts the routed ones join, dotted, to an amber ring on the area's edge; an amber ×
+   * where a belt crosses another as a last resort (step 102); and the supply lines' priority mergers, squares, and
+   * splitters, diamonds.
    */
-  private drawBelts(
-    arrangement: ArrangementResponse,
-    traces: readonly TracedFactory[],
-    focused: ReadonlySet<string>,
-  ): void {
-    const factories = new Set(arrangement.factories.map((factory) => factory.factoryId));
-    // Spots whose existing belt comes into the area: the yellow circle stands where it comes in, drawn with the way.
-    const comingIn = new Set(arrangement.ways.map((way) => way.spotId));
-    const nodeNames = spotNames(this.names, this.ownerOf());
-    const shown = suppliedBelts(arrangement.belts, focused);
-    for (const belt of arrangement.belts) {
-      const picked = focused.size > 0 && shown.has(belt);
-      const dimmed = !shown.has(belt);
-      const ends = beltEnds(belt, factories);
-      const colour = factoryColour(traces, ends.factory) ?? '#e0e0e0';
-      const line = beltLine(belt.corners);
+  private drawBelts(floor: BeltFloor): void {
+    const at = (point: WorldPoint) => toMapPoint({ ...point, z: 0 });
+    for (const mark of floor.belts) {
+      const opacity = (full: number) => (mark.faded ? 0.25 : full);
+      const line = beltLine(mark.belt.corners);
       L.polyline(line, {
-        color: colour,
-        weight: picked ? 3 : 1.5,
-        opacity: dimmed ? 0.25 : 0.9,
+        color: mark.colour,
+        weight: mark.standsOut ? 3 : 1.5,
+        opacity: opacity(0.9),
         // A pipe dashed, a belt solid.
-        dashArray: belt.pipe ? '6 4' : undefined,
+        dashArray: mark.belt.pipe ? '6 4' : undefined,
         interactive: false,
       }).addTo(this.beltLayer);
       // What it carries, on a wider line that can't be seen, so a thin belt is easy to point at.
       L.polyline(line, { opacity: 0, weight: 10 })
-        .bindTooltip(() => beltTooltip(belt, (item) => this.names.item(item)), {
-          sticky: true,
-        })
+        .bindTooltip(() => mark.tooltip, { sticky: true })
         .addTo(this.beltLayer);
-      const spot =
-        ends.spot === 'start' ? line[0] : ends.spot === 'end' ? line[line.length - 1] : null;
-      // Its lifts: none where it joins another belt, at a splitter or merger drawn below.
-      const lifts = [
-        ...(belt.startsOnBelt ? [] : [line[0]]),
-        ...(belt.endsOnBelt ? [] : [line[line.length - 1]]),
-      ];
-      const mark = spotMark(belt, factories, nodeNames);
-      for (const lift of lifts) {
-        const atSpot = lift === spot;
-        if (atSpot && mark?.kind === 'station')
-          L.circleMarker(lift, {
-            radius: picked ? 3 : 2,
+      for (const lift of mark.lifts) {
+        const where = at(lift.at);
+        if (lift.spot?.kind === 'station')
+          L.circleMarker(where, {
+            radius: mark.standsOut ? 3 : 2,
             weight: 1,
             color: '#212121',
-            fillColor: mark.colour,
-            fillOpacity: dimmed ? 0.25 : 1,
+            fillColor: lift.spot.colour,
+            fillOpacity: opacity(1),
           })
-            .bindTooltip(mark.tooltip)
+            .bindTooltip(lift.spot.tooltip)
             .addTo(this.beltLayer);
-        else if (atSpot && mark)
-          L.circleMarker(lift, {
-            radius: picked ? 6 : 5,
+        else if (lift.spot)
+          L.circleMarker(where, {
+            radius: mark.standsOut ? 6 : 5,
             weight: 1.5,
             color: '#fafafa',
-            opacity: dimmed ? 0.25 : 1,
-            fillColor: mark.colour,
-            fillOpacity: dimmed ? 0.25 : 1,
+            opacity: opacity(1),
+            fillColor: lift.spot.colour,
+            fillOpacity: opacity(1),
           })
-            .bindTooltip(mark.tooltip)
+            .bindTooltip(lift.spot.tooltip)
             .addTo(this.beltLayer);
         else
-          L.circleMarker(lift, {
-            radius: picked ? 3 : 2,
+          L.circleMarker(where, {
+            radius: mark.standsOut ? 3 : 2,
             weight: 1,
             color: '#212121',
-            fillColor: atSpot ? '#37474f' : colour,
-            fillOpacity: dimmed ? 0.25 : 1,
+            fillColor: lift.colour,
+            fillOpacity: opacity(1),
             interactive: false,
           }).addTo(this.beltLayer);
-        if (
-          atSpot &&
-          belt.leavesFloor &&
-          !comingIn.has(ends.spot === 'start' ? belt.from : belt.to)
-        )
-          L.circleMarker(lift, {
+        if (lift.ring)
+          L.circleMarker(where, {
             radius: 6,
             weight: 2,
             color: '#ffb300',
             fill: false,
-            opacity: dimmed ? 0.25 : 1,
+            opacity: opacity(1),
             interactive: false,
           }).addTo(this.beltLayer);
       }
     }
 
-    // Outside the area, the existing belts the routed ones join where they come into the area (decided 2026-11-18):
-    // dotted, in the colour of the factory they serve, from the building to a yellow circle on the area's edge. The
-    // routed belts run on across the strip of the area off the floor to it, at right angles. At a miner or extractor,
-    // its circle, as inside the area (asked 2026-11-19). With factories picked, those lit with the belts joining them, so
-    // a source outside the area shows where the line starts (step 106).
-    for (const spot of arrangement.ways)
-      for (const way of joinedWays([spot], arrangement.belts, factories, nodeNames)) {
-        const colour = factoryColour(traces, way.factory) ?? '#e0e0e0';
-        const dimmed = !way.joining.some((belt) => shown.has(belt));
-        const weight = focused.size > 0 && !dimmed ? 3 : 1.5;
-        const entry = toMapPoint({ ...way.entry, z: 0 });
-        const line = way.points.map((point) => toMapPoint({ ...point, z: 0 }));
-        L.polyline(line, {
-          color: colour,
+    for (const way of floor.ways) {
+      const opacity = (full: number) => (way.faded ? 0.25 : full);
+      const weight = way.standsOut ? 3 : 1.5;
+      const line = way.points.map(at);
+      L.polyline(line, {
+        color: way.colour,
+        weight,
+        opacity: opacity(0.8),
+        dashArray: '2 4',
+        interactive: false,
+      }).addTo(this.beltLayer);
+      L.polyline(line, { opacity: 0, weight: 10 })
+        .bindTooltip(way.tooltip, { sticky: true })
+        .addTo(this.beltLayer);
+      for (const link of way.links)
+        L.polyline(link.map(at), {
+          color: way.colour,
           weight,
-          opacity: dimmed ? 0.25 : 0.8,
-          dashArray: '2 4',
+          opacity: opacity(0.9),
           interactive: false,
         }).addTo(this.beltLayer);
-        L.polyline(line, { opacity: 0, weight: 10 })
-          .bindTooltip(way.tooltip, { sticky: true })
+      L.circleMarker(at(way.entry), {
+        radius: 6,
+        weight: 2,
+        color: '#ffb300',
+        fill: false,
+        opacity: opacity(1),
+        interactive: false,
+      }).addTo(this.beltLayer);
+      if (way.spot)
+        L.circleMarker(at(way.spot.at), {
+          radius: 5,
+          weight: 1.5,
+          color: '#fafafa',
+          opacity: opacity(1),
+          fillColor: way.spot.colour,
+          fillOpacity: opacity(1),
+        })
+          .bindTooltip(way.spot.tooltip)
           .addTo(this.beltLayer);
-        for (const link of way.links)
-          L.polyline(
-            link.map((point) => toMapPoint({ ...point, z: 0 })),
-            {
-              color: colour,
-              weight,
-              opacity: dimmed ? 0.25 : 0.9,
-              interactive: false,
-            },
-          ).addTo(this.beltLayer);
-        L.circleMarker(entry, {
-          radius: 6,
-          weight: 2,
-          color: '#ffb300',
-          fill: false,
-          opacity: dimmed ? 0.25 : 1,
-          interactive: false,
-        }).addTo(this.beltLayer);
-        const mark = wayMark(spot, arrangement.belts, nodeNames);
-        if (mark)
-          L.circleMarker(toMapPoint({ ...mark.at, z: 0 }), {
-            radius: 5,
-            weight: 1.5,
-            color: '#fafafa',
-            opacity: dimmed ? 0.25 : 1,
-            fillColor: mark.colour,
-            fillOpacity: dimmed ? 0.25 : 1,
-          })
-            .bindTooltip(mark.tooltip)
-            .addTo(this.beltLayer);
-      }
+    }
 
-    // Where a belt crosses another as a last resort (step 102, decided 2026-11-25): an amber ×, to check in the game.
-    for (const crossing of crossingMarks(arrangement.belts))
-      L.marker(toMapPoint({ ...crossing.at, z: 0 }), {
+    for (const crossing of floor.crossings)
+      L.marker(at(crossing.at), {
         icon: L.divIcon({ html: '×', className: 'crossing-mark', iconSize: [16, 16] }),
+        opacity: crossing.faded ? 0.25 : 1,
       })
         .bindTooltip(crossing.tooltip)
         .addTo(this.beltLayer);
 
-    // Where supply lines are topped up (decided 2026-11-18): a priority merger, an orange square, where a top-up belt
-    // ends; a smart splitter, a blue diamond, where its overflow runs on; a splitter, a white diamond, where a line runs
-    // on past a factory (decided 2026-11-19).
-    for (const joint of lineJoints(arrangement.belts, (item) => this.names.item(item))) {
-      const [lat, lng] = toMapPoint({ ...joint.at, z: 0 });
+    for (const joint of floor.joints) {
+      const [lat, lng] = at(joint.at);
       const [r, d] = [2.5, 3.5];
       const shape: [number, number][] =
         joint.kind === 'merger'
@@ -1126,8 +1078,9 @@ export class ArrangementPage {
       L.polygon(shape, {
         color: '#111111',
         weight: 1,
-        fillColor: jointColours[joint.kind],
-        fillOpacity: 1,
+        opacity: joint.faded ? 0.25 : 1,
+        fillColor: joint.colour,
+        fillOpacity: joint.faded ? 0.25 : 1,
       })
         .bindTooltip(joint.tooltip)
         .addTo(this.beltLayer);

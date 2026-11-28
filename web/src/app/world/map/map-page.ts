@@ -34,7 +34,7 @@ import { FootprintDocument } from '../../api/models/footprint-document';
 import { PositionDocument } from '../../api/models/position-document';
 import { GameIcon } from '../../shared/game-icon';
 import { buildingShape } from './building-shape';
-import { coveredSides } from './visible-part';
+import { coveredBySidebar } from './visible-part';
 import { holdToExtent } from './hold-to-extent';
 import { MapArt } from './map-art';
 import { removeMap } from './remove-map';
@@ -43,7 +43,7 @@ import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
-import { runSummary } from '../arrangement/arrangement-model';
+import { runSummary } from '../arrangement/run-settings';
 import { AreaDrag, AreaSelection, ctrlOrCommand } from './area-selection';
 import { Area } from '../area/area-model';
 import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
@@ -896,16 +896,13 @@ export class MapPage {
 
   /**
    * Zooms to what's within these bounds, this many pixels in from the edges, and centres it in the part of the map the
-   * open tab leaves in view (asked 2026-11-24): above a sheet on a phone, left of a tab lying over the map.
+   * sidebar leaves in view (asked 2026-11-24, decided 2026-11-28): above the bar of tabs and a sheet on a phone, left of
+   * a tab lying over the map.
    */
   private fitVisible(bounds: L.LatLngBounds, margin: number, maxZoom?: number): void {
     if (!this.map) return;
-    // The sidebar is the shell's, beside the page: where its open tab lies, as the browser has laid it out.
-    const tab = document.querySelector('app-sidebar .tab');
-    const covered = coveredSides(
-      this.container().nativeElement.getBoundingClientRect(),
-      tab?.getBoundingClientRect() ?? null,
-    );
+    // The sidebar is the shell's, beside the page: whatever of it lies over the map, closed or open.
+    const covered = coveredBySidebar(this.container().nativeElement.getBoundingClientRect());
     this.lastFit = { bounds, margin, maxZoom };
     this.fitting = true;
     this.map.fitBounds(bounds, {
