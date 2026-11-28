@@ -30,7 +30,9 @@ class AreaPageStub {
     inject(FactoryDraft).within({
       snapshotId: signal('snapshot-1'),
       world: signal('Ficsit'),
-      factories: signal([{ factoryId: 'f-1', name: 'Rubber', machines: [{ id: 'm-1' }] }]),
+      factories: signal([
+        { factoryId: 'f-1', name: 'Rubber', machines: [{ id: 'm-1', owner: 'f-1' }] },
+      ]),
     });
   }
 }

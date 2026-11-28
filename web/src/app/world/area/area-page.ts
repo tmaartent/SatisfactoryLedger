@@ -71,7 +71,7 @@ import { coveredSides } from '../map/visible-part';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
 import { FactoryDraft, ownDraftOrThePages } from '../factory-draft';
-import { factoriesInArea, machineOwners, OutlinedFactory } from './factory-outlines';
+import { factoriesInArea, factoriesOf, machineOwners, OutlinedFactory } from './factory-outlines';
 import { handoverPoint } from './factory-preview';
 import { pieceAt, pieceStarts } from './merged-pieces';
 import { choicesTop, isTap, rectBetween, ScreenRect, SeenRange, inBox } from './selection';
@@ -262,6 +262,7 @@ export class AreaPage {
     params: () => ({ id: this.id() }),
     loader: ({ params }) => this.api.invoke(traceFactories, params),
   });
+  /** Who each machine belongs to, as the trace says (BR-W5). */
   private readonly owners = computed(() => machineOwners(loaded(this.factories) ?? []));
   protected readonly factoriesShown = computed(() =>
     factoriesInArea(loaded(this.factories) ?? [], new Set(this.buildings().map((b) => b.id))),
@@ -306,9 +307,15 @@ export class AreaPage {
     const building = this.selected();
     return choosable(building) ? building : null;
   });
-  protected readonly selectedOwners = computed(() => {
+  /** Who the building clicked belongs to (BR-W5), if any factory has it. */
+  protected readonly selectedOwner = computed(() => {
     const building = this.selected();
-    return building ? (this.owners().get(building.id) ?? []) : [];
+    return building ? this.owners().get(building.id) : undefined;
+  });
+  /** The factories the building clicked is in, its owner first. */
+  protected readonly selectedOwners = computed(() => {
+    const owner = this.selectedOwner();
+    return owner ? factoriesOf(owner) : [];
   });
 
   /** The lowest and highest building in the area, in metres: the range of the height cut-off. */
@@ -558,7 +565,7 @@ export class AreaPage {
       const top = Math.max(...boxes.flat().map((corner) => corner.z)) / 100;
       mesh.userData = { building, material, z: building.position.z / 100, top };
       // A factory's machines are outlined in its colour. As a child of the mesh, the outline hides with it.
-      const owner = owners.get(building.id)?.[0];
+      const owner = owners.get(building.id)?.owner;
       if (owner)
         mesh.add(
           new THREE.LineSegments(

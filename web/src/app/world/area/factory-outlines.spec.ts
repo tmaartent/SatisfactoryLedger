@@ -9,7 +9,7 @@ import {
 const factory = (factoryId: string, name: string, ...machines: string[]) => ({
   factoryId,
   name,
-  machines: machines.map((id) => ({ id })),
+  machines: machines.map((id) => ({ id, owner: factoryId })),
 });
 
 describe('factories in the 3D view', () => {
@@ -30,28 +30,61 @@ describe('factories in the 3D view', () => {
     });
   });
 
-  describe('the owners of a machine', () => {
-    it('are the factories it is in', () => {
+  describe('the owner of a machine', () => {
+    it('is the factory it is in', () => {
       const owners = machineOwners([plates, rods]);
 
-      expect([
-        owners.get('smelter')?.map((f) => f.name),
-        owners.get('rod maker')?.map((f) => f.name),
-      ]).toEqual([['Iron plates'], ['Iron rods']]);
+      expect([owners.get('smelter')?.owner.name, owners.get('rod maker')?.owner.name]).toEqual([
+        'Iron plates',
+        'Iron rods',
+      ]);
     });
 
-    it('are none for a machine no factory has', () => {
+    it('comes with the other factories that have the machine, by name', () => {
+      const owned = (factoryId: string, name: string) => ({
+        factoryId,
+        name,
+        machines: [{ id: 'smelter', owner: 'f1' }],
+      });
+
+      const smelter = machineOwners([
+        owned('f1', 'Iron plates'),
+        owned('f2', 'Smelting'),
+        owned('f3', 'Alloys'),
+      ]).get('smelter');
+
+      expect(smelter?.alsoIn.map((f) => f.name)).toEqual(['Alloys', 'Smelting']);
+    });
+
+    it('is never guessed: a trace naming an owner that has no such machine is an error', () => {
+      const plates = {
+        ...factory('f1', 'Iron plates'),
+        machines: [{ id: 'smelter', owner: 'gone' }],
+      };
+
+      expect(() => machineOwners([plates])).toThrow();
+    });
+
+    it('is none for a machine no factory has', () => {
       expect(machineOwners([plates]).get('assembler')).toBeUndefined();
     });
 
-    it('are all of them for a machine stored in more than one factory, from before a machine had one at most', () => {
-      const shared = factory('f3', 'Smelting', 'smelter');
+    it('is the oldest, as the trace says, for a machine stored in more than one factory from before a machine had one at most', () => {
+      const smelting = factory('f3', 'Smelting', 'smelter');
+      const plates = {
+        ...factory('f1', 'Iron plates', 'smelter', 'constructor'),
+        machines: [
+          { id: 'smelter', owner: 'f3' },
+          { id: 'constructor', owner: 'f1' },
+        ],
+      };
 
-      expect(
-        machineOwners([plates, shared])
-          .get('smelter')
-          ?.map((f) => f.name),
-      ).toEqual(['Iron plates', 'Smelting']);
+      const smelter = machineOwners([plates, smelting]).get('smelter');
+
+      expect([smelter?.owner.name, smelter?.alsoIn.map((f) => f.name)]).toEqual([
+        'Smelting',
+        ['Iron plates'],
+      ]);
     });
   });
 
@@ -60,6 +93,24 @@ describe('factories in the 3D view', () => {
       expect(
         factoriesInArea([plates, rods], new Set(['constructor', 'belt'])).map((f) => f.name),
       ).toEqual(['Iron plates']);
+    });
+
+    it('are listed by name, whatever order the world has them in', () => {
+      expect(
+        factoriesInArea([rods, plates], new Set(['rod maker', 'smelter'])).map((f) => f.name),
+      ).toEqual(['Iron plates', 'Iron rods']);
+    });
+
+    it('keep their colour when a factory is defined after them', () => {
+      const later = factory('f9', 'Aluminium', 'blender');
+
+      expect(
+        factoriesInArea([plates, rods, later], new Set(['smelter', 'rod maker'])).map(
+          (f) => f.colour,
+        ),
+      ).toEqual(
+        factoriesInArea([plates, rods], new Set(['smelter', 'rod maker'])).map((f) => f.colour),
+      );
     });
 
     it('keep their colour whichever area they are seen in', () => {

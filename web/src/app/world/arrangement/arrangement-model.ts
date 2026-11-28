@@ -71,13 +71,13 @@ export interface AreaFactory {
  */
 export function factoriesInArea(
   machines: readonly { id: string; position: WorldPoint }[],
-  owners: ReadonlyMap<string, readonly { factoryId: string; name: string }[]>,
+  owners: ReadonlyMap<string, { owner: { factoryId: string; name: string } }>,
   area: WorldRectangle | null,
 ): AreaFactory[] {
   if (!area) return [];
   const spans = new Map<string, { name: string; x0: number; y0: number; x1: number; y1: number }>();
   for (const machine of machines) {
-    const owner = owners.get(machine.id)?.[0];
+    const owner = owners.get(machine.id)?.owner;
     if (!owner) continue;
     const { x, y } = machine.position;
     const span = spans.get(owner.factoryId);

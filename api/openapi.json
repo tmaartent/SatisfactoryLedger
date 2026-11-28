@@ -942,7 +942,7 @@
         "tags": [
           "World"
         ],
-        "summary": "Every factory of the snapshot's world, traced in this snapshot (BR-W3, BR-W11)",
+        "summary": "Every factory of the snapshot's world, traced in this snapshot, oldest first; each machine says who owns it (BR-W3, BR-W5, BR-W11)",
         "operationId": "TraceFactories",
         "parameters": [
           {
@@ -3370,7 +3370,8 @@
         "required": [
           "id",
           "className",
-          "recipe"
+          "recipe",
+          "owner"
         ],
         "type": "object",
         "properties": {
@@ -3385,6 +3386,10 @@
               "null",
               "string"
             ]
+          },
+          "owner": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
