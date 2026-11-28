@@ -47,7 +47,16 @@ beforeEach(() => {
     },
   );
 });
-afterEach(() => vi.unstubAllGlobals());
+/**
+ * Every stage a test made. A press leaves OrbitControls listening on the document for the pointer to be let go, and the
+ * let-go sent to a canvas outside the document never reaches it: disposing takes the listener off, or a later spec's
+ * pointer events in the same document land in it.
+ */
+const stages: Stage[] = [];
+afterEach(() => {
+  stages.splice(0).forEach((stage) => stage.dispose());
+  vi.unstubAllGlobals();
+});
 
 /** An element of the size given, with one child already in it, and a stage on it. */
 function stageOn(options: Partial<StageOptions> = {}, size = { width: 800, height: 600 }) {
@@ -57,6 +66,7 @@ function stageOn(options: Partial<StageOptions> = {}, size = { width: 800, heigh
   Object.defineProperty(element, 'clientHeight', { configurable: true, value: size.height });
   const renderer = fakeRenderer();
   const stage = new Stage(element, { far: 20000, ...options }, () => renderer);
+  stages.push(stage);
   return { element, renderer, stage };
 }
 
