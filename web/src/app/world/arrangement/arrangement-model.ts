@@ -7,7 +7,8 @@ import { WorldRectangle } from '../../api/models/world-rectangle';
 import { perMinute } from '../../shared/display';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { buildingBoxes } from '../area/area-model';
-import { fromMapPoint, toMapPoint } from '../map/map-model';
+import { CatalogNames } from '../../shared/catalog-names';
+import { toMapPoint } from '../map/map-model';
 
 /** A rectangle of the world as two opposite corners on the map, as the map places buildings. */
 export function mapBounds(rectangle: WorldRectangle): [[number, number], [number, number]] {
@@ -168,17 +169,6 @@ export function areaFromQuery(
   if (corners.some((corner) => !Number.isFinite(corner))) return null;
   const [cx0, cy0, cx1, cy1] = corners;
   return { x0: cx0, y0: cy0, x1: cx1, y1: cy1 };
-}
-
-/** The area to arrange from two corners dragged on the map, in the game's centimetres, whichever way it was dragged. */
-export function areaBetween(a: [number, number], b: [number, number]): WorldRectangle {
-  const [p, q] = [fromMapPoint(a[0], a[1]), fromMapPoint(b[0], b[1])];
-  return {
-    x0: Math.min(p.x, q.x),
-    y0: Math.min(p.y, q.y),
-    x1: Math.max(p.x, q.x),
-    y1: Math.max(p.y, q.y),
-  };
 }
 
 /** A foundation is 8 by 8 metres: players lay out plots and roads in foundations. */
@@ -381,6 +371,23 @@ interface NodeNames {
   extractorForm: (className: string) => 'solid' | 'fluid' | null;
   fluidColour: (item: string) => string | null;
   ownerOf: (machine: string) => { name: string; colour: string } | undefined;
+}
+
+/**
+ * The names a spot's mark reads, from the catalog's names and the factory a machine belongs to: one for both views of
+ * the belt floor, the flat one and the one in 3D, so a spot goes by the same name in each.
+ */
+export function spotNames(
+  catalog: Pick<CatalogNames, 'item' | 'building' | 'extractorForm' | 'fluidColour'>,
+  ownerOf: NodeNames['ownerOf'],
+): NodeNames {
+  return {
+    item: (item) => catalog.item(item),
+    building: (className) => catalog.building(className),
+    extractorForm: (className) => catalog.extractorForm(className),
+    fluidColour: (item) => catalog.fluidColour(item),
+    ownerOf,
+  };
 }
 
 /**

@@ -45,7 +45,7 @@ import { BeltFloor3d } from './belt-floor-3d';
 import { CatalogNames } from '../../shared/catalog-names';
 import { previewFactory } from '../../api/fn/world/preview-factory';
 import { MapConveyor } from '../../api/models/map-conveyor';
-import { AreaSelection } from '../map/area-selection';
+import { AreaDrag, AreaSelection, ctrlOrCommand } from '../map/area-selection';
 import { buildingShape } from '../map/building-shape';
 import { holdToExtent } from '../map/hold-to-extent';
 import { MapArt } from '../map/map-art';
@@ -63,7 +63,6 @@ import {
   escapeHtml,
 } from '../map/map-model';
 import {
-  areaBetween,
   beltEnds,
   beltLevels,
   shownLevels,
@@ -83,6 +82,7 @@ import {
   relatedFactories,
   jointColours,
   spotMark,
+  spotNames,
   wayMark,
   pickedAlone,
   SolverTime,
@@ -107,6 +107,8 @@ import { loaded } from '../../shared/loaded';
 /** What stays where it is and takes its plots: the stations' classes, as the arrangement counts them. */
 /** How far out the map zooms without a map picture to hold it to. */
 const LeastZoom = -4;
+/** The least a side of an area drawn, in the game's centimetres: a smaller drag is a tap. */
+const SmallestArea = 1000;
 
 /** The area to arrange: blue, as the rectangle drawn with ctrl on the world map (asked 2026-11-24). */
 const areaStyle: L.PathOptions = { color: dragColours.arrangement, weight: 2, fillOpacity: 0.05 };
@@ -182,35 +184,48 @@ export class ArrangementPage {
   /** Where no factory may stand inside the area, in the game's centimetres: the plots they touch stay free. */
   protected readonly exclusions = signal<WorldRectangle[]>([]);
   /**
-   * What a drag on the map draws now: the area, with shift held, or an exclusion inside it, with ctrl held (asked
-   * 2026-11-23; they were buttons); or nothing, and the map pans.
+   * A drag on the map draws the area to arrange, with shift held, or an exclusion inside it, with ctrl held (asked
+   * 2026-11-23; they were buttons), at least 1000 cm a side; or nothing, and the map pans. A part kept out lies in the
+   * area: without one, ctrl does nothing. Not over a run shown.
    */
-  protected readonly drawing = signal<'area' | 'exclusion' | null>(null);
+  private readonly areaDrag = new AreaDrag<'area' | 'exclusion'>({
+    minimum: SmallestArea,
+    kindOf: (press) => {
+      if (!this.canSelect()) return null;
+      if (press.shiftKey) return 'area';
+      return ctrlOrCommand(press) && this.area() ? 'exclusion' : null;
+    },
+    style: (kind) => (kind === 'area' ? areaStyle : exclusionStyle),
+    drawn: (kind, area) => this.use(kind, area),
+  });
+  /** What a drag on the map draws now, with a key held; null while not drawing. */
+  protected readonly drawing = this.areaDrag.drawing;
   /**
    * Selecting on a touch screen, with no keys to hold (asked 2026-11-24, ADR-0033): a drag draws a rectangle, which the
    * page then offers as the area or, inside one, as a part kept out. As small as with a key held is a tap.
    */
-  protected readonly selection = new AreaSelection(({ from, to }) => {
-    const area = areaBetween([from.lat, from.lng], [to.lat, to.lng]);
-    return area.x1 - area.x0 >= 1000 && area.y1 - area.y0 >= 1000;
-  }, areaStyle);
+  protected readonly selection = new AreaSelection(SmallestArea, areaStyle);
 
   /**
    * The rectangle selected becomes the area, or a part kept out. Selecting goes on, so the next part can be drawn at
    * once; the select button ends it.
    */
   protected useSelected(as: 'area' | 'exclusion'): void {
-    const drawn = this.selection.drawn();
-    if (!drawn) return;
-    const area = areaBetween([drawn.from.lat, drawn.from.lng], [drawn.to.lat, drawn.to.lng]);
+    const area = this.selection.drawn();
+    if (!area) return;
+    this.use(as, area);
+    this.selection.clear();
+  }
+
+  /** An area drawn becomes the area to arrange, or a part kept out. */
+  private use(as: 'area' | 'exclusion', area: WorldRectangle): void {
     if (as === 'area') this.area.set(area);
     else this.exclusions.update((exclusions) => [...exclusions, area]);
-    this.selection.clear();
   }
 
   /** Back to the start: no area, no exclusions, no run shown; the settings stay. */
   protected reset(): void {
-    this.drawing.set(null);
+    this.areaDrag.letGo();
     this.selected.set(null);
     this.area.set(null);
     this.exclusions.set([]);
@@ -450,7 +465,7 @@ export class ArrangementPage {
         crs: L.CRS.Simple,
         preferCanvas: true,
         minZoom: LeastZoom,
-        // Shift and drag draws the area to arrange (listenForArea), not a box to zoom to.
+        // Shift and drag draws the area to arrange (areaDrag), not a box to zoom to.
         boxZoom: false,
         maxZoom: 3,
         zoomSnap: 0.25,
@@ -467,7 +482,7 @@ export class ArrangementPage {
       ])
         layer.addTo(this.map);
       this.map.setView([0, 0], -3);
-      this.listenForArea(this.map);
+      this.areaDrag.attach(this.map);
       this.selection.attach(this.map);
       this.map.on('resize', () => this.holdToMapArt());
       this.map.on('zoomend', () => this.declutterNames());
@@ -635,62 +650,6 @@ export class ArrangementPage {
     if (!this.map) return;
     const extent = mapExtent(loaded(this.mapArt) ?? null, loaded(this.world) ?? null);
     holdToExtent(this.map, extent, LeastZoom);
-  }
-
-  /** While drawing, a drag draws the area to arrange, or an exclusion inside it. */
-  private listenForArea(map: L.Map): void {
-    let start: L.LatLng | null = null;
-    let rectangle: L.Rectangle | null = null;
-    // What the drag draws, kept from its start: letting go ends drawing before Leaflet's mouseup comes.
-    let draws: 'area' | 'exclusion' | null = null;
-    // In the capture phase, so the press is heard before Leaflet's panning starts, and panning can be switched off.
-    map.getContainer().addEventListener(
-      'pointerdown',
-      (event) => {
-        // A part kept out lies in the area: without one, ctrl does nothing.
-        const kind = event.shiftKey
-          ? 'area'
-          : (event.ctrlKey || event.metaKey) && this.area()
-            ? 'exclusion'
-            : null;
-        if (!kind || event.button !== 0 || !this.canSelect()) return;
-        this.drawing.set(kind);
-        map.dragging.disable();
-      },
-      { capture: true },
-    );
-    // However the press ends, panning comes back.
-    map.getContainer().addEventListener('pointerup', () => {
-      if (!this.drawing()) return;
-      this.drawing.set(null);
-      map.dragging.enable();
-    });
-    map.on('mousedown', (event: L.LeafletMouseEvent) => {
-      const drawing = this.drawing();
-      if (!drawing) return;
-      draws = drawing;
-      start = event.latlng;
-      rectangle = L.rectangle(L.latLngBounds(start, start), {
-        ...(drawing === 'area' ? areaStyle : exclusionStyle),
-        interactive: false,
-      }).addTo(map);
-    });
-    map.on('mousemove', (event: L.LeafletMouseEvent) => {
-      if (start && rectangle) rectangle.setBounds(L.latLngBounds(start, event.latlng));
-    });
-    map.on('mouseup', (event: L.LeafletMouseEvent) => {
-      if (!start) return;
-      const area = areaBetween([start.lat, start.lng], [event.latlng.lat, event.latlng.lng]);
-      const drew = draws;
-      rectangle?.remove();
-      [start, rectangle, draws] = [null, null, null];
-      this.drawing.set(null);
-      map.dragging.enable();
-      // A click without a drag draws nothing.
-      if (area.x1 - area.x0 < 1000 || area.y1 - area.y0 < 1000) return;
-      if (drew === 'area') this.area.set(area);
-      else this.exclusions.update((exclusions) => [...exclusions, area]);
-    });
   }
 
   /**
@@ -1004,13 +963,7 @@ export class ArrangementPage {
     const factories = new Set(arrangement.factories.map((factory) => factory.factoryId));
     // Spots whose existing belt comes into the area: the yellow circle stands where it comes in, drawn with the way.
     const comingIn = new Set(arrangement.ways.map((way) => way.spotId));
-    const spotNames = {
-      item: (item: string) => this.names.item(item),
-      building: (name: string) => this.names.building(name),
-      extractorForm: (name: string) => this.names.extractorForm(name),
-      fluidColour: (item: string) => this.names.fluidColour(item),
-      ownerOf: this.ownerOf(),
-    };
+    const nodeNames = spotNames(this.names, this.ownerOf());
     const shown = suppliedBelts(arrangement.belts, focused);
     for (const belt of arrangement.belts) {
       const picked = focused.size > 0 && shown.has(belt);
@@ -1039,7 +992,7 @@ export class ArrangementPage {
         ...(belt.startsOnBelt ? [] : [line[0]]),
         ...(belt.endsOnBelt ? [] : [line[line.length - 1]]),
       ];
-      const mark = spotMark(belt, factories, spotNames);
+      const mark = spotMark(belt, factories, nodeNames);
       for (const lift of lifts) {
         const atSpot = lift === spot;
         if (atSpot && mark?.kind === 'station')
@@ -1094,7 +1047,7 @@ export class ArrangementPage {
     // its circle, as inside the area (asked 2026-11-19). With factories picked, those lit with the belts joining them, so
     // a source outside the area shows where the line starts (step 106).
     for (const spot of arrangement.ways)
-      for (const way of joinedWays([spot], arrangement.belts, factories, spotNames)) {
+      for (const way of joinedWays([spot], arrangement.belts, factories, nodeNames)) {
         const colour = factoryColour(traces, way.factory) ?? '#e0e0e0';
         const dimmed = !way.joining.some((belt) => shown.has(belt));
         const weight = focused.size > 0 && !dimmed ? 3 : 1.5;
@@ -1128,7 +1081,7 @@ export class ArrangementPage {
           opacity: dimmed ? 0.25 : 1,
           interactive: false,
         }).addTo(this.beltLayer);
-        const mark = wayMark(spot, arrangement.belts, spotNames);
+        const mark = wayMark(spot, arrangement.belts, nodeNames);
         if (mark)
           L.circleMarker(toMapPoint({ ...mark.at, z: 0 }), {
             radius: 5,
