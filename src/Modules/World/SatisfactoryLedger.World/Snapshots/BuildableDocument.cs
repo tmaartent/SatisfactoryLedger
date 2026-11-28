@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain;
@@ -40,6 +41,17 @@ internal sealed record BuildableDocument(
     int? LooseEnds = null,
     string? PumpsInto = null)
 {
+    /// <summary>What it does in the analysis, as the save-file adapter decides it from its class: derived on read, not stored.</summary>
+    [JsonIgnore]
+    public BuildableKind BuildableKind => GameClasses.KindOf(ClassName);
+
+    /// <summary>
+    /// A generator (BR-A8): it burns fuel, and the Catalog copied at import knows its burn rate. Geothermal burns
+    /// nothing; a snapshot from before generators were copied (version 7) knows none.
+    /// </summary>
+    public bool IsGenerator(IEnumerable<GeneratorDocument> copied) =>
+        BuildableKind == BuildableKind.Generator && copied.Any(generator => generator.Id == ClassName);
+
     /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
     {
@@ -101,7 +113,7 @@ internal sealed record BuildableDocument(
             {
                 InputStock = InputStockOf(),
                 Inventory = TakesLeftoversOnly ? catalog.Depot : InventoryOf(catalog),
-                IsGenerator = catalog.Generators.ContainsKey(ClassName),
+                IsGenerator = IsGenerator(catalog.Generators.Values),
             },
             BuildableDocumentRole.Logistics => new Logistics(
                 id,
