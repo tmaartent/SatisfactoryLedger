@@ -450,4 +450,59 @@ public class SnapshotDocumentTests
 
         Assert.Null(Find<Provider>(world, "Build_MinerMk1_C_2147339296").Offer);
     }
+
+    // ---- BR-A6: the pipe networks of a snapshot ---------------------------------------------------------------------------
+
+    /// <summary>A pipe piece of the kind, with a class of that kind.</summary>
+    private static BuildableDocument Piece(string id, LogisticsKind kind = LogisticsKind.Pipe) =>
+        new(id, BuildableDocumentRole.Logistics, kind switch
+        {
+            LogisticsKind.Pipe => "Build_Pipeline_C",
+            LogisticsKind.PipeJunction => "Build_PipelineJunction_Cross_C",
+            LogisticsKind.FluidBuffer => "Build_PipeStorageTank_C",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "not a pipe piece"),
+        }, Kind: kind);
+
+    private static SnapshotDocument OfPipes(IReadOnlyList<BuildableDocument> buildables, params (string A, string B)[] links) =>
+        new(SnapshotDocument.CurrentVersion, buildables, [], [], [], [], [], [], [], [],
+            PipeLinks: [.. links.Select(link => new PipeLinkDocument(link.A, link.B))]);
+
+    /// <summary>Each network as its pieces in order, the networks in the order of their first piece.</summary>
+    private static List<string> Networks(SnapshotDocument snapshot) =>
+        [.. snapshot.PipeNetworks().Select(network => string.Join(" ", network.Order(StringComparer.Ordinal))).Order(StringComparer.Ordinal)];
+
+    [Fact]
+    public void Pipes_that_dont_touch_make_separate_networks()
+    {
+        SnapshotDocument snapshot = OfPipes([Piece("a1"), Piece("a2"), Piece("b1"), Piece("b2")], ("a1", "a2"), ("b2", "b1"));
+
+        Assert.Equal(["a1 a2", "b1 b2"], Networks(snapshot));
+    }
+
+    [Fact]
+    public void A_junction_joins_the_pipes_on_each_of_its_sides_into_one_network()
+    {
+        SnapshotDocument snapshot = OfPipes(
+            [Piece("in"), Piece("j", LogisticsKind.PipeJunction), Piece("out1"), Piece("out2"), Piece("past")],
+            ("in", "j"), ("j", "out1"), ("out2", "j"), ("out2", "past"));
+
+        Assert.Equal(["in j out1 out2 past"], Networks(snapshot));
+    }
+
+    [Fact]
+    public void A_pipe_touching_nothing_is_a_network_of_its_own()
+    {
+        SnapshotDocument snapshot = OfPipes([Piece("a1"), Piece("a2"), Piece("alone"), Piece("buffer", LogisticsKind.FluidBuffer)], ("a1", "a2"));
+
+        Assert.Equal(["a1 a2", "alone", "buffer"], Networks(snapshot));
+    }
+
+    [Fact]
+    public void A_belt_is_in_no_pipe_network()
+    {
+        SnapshotDocument snapshot = OfPipes(
+            [Piece("pipe"), new BuildableDocument("belt", BuildableDocumentRole.Logistics, "Build_ConveyorBeltMk1_C", Kind: LogisticsKind.Belt)]);
+
+        Assert.Equal(["pipe"], Networks(snapshot));
+    }
 }

@@ -123,6 +123,38 @@ internal sealed record SnapshotDocument(
     public ILookup<string, string> PipeNeighbours() =>
         (PipeLinks ?? []).SelectMany(link => new[] { (From: link.A, To: link.B), (From: link.B, To: link.A) }).ToLookup(link => link.From, link => link.To, StringComparer.Ordinal);
 
+    /// <summary>
+    /// The pipe networks (BR-A6): each the set of pieces that touch, every pipe, junction, pump, valve and fluid buffer in
+    /// exactly one. A piece that touches nothing is a network of its own, as is every piece in a snapshot from before
+    /// pipe links.
+    /// </summary>
+    public IReadOnlyList<IReadOnlySet<string>> PipeNetworks()
+    {
+        ILookup<string, string> touching = PipeNeighbours();
+        HashSet<string> seen = new(StringComparer.Ordinal);
+        List<IReadOnlySet<string>> networks = [];
+        IEnumerable<string> pieces = Buildables
+            .Where(buildable => buildable.IsPipePiece)
+            .Select(buildable => buildable.Id);
+        foreach (string start in pieces.Concat(touching.Select(piece => piece.Key)))
+        {
+            if (!seen.Add(start))
+            {
+                continue;
+            }
+
+            List<string> network = [start];
+            for (int next = 0; next < network.Count; next++)
+            {
+                network.AddRange(touching[network[next]].Where(seen.Add));
+            }
+
+            networks.Add(network.ToHashSet(StringComparer.Ordinal));
+        }
+
+        return networks;
+    }
+
     /// <summary>What any inventory of the save holds, and what the dimensional depot holds: their stack sizes decide "full" (BR-A7).</summary>
     public static HashSet<string> ItemsHeld(SavedWorld saved) =>
     [

@@ -26,10 +26,10 @@ internal static class PipeHeadLifts
 
         Dictionary<string, BuildableDocument> byId = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         Dictionary<string, decimal> lifts = (snapshot.Pumps ?? []).ToDictionary(pump => pump.Id, pump => pump.HeadLiftMetres, StringComparer.Ordinal);
-        HashSet<string> carryingGas = CarryingGas(snapshot, byId);
+        HashSet<string> carryingGas = CarryingGas(snapshot);
         List<PipePiece> pieces =
         [
-            .. snapshot.Buildables.Where(IsPiece).Where(buildable => buildable.Curve is { Count: > 0 } || buildable.Position is not null)
+            .. snapshot.Buildables.Where(buildable => buildable.IsPipePiece).Where(buildable => buildable.Curve is { Count: > 0 } || buildable.Position is not null)
                 .Select(buildable => new PipePiece(
                     BuildableId.Of(buildable.Id),
                     TopOf(buildable),
@@ -80,33 +80,12 @@ internal static class PipeHeadLifts
     /// The pieces of the networks that carry gas: a network holds one fluid, so a gas in any of its pieces at save time
     /// says it. A network empty throughout is taken to carry a liquid.
     /// </summary>
-    private static HashSet<string> CarryingGas(SnapshotDocument snapshot, Dictionary<string, BuildableDocument> byId)
+    private static HashSet<string> CarryingGas(SnapshotDocument snapshot)
     {
         HashSet<string> gases = [.. snapshot.Gases ?? []];
-        ILookup<string, string> touching = snapshot.PipeNeighbours();
-        HashSet<string> carrying = [];
-        HashSet<string> seen = [];
-        foreach (BuildableDocument start in snapshot.Buildables.Where(piece => piece.Contents?.Keys.Any(gases.Contains) == true))
-        {
-            if (!seen.Add(start.Id))
-            {
-                continue;
-            }
-
-            List<string> network = [start.Id];
-            for (int next = 0; next < network.Count; next++)
-            {
-                network.AddRange(touching[network[next]].Where(seen.Add));
-            }
-
-            carrying.UnionWith(network.Where(byId.ContainsKey));
-        }
-
-        return carrying;
+        HashSet<string> holdingGas = [.. snapshot.Buildables.Where(piece => piece.Contents?.Keys.Any(gases.Contains) == true).Select(piece => piece.Id)];
+        return [.. snapshot.PipeNetworks().Where(network => network.Overlaps(holdingGas)).SelectMany(network => network)];
     }
-
-    private static bool IsPiece(BuildableDocument buildable) =>
-        buildable.Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction or LogisticsKind.FluidBuffer;
 
     /// <summary>A pipe's highest point of its curve; a pump's, junction's or buffer's where it stands.</summary>
     private static double TopOf(BuildableDocument piece) =>

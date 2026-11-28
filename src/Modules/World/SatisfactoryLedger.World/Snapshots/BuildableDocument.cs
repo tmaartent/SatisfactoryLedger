@@ -56,6 +56,10 @@ internal sealed record BuildableDocument(
     [JsonIgnore]
     public bool IsMachineOrGenerator => Role == BuildableDocumentRole.Machine || IsGenerator;
 
+    /// <summary>A piece of a pipe network (BR-A6): a pipe, pump or valve, a junction, or a fluid buffer. The hub is none.</summary>
+    [JsonIgnore]
+    public bool IsPipePiece => Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction or LogisticsKind.FluidBuffer;
+
     /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
     {
