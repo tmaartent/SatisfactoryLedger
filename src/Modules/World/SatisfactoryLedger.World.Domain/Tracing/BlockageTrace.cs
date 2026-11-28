@@ -11,7 +11,8 @@ namespace SatisfactoryLedger.World.Domain.Tracing;
 /// <item>a consumer short of another input takes no more: that's where it starts;</item>
 /// <item>consumers at full speed: if part of what they take comes from other producers, they're supplied by others;
 /// otherwise there are too few consumers;</item>
-/// <item>a full container or station, a belt to nowhere, a machine that doesn't take the item or has no recipe, a drone
+/// <item>a full container or station, a belt to nowhere, a machine or a generator burning a known fuel that doesn't take
+/// the item (decided 2026-11-28), a machine with no recipe, a drone
 /// port with the item in its fuel slot where no drone refuels (issue #44): each is a start of its own;</item>
 /// <item>a machine asked about with no line that carries the item has nowhere to send it (decided 2026-11-22).</item>
 /// </list>
@@ -257,6 +258,13 @@ public static class BlockageTrace
                     return true;
                 case Machine machine when machine.Consumes.Contains(_item) || machine.Consumes.Count == 0:
                     Consumers.Add(id);
+                    return true;
+                case Consumer { Generation: not null } generator when generator.Consumes.Contains(_item):
+                    Consumers.Add(id);
+                    return true;
+                case Consumer { Generation: not null }:
+                    // A generator burning a known fuel takes only what it burns, as a machine (decided 2026-11-28).
+                    Nowhere.Add(id);
                     return true;
                 case Consumer { Inventory: { } inventory }:
                     return Store(inventory);
