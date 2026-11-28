@@ -36,12 +36,10 @@ internal static class PipeFlows
     }
 
     /// <summary>
-    /// Per piece of a pipe network, its hub (BR-A6): the pieces that touch make one network, and its hub is what the
-    /// pipes at its edge connect to.
+    /// Per piece of a pipe network, its hub (BR-A6): the hub is what the pipes at the network's edge connect to.
     /// </summary>
     private static Dictionary<string, string> HubsOf(SnapshotDocument snapshot, Dictionary<string, BuildableDocument> byId)
     {
-        ILookup<string, string> touching = snapshot.PipeNeighbours();
         Dictionary<string, string> hubNextTo = [];
         foreach (ConnectionDocument connection in snapshot.Connections)
         {
@@ -55,22 +53,20 @@ internal static class PipeFlows
             }
         }
 
+        Dictionary<string, IReadOnlySet<string>> networkOf = snapshot.PipeNetworks()
+            .SelectMany(network => network.Select(piece => (Piece: piece, Network: network)))
+            .ToDictionary(entry => entry.Piece, entry => entry.Network, StringComparer.Ordinal);
         Dictionary<string, string> hubOf = [];
-        HashSet<string> seen = [];
-        foreach (string start in hubNextTo.Keys)
+        foreach ((string edge, string hub) in hubNextTo)
         {
-            if (!seen.Add(start))
+            // The first edge found of a network names its hub.
+            if (!hubOf.ContainsKey(edge) && networkOf.TryGetValue(edge, out IReadOnlySet<string>? network))
             {
-                continue;
+                foreach (string piece in network)
+                {
+                    hubOf[piece] = hub;
+                }
             }
-
-            List<string> network = [start];
-            for (int next = 0; next < network.Count; next++)
-            {
-                network.AddRange(touching[network[next]].Where(seen.Add));
-            }
-
-            network.ForEach(piece => hubOf[piece] = hubNextTo[start]);
         }
 
         return hubOf;
