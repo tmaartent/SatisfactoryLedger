@@ -34,6 +34,7 @@ dotnet run --project src/SatisfactoryLedger.AppHost
 # After a deliberate change to the solver or the analysis version: write the test worlds' stored analyses anew, then read the diff
 REGENERATE_ANALYSIS_FIXTURES=1 dotnet test tests/SatisfactoryLedger.World.Simulation.Tests
 cd web && npm start | npm test | npm run build | npm run lint | npm run format
+cd web && npm run typecheck   # templates, specs and e2e: tsc --noEmit alone skips the templates
 npx ng test --include src/app/<path>.spec.ts --watch=false   # one web spec
 npm run e2e | npm run e2e:stack   # pages on recorded answers | journeys, against the running AppHost
 ```

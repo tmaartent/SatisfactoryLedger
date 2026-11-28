@@ -364,6 +364,7 @@ Java has no counterpart for this part: in a browser, the layout follows the scre
 - **Module augmentation** (`declare module 'leaflet' { interface Map { _animatingZoom: boolean } }`, `world/map/remove-map.ts`, `building-outline.ts`) adds members to another library's types, here Leaflet internals its typings leave out. TypeScript merges it into the library's own interface; Java has nothing like it (you'd use reflection).
 - **`obj['member']` reaches a private member** in a spec (`fixture.componentInstance['shapes']`, `map-page.spec.ts`): TypeScript checks `private` on `obj.member` but lets the index form through, typed. Like Java reflection with `setAccessible`, but checked by the compiler.
 - **`ng lint` lints only its `lintFilePatterns`** (`web/angular.json`). It was `src/` only, so the e2e tests and configs went unlinted; since step 126 it also takes `e2e/**/*.ts` and the root `*.ts`.
+- **`npm run typecheck`** is `ngc` for the app, templates included, then `tsc` for the specs and the e2e tests, in 10 seconds. Playwright and Vitest transpile without type-checking, so before step 126 nothing checked the e2e tests' types.
 
 ## Architecture & DDD
 

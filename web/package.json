@@ -12,6 +12,7 @@
     "pretest": "npm run generate:api",
     "test": "ng test",
     "lint": "ng lint",
+    "typecheck": "ngc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit && tsc -p e2e/tsconfig.json --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "pree2e": "npm run generate:api",
