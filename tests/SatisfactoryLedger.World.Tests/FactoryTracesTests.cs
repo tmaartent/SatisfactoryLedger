@@ -34,6 +34,18 @@ public class FactoryTracesTests
     }
 
     [Fact]
+    public void A_machine_two_factories_have_is_owned_by_the_oldest_in_both_traces_whatever_their_names()
+    {
+        StoredFactory oldest = new() { Id = Guid.Parse("019ac000-0000-7000-8000-000000000001"), World = "Development", Name = "Zinc-free plates", Machines = [Machine(SmelterA), Machine(SmelterB)] };
+        StoredFactory younger = new() { Id = Guid.Parse("019ac000-0000-7000-8000-000000000002"), World = "Development", Name = "Alpha ingots", Machines = [Machine(SmelterA)] };
+
+        IReadOnlyList<FactoryTrace> traces = FactoryTraces.TraceAll(Document, [younger, oldest]);
+
+        Assert.All(traces, trace => Assert.Equal(oldest.Id, trace.Machines.Single(machine => machine.Id == SmelterA).Owner));
+        Assert.Equal(oldest.Id, traces.Single(trace => trace.FactoryId == oldest.Id).Machines.Single(machine => machine.Id == SmelterB).Owner);
+    }
+
+    [Fact]
     public void A_factory_traced_in_a_snapshot_lists_its_outputs_and_inputs_with_their_items()
     {
         FactoryTrace trace = Trace(Document, IronPlates());

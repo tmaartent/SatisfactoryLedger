@@ -48,7 +48,7 @@ internal static class FactoryEndpoints
 
         world.MapGet("/snapshots/{id:guid}/factories", TraceAsync)
             .WithName("TraceFactories")
-            .WithSummary("Every factory of the snapshot's world, traced in this snapshot (BR-W3, BR-W11)");
+            .WithSummary("Every factory of the snapshot's world, traced in this snapshot, oldest first; each machine says who owns it (BR-W3, BR-W5, BR-W11)");
 
         // A POST that stores nothing: a selection can hold hundreds of ids, too many for a query string.
         world.MapPost("/snapshots/{id:guid}/factory-preview", PreviewAsync)
@@ -192,8 +192,8 @@ internal static class FactoryEndpoints
 
         List<StoredFactory> factories = await db.Factories.AsNoTracking()
             .Where(factory => factory.World == snapshot.Value.World)
-            .OrderBy(factory => factory.Name)
             .ToListAsync(cancellationToken);
+        factories.Sort(StoredFactory.OldestFirst);
 
         return TypedResults.Ok(FactoryTraces.TraceAll(snapshot.Value.Document, factories));
     }

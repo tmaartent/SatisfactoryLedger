@@ -657,14 +657,20 @@ describe('the world map of a snapshot', () => {
     });
   });
 
-  it('lists its factories in the sidebar, not beside the map', async () => {
+  it('lists its factories by name in the sidebar, not beside the map', async () => {
     const { element, tabs, open } = await render('snapshot-1');
 
     await open('Factories');
 
-    expect(names(tabs, '.factories .factory-name')).toEqual(['Rubber', 'Plastic', 'Gone']);
+    expect(names(tabs, '.factories .factory-name')).toEqual(['Gone', 'Plastic', 'Rubber']);
     expect(element.querySelector('.factories')).toBeNull();
   });
+
+  /** A factory's button in the Factories tab, by its name. */
+  const factoryButton = (tabs: HTMLElement, name: string) =>
+    [...tabs.querySelectorAll<HTMLButtonElement>('.factories button.factory-name')].find(
+      (button) => button.textContent?.trim() === name,
+    ) as HTMLButtonElement;
 
   it('marks the count clicked in the overview as shown, and lets go of it when a factory is picked', async () => {
     const { fixture, sidebar, tabs, open } = await render('snapshot-1');
@@ -679,7 +685,7 @@ describe('the world map of a snapshot', () => {
     expect(starved().getAttribute('aria-pressed')).toBe('true');
 
     await open('Factories');
-    (tabs.querySelector('.factories button.factory-name') as HTMLButtonElement).click();
+    factoryButton(tabs, 'Rubber').click();
     await open('Info');
     expect(starved().getAttribute('aria-pressed')).toBe('false');
   });
@@ -687,7 +693,7 @@ describe('the world map of a snapshot', () => {
   it('highlights a factory picked in the list, and none once it is picked again', async () => {
     const { fixture, sidebar, tabs, open } = await render('snapshot-1');
     await open('Factories');
-    const rubber = () => tabs.querySelector('.factories button.factory-name') as HTMLButtonElement;
+    const rubber = () => factoryButton(tabs, 'Rubber');
 
     rubber().click();
     await fixture.whenStable();
@@ -714,7 +720,7 @@ describe('the world map of a snapshot', () => {
   it('lets go of the factory picked when the map is clicked anywhere else, so nothing is faded', async () => {
     const { fixture, sidebar, element, tabs, open } = await render('snapshot-1');
     await open('Factories');
-    (tabs.querySelector('.factories button.factory-name') as HTMLButtonElement).click();
+    factoryButton(tabs, 'Rubber').click();
     await fixture.whenStable();
 
     await clickTheMap(element, fixture);

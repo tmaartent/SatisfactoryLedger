@@ -4,7 +4,8 @@
 export interface TracedFactory {
   factoryId: string;
   name: string;
-  machines: { id: string }[];
+  /** Each machine with the factory that owns it world-wide, as the back end decides it (BR-W5). */
+  machines: { id: string; owner: string }[];
 }
 
 /** A factory as the 3D view outlines it. */
@@ -29,34 +30,48 @@ export const outlineColours = [
 /** Each factory with its colour, from its place among all the world's factories: the same in every area. */
 function outlined(
   factories: readonly TracedFactory[],
-): (OutlinedFactory & { machines: { id: string }[] })[] {
+): (OutlinedFactory & Pick<TracedFactory, 'machines'>)[] {
   return factories.map((factory, i) => ({
     ...factory,
     colour: outlineColours[i % outlineColours.length],
   }));
 }
 
-/**
- * The factories each machine is in, by machine id. One at most since a machine belongs to one factory (BR-W5); a
- * machine stored in more than one, from before that rule, lists them all, so the view can show the overlap.
- */
-export function machineOwners(factories: readonly TracedFactory[]): Map<string, OutlinedFactory[]> {
-  const owners = new Map<string, OutlinedFactory[]>();
-  for (const { machines, ...factory } of outlined(factories)) {
-    for (const machine of machines)
-      owners.set(machine.id, [...(owners.get(machine.id) ?? []), factory]);
+/** Who a machine belongs to: its owner, and the other factories stored with it from before BR-W5, to show the overlap. */
+export interface MachineOwner {
+  owner: OutlinedFactory;
+  alsoIn: OutlinedFactory[];
+}
+
+/** The owner of each machine some factory has, by machine id, as the back end says (BR-W5). */
+export function machineOwners(factories: readonly TracedFactory[]): Map<string, MachineOwner> {
+  const outlinedFactories = outlined(factories);
+  const byId = new Map(
+    outlinedFactories.map(({ machines: _, ...factory }) => [factory.factoryId, factory]),
+  );
+  const owners = new Map<string, MachineOwner>();
+  for (const { machines, ...factory } of outlinedFactories) {
+    for (const machine of machines) {
+      const owner = owners.get(machine.id) ?? {
+        owner: byId.get(machine.owner) ?? factory,
+        alsoIn: [],
+      };
+      if (factory.factoryId !== owner.owner.factoryId) owner.alsoIn.push(factory);
+      owners.set(machine.id, owner);
+    }
   }
   return owners;
 }
 
-/** The factories with at least one machine among the buildings in the area, for the legend. */
+/** The factories with at least one machine among the buildings in the area, by name, for the legend. */
 export function factoriesInArea(
   factories: readonly TracedFactory[],
   inArea: ReadonlySet<string>,
 ): OutlinedFactory[] {
   return outlined(factories)
     .filter((factory) => factory.machines.some((machine) => inArea.has(machine.id)))
-    .map(({ machines: _, ...factory }) => factory);
+    .map(({ machines: _, ...factory }) => factory)
+    .sort((one, other) => one.name.localeCompare(other.name));
 }
 
 /** The colour a factory's machines are outlined in, for the map's highlight; undefined when the world has no such factory. */
@@ -72,12 +87,14 @@ export function factoryColour(
  * own machines can be taken out and put back.
  */
 export function blockedMachines(
-  owners: ReadonlyMap<string, OutlinedFactory[]>,
+  owners: ReadonlyMap<string, MachineOwner>,
   editing: string | null,
 ): Set<string> {
   return new Set(
     [...owners]
-      .filter(([, factories]) => factories.some((factory) => factory.factoryId !== editing))
+      .filter(([, { owner, alsoIn }]) =>
+        [owner, ...alsoIn].some((factory) => factory.factoryId !== editing),
+      )
       .map(([id]) => id),
   );
 }

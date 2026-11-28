@@ -306,9 +306,11 @@ export class AreaPage {
     const building = this.selected();
     return choosable(building) ? building : null;
   });
+  /** The factories the building clicked is in, its owner first (BR-W5). */
   protected readonly selectedOwners = computed(() => {
     const building = this.selected();
-    return building ? (this.owners().get(building.id) ?? []) : [];
+    const owner = building ? this.owners().get(building.id) : undefined;
+    return owner ? [owner.owner, ...owner.alsoIn] : [];
   });
 
   /** The lowest and highest building in the area, in metres: the range of the height cut-off. */
@@ -558,7 +560,7 @@ export class AreaPage {
       const top = Math.max(...boxes.flat().map((corner) => corner.z)) / 100;
       mesh.userData = { building, material, z: building.position.z / 100, top };
       // A factory's machines are outlined in its colour. As a child of the mesh, the outline hides with it.
-      const owner = owners.get(building.id)?.[0];
+      const owner = owners.get(building.id)?.owner;
       if (owner)
         mesh.add(
           new THREE.LineSegments(

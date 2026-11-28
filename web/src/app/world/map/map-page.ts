@@ -254,13 +254,12 @@ export class MapPage {
   );
   /** The factories each machine is in, with their colour: the same edges as in 3D. */
   private readonly owners = computed(() => machineOwners(loaded(this.factories) ?? []));
-  /** The factories to choose from, each with the colour its machines are outlined in. */
+  /** The factories to choose from, by name, each with the colour its machines are outlined in. */
   protected readonly factoryOptions = computed(() => {
     const factories = loaded(this.factories) ?? [];
-    return factories.map((factory) => ({
-      ...factory,
-      colour: factoryColour(factories, factory.factoryId),
-    }));
+    return factories
+      .map((factory) => ({ ...factory, colour: factoryColour(factories, factory.factoryId) }))
+      .sort((one, other) => one.name.localeCompare(other.name));
   });
 
   protected readonly legend = (
@@ -548,7 +547,7 @@ export class MapPage {
     for (const machine of machines) {
       const status: MachineStatus = statuses.get(machine.id) ?? 'unknown';
       const inFactory = highlighted?.has(machine.id) ?? false;
-      const owner = owners.get(machine.id)?.[0];
+      const owner = owners.get(machine.id)?.owner;
       const point = toMapPoint(machine.position);
       points.push(point);
       const utilisation = utilisations.get(machine.id);
@@ -692,7 +691,7 @@ export class MapPage {
         // A generator burning a known fuel shows how it runs (BR-A15), in the machines' colours.
         const generator = consumer ? generators.get(building.id) : undefined;
         const colour = generator ? statusColours[generator.limit] : undefined;
-        const owner = owners.get(building.id)?.[0];
+        const owner = owners.get(building.id)?.owner;
         const shape = this.shape(
           building.position,
           building.yaw,
