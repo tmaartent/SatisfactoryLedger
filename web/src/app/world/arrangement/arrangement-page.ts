@@ -100,6 +100,7 @@ import {
   beltsToLabel,
   suppliedBelts,
   halfway,
+  stationClasses,
 } from './arrangement-model';
 import { loaded } from '../../shared/loaded';
 
@@ -116,13 +117,6 @@ const exclusionStyle: L.PathOptions = {
   fillColor: '#ef5350',
   fillOpacity: 0.25,
 };
-const stationClasses = new Set([
-  'Build_TrainDockingStation_C',
-  'Build_TrainDockingStationLiquid_C',
-  'Build_TruckStation_C',
-  'Build_DroneStation_C',
-]);
-
 /**
  * The optimal arrangement (decided 2026-11-12): draw an area, and see where its factories would best stand on plots in
  * rows and columns, so the belt work to their inputs is least. A proposal only: runs are computed by the analysis
