@@ -62,12 +62,13 @@ describe('the catalog page', () => {
     });
     const fixture = TestBed.createComponent(CatalogPage);
     await fixture.whenStable();
-    return { fixture, api, element: fixture.nativeElement as HTMLElement };
+    const element: HTMLElement = fixture.nativeElement;
+    return { fixture, api, element };
   }
 
   it("imports the game's map picture the map tool wrote", async () => {
     const { fixture, api, element } = await render();
-    const input = element.querySelector('input[type="file"].map-art') as HTMLInputElement;
+    const input = element.querySelector<HTMLInputElement>('input[type="file"].map-art')!;
     const file = new File(['{}'], 'map-art.json');
     Object.defineProperty(input, 'files', { value: { 0: file, length: 1, item: () => file } });
 
@@ -79,7 +80,7 @@ describe('the catalog page', () => {
 
   it("imports the game's icons the map tool wrote, and shows them from then on", async () => {
     const { fixture, api, element } = await render();
-    const input = element.querySelector('input[type="file"].icons') as HTMLInputElement;
+    const input = element.querySelector<HTMLInputElement>('input[type="file"].icons')!;
     const file = new File(['{}'], 'icons.json');
     Object.defineProperty(input, 'files', { value: { 0: file, length: 1, item: () => file } });
 

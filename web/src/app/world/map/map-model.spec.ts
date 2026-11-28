@@ -75,7 +75,20 @@ describe('map model', () => {
   });
 
   it('knows how each machine runs once the analysis is ready', () => {
-    const findings = [{ id: 'smelter', limit: 'starved' } as MachineFinding];
+    const findings: MachineFinding[] = [
+      {
+        id: 'smelter',
+        className: 'Build_SmelterMk1_C',
+        recipe: null,
+        position: null,
+        limit: 'starved',
+        limitingItem: null,
+        utilisation: 0.5,
+        approximate: false,
+        blockedOn: {},
+        starvedOf: {},
+      },
+    ];
 
     expect(machineStatuses(findings).get('smelter')).toBe('starved');
   });
@@ -85,8 +98,17 @@ describe('map model', () => {
   });
 
   it('knows which provider stands on which resource node; a node none stands on is free', () => {
-    const miner = { id: 'miner', node: 'BP_ResourceNode35' } as MapProvider;
-    const takers = nodeTakers([miner, { id: 'well', node: null } as MapProvider]);
+    const provider = (id: string, node: string | null): MapProvider => ({
+      id,
+      node,
+      className: 'Build_MinerMk1_C',
+      position: { x: 0, y: 0, z: 0 },
+      purity: null,
+      resource: null,
+      yaw: 0,
+    });
+    const miner = provider('miner', 'BP_ResourceNode35');
+    const takers = nodeTakers([miner, provider('well', null)]);
 
     expect([takers.get('BP_ResourceNode35'), takers.get('BP_ResourceNode36'), takers.size]).toEqual(
       [miner, undefined, 1],
@@ -318,16 +340,27 @@ describe('map model', () => {
   });
 
   describe('finding a buildable to zoom to', () => {
-    const building = (id: string, x: number, y: number) => ({
+    const placed = (id: string, x: number, y: number) => ({
       id,
       className: 'X',
       position: { x, y, z: 0 },
       yaw: 0,
-      contents: null,
     });
-    const world = {
-      machines: [{ ...building('smelter', 10000, 20000), recipe: null }],
-      providers: [{ ...building('miner', 30000, 0), node: null, resource: null, purity: null }],
+    const building = (id: string, x: number, y: number) => ({
+      ...placed(id, x, y),
+      contents: null,
+      isGenerator: false,
+    });
+    const world: WorldMapResponse = {
+      machines: [
+        {
+          ...placed('smelter', 10000, 20000),
+          recipe: null,
+          inputContents: null,
+          outputContents: null,
+        },
+      ],
+      providers: [{ ...placed('miner', 30000, 0), node: null, resource: null, purity: null }],
       logistics: [building('splitter', 0, 0)],
       consumers: [building('drone port', -50000, 0)],
       conveyors: [
@@ -336,11 +369,12 @@ describe('map model', () => {
           className: 'Build_ConveyorBeltMk1_C',
           kind: 'belt',
           contents: null,
+          looseEnds: 0,
           curve: [point(0, 0, [1000, 0], [1000, 0]), point(1000, 0, [1000, 0], [1000, 0])],
         },
       ],
       footprints: [],
-    } as unknown as WorldMapResponse;
+    };
 
     it('finds a machine where it stands', () => {
       expect(locate(world, 'smelter')).toEqual([-200, 100]);
@@ -415,18 +449,33 @@ describe('map model', () => {
     });
 
     describe('with buildings past its edges, as the game allows', () => {
-      const building = (x: number, y: number) => ({ id: `b${x}`, position: { x, y, z: 0 } });
+      const building = (x: number, y: number): MapProvider => ({
+        id: `b${x}`,
+        className: 'Build_MinerMk1_C',
+        position: { x, y, z: 0 },
+        yaw: 0,
+        node: null,
+        resource: null,
+        purity: null,
+      });
       const off = (
-        buildings: { id: string; position: { x: number; y: number; z: number } }[],
-        conveyors: { location: { x: number; y: number; z: number } }[][] = [],
-      ) =>
-        ({
-          machines: [],
-          providers: buildings,
-          logistics: [],
-          consumers: [],
-          conveyors: conveyors.map((curve, i) => ({ id: `c${i}`, curve })),
-        }) as unknown as WorldMapResponse;
+        buildings: MapProvider[],
+        conveyors: CurvePointDocument[][] = [],
+      ): WorldMapResponse => ({
+        machines: [],
+        providers: buildings,
+        logistics: [],
+        consumers: [],
+        conveyors: conveyors.map((curve, i) => ({
+          id: `c${i}`,
+          className: 'Build_ConveyorBeltMk1_C',
+          kind: 'belt',
+          contents: null,
+          looseEnds: 0,
+          curve,
+        })),
+        footprints: [],
+      });
 
       it('reaches as far as the buildings, and a margin past them', () => {
         expect(mapExtent(art, off([building(3000, 0)]))).toEqual([
@@ -437,10 +486,7 @@ describe('map model', () => {
 
       it('reaches as far as the belts and pipes too', () => {
         expect(
-          mapExtent(
-            art,
-            off([], [[{ location: { x: 0, y: 0, z: 0 } }, { location: { x: 0, y: 4000, z: 0 } }]]),
-          ),
+          mapExtent(art, off([], [[point(0, 0, [0, 0], [0, 0]), point(0, 4000, [0, 0], [0, 0])]])),
         ).toEqual([
           [-40 - MapMargin, -10],
           [5, 10],

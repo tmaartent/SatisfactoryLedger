@@ -356,7 +356,7 @@ export class ArrangementPage {
     loader: async ({ params }) =>
       new Map<string, PickedConnections>(
         await Promise.all(
-          params.factories.map(async (factory) => {
+          params.factories.map(async (factory): Promise<[string, PickedConnections]> => {
             const preview = await this.api.invoke(previewFactory, {
               id: params.id,
               body: { machines: factory.machines },
@@ -368,10 +368,10 @@ export class ArrangementPage {
                 handovers: new Map(
                   preview.inputs
                     .filter((input) => input.outside)
-                    .map((input) => [input.outside!.id, input.items] as [string, string[]]),
+                    .map((input): [string, string[]] => [input.outside!.id, input.items]),
                 ),
               },
-            ] as [string, PickedConnections];
+            ];
           }),
         ),
       ),
@@ -586,13 +586,13 @@ export class ArrangementPage {
     }));
     // Each piece's length along its curve, in centimetres.
     const lengths = new Map(
-      lit.map((conveyor) => {
+      lit.map((conveyor): [string, number] => {
         const points = sampleCurve(conveyor.curve);
         let length = 0;
         for (let i = 1; i < points.length; i++)
           length +=
             Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]) * 100;
-        return [conveyor.id, length] as [string, number];
+        return [conveyor.id, length];
       }),
     );
     for (const line of linesToLabel(lineGroups(pieces), (id) => lengths.get(id) ?? 0)) {

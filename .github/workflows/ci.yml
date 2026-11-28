@@ -124,6 +124,9 @@ jobs:
       - name: Test
         run: npm test -- --watch=false
 
+      - name: Type-check (templates, specs, e2e)
+        run: npm run typecheck
+
       - name: Build
         run: npm run build
 

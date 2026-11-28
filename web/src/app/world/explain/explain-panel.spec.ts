@@ -94,8 +94,8 @@ describe('explaining a finding', () => {
     await fixture.whenStable();
   }
 
-  const text = (fixture: ComponentFixture<ExplainPanel>) =>
-    (fixture.nativeElement as HTMLElement).textContent ?? '';
+  const page = (fixture: ComponentFixture<ExplainPanel>): HTMLElement => fixture.nativeElement;
+  const text = (fixture: ComponentFixture<ExplainPanel>) => page(fixture).textContent ?? '';
 
   it('asks the first model and says which model wrote it, from which facts', async () => {
     const explain = vi.fn(() => Promise.resolve(explanation()));
@@ -114,7 +114,7 @@ describe('explaining a finding', () => {
       explain: () => Promise.resolve(explanation()),
     });
 
-    const element = fixture.nativeElement as HTMLElement;
+    const element: HTMLElement = fixture.nativeElement;
     expect(element.querySelector('header app-game-icon img')?.getAttribute('src')).toBe(
       '/api/v1/catalog/icons/Build_ConstructorMk1_C',
     );
@@ -131,9 +131,7 @@ describe('explaining a finding', () => {
 
     expect(text(fixture)).toContain('Too few producers');
     expect(text(fixture)).toContain('Smelter (Iron Ingot)');
-    const links = [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('.starts a'),
-    ];
+    const links = [...page(fixture).querySelectorAll<HTMLAnchorElement>('.starts a')];
     expect(links.find((link) => link.textContent?.includes('Smelter'))?.getAttribute('href')).toBe(
       '/snapshots/s1/map?focus=smelter-1',
     );
@@ -149,9 +147,9 @@ describe('explaining a finding', () => {
     expect(text(fixture)).toContain('Short of it');
     expect(text(fixture)).toContain('Constructor (Iron Plate)');
     expect(text(fixture)).toMatch(/Made at full speed by\s*·\s*30\/min/);
-    const links = [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('.starts a'),
-    ].map((link) => link.getAttribute('href'));
+    const links = [...page(fixture).querySelectorAll<HTMLAnchorElement>('.starts a')].map((link) =>
+      link.getAttribute('href'),
+    );
     expect(links).toContain('/snapshots/s1/map?focus=constructor-1');
   });
 
@@ -231,9 +229,7 @@ describe('explaining a finding', () => {
     const fixture = await render({ models: () => Promise.resolve([local, claude]), explain });
 
     const toggles = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
-        'mat-button-toggle button',
-      ),
+      page(fixture).querySelectorAll<HTMLButtonElement>('mat-button-toggle button'),
     );
     expect(toggles.map((toggle) => toggle.textContent?.trim())).toEqual([
       'qwen2.5:7b',
@@ -251,7 +247,7 @@ describe('explaining a finding', () => {
       explain: () => Promise.resolve(explanation()),
     });
 
-    (fixture.nativeElement as HTMLElement)
+    page(fixture)
       .querySelector<HTMLButtonElement>('button[aria-label="Clear the explanation"]')!
       .click();
     await settled(fixture);
@@ -267,6 +263,6 @@ describe('explaining a finding', () => {
       explain: () => Promise.resolve(explanation()),
     });
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('mat-button-toggle')).toBeNull();
+    expect(page(fixture).querySelector('mat-button-toggle')).toBeNull();
   });
 });

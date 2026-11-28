@@ -9,8 +9,8 @@ Work follows the `mattpocock-skills` plugin, and its skills are the reference: `
 - **The owner decides the domain:** business rules, modelling choices and ADR decisions, settled through `/grill-with-docs`. Technical choices with a sensible default may be made, but are named in the step log so the owner can overrule them.
 - **Seams in an `/implement-spec` run** are the ones named in the spec or its tickets; they count as agreed for `tdd`.
 - **Reviews** run `/code-review`, which reads `CODING_STANDARDS.md`.
-- **PR bodies** are written with `/pr`.
-- **`/improve-codebase-architecture`** runs every ten steps, or sooner when one concept spreads over more than three files.
+- **Pull requests** are opened with `/pr`: call the Skill tool with it every time, for each PR, even when the user doesn't type it.
+- **`/improve-codebase-architecture`** runs every ten steps, or sooner when one concept spreads over more than three files. Its cards go into `docs/architecture/reviews/<date>.md`; the step that does a card updates its **Status:** line (step, branch, PR).
 - **A run that stops partway** ends with `/handoff`.
 
 ## Explaining .NET
@@ -34,6 +34,7 @@ dotnet run --project src/SatisfactoryLedger.AppHost
 # After a deliberate change to the solver or the analysis version: write the test worlds' stored analyses anew, then read the diff
 REGENERATE_ANALYSIS_FIXTURES=1 dotnet test tests/SatisfactoryLedger.World.Simulation.Tests
 cd web && npm start | npm test | npm run build | npm run lint | npm run format
+cd web && npm run typecheck   # templates, specs and e2e: tsc --noEmit alone skips the templates
 npx ng test --include src/app/<path>.spec.ts --watch=false   # one web spec
 npm run e2e | npm run e2e:stack   # pages on recorded answers | journeys, against the running AppHost
 ```

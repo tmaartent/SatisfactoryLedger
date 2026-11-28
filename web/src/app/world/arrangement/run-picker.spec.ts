@@ -54,8 +54,8 @@ describe('the list of runs above the arrangement', () => {
     fixture.componentInstance.picked.subscribe((id) => picked.push(id));
     fixture.componentInstance.deleted.subscribe((run) => deleted.push(run));
     await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
-    const current = () => element.querySelector('button.current') as HTMLButtonElement;
+    const element: HTMLElement = fixture.nativeElement;
+    const current = () => element.querySelector<HTMLButtonElement>('button.current')!;
     const openList = async () => {
       current().click();
       await fixture.whenStable();
@@ -63,7 +63,7 @@ describe('the list of runs above the arrangement', () => {
     return { fixture, element, current, openList, picked, deleted };
   }
 
-  const menu = () => document.querySelector('.run-list') as HTMLElement;
+  const menu = () => document.querySelector<HTMLElement>('.run-list')!;
 
   afterEach(() => document.querySelectorAll('.cdk-overlay-container').forEach((o) => o.remove()));
 
@@ -103,7 +103,7 @@ describe('the list of runs above the arrangement', () => {
     const { openList, picked } = await render([newer, older], 'run-1');
     await openList();
 
-    (menu().querySelectorAll('.run')[0] as HTMLElement).click();
+    menu().querySelector<HTMLElement>('.run')!.click();
 
     expect(picked).toEqual(['run-2']);
   });
@@ -112,7 +112,7 @@ describe('the list of runs above the arrangement', () => {
     const { openList, picked, deleted } = await render([newer, older], 'run-1');
     await openList();
 
-    (menu().querySelector('button[aria-label^="Delete the run of 24 Nov"]') as HTMLElement).click();
+    menu().querySelector<HTMLElement>('button[aria-label^="Delete the run of 24 Nov"]')!.click();
 
     expect(deleted.map((run) => run.id)).toEqual(['run-1']);
     expect(picked).toEqual([]);

@@ -28,7 +28,7 @@ export class Sidebar {
   protected grab(event: PointerEvent): void {
     this.from = event.clientY;
     // Its moves and its lifting are the handle's, wherever the finger goes.
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    if (event.target instanceof Element) event.target.setPointerCapture?.(event.pointerId);
   }
 
   protected letGo(event: PointerEvent): void {

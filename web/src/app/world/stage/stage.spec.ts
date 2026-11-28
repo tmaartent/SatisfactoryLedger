@@ -3,25 +3,26 @@ import * as THREE from 'three';
 import { Press, Stage, StageOptions, StageRenderer } from './stage';
 
 /** A renderer without WebGL (jsdom has none): its canvas is real, the drawing isn't. */
+class FakeRenderer implements StageRenderer {
+  // OrbitControls captures the pointer it's pressed with; jsdom's canvas can't.
+  readonly domElement = Object.assign(document.createElement('canvas'), {
+    setPointerCapture: vi.fn(),
+    releasePointerCapture: vi.fn(),
+    hasPointerCapture: () => false,
+  });
+  localClippingEnabled = false;
+  loop: (() => void) | null = null;
+  readonly setPixelRatio = vi.fn();
+  readonly setSize = vi.fn();
+  readonly render = vi.fn();
+  readonly dispose = vi.fn();
+  setAnimationLoop(loop: (() => void) | null): void {
+    this.loop = loop;
+  }
+}
+
 function fakeRenderer() {
-  const renderer = {
-    // OrbitControls captures the pointer it's pressed with; jsdom's canvas can't.
-    domElement: Object.assign(document.createElement('canvas'), {
-      setPointerCapture: vi.fn(),
-      releasePointerCapture: vi.fn(),
-      hasPointerCapture: () => false,
-    }),
-    localClippingEnabled: false,
-    loop: null as (() => void) | null,
-    setPixelRatio: vi.fn(),
-    setSize: vi.fn(),
-    render: vi.fn(),
-    dispose: vi.fn(),
-    setAnimationLoop(loop: (() => void) | null) {
-      this.loop = loop;
-    },
-  };
-  return renderer satisfies StageRenderer;
+  return new FakeRenderer();
 }
 
 /** jsdom lays nothing out: the observers made, to call back as if their element were resized. */
@@ -96,7 +97,7 @@ describe('a 3D stage', () => {
 /** A pointer pressed or let go at a point on the page (jsdom may lack PointerEvent: a mouse event with its fields). */
 function pointer(type: 'pointerdown' | 'pointerup', x: number, y: number, pointerType = 'mouse') {
   const event = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
-  return Object.assign(event, { pointerType, isPrimary: true }) as unknown as PointerEvent;
+  return Object.assign(event, { pointerType, isPrimary: true });
 }
 
 /**

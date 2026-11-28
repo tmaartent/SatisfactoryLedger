@@ -26,6 +26,6 @@ describe('a building on a map', () => {
     const shape = buildingShape({ ...at, className: 'Build_ConveyorLiftMk1_C' }, footprints, {}, 3);
 
     expect(shape).toBeInstanceOf(L.CircleMarker);
-    expect((shape as L.CircleMarker).getRadius()).toBe(3);
+    expect(shape instanceof L.CircleMarker && shape.getRadius()).toBe(3);
   });
 });

@@ -36,6 +36,12 @@ export interface Press extends ScreenPoint {
   hits(among: readonly THREE.Object3D[]): THREE.Intersection[];
 }
 
+/** Frees the shape of something drawn, a mesh's or a line's; a group has none. For `traverse` when a view clears. */
+export function disposeGeometry(object: THREE.Object3D): void {
+  if ('geometry' in object && object.geometry instanceof THREE.BufferGeometry)
+    object.geometry.dispose();
+}
+
 function webGl(): StageRenderer {
   return new THREE.WebGLRenderer({ antialias: true });
 }

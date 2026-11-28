@@ -68,22 +68,35 @@ test.describe('the optimal arrangement', () => {
   });
 });
 
+/** What the tests read of a Leaflet map the page made. */
+interface CaughtMap {
+  getBounds(): Record<'getWest' | 'getEast' | 'getNorth' | 'getSouth', () => number>;
+  panBy(by: [number, number]): void;
+  eachLayer(each: (layer: { options?: { dashArray?: string; opacity?: number } }) => void): void;
+}
+
+declare global {
+  interface Window {
+    /** The page's Leaflet maps, oldest first, as catchMaps hears of them. */
+    maps: CaughtMap[];
+  }
+}
+
 /**
  * Each Leaflet map a page makes, caught as it's made, so a test can read what it shows: the maps draw on a canvas, with
  * nothing in the page to measure. Leaflet sets window.L as it loads, and an init hook then hears of every map.
  */
 async function catchMaps(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const seen = window as unknown as { maps: unknown[] };
-    seen.maps = [];
+    window.maps = [];
     let leaflet: { Map: { addInitHook(hook: () => void): void } } | undefined;
     Object.defineProperty(window, 'L', {
       configurable: true,
       get: () => leaflet,
       set: (value: typeof leaflet) => {
         leaflet = value;
-        value?.Map.addInitHook(function (this: unknown) {
-          seen.maps.push(this);
+        value?.Map.addInitHook(function (this: CaughtMap) {
+          window.maps.push(this);
         });
       },
     });
@@ -100,13 +113,7 @@ interface WorldRectangle {
 /** What the page's last map shows, in the world's centimetres, as an area is given; nothing before it's made. */
 function shown(page: Page): Promise<WorldRectangle | null> {
   return page.evaluate(() => {
-    const maps = (
-      window as unknown as {
-        maps: {
-          getBounds(): Record<'getWest' | 'getEast' | 'getNorth' | 'getSouth', () => number>;
-        }[];
-      }
-    ).maps;
+    const maps = window.maps;
     if (maps.length === 0) return null;
     const view = maps[maps.length - 1].getBounds();
     // A map point is [-y, x] in metres (toMapPoint).
@@ -267,7 +274,7 @@ test.describe('the optimal arrangement and its runs', () => {
     await expect.poll(() => width(page)).toBeGreaterThan(0);
     // Away from it first: the test world's factory stands in the area the page opens on.
     await page.evaluate(() => {
-      const maps = (window as unknown as { maps: { panBy(by: [number, number]): void }[] }).maps;
+      const maps = window.maps;
       maps[maps.length - 1].panBy([300, 200]);
     });
     await page.getByRole('button', { name: 'Factories', exact: true }).click();
@@ -373,15 +380,11 @@ async function answerLine(page: Page): Promise<void> {
 /** How strongly the map draws the existing belt outside the area, dotted; null while there's none. */
 function wayOpacity(page: Page): Promise<number | null> {
   return page.evaluate(() => {
-    const maps = (
-      window as unknown as {
-        maps: { eachLayer(each: (layer: { options?: Record<string, unknown> }) => void): void }[];
-      }
-    ).maps;
+    const maps = window.maps;
     if (maps.length === 0) return null;
     let opacity: number | null = null;
     maps[maps.length - 1].eachLayer((layer) => {
-      if (layer.options?.['dashArray'] === '2 4') opacity = layer.options['opacity'] as number;
+      if (layer.options?.dashArray === '2 4') opacity = layer.options.opacity ?? null;
     });
     return opacity;
   });

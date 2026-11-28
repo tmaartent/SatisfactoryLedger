@@ -7,6 +7,8 @@
 // Map art and icons are the game's art (Coffee Stain's): never recorded, and the tests answer them with a 404.
 import { chromium } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import * as prettier from 'prettier';
 
 const [snapshot, base = 'http://localhost:4200'] = process.argv.slice(2);
 if (!snapshot) {
@@ -85,9 +87,12 @@ if (nodes) {
 }
 
 const sorted = Object.fromEntries(Object.entries(answers).sort(([a], [b]) => a.localeCompare(b)));
+// Formatted as Prettier formats it, so a hand edit and npm run format keep the same shape.
+const fixture = fileURLToPath(new URL('./fixtures/api.json', import.meta.url));
+const options = { ...(await prettier.resolveConfig(fixture)), filepath: fixture };
 writeFileSync(
-  new URL('./fixtures/api.json', import.meta.url),
-  JSON.stringify({ snapshot, factory, answers: sorted }, null, 1) + '\n',
+  fixture,
+  await prettier.format(JSON.stringify({ snapshot, factory, answers: sorted }, null, 2), options),
 );
 console.log(`Recorded ${Object.keys(sorted).length} answers:`);
 for (const key of Object.keys(sorted)) console.log(' ', key, sorted[key].status);

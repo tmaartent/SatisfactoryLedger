@@ -2,10 +2,15 @@ import * as L from 'leaflet';
 
 import { inAnyRing } from './ring-hit';
 
-/** What a Leaflet polygon keeps once drawn, which its typings leave out: its rings in screen pixels, and their bounds. */
-interface Drawn {
-  _pxBounds?: L.Bounds;
-  _parts: L.Point[][];
+/** What a Leaflet line or polygon keeps once drawn, which its typings leave out. */
+declare module 'leaflet' {
+  interface Polyline {
+    /** Its rings in screen pixels, and their bounds. */
+    _pxBounds?: Bounds;
+    _parts: Point[][];
+    /** Whether a point in screen pixels is on it: on its line, or inside it when closed. */
+    _containsPoint(point: Point, closed?: boolean): boolean;
+  }
 }
 
 /**
@@ -15,14 +20,10 @@ interface Drawn {
  * a tap reached it; only its edges did. Here a point counts on any of its boxes (inAnyRing), or on its edge, as before.
  */
 export class BuildingOutline extends L.Polygon {
-  _containsPoint(point: L.Point): boolean {
-    const drawn = this as unknown as Drawn;
-    if (!drawn._pxBounds?.contains(point)) return false;
-    const onEdge = (
-      L.Polyline.prototype as unknown as {
-        _containsPoint(this: unknown, point: L.Point, closed: boolean): boolean;
-      }
-    )._containsPoint;
-    return inAnyRing(point, drawn._parts) || onEdge.call(this, point, true);
+  override _containsPoint(point: L.Point): boolean {
+    if (!this._pxBounds?.contains(point)) return false;
+    return (
+      inAnyRing(point, this._parts) || L.Polyline.prototype._containsPoint.call(this, point, true)
+    );
   }
 }

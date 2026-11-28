@@ -3,11 +3,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 /** The message of a failed call: the API's problem details (RFC 9457) when it sent them. */
 export function problemMessage(error: unknown): string {
   if (error instanceof HttpErrorResponse) {
-    const problem = error.error as {
+    const problem: {
       title?: string;
       detail?: string;
       errors?: Record<string, string[]>;
-    } | null;
+    } | null = error.error;
     const validation = problem?.errors ? Object.values(problem.errors).flat().join(' ') : '';
     return (
       problem?.detail ?? (validation || problem?.title) ?? `${error.status} ${error.statusText}`

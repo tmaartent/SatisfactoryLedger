@@ -8,6 +8,7 @@ const tab = (key: string, order = 0): Tab => ({
   label: key,
   icon: key,
   order,
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- never drawn here; only Angular makes a real one
   template: {} as TemplateRef<unknown>,
 });
 
