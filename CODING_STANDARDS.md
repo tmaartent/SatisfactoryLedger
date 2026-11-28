@@ -31,4 +31,5 @@ Structure is described in the vocabulary of the `codebase-design` skill: **modul
 - **One behaviour per test, named in domain language**, not after how a collection or method behaves.
 - **Replace, don't layer:** when a deepened module's interface has its own tests, the old tests of the shallow modules it replaced are deleted, unless the owner keeps them as a safety net.
 - **End-to-end tests are few**, and say they're end-to-end.
+- **Ages in a test are fixed.** A test whose outcome hangs on which factory, snapshot or run is oldest gives them fixed ids (`019ac000-0000-7000-8000-00000000000N`, as `SnapshotFactoriesTests` does), never `Guid.CreateVersion7()`: two made in the same millisecond sort at random. Example: the first `TraceAll` test of step 125, green half the time.
 - **A type assertion left in the web code says why.** The lint rule bans `as`; an `eslint-disable-next-line` for it is only for a stand-in for something jsdom or Angular can't make (a canvas context, a `TemplateRef`), with the reason after `--`. Any other is a finding: annotate, use `satisfies`, `querySelector<T>()` or `instanceof`, or give the test data every field.
