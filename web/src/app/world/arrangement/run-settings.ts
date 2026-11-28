@@ -37,7 +37,7 @@ export type SolverTime = 'fast' | 'balanced' | 'thorough';
 
 const solverSeconds: Record<SolverTime, number> = { fast: 15, balanced: 60, thorough: 600 };
 
-/** The seconds the solver gets: a quarter of a minute to try settings, a minute, or ten (the most the server allows). */
+/** The seconds the solver gets: a quarter of a minute to try settings, a minute, or ten, the most the server allows. */
 export function solverTime(time: SolverTime): number {
   return solverSeconds[time];
 }
@@ -70,8 +70,9 @@ export function runStatus(run: ArrangementSummary): string {
 
 /**
  * A run in one line, as the list of runs shows it under when it was asked for (asked 2026-11-25): its plots, or
- * footprints when its factories take those, and roads in foundations, supply lines when it routes them, the belt work it saves, the belts it left unrouted, its last-resort
- * crossings (step 102), how many placements that took when more than one (step 101), how it ended.
+ * footprints when its factories take those, and roads in foundations, supply lines when it routes them, the belt work
+ * it saves, the belts it left unrouted, its last-resort crossings (step 102), how many placements that took when more
+ * than one (step 101), how it ended.
  */
 export function runSummary(run: ArrangementSummary): string {
   const size = (metres: number) => String(Math.round(foundations(metres) * 10) / 10);

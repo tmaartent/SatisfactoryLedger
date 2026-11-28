@@ -114,6 +114,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
     it('stand on the plot proposed, in their colour, saying how far they move', () => {
       expect(floor(nothingPicked)).toEqual([
         {
+          key: 'factory smelters',
           factoryId: 'smelters',
           plot: { x0: 0, y0: 0, x1: 1000, y1: 1000 },
           colour: '#ff8a65',
@@ -123,6 +124,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
           hidden: false,
         },
         {
+          key: 'factory foundry',
           factoryId: 'foundry',
           plot: { x0: 3000, y0: 4000, x1: 4000, y1: 5000 },
           colour: '#4db6ac',
@@ -157,6 +159,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
           colourOf,
           names,
           focused: nothingPicked,
+          levels: null,
         }).factories,
       ).toEqual([]);
     });
@@ -169,6 +172,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: nothingPicked,
+        levels: null,
       }).belts;
 
       expect(first).toMatchObject({
@@ -187,6 +191,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: new Set(['smelters']),
+        levels: null,
       }).belts;
 
       expect(belts.map(({ standsOut, faded }) => ({ standsOut, faded }))).toEqual([
@@ -198,6 +203,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: new Set(['foundry']),
+        levels: null,
       }).belts;
       expect(forTheMiner.map(({ standsOut, faded }) => ({ standsOut, faded }))).toEqual([
         { standsOut: false, faded: true },
@@ -212,9 +218,11 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: nothingPicked,
+        levels: null,
       }).belts;
 
       expect(between).toEqual({
+        key: 'belt 1',
         belt: ingots,
         colour: '#ff8a65',
         tooltip: 'Iron Ingot · 240/min · level 1',
@@ -227,6 +235,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
           { at: { x: 2000, y: 0 }, colour: '#ff8a65', spot: null, ring: false },
           { at: { x: 2000, y: 3000 }, colour: '#ff8a65', spot: null, ring: false },
         ],
+        label: null,
       });
     });
 
@@ -243,6 +252,29 @@ describe('what the belt floor shows, flat and in 3D', () => {
       expect([low.hidden, low.fadedOn(0), low.fadedOn(1)]).toEqual([false, false, true]);
       expect(high.hidden).toBe(true);
     });
+
+    it('say what they carry halfway along, with a factory picked, when they stand out with it and are 30 m or more', () => {
+      const labels = (focused: ReadonlySet<string>) =>
+        beltFloor({ arrangement: arrangement(), colourOf, names, focused, levels: null }).belts.map(
+          (mark) => mark.label,
+        );
+
+      // The ore runs 20 m, the ingots 30 m.
+      expect(labels(new Set(['foundry']))).toEqual([
+        null,
+        { item: 'Desc_IronIngot_C', at: { x: 2000, y: 1500, z: undefined } },
+      ]);
+      expect(labels(nothingPicked)).toEqual([null, null]);
+    });
+
+    it('keep their names in the view whatever is picked, for a 3D piece to find its mark again', () => {
+      const keys = (focused: ReadonlySet<string>, levels: ReadonlySet<number> | null) => {
+        const floor = beltFloor({ arrangement: arrangement(), colourOf, names, focused, levels });
+        return [...floor.factories, ...floor.belts].map((mark) => mark.key);
+      };
+
+      expect(keys(new Set(['foundry']), new Set([1]))).toEqual(keys(nothingPicked, null));
+    });
   });
 
   describe('where a line starts or ends outside the arranged factories', () => {
@@ -252,9 +284,11 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: nothingPicked,
+        levels: null,
       }).belts;
 
       expect(fromMiner.spot).toEqual({
+        key: 'spot 0',
         kind: 'miner',
         at: { x: 0, y: 0 },
         colour: '#e53935',
@@ -287,6 +321,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: nothingPicked,
+        levels: null,
       }).belts;
 
       expect(between.spot).toBeNull();
@@ -315,6 +350,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
     it('come into the area in the colour of the factory they serve, with the building they start at marked', () => {
       expect(floor(nothingPicked)).toEqual([
         {
+          key: 'way 0',
           points: way.points,
           entry: { x: -1000, y: 0 },
           links: [
@@ -359,6 +395,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
           colourOf,
           names,
           focused: nothingPicked,
+          levels: null,
         }).ways,
       ).toEqual([]);
     });
@@ -394,6 +431,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
     it('stand where a top-up belt ends, orange, at its height, with the ways the items go', () => {
       expect(floor(nothingPicked)).toEqual([
         {
+          key: 'joint 1 merger',
           kind: 'merger',
           at: { x: 2000, y: 0 },
           height: 4,
@@ -439,6 +477,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
     it('stand on the belt at its height there, saying it crosses another as a last resort', () => {
       expect(floor(nothingPicked)).toEqual([
         {
+          key: 'crossing 0 0',
           at: { x: 2000, y: 1000 },
           height: 6,
           tooltip:
@@ -462,6 +501,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: nothingPicked,
+        levels: null,
       }).belts;
 
       expect(fromMiner.lifts).toEqual([
@@ -476,6 +516,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
         colourOf,
         names,
         focused: nothingPicked,
+        levels: null,
       }).belts;
 
       expect(between.lifts.map((lift) => lift.at)).toEqual([{ x: 2000, y: 3000 }]);
@@ -489,6 +530,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
           colourOf,
           names,
           focused: nothingPicked,
+          levels: null,
         }).belts[0].lifts[0];
 
       expect(floor([])).toEqual({ at: { x: 0, y: 0 }, colour: '#37474f', spot: null, ring: true });

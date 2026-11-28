@@ -23,7 +23,7 @@ import { buildingBoxes } from '../area/area-model';
 import { boxGeometry } from '../area/box-geometry';
 import { disposeGeometry, Stage } from '../stage/stage';
 import { CatalogNames } from '../../shared/catalog-names';
-import { BeltFloor, beltFloor } from './belt-floor';
+import { BeltFloor, beltFloor, BeltMark, Shown } from './belt-floor';
 import {
   beltStretches3d,
   floorDistance,
@@ -33,8 +33,14 @@ import {
   wayHeight,
 } from './arrangement-model';
 
-/** How a piece shows for the factories and levels picked: as the mark it draws does. */
-type Shows = (floor: BeltFloor) => { faded: boolean; hidden: boolean };
+/**
+ * The mark a piece draws, by its key in the view (`beltFloor`); for a belt, the level its piece is on, as a belt is
+ * drawn one piece per level.
+ */
+interface MarkOf {
+  key: string;
+  level?: number;
+}
 
 /** A belt as a flat band, in metres; a pipe round and a little wider, as in the game. */
 const beltWidth = 1.2;
@@ -127,6 +133,8 @@ export class BeltFloor3d {
   /** Where the floor is drawn, once the view is on the page. */
   private stage?: Stage;
   private readonly content = new THREE.Group();
+  /** The run whose pieces are drawn: what shows is asked of the view for it, whichever effect runs first. */
+  private drawn: ArrangementResponse | null = null;
   /** The splitter or merger whose arrows show, its ways in and out (asked 2026-11-26); none when none is clicked. */
   private arrowsOf: THREE.Object3D | null = null;
   private readonly materials = new Map<string, THREE.Material>();
@@ -143,13 +151,8 @@ export class BeltFloor3d {
       if (this.stage) this.draw(arrangement, machines);
     });
     effect(() => {
-      const [arrangement, levels, machines, focused] = [
-        this.arrangement(),
-        this.levels(),
-        this.showMachines(),
-        this.focused(),
-      ];
-      if (this.stage) this.show(arrangement, levels, machines, focused);
+      const [levels, machines, focused] = [this.levels(), this.showMachines(), this.focused()];
+      if (this.stage) this.show(levels, machines, focused);
     });
   }
 
@@ -192,7 +195,7 @@ export class BeltFloor3d {
   }
 
   /** What the floor shows for these factories and levels picked (`beltFloor`), in the colours and names given now. */
-  private floor(
+  private marksFor(
     arrangement: ArrangementResponse,
     focused: ReadonlySet<string>,
     levels: ReadonlySet<number> | null,
@@ -214,7 +217,8 @@ export class BeltFloor3d {
   ): void {
     this.clear();
     this.clearArrows();
-    const floor = this.floor(arrangement, untracked(this.focused), untracked(this.levels));
+    this.drawn = arrangement;
+    const marks = this.marksFor(arrangement, untracked(this.focused), untracked(this.levels));
     const arranged = new Set(arrangement.factories.map((factory) => factory.factoryId));
     const { area, ceilingMetres } = arrangement.summary;
     const corners = arrangement.belts.flatMap((belt) => belt.corners);
@@ -231,12 +235,12 @@ export class BeltFloor3d {
     const [width, depth] = [(bounds.x1 - bounds.x0) / 100, (bounds.y1 - bounds.y0) / 100];
     const floorMaterial = this.material('#3a4048', 0.5);
     floorMaterial.depthWrite = false;
-    const ground = new THREE.Mesh(new THREE.BoxGeometry(width, 0.5, depth), floorMaterial);
-    ground.position.set(0, -0.75, 0);
-    this.content.add(ground);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(width, 0.5, depth), floorMaterial);
+    floor.position.set(0, -0.75, 0);
+    this.content.add(floor);
 
     // The factories on their plots, as slabs at the ceiling.
-    floor.factories.forEach(({ factoryId, plot, colour, tooltip }, i) => {
+    marks.factories.forEach(({ key, factoryId, plot, colour, tooltip }) => {
       const slab = new THREE.Mesh(
         new THREE.BoxGeometry((plot.x1 - plot.x0) / 100, 1, (plot.y1 - plot.y0) / 100),
         this.material(colour, 0.35),
@@ -248,7 +252,7 @@ export class BeltFloor3d {
         ((plot.y0 + plot.y1) / 2 - middle.y) / 100,
       );
       slab.userData['factory'] = factoryId;
-      this.shows(slab, (shown) => shown.factories[i]);
+      this.shows(slab, { key });
       this.content.add(slab);
     });
 
@@ -260,7 +264,7 @@ export class BeltFloor3d {
     const owned = new Map<string, ArrangedMachineResponse[]>();
     for (const machine of machines?.machines ?? [])
       owned.set(machine.factoryId, [...(owned.get(machine.factoryId) ?? []), machine]);
-    floor.factories.forEach(({ factoryId, plot, colour, tooltip }, i) => {
+    marks.factories.forEach(({ key, factoryId, plot, colour, tooltip }) => {
       const standing = owned.get(factoryId) ?? [];
       if (standing.length === 0) return;
       const lowest = Math.min(...standing.map((machine) => machine.position.z));
@@ -278,14 +282,14 @@ export class BeltFloor3d {
       mesh.userData['tooltip'] = tooltip;
       mesh.userData['machines'] = true;
       mesh.userData['factory'] = factoryId;
-      this.shows(mesh, (shown) => shown.factories[i]);
+      this.shows(mesh, { key });
       this.content.add(mesh);
     });
 
     // Outside the area, the existing belts the routed ones join where they leave the floor (decided 2026-11-18): thin
     // lines in the colour of the factory they serve, at their heights as built from where they come in on the floor
     // (asked 2026-11-23); flat in runs from before heights were kept.
-    floor.ways.forEach((way, i) => {
+    marks.ways.forEach((way) => {
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(
           [...way.points, ...way.links.flatMap((link) => [...[...link].reverse(), ...link])].map(
@@ -302,7 +306,7 @@ export class BeltFloor3d {
       // What it is when pointed at, as on the map; found before the plots, as a belt.
       line.userData['tooltip'] = way.tooltip;
       line.userData['belt'] = true;
-      this.shows(line, (shown) => shown.ways[i]);
+      this.shows(line, { key: way.key });
       this.content.add(line);
 
       // At a miner or extractor, its drum, as inside the area (asked 2026-11-19); elsewhere a dot (asked 2026-11-25).
@@ -310,7 +314,8 @@ export class BeltFloor3d {
         const drum = this.mark(way.spot, middle);
         // At the height the way starts at, as built.
         drum.position.y += wayHeight(way.points[0] ?? way.entry, way.entry);
-        this.shows(drum, (shown) => shown.ways[i]);
+        // It shows as its way does.
+        this.shows(drum, { key: way.key });
         this.content.add(drum);
       }
     });
@@ -318,7 +323,7 @@ export class BeltFloor3d {
     // The supply lines' smart splitters and priority mergers (decided 2026-11-18): on the belt, where it joins another
     // on the floor; else at the ceiling, where the belts go up into the factory. Lit from within, so they stand out in
     // any light.
-    floor.joints.forEach((joint, i) => {
+    marks.joints.forEach((joint) => {
       const cube = new THREE.Mesh(
         new THREE.BoxGeometry(2.5, 2, 2.5),
         new THREE.MeshBasicMaterial({ color: joint.colour }),
@@ -340,13 +345,13 @@ export class BeltFloor3d {
           (arrow.at.y - middle.y) / 100,
         ),
       }));
-      this.shows(cube, (shown) => shown.joints[i]);
+      this.shows(cube, { key: joint.key });
       this.content.add(cube);
     });
 
     // Where a belt crosses another as a last resort (step 102, decided 2026-11-25): an amber ball on the belt, lit from
     // within, as on the map.
-    floor.crossings.forEach((crossing, i) => {
+    marks.crossings.forEach((crossing) => {
       const ball = new THREE.Mesh(
         new THREE.SphereGeometry(1.2, 12, 8),
         new THREE.MeshBasicMaterial({ color: '#ffb300' }),
@@ -358,22 +363,23 @@ export class BeltFloor3d {
       );
       ball.userData['tooltip'] = crossing.tooltip;
       ball.userData['belt'] = true;
-      this.shows(ball, (shown) => shown.crossings[i]);
+      this.shows(ball, { key: crossing.key });
       this.content.add(ball);
     });
 
     // Where a line starts or ends outside the arranged factories: a miner's or extractor's drum on the ground at the
     // foot of its lift, a dot for a station, a drone port or machines (asked 2026-11-19 and 2026-11-25).
-    floor.belts.forEach(({ spot }, i) => {
+    marks.belts.forEach(({ spot }) => {
       if (!spot) return;
       const drum = this.mark(spot, middle);
-      this.shows(drum, (shown) => shown.belts[i].spot!);
+      this.shows(drum, { key: spot.key });
       this.content.add(drum);
     });
 
     // The belts and pipes: each straight stretch a piece of its own, a flat box for a belt and a cylinder for a pipe,
-    // with a joint at every corner; one mesh per belt and level, so pointing finds it and levels can be shown one by one.
-    floor.belts.forEach(({ belt, colour, tooltip }, i) => {
+    // with a joint at every corner; one mesh per belt and level, so pointing finds it and levels can be shown one by
+    // one.
+    marks.belts.forEach(({ key, belt, colour, tooltip }) => {
       const stretches = beltStretches3d(belt, middle, ceilingMetres, arranged);
       const byLevel = new Map<number, THREE.BufferGeometry[]>();
       stretches.forEach(({ from, to, level }, j) => {
@@ -391,21 +397,13 @@ export class BeltFloor3d {
         geometries.forEach((geometry) => geometry.dispose());
         mesh.userData['tooltip'] = tooltip;
         mesh.userData['belt'] = true;
-        this.shows(mesh, (shown) => ({
-          hidden: shown.belts[i].hidden,
-          faded: shown.belts[i].fadedOn(level),
-        }));
+        this.shows(mesh, { key, level });
         this.content.add(mesh);
       }
     });
 
     this.frame();
-    this.show(
-      arrangement,
-      untracked(this.levels),
-      untracked(this.showMachines),
-      untracked(this.focused),
-    );
+    this.show(untracked(this.levels), untracked(this.showMachines), untracked(this.focused));
   }
 
   /**
@@ -413,20 +411,24 @@ export class BeltFloor3d {
    * the machines on the slabs, unless they're switched off.
    */
   private show(
-    arrangement: ArrangementResponse,
     levels: ReadonlySet<number> | null,
     machines: boolean,
     focused: ReadonlySet<string>,
   ): void {
-    const floor = this.floor(arrangement, focused, levels);
+    if (!this.drawn) return;
+    const byKey = marksByKey(this.marksFor(this.drawn, focused, levels));
     for (const object of this.content.children) {
       const {
-        shows,
+        mark,
         full,
         faded,
-      }: { shows?: Shows; full?: THREE.Material; faded?: THREE.Material } = object.userData;
-      if (!shows) continue;
-      const shown = shows(floor);
+      }: { mark?: MarkOf; full?: THREE.Material; faded?: THREE.Material } = object.userData;
+      const found = mark && byKey.get(mark.key);
+      if (!mark || !found) continue;
+      const shown: Shown =
+        mark.level !== undefined && 'fadedOn' in found
+          ? { hidden: found.hidden, faded: found.fadedOn(mark.level) }
+          : found;
       object.visible = !shown.hidden && (machines || !object.userData['machines']);
       if (full && faded && (object instanceof THREE.Mesh || object instanceof THREE.Line))
         object.material = shown.faded ? faded : full;
@@ -434,8 +436,8 @@ export class BeltFloor3d {
   }
 
   /** A piece that shows as its mark does (`show`), faded or hidden. */
-  private shows(object: THREE.Mesh | THREE.Line, shows: Shows): void {
-    object.userData['shows'] = shows;
+  private shows(object: THREE.Mesh | THREE.Line, mark: MarkOf): void {
+    object.userData['mark'] = mark;
     this.fadable(object);
   }
 
@@ -578,4 +580,19 @@ export class BeltFloor3d {
       (size, aspect) => floorDistance(Math.max(size.x, size.y, size.z, 20), aspect),
     );
   }
+}
+
+/** Every mark of the view by its key, the spots of the belts included. */
+function marksByKey(marks: BeltFloor): ReadonlyMap<string, Shown | BeltMark> {
+  const spots = marks.belts.flatMap(({ spot }) => (spot ? [spot] : []));
+  return new Map(
+    [
+      ...marks.factories,
+      ...marks.belts,
+      ...spots,
+      ...marks.ways,
+      ...marks.joints,
+      ...marks.crossings,
+    ].map((mark): [string, Shown | BeltMark] => [mark.key, mark]),
+  );
 }

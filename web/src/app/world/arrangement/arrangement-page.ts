@@ -81,8 +81,6 @@ import {
   AreaFactory,
   arrangedFactories,
   factoriesInArea,
-  beltsToLabel,
-  halfway,
   stationClasses,
 } from './arrangement-model';
 import {
@@ -887,6 +885,7 @@ export class ArrangementPage {
       colourOf,
       names: spotNames(this.names, ownerOf),
       focused,
+      levels: null,
     });
 
     if (arrangement.summary.area) {
@@ -902,10 +901,9 @@ export class ArrangementPage {
     // Always (asked 2026-11-23): the belts and pipes on the floor below are part of the proposal.
     this.drawBelts(floor);
     // With a factory picked, what its long belts and pipes carry, as the lines before a run (asked 2026-11-25).
-    for (const belt of beltsToLabel(arrangement.belts, focused))
-      this.itemPill([belt.item!], toMapPoint({ ...halfway(belt.corners), z: 0 })).addTo(
-        this.beltLayer,
-      );
+    for (const { label } of floor.belts)
+      if (label)
+        this.itemPill([label.item], toMapPoint({ ...label.at, z: 0 })).addTo(this.beltLayer);
 
     // With factories picked, the others fade, unless they feed one picked.
     for (const factory of floor.factories) {

@@ -4,10 +4,12 @@ import { WorldPoint } from '../../api/models/world-point';
 import { WorldRectangle } from '../../api/models/world-rectangle';
 import {
   beltEnds,
+  beltsToLabel,
   beltTooltip,
   CrossingMark,
   crossingMarks,
   factoryTooltip,
+  halfway,
   jointArrows,
   jointColours,
   joinedWays,
@@ -23,7 +25,7 @@ import {
   wayMark,
 } from './arrangement-model';
 
-/** What the belt floor of a run is drawn from: the run, the factories' colours, the names, and the factories picked. */
+/** What the belt floor of a run is drawn from: the run, the factories' colours, the names, and what's picked. */
 export interface BeltFloorOf {
   arrangement: ArrangementResponse;
   /** A factory's colour, as the map draws it. */
@@ -33,14 +35,28 @@ export interface BeltFloorOf {
   /** The factories picked: what supplies them stands out, the rest fades. */
   focused: ReadonlySet<string>;
   /**
-   * The levels picked in 3D (decided 2026-11-18): only what runs on them shows, and a belt's pieces on the others fade;
-   * null, or left out as on the map, for every level.
+   * The levels picked in 3D (decided 2026-11-18): only what runs on them shows, and a belt's pieces on the others fade.
+   * Null for every level, as on the map.
    */
-  levels?: ReadonlySet<number> | null;
+  levels: ReadonlySet<number> | null;
+}
+
+/** How a mark shows for what's picked: faded, for the factories or the levels picked; hidden, in 3D, for the levels. */
+export interface Shown {
+  faded: boolean;
+  hidden: boolean;
+}
+
+/**
+ * A mark's name in the view, its own whatever is picked: a 3D piece keeps it, to find its mark again when the
+ * factories or levels picked change.
+ */
+interface Keyed {
+  key: string;
 }
 
 /** A factory on the plot the run proposes for it, above the floor. */
-export interface FactoryMark {
+export interface FactoryMark extends Shown, Keyed {
   factoryId: string;
   plot: WorldRectangle;
   colour: string;
@@ -48,14 +64,11 @@ export interface FactoryMark {
   tooltip: string;
   /** Edged wider: it's picked. */
   standsOut: boolean;
-  /** With factories picked, one that doesn't feed one of them. */
-  faded: boolean;
-  /** Not shown in 3D: no belt on a level picked comes from it or goes to it. */
-  hidden: boolean;
+  // Faded with factories picked, when it feeds none of them; hidden in 3D when no belt on a level picked connects it.
 }
 
 /** A routed belt or pipe on the floor. */
-export interface BeltMark {
+export interface BeltMark extends Shown, Keyed {
   /** Where it runs: its corners, heights, levels and lifts. */
   belt: RoutedBeltResponse;
   /** Its factory's colour; between two, the one it leaves, on the map and in 3D (decided 2026-11-28). */
@@ -63,28 +76,29 @@ export interface BeltMark {
   tooltip: string;
   /** Drawn wider: it supplies a factory picked, or one picked makes it. */
   standsOut: boolean;
-  faded: boolean;
-  /** Not shown in 3D: it has no run on a level picked. */
-  hidden: boolean;
+  // Hidden in 3D when it has no run on a level picked.
   /** Whether its piece on a level fades in 3D: the belt does, or the level isn't picked. */
   fadedOn: (level: number) => boolean;
   /** What marks its end outside the arranged factories: a miner, an extractor, a station or machines; null for none. */
   spot: SpotMark | null;
   /** On the map, a dot at each end that doesn't join another belt (in 3D the lifts are part of the belt). */
   lifts: LiftMark[];
+  /**
+   * What it carries, said halfway along it, with a factory picked (asked 2026-11-25): on a belt it stands out with, 30
+   * metres long or more (`beltsToLabel`); null on the others.
+   */
+  label: { item: string; at: WorldPoint } | null;
 }
 
 /**
  * Where a line starts or ends outside the arranged factories (asked 2026-11-19 and 2026-11-25): a miner, red; an
  * extractor in the colour of its fluid; a station or drone port, dark; machines in their factory's colour, or grey.
  */
-export interface SpotMark {
+export interface SpotMark extends Shown, Keyed {
   kind: SourceKind;
   at: WorldPoint;
   colour: string;
   tooltip: string;
-  faded: boolean;
-  hidden: boolean;
 }
 
 /** A belt's lift on the map, where it goes up into a factory or down to a spot. */
@@ -98,20 +112,12 @@ export interface LiftMark {
   ring: boolean;
 }
 
-/** What the belt floor shows: each mark with where it is, its colour, whether it's faded, and its tooltip. */
-export interface BeltFloor {
-  factories: FactoryMark[];
-  belts: BeltMark[];
-  ways: WayMark[];
-  joints: JointMark[];
-  crossings: CrossingOnFloor[];
-}
-
 /**
- * A supply line's priority merger, orange, smart splitter, blue, or splitter, white (decided 2026-11-18 and 2026-11-19),
- * with the ways the items go in and out of it on the floor (asked 2026-11-26).
+ * A supply line's priority merger, orange, smart splitter, blue, or splitter, white (decided 2026-11-18 and
+ * 2026-11-19), with the ways the items go in and out of it on the floor (asked 2026-11-26). It fades with its belt, on
+ * the map and in 3D (decided 2026-11-28).
  */
-export interface JointMark {
+export interface JointMark extends Shown, Keyed {
   kind: 'smart-splitter' | 'splitter' | 'merger';
   at: WorldPoint;
   /** On the floor, at the belt's height in metres, where the belt joins another there; else null, up in the factory. */
@@ -120,24 +126,21 @@ export interface JointMark {
   tooltip: string;
   /** Half a foundation from it, pointing the way the items go; none up in a factory. */
   arrows: ReturnType<typeof jointArrows>;
-  /** Faded with its belt, on the map and in 3D (decided 2026-11-28), and in 3D on a level not picked. */
-  faded: boolean;
-  hidden: boolean;
 }
 
-/** Where a routed belt crosses another as a last resort (step 102): an amber mark, to check in the game. */
-export type CrossingOnFloor = Omit<CrossingMark, 'level'> & {
-  /** Faded with its belt, on the map and in 3D (decided 2026-11-28), and in 3D on a level not picked. */
-  faded: boolean;
-  hidden: boolean;
-};
+/**
+ * Where a routed belt crosses another as a last resort (step 102): an amber mark, to check in the game. It fades with
+ * its belt, on the map and in 3D (decided 2026-11-28).
+ */
+export type CrossingOnFloor = Omit<CrossingMark, 'level'> & Shown & Keyed;
 
 /**
  * An existing belt outside the area that routed belts join where they leave the floor (decided 2026-11-18), from the
  * building it starts at to where it comes into the area; with the way each joining belt gets there from the floor's
- * edge. It stands out and fades with the belts joining it (step 106).
+ * edge. It stands out and fades with the belts joining it (step 106), and is hidden in 3D when none of them runs on a
+ * level picked.
  */
-export interface WayMark {
+export interface WayMark extends Shown, Keyed {
   /** As built, from the building outside to where it comes in. */
   points: WorldPoint[];
   /** Where it comes in, on the area's edge: an amber ring. */
@@ -147,36 +150,36 @@ export interface WayMark {
   colour: string;
   tooltip: string;
   standsOut: boolean;
-  faded: boolean;
-  /** Not shown in 3D: none of the belts joining it runs on a level picked. */
-  hidden: boolean;
-  /** The building it starts at, marked as a spot is; null for none. */
-  spot: { kind: SourceKind; at: WorldPoint; colour: string; tooltip: string } | null;
+  /** The building it starts at, marked as a spot is, showing as the way does; null for none. */
+  spot: Omit<SpotMark, keyof Shown | keyof Keyed> | null;
 }
+
+/** What the belt floor shows: each mark with where it is, its colour, whether it's faded, and its tooltip. */
+export interface BeltFloor {
+  factories: FactoryMark[];
+  belts: BeltMark[];
+  ways: WayMark[];
+  joints: JointMark[];
+  crossings: CrossingOnFloor[];
+}
+
+/** A belt, or an existing belt, with no factory's colour to take. */
+const noFactoryColour = '#e0e0e0';
 
 /**
  * What the belt floor of a run shows (card C of 2026-11-28), the same flat on the map and in 3D: the two views only
  * draw these marks.
  */
-export function beltFloor({
-  arrangement,
-  colourOf,
-  names,
-  focused,
-  levels = null,
-}: BeltFloorOf): BeltFloor {
+export function beltFloor(of: BeltFloorOf): BeltFloor {
   const floor: Floor = {
-    arrangement,
-    colourOf,
-    names,
-    focused,
-    levels,
-    arranged: new Set(arrangement.factories.map((factory) => factory.factoryId)),
-    shown: suppliedBelts(arrangement.belts, focused),
+    ...of,
+    arranged: new Set(of.arrangement.factories.map((factory) => factory.factoryId)),
+    standingOut: suppliedBelts(of.arrangement.belts, of.focused),
+    labelled: new Set(beltsToLabel(of.arrangement.belts, of.focused)),
   };
   return {
     factories: factoryMarks(floor),
-    belts: arrangement.belts.map((belt) => beltMark(floor, belt)),
+    belts: of.arrangement.belts.map((belt, i) => beltMark(floor, belt, i)),
     ways: wayMarks(floor),
     joints: jointMarks(floor),
     crossings: crossingsOnFloor(floor),
@@ -184,23 +187,26 @@ export function beltFloor({
 }
 
 /** What every mark is worked out from: the input, the factories arranged, and the belts that stand out. */
-type Floor = Required<BeltFloorOf> & {
+type Floor = BeltFloorOf & {
   arranged: ReadonlySet<string>;
-  shown: ReadonlySet<RoutedBeltResponse>;
+  /** The belts the factories picked stand out with (`suppliedBelts`): every belt while none is picked. */
+  standingOut: ReadonlySet<RoutedBeltResponse>;
+  /** The belts that say what they carry (`beltsToLabel`). */
+  labelled: ReadonlySet<RoutedBeltResponse>;
 };
 
 /**
- * Whether a piece on the levels `own` fades and hides in 3D, for the levels picked (`levelShown`), when its belt or
- * belts run on `belts`; faded too when `faded` already, for the factories picked.
+ * How a piece on the levels `own` shows in 3D, for the levels picked (`levelShown`), when its belt or belts run on
+ * `belts`; faded too when `faded` already, for the factories picked.
  */
 function onLevels(
   floor: Floor,
   own: readonly number[],
   belts: readonly number[],
   faded: boolean,
-): { faded: boolean; hidden: boolean } {
-  const shown = levelShown(floor.levels, own, belts);
-  return { faded: faded || shown === 'faded', hidden: shown === 'hidden' };
+): Shown {
+  const onPicked = levelShown(floor.levels, own, belts);
+  return { faded: faded || onPicked === 'faded', hidden: onPicked === 'hidden' };
 }
 
 function factoryMarks({ arrangement, colourOf, focused, levels }: Floor): FactoryMark[] {
@@ -210,6 +216,7 @@ function factoryMarks({ arrangement, colourOf, focused, levels }: Floor): Factor
     proposed
       ? [
           {
+            key: `factory ${factoryId}`,
             factoryId,
             plot: proposed,
             colour: colourOf(factoryId) ?? '#90a4ae',
@@ -223,12 +230,12 @@ function factoryMarks({ arrangement, colourOf, focused, levels }: Floor): Factor
   );
 }
 
-function beltMark(floor: Floor, belt: RoutedBeltResponse): BeltMark {
-  const { arranged, colourOf, focused, names, shown } = floor;
-  const faded = !shown.has(belt);
+function beltMark(floor: Floor, belt: RoutedBeltResponse, index: number): BeltMark {
+  const { arranged, colourOf, focused, names, standingOut } = floor;
+  const faded = !standingOut.has(belt);
   const ends = beltEnds(belt, arranged);
-  const colour = colourOf(ends.factory) ?? '#e0e0e0';
-  const spot = spotOf(floor, belt, faded);
+  const colour = colourOf(ends.factory) ?? noFactoryColour;
+  const spot = spotOf(floor, belt, index, faded);
   // Spots whose existing belt comes into the area: their amber ring stands where it comes in, drawn with the way.
   const comingIn = (spotId: string) => floor.arrangement.ways.some((way) => way.spotId === spotId);
   const lift = (at: WorldPoint, end: 'start' | 'end'): LiftMark => {
@@ -242,6 +249,7 @@ function beltMark(floor: Floor, belt: RoutedBeltResponse): BeltMark {
   };
   const [first, last] = [belt.corners[0], belt.corners[belt.corners.length - 1]];
   return {
+    key: `belt ${index}`,
     belt,
     colour,
     tooltip: beltTooltip(belt, names.item),
@@ -255,11 +263,20 @@ function beltMark(floor: Floor, belt: RoutedBeltResponse): BeltMark {
       ...(belt.startsOnBelt || !first ? [] : [lift(first, 'start')]),
       ...(belt.endsOnBelt || !last ? [] : [lift(last, 'end')]),
     ],
+    label:
+      floor.labelled.has(belt) && belt.item != null
+        ? { item: belt.item, at: halfway(belt.corners) }
+        : null,
   };
 }
 
 /** A spot's mark at its end of the belt, on the level the belt runs on there; none without corners. */
-function spotOf(floor: Floor, belt: RoutedBeltResponse, faded: boolean): SpotMark | null {
+function spotOf(
+  floor: Floor,
+  belt: RoutedBeltResponse,
+  index: number,
+  faded: boolean,
+): SpotMark | null {
   const mark = spotMark(belt, floor.arranged, floor.names);
   if (!mark) return null;
   const [at, level] =
@@ -268,21 +285,29 @@ function spotOf(floor: Floor, belt: RoutedBeltResponse, faded: boolean): SpotMar
       : [belt.corners[belt.corners.length - 1], belt.levels[belt.levels.length - 1]];
   if (!at) return null;
   const { kind, colour, tooltip } = mark;
-  return { kind, at, colour, tooltip, ...onLevels(floor, [level ?? 0], belt.levels, faded) };
+  return {
+    key: `spot ${index}`,
+    kind,
+    at,
+    colour,
+    tooltip,
+    ...onLevels(floor, [level ?? 0], belt.levels, faded),
+  };
 }
 
 function wayMarks(floor: Floor): WayMark[] {
-  const { arrangement, arranged, colourOf, focused, names, shown } = floor;
-  return arrangement.ways.flatMap((spot) =>
+  const { arrangement, arranged, colourOf, focused, names, standingOut } = floor;
+  return arrangement.ways.flatMap((spot, index) =>
     joinedWays([spot], arrangement.belts, arranged, names).map((way): WayMark => {
-      const faded = !way.joining.some((belt) => shown.has(belt));
+      const faded = !way.joining.some((belt) => standingOut.has(belt));
       const joiningLevels = [...new Set(way.joining.flatMap((belt) => belt.levels))];
       const mark = wayMark(spot, arrangement.belts, names);
       return {
+        key: `way ${index}`,
         points: way.points,
         entry: way.entry,
         links: way.links,
-        colour: colourOf(way.factory) ?? '#e0e0e0',
+        colour: colourOf(way.factory) ?? noFactoryColour,
         tooltip: way.tooltip,
         standsOut: focused.size > 0 && !faded,
         ...onLevels(floor, way.levels, joiningLevels, faded),
@@ -293,27 +318,29 @@ function wayMarks(floor: Floor): WayMark[] {
 }
 
 function jointMarks(floor: Floor): JointMark[] {
-  const { arrangement, names, shown } = floor;
-  return arrangement.belts.flatMap((belt) =>
+  const { arrangement, names, standingOut } = floor;
+  return arrangement.belts.flatMap((belt, index) =>
     lineJoints([belt], names.item).map((joint): JointMark => ({
+      key: `joint ${index} ${joint.kind}`,
       kind: joint.kind,
       at: joint.at,
       height: joint.height,
       colour: jointColours[joint.kind],
       tooltip: joint.tooltip,
       arrows: jointArrows(belt, joint.kind === 'merger' ? 'end' : 'start', arrangement.belts),
-      ...onLevels(floor, [joint.level], belt.levels, !shown.has(belt)),
+      ...onLevels(floor, [joint.level], belt.levels, !standingOut.has(belt)),
     })),
   );
 }
 
 function crossingsOnFloor(floor: Floor): CrossingOnFloor[] {
-  return floor.arrangement.belts.flatMap((belt) =>
-    crossingMarks([belt]).map(({ at, height, level, tooltip }): CrossingOnFloor => ({
+  return floor.arrangement.belts.flatMap((belt, index) =>
+    crossingMarks([belt]).map(({ at, height, level, tooltip }, j): CrossingOnFloor => ({
+      key: `crossing ${index} ${j}`,
       at,
       height,
       tooltip,
-      ...onLevels(floor, [level], belt.levels, !floor.shown.has(belt)),
+      ...onLevels(floor, [level], belt.levels, !floor.standingOut.has(belt)),
     })),
   );
 }
