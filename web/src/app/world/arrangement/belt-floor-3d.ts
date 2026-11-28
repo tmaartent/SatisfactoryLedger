@@ -22,8 +22,7 @@ import { WorldPoint } from '../../api/models/world-point';
 import { Position } from '../../shared/display';
 import { buildingBoxes } from '../area/area-model';
 import { boxGeometry } from '../area/box-geometry';
-import { FlowArrow } from '../stage/flow-arrow';
-import { Stage } from '../stage/stage';
+import { disposeGeometry, Stage } from '../stage/stage';
 import { CatalogNames } from '../../shared/catalog-names';
 import {
   beltStretches3d,
@@ -194,8 +193,9 @@ export class BeltFloor3d {
 
   private clear(): void {
     this.content.traverse((object) => {
-      (object as THREE.Mesh).geometry?.dispose();
-      (object.userData['faded'] as THREE.Material | undefined)?.dispose();
+      disposeGeometry(object);
+      const faded: THREE.Material | undefined = object.userData['faded'];
+      faded?.dispose();
     });
     this.content.clear();
   }
@@ -459,7 +459,15 @@ export class BeltFloor3d {
     // The belts the factories picked stand out with: what supplies them, back to the source, and what they make.
     const supplied = suppliedBelts(arrangement.belts, focused);
     for (const object of this.content.children) {
-      const { own, belt, routed, joins, factory, full, faded } = object.userData as {
+      const {
+        own,
+        belt,
+        routed,
+        joins,
+        factory,
+        full,
+        faded,
+      }: {
         own?: number[];
         belt?: number[];
         routed?: RoutedBeltResponse;
@@ -467,7 +475,7 @@ export class BeltFloor3d {
         factory?: string;
         full?: THREE.Material;
         faded?: THREE.Material;
-      };
+      } = object.userData;
       let fade = false;
       if (own && belt) {
         const shown = levelShown(levels, own, belt);
@@ -482,7 +490,8 @@ export class BeltFloor3d {
           (machines || !object.userData['machines']);
         if (related !== null && !related.has(factory)) fade = true;
       }
-      if (full && faded) (object as THREE.Mesh).material = fade ? faded : full;
+      if (full && faded && (object instanceof THREE.Mesh || object instanceof THREE.Line))
+        object.material = fade ? faded : full;
     }
   }
 
@@ -494,7 +503,9 @@ export class BeltFloor3d {
 
   /** Something that can fade, for the levels or the factories picked: how it's drawn as it is, and faded. */
   private fadable(object: THREE.Mesh | THREE.Line): void {
-    const full = object.material as THREE.Material;
+    if (Array.isArray(object.material))
+      throw new Error('A piece that fades is drawn with one material');
+    const full = object.material;
     const faded = full.clone();
     faded.transparent = true;
     faded.opacity = full.opacity * 0.2;
@@ -510,7 +521,7 @@ export class BeltFloor3d {
     const hit = hits.find((candidate) => candidate.object.userData['arrows']);
     const clicked = hit && hit.object !== this.arrowsOf ? hit.object : null;
     this.arrowsOf = clicked;
-    stage.showArrows(clicked ? (clicked.userData['arrows'] as FlowArrow[]) : []);
+    stage.showArrows(clicked ? clicked.userData['arrows'] : []);
   }
 
   private clearArrows(): void {
@@ -521,7 +532,7 @@ export class BeltFloor3d {
   /** The factory under a click, picked or unpicked: its slab or its machines, not a belt in front of it. */
   private pick(hits: readonly THREE.Intersection[]): void {
     const hit = hits.find((candidate) => candidate.object.userData['factory']);
-    if (hit) this.picked.emit(hit.object.userData['factory'] as string);
+    if (hit) this.picked.emit(hit.object.userData['factory']);
   }
 
   /**
@@ -546,7 +557,7 @@ export class BeltFloor3d {
   private tipAt(at: { x: number; y: number }, hits: readonly THREE.Intersection[]): void {
     const labelled = hits.filter((hit) => hit.object.userData['tooltip']);
     const hit = labelled.find((candidate) => candidate.object.userData['belt']) ?? labelled[0];
-    this.tip.set(hit ? { html: hit.object.userData['tooltip'] as string, x: at.x, y: at.y } : null);
+    this.tip.set(hit ? { html: hit.object.userData['tooltip'], x: at.x, y: at.y } : null);
   }
 
   /**

@@ -19,6 +19,7 @@ module.exports = defineConfig([
     rules: {
       // Leaving a field out by destructuring it into a name never used: ({ machines: _, ...factory }) => factory.
       '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
+      '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
       '@angular-eslint/directive-selector': [
         'error',
         {

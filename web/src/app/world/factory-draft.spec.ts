@@ -14,16 +14,15 @@ describe('a factory draft', () => {
     factories: TracedFactory[] = [],
     invoke: (fn: unknown, params: unknown) => Promise<unknown> = () => new Promise(() => undefined),
   ) {
-    TestBed.configureTestingModule({
-      providers: [FactoryDraft, { provide: Api, useValue: { invoke: vi.fn(invoke) } }],
-    });
+    const api = { invoke: vi.fn(invoke) };
+    TestBed.configureTestingModule({ providers: [FactoryDraft, { provide: Api, useValue: api }] });
     const draft = TestBed.inject(FactoryDraft);
     draft.within({
       snapshotId: signal('snapshot-1'),
       world: signal('Ficsit'),
       factories: signal(factories),
     });
-    return { draft, api: TestBed.inject(Api) as unknown as { invoke: ReturnType<typeof vi.fn> } };
+    return { draft, api };
   }
 
   it('is defining once started, with nothing chosen and no name', () => {
@@ -306,7 +305,9 @@ describe("a 3D view's draft", () => {
     const fixture = TestBed.createComponent(Page);
     const view = fixture.debugElement.query((node) => node.componentInstance instanceof View);
 
-    expect((view.componentInstance as View).draft).toBe(fixture.componentInstance.draft);
+    const shown: View = view.componentInstance;
+
+    expect(shown.draft).toBe(fixture.componentInstance.draft);
   });
 
   it('is its own on a page of its own, and goes with it', () => {

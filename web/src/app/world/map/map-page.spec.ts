@@ -1,7 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import * as L from 'leaflet';
 
 import { Api } from '../../api/api';
 import { getMapArt } from '../../api/fn/catalog/get-map-art';
@@ -14,7 +13,6 @@ import { ArrangementSummary } from '../../api/models/arrangement-summary';
 import { FactoryTrace } from '../../api/models/factory-trace';
 import { CatalogNames } from '../../shared/catalog-names';
 import { Sidebar } from '../../sidebar/sidebar';
-import { MachineSummary } from '../../api/models/machine-summary';
 import { MapPage } from './map-page';
 
 const factory = (factoryId: string, name: string, traceable = true): FactoryTrace => ({
@@ -32,6 +30,7 @@ const factory = (factoryId: string, name: string, traceable = true): FactoryTrac
 beforeEach(() => {
   const nothing: unknown = new Proxy(() => nothing, { get: () => nothing });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a stand-in, not a context
     nothing as CanvasRenderingContext2D,
   );
   // Nor does it lay anything out, so nothing is ever resized: an observer that never calls back.
@@ -271,15 +270,16 @@ async function render(
   const sidebar = TestBed.createComponent(Sidebar);
   await fixture.whenStable();
   await sidebar.whenStable();
-  const tabs = sidebar.nativeElement as HTMLElement;
+  const tabs: HTMLElement = sidebar.nativeElement;
   /** Opens a tab of the sidebar by its icon on the rail; an open one stays open (a click would collapse it). */
   const open = async (label: string) => {
-    const icon = tabs.querySelector(`.rail button[aria-label="${label}"]`) as HTMLButtonElement;
+    const icon = tabs.querySelector<HTMLButtonElement>(`.rail button[aria-label="${label}"]`)!;
     if (icon.getAttribute('aria-pressed') !== 'true') icon.click();
     await fixture.whenStable();
     await sidebar.whenStable();
   };
-  return { fixture, sidebar, api, element: fixture.nativeElement as HTMLElement, tabs, open };
+  const element: HTMLElement = fixture.nativeElement;
+  return { fixture, sidebar, api, element, tabs, open };
 }
 
 describe('the world map with no snapshot loaded', () => {
@@ -296,7 +296,7 @@ describe('the world map with no snapshot loaded', () => {
     expect(cells(tabs).map((cell) => cell.getAttribute('aria-label'))).toEqual([
       'Pure Desc_OreIron_C · 1 node',
     ]);
-    const badge = cells(tabs)[0].querySelector('.badge') as HTMLElement;
+    const badge = cells(tabs)[0].querySelector<HTMLElement>('.badge')!;
     expect(badge.querySelector('img')?.getAttribute('src')).toBe(
       '/api/v1/catalog/icons/Desc_OreIron_C',
     );
@@ -325,7 +325,7 @@ describe('the world map with no snapshot loaded', () => {
     const button = (label: string) =>
       Array.from(tabs.querySelectorAll<HTMLButtonElement>('.node-kinds .all button')).find(
         (candidate) => candidate.textContent?.trim() === label,
-      ) as HTMLButtonElement;
+      )!;
 
     button('Hide all').click();
     await fixture.whenStable();
@@ -349,7 +349,7 @@ describe('the world map with no snapshot loaded', () => {
   it("draws a resource node as a pin: its resource's icon on its purity's colour, on a stick to where it lies", async () => {
     const { element } = await render();
 
-    const pin = element.querySelector('.node-pin') as HTMLElement | null;
+    const pin = element.querySelector<HTMLElement>('.node-pin');
     expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe(
       '/api/v1/catalog/icons/Desc_OreIron_C',
     );
@@ -360,7 +360,7 @@ describe('the world map with no snapshot loaded', () => {
   it('sizes the resource nodes for how far the map is zoomed in', async () => {
     const { element } = await render();
 
-    const map = element.querySelector('.leaflet-container') as HTMLElement;
+    const map = element.querySelector<HTMLElement>('.leaflet-container')!;
     expect(map.style.getPropertyValue('--node-size')).toMatch(/^\d+px$/);
   });
 
@@ -410,7 +410,7 @@ describe('the world map of a snapshot', () => {
   it('draws a pin for a resource node a miner stands on too, saying what stands on it', async () => {
     const { element } = await render('s1');
 
-    const pin = element.querySelector('.node-pin') as HTMLElement | null;
+    const pin = element.querySelector<HTMLElement>('.node-pin');
     expect(pin?.querySelector('.node-marker img')?.getAttribute('src')).toBe(
       '/api/v1/catalog/icons/Desc_OreIron_C',
     );
@@ -428,8 +428,8 @@ describe('the world map of a snapshot', () => {
 
   it('folds the legend behind a button, which opens and closes it: on a phone it covers the map', async () => {
     const { fixture, element } = await render('s1');
-    const legend = () => element.querySelector('.legend') as HTMLElement;
-    const button = element.querySelector('.legend-toggle') as HTMLButtonElement;
+    const legend = () => element.querySelector<HTMLElement>('.legend')!;
+    const button = element.querySelector<HTMLButtonElement>('.legend-toggle')!;
     expect([legend().classList.contains('open'), button.getAttribute('aria-expanded')]).toEqual([
       false,
       'false',
@@ -469,7 +469,7 @@ describe('the world map of a snapshot', () => {
   it('says how to see an area in 3D, with no button for it in the header, nor a link to the findings', async () => {
     const { element } = await render('snapshot-1');
 
-    const header = element.querySelector('.page-header') as HTMLElement;
+    const header = element.querySelector<HTMLElement>('.page-header')!;
     expect(header.textContent).toContain('Hold shift and drag to see an area in 3D');
     expect(header.textContent).toContain('ctrl to arrange its factories');
     expect(header.textContent).not.toContain('Open an area in 3D');
@@ -482,8 +482,8 @@ describe('the world map of a snapshot', () => {
 
     async function selectArea() {
       const rendered = await render('snapshot-1');
-      const map = rendered.element.querySelector('.leaflet-container') as HTMLElement;
-      (rendered.element.querySelector('button.area-select') as HTMLButtonElement).click();
+      const map = rendered.element.querySelector<HTMLElement>('.leaflet-container')!;
+      rendered.element.querySelector<HTMLButtonElement>('button.area-select')!.click();
       rendered.fixture.detectChanges();
       map.dispatchEvent(pointer('pointerdown', 10, 10));
       map.dispatchEvent(pointer('pointermove', 110, 110));
@@ -499,7 +499,7 @@ describe('the world map of a snapshot', () => {
 
     it('has a button to select an area, which a drag then draws instead of moving the map', async () => {
       const { fixture, element } = await render('snapshot-1');
-      const select = element.querySelector('button.area-select') as HTMLButtonElement;
+      const select = element.querySelector<HTMLButtonElement>('button.area-select')!;
 
       select.click();
       fixture.detectChanges();
@@ -557,8 +557,8 @@ describe('the world map of a snapshot', () => {
 
     it('offers nothing for a tap without a drag', async () => {
       const { fixture, element } = await render('snapshot-1');
-      const map = element.querySelector('.leaflet-container') as HTMLElement;
-      (element.querySelector('button.area-select') as HTMLButtonElement).click();
+      const map = element.querySelector<HTMLElement>('.leaflet-container')!;
+      element.querySelector<HTMLButtonElement>('button.area-select')!.click();
 
       map.dispatchEvent(pointer('pointerdown', 10, 10));
       map.dispatchEvent(pointer('pointerup', 10, 10));
@@ -571,7 +571,7 @@ describe('the world map of a snapshot', () => {
   it('opens the area dragged over with shift held in 3D', async () => {
     const { fixture, element } = await render('snapshot-1');
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    const map = element.querySelector('.leaflet-container') as HTMLElement;
+    const map = element.querySelector<HTMLElement>('.leaflet-container')!;
     const at = (type: string, x: number, y: number) =>
       new MouseEvent(type, { bubbles: true, shiftKey: true, button: 0, clientX: x, clientY: y });
 
@@ -589,7 +589,7 @@ describe('the world map of a snapshot', () => {
   it('opens the optimal arrangement of the area dragged over with ctrl held', async () => {
     const { fixture, element } = await render('snapshot-1');
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    const map = element.querySelector('.leaflet-container') as HTMLElement;
+    const map = element.querySelector<HTMLElement>('.leaflet-container')!;
     const at = (type: string, x: number, y: number) =>
       new MouseEvent(type, { bubbles: true, ctrlKey: true, button: 0, clientX: x, clientY: y });
 
@@ -642,7 +642,7 @@ describe('the world map of a snapshot', () => {
 
       await open('Arrangements');
 
-      const first = tabs.querySelector('.arrangements a.run') as HTMLAnchorElement;
+      const first = tabs.querySelector<HTMLAnchorElement>('.arrangements a.run')!;
       expect(first.getAttribute('href')).toBe('/snapshots/snapshot-1/arrangement?run=run-2');
     });
 
@@ -669,9 +669,9 @@ describe('the world map of a snapshot', () => {
   it('marks the count clicked in the overview as shown, and lets go of it when a factory is picked', async () => {
     const { fixture, sidebar, tabs, open } = await render('snapshot-1');
     const starved = () =>
-      [...tabs.querySelectorAll('.info mat-card')].find((card) =>
+      [...tabs.querySelectorAll<HTMLElement>('.info mat-card')].find((card) =>
         card.textContent?.includes('starved'),
-      ) as HTMLElement;
+      )!;
 
     starved().click();
     await fixture.whenStable();
@@ -679,7 +679,7 @@ describe('the world map of a snapshot', () => {
     expect(starved().getAttribute('aria-pressed')).toBe('true');
 
     await open('Factories');
-    (tabs.querySelector('.factories button.factory-name') as HTMLButtonElement).click();
+    tabs.querySelector<HTMLButtonElement>('.factories button.factory-name')!.click();
     await open('Info');
     expect(starved().getAttribute('aria-pressed')).toBe('false');
   });
@@ -687,7 +687,7 @@ describe('the world map of a snapshot', () => {
   it('highlights a factory picked in the list, and none once it is picked again', async () => {
     const { fixture, sidebar, tabs, open } = await render('snapshot-1');
     await open('Factories');
-    const rubber = () => tabs.querySelector('.factories button.factory-name') as HTMLButtonElement;
+    const rubber = () => tabs.querySelector<HTMLButtonElement>('.factories button.factory-name')!;
 
     rubber().click();
     await fixture.whenStable();
@@ -705,16 +705,16 @@ describe('the world map of a snapshot', () => {
     element: HTMLElement,
     fixture: { whenStable: () => Promise<unknown> },
   ) => {
-    (element.querySelector('.leaflet-container') as HTMLElement).dispatchEvent(
-      new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }),
-    );
+    element
+      .querySelector<HTMLElement>('.leaflet-container')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 5, clientY: 5 }));
     await fixture.whenStable();
   };
 
   it('lets go of the factory picked when the map is clicked anywhere else, so nothing is faded', async () => {
     const { fixture, sidebar, element, tabs, open } = await render('snapshot-1');
     await open('Factories');
-    (tabs.querySelector('.factories button.factory-name') as HTMLButtonElement).click();
+    tabs.querySelector<HTMLButtonElement>('.factories button.factory-name')!.click();
     await fixture.whenStable();
 
     await clickTheMap(element, fixture);
@@ -726,9 +726,9 @@ describe('the world map of a snapshot', () => {
   it('lets go of the count shown when the map is clicked anywhere else', async () => {
     const { fixture, sidebar, element, tabs } = await render('snapshot-1');
     const starved = () =>
-      [...tabs.querySelectorAll('.info mat-card')].find((card) =>
+      [...tabs.querySelectorAll<HTMLElement>('.info mat-card')].find((card) =>
         card.textContent?.includes('starved'),
-      ) as HTMLElement;
+      )!;
     starved().click();
     await fixture.whenStable();
 
@@ -758,16 +758,21 @@ describe('the world map of a snapshot', () => {
     const { tabs, open } = await render('snapshot-1');
     await open('Factories');
 
-    const gone = [...tabs.querySelectorAll('.factories button.factory-name')].find(
-      (button) => button.textContent?.trim() === 'Gone',
-    ) as HTMLButtonElement;
+    const gone = [
+      ...tabs.querySelectorAll<HTMLButtonElement>('.factories button.factory-name'),
+    ].find((button) => button.textContent?.trim() === 'Gone')!;
     expect(gone.disabled).toBe(true);
   });
 
   describe("a factory's building tapped on a touch screen", () => {
     // The Rubber factory owns the smelter.
     const owning = [
-      { ...factory('f-1', 'Rubber'), machines: [{ id: 'smelter-1' } as MachineSummary] },
+      {
+        ...factory('f-1', 'Rubber'),
+        machines: [
+          { id: 'smelter-1', className: 'Build_SmelterMk1_C', recipe: null, owner: 'f-1' },
+        ],
+      },
       factory('f-2', 'Plastic'),
     ];
     // A media query list as the browser gives it: Material's breakpoints listen to it too.
@@ -785,9 +790,7 @@ describe('the world map of a snapshot', () => {
 
     /** A tap on the smelter, as the map's canvas passes it on to its shape once it finds it under the finger. */
     async function tap(rendered: Awaited<ReturnType<typeof render>>) {
-      const shapes = (
-        rendered.fixture.componentInstance as unknown as { shapes: Map<string, L.Path> }
-      ).shapes;
+      const shapes = rendered.fixture.componentInstance['shapes'];
       shapes.get('smelter-1')!.fire('click', { originalEvent: new MouseEvent('click') });
       rendered.fixture.detectChanges();
       await rendered.fixture.whenStable();
@@ -802,11 +805,7 @@ describe('the world map of a snapshot', () => {
       const smelter = await tap(rendered);
 
       expect(navigate).not.toHaveBeenCalled();
-      expect(
-        (
-          rendered.fixture.componentInstance as unknown as { factoryId: () => string | null }
-        ).factoryId(),
-      ).toBe('f-1');
+      expect(rendered.fixture.componentInstance['factoryId']()).toBe('f-1');
       expect(smelter.isTooltipOpen()).toBe(true);
       expect(smelter.getTooltip()?.getContent()).toContain(
         'Factory <b>Rubber</b> · tap again to open',

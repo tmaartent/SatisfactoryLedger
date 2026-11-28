@@ -360,6 +360,11 @@ Java has no counterpart for this part: in a browser, the layout follows the scre
 - **A finger leaves an element as it's lifted.** After `pointerup`, a touch fires `pointerout` and `pointerleave`, which a mouse doesn't until it moves away. A label shown on a tap and closed on `pointerleave` vanishes at once; `world/arrangement/belt-floor-3d.ts` closes it on `pointerleave` only for `pointerType === 'mouse'`.
 - **`ng.getComponent(element)` in a development build** gives the component behind an element, with its signals and private fields, in the browser's console or a script (step 110: picking a splitter and moving the 3D camera before a screenshot). It's gone in a production build. The nearest Java counterpart is a debugger attached to the running app.
 
+- **No `as` in the web code** (`consistent-type-assertions`, `web/eslint.config.js`, step 126). `x as T` tells the compiler to trust you, like a Java cast that compiles whatever is in the `Object`; `{ id: 'a' } as MachineSummary` let test data miss fields the API added (step 125's `owner`). Instead: annotate (`const element: HTMLElement = fixture.nativeElement`, which works because `nativeElement` is `any`); `satisfies T` to check a value against a type and keep its own; `querySelector<HTMLButtonElement>(…)!`; `instanceof` to narrow (`object instanceof THREE.Mesh`); a function's return type for a tuple (`(f): [string, F] => [f.id, f]`). `as const` is not a type assertion and stays allowed.
+- **Module augmentation** (`declare module 'leaflet' { interface Map { _animatingZoom: boolean } }`, `world/map/remove-map.ts`, `building-outline.ts`) adds members to another library's types, here Leaflet internals its typings leave out. TypeScript merges it into the library's own interface; Java has nothing like it (you'd use reflection).
+- **`obj['member']` reaches a private member** in a spec (`fixture.componentInstance['shapes']`, `map-page.spec.ts`): TypeScript checks `private` on `obj.member` but lets the index form through, typed. Like Java reflection with `setAccessible`, but checked by the compiler.
+- **`ng lint` lints only its `lintFilePatterns`** (`web/angular.json`). It was `src/` only, so the e2e tests and configs went unlinted; since step 126 it also takes `e2e/**/*.ts` and the root `*.ts`.
+
 ## Architecture & DDD
 
 | Term | What it is | In this project |

@@ -62,7 +62,7 @@ const rubber: FactoryAnalysisResponse = {
     },
   ],
   power: null,
-} as unknown as FactoryAnalysisResponse;
+};
 
 describe("a factory's page", () => {
   async function render(
@@ -101,14 +101,14 @@ describe("a factory's page", () => {
     fixture.componentRef.setInput('id', 'snapshot-1');
     fixture.componentRef.setInput('factoryId', 'f-1');
     await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    const element: HTMLElement = fixture.nativeElement;
     const area = () =>
       fixture.debugElement.query((node) => node.componentInstance instanceof AreaPageStub)
-        ?.componentInstance as AreaPageStub;
+        ?.componentInstance;
     const button = (label: string) =>
-      [...element.querySelectorAll('.page-header button, .page-header a')].find((b) =>
+      [...element.querySelectorAll<HTMLElement>('.page-header button, .page-header a')].find((b) =>
         b.textContent?.includes(label),
-      ) as HTMLElement | undefined;
+      );
     return { fixture, api, element, area, deletion, button };
   }
 
@@ -128,7 +128,7 @@ describe("a factory's page", () => {
   it('sums up at the top of the Info tab what comes in from outside and what leaves, now and at 100%', async () => {
     const { element } = await render();
 
-    const totals = element.querySelector('app-area-page .totals') as HTMLElement;
+    const totals = element.querySelector<HTMLElement>('app-area-page .totals')!;
     const rows = (kind: string) =>
       [...totals.querySelectorAll(`.${kind} li`)].map((row) =>
         (row.textContent ?? '').replace(/\s+/g, ' ').trim(),
@@ -214,7 +214,7 @@ describe("a factory's page", () => {
 
     it('makes the name at the top editable, filled in with its own', async () => {
       const { element } = await editing();
-      const name = element.querySelector('.page-header input') as HTMLInputElement;
+      const name = element.querySelector<HTMLInputElement>('.page-header input')!;
 
       expect(name.value).toBe('Rubber');
       expect(element.querySelector('.page-header h1')).toBeNull();
@@ -230,7 +230,7 @@ describe("a factory's page", () => {
 
     it('saves its machines under the name typed, then asks for its findings again', async () => {
       const { fixture, element, api, button } = await editing();
-      const name = element.querySelector('.page-header input') as HTMLInputElement;
+      const name = element.querySelector<HTMLInputElement>('.page-header input')!;
       name.value = 'Rubber and plastic';
       name.dispatchEvent(new Event('input'));
       await fixture.whenStable();

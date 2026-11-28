@@ -31,3 +31,4 @@ Structure is described in the vocabulary of the `codebase-design` skill: **modul
 - **One behaviour per test, named in domain language**, not after how a collection or method behaves.
 - **Replace, don't layer:** when a deepened module's interface has its own tests, the old tests of the shallow modules it replaced are deleted, unless the owner keeps them as a safety net.
 - **End-to-end tests are few**, and say they're end-to-end.
+- **A type assertion left in the web code says why.** The lint rule bans `as`; an `eslint-disable-next-line` for it is only for a stand-in for something jsdom or Angular can't make (a canvas context, a `TemplateRef`), with the reason after `--`. Any other is a finding: annotate, use `satisfies`, `querySelector<T>()` or `instanceof`, or give the test data every field.

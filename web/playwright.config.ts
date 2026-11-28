@@ -34,7 +34,7 @@ export default defineConfig({
         name: 'desktop',
         use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
       },
-    ].map((project) => ({ ...project, testIgnore: [/recording\.spec\.ts/, /[\/]stack[\/]/] })),
+    ].map((project) => ({ ...project, testIgnore: [/recording\.spec\.ts/, /[/]stack[/]/] })),
   ],
   // Its own port, beside the app the AppHost serves on 4200.
   webServer: {

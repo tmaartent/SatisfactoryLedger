@@ -63,7 +63,7 @@ import {
   toScene,
   tubeColour,
 } from './area-model';
-import { ScreenPoint, Stage } from '../stage/stage';
+import { disposeGeometry, ScreenPoint, Stage } from '../stage/stage';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { framingDistance, pointsToFrame } from './framing';
@@ -158,7 +158,7 @@ export class AreaPage {
   /** The legend's last entry: what a red belt, lift or pipe means. */
   protected readonly troubleColour = conveyorColours.bottleneck;
   protected readonly statusLegend = (
-    ['none', 'starved', 'outputBlocked', 'noRecipe'] as MachineStatus[]
+    ['none', 'starved', 'outputBlocked', 'noRecipe'] satisfies MachineStatus[]
   ).map((status) => ({
     status,
     label: statusLabels[status],
@@ -177,9 +177,7 @@ export class AreaPage {
     const members = new Set(this.factoryMachines());
     const world = loaded(this.world);
     const footprints = new Map(
-      world?.footprints.map(
-        (footprint) => [footprint.id, footprint] as [string, FootprintDocument],
-      ),
+      world?.footprints.map((footprint): [string, FootprintDocument] => [footprint.id, footprint]),
     );
     // Every corner of the machines' boxes, so the area reaches from their feet to their roofs.
     const corners = [...(world?.machines ?? []), ...(world?.consumers ?? [])]
@@ -484,7 +482,7 @@ export class AreaPage {
 
   private stop(): void {
     this.stage?.dispose();
-    this.content.traverse((object) => (object as THREE.Mesh).geometry?.dispose());
+    this.content.traverse(disposeGeometry);
     this.materials.forEach((material) => material.dispose());
     this.outlineMaterials.forEach((material) => material.dispose());
   }
@@ -538,7 +536,7 @@ export class AreaPage {
     const middle = { x: (area.x0 + area.x1) / 2, y: (area.y0 + area.y1) / 2 };
     this.clipToArea(area, middle);
     const footprints = new Map(
-      world.footprints.map((footprint) => [footprint.id, footprint] as [string, FootprintDocument]),
+      world.footprints.map((footprint): [string, FootprintDocument] => [footprint.id, footprint]),
     );
     const at = (p: Position) => new THREE.Vector3(...toScene(p, middle));
 
@@ -687,7 +685,7 @@ export class AreaPage {
   private drawSelectedConveyor(): void {
     const conveyor = this.selectedConveyor();
     const defining = this.draft.defining();
-    this.selectionLayer.traverse((object) => (object as THREE.Mesh).geometry?.dispose());
+    this.selectionLayer.traverse(disposeGeometry);
     this.selectionLayer.clear();
     if (!conveyor || defining || conveyor.curve.length < 2) return;
     const area = this.area();
@@ -725,7 +723,7 @@ export class AreaPage {
     for (const object of this.content.children) {
       object.visible = limit === null || object.userData['z'] <= limit;
       if (object.visible && object.userData['building'])
-        roof = Math.max(roof, object.userData['top'] as number);
+        roof = Math.max(roof, object.userData['top']);
     }
     this.clip.constant = limit === null ? Infinity : roof;
   }
@@ -790,8 +788,8 @@ export class AreaPage {
             !h.object.userData['conveyors'] ||
             this.clips.every((plane) => plane.distanceToPoint(h.point) >= 0),
         );
-      const building = (hit?.object.userData['building'] as AreaBuilding | undefined) ?? null;
-      const conveyors = hit?.object.userData['conveyors'] as MapConveyor[] | undefined;
+      const building: AreaBuilding | null = hit?.object.userData['building'] ?? null;
+      const conveyors: MapConveyor[] | undefined = hit?.object.userData['conveyors'];
       this.selected.set(building);
       this.selectedConveyor.set(
         conveyors && hit?.faceIndex != null
@@ -893,14 +891,16 @@ export class AreaPage {
   private machinesOnScreen(stage: Stage): (ScreenPoint & { id: string })[] {
     return this.content.children
       .filter((o) => {
-        const building = o.userData['building'] as AreaBuilding | undefined;
+        const building: AreaBuilding | undefined = o.userData['building'];
         return o.visible && choosable(building);
       })
       .flatMap((o) => {
-        const geometry = (o as THREE.Mesh).geometry;
+        if (!(o instanceof THREE.Mesh)) return [];
+        const geometry = o.geometry;
         if (!geometry.boundingBox) geometry.computeBoundingBox();
         const at = stage.onScreen(geometry.boundingBox!.getCenter(new THREE.Vector3()));
-        return at ? [{ id: (o.userData['building'] as AreaBuilding).id, ...at }] : [];
+        const building: AreaBuilding = o.userData['building'];
+        return at ? [{ id: building.id, ...at }] : [];
       });
   }
 
@@ -952,16 +952,16 @@ export class AreaPage {
     owned: ReadonlySet<string>,
   ): void {
     for (const object of this.content.children) {
-      const building = object.userData['building'] as AreaBuilding | undefined;
-      if (!building) continue;
-      (object as THREE.Mesh).material =
+      const building: AreaBuilding | undefined = object.userData['building'];
+      if (!building || !(object instanceof THREE.Mesh)) continue;
+      object.material =
         building.id === selectedId
           ? this.highlightMaterial
           : chosen.has(building.id)
             ? this.chosenMaterial
             : owned.has(building.id)
               ? this.ownedMaterial
-              : (object.userData['material'] as THREE.Material);
+              : object.userData['material'];
     }
   }
 }

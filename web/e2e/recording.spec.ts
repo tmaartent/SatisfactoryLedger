@@ -16,10 +16,10 @@ interface Operation {
   responses: Record<string, { content?: Record<string, { schema: object }> }>;
 }
 
-const api = JSON.parse(readFileSync(join(__dirname, '../../api/openapi.json'), 'utf8')) as {
+const api: {
   paths: Record<string, Record<string, Operation>>;
   components: object;
-};
+} = JSON.parse(readFileSync(join(__dirname, '../../api/openapi.json'), 'utf8'));
 
 // The API's schemas, so a $ref to #/components/schemas/… resolves. OpenAPI's number formats (double, int32) say how
 // a number is stored, which JSON doesn't tell: any number fits them.
@@ -48,9 +48,7 @@ function againstApi(schema: object): object {
   );
 }
 
-const answers = Object.entries(
-  recorded.answers as Record<string, { status: number; body: unknown }>,
-);
+const answers = Object.entries<{ status: number; body: unknown }>(recorded.answers);
 
 test.describe('the recorded API answers', () => {
   for (const [key, answer] of answers) {

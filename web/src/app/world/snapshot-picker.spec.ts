@@ -63,10 +63,10 @@ describe('the snapshot picker above the sidebar', () => {
     const fixture = TestBed.createComponent(SnapshotPicker);
     fixture.componentRef.setInput('current', current);
     await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    const element: HTMLElement = fixture.nativeElement;
     /** Opens the list of snapshots: a menu, drawn in an overlay outside the picker. */
     const openList = async () => {
-      (element.querySelector('button.current') as HTMLButtonElement).click();
+      element.querySelector<HTMLButtonElement>('button.current')!.click();
       await fixture.whenStable();
     };
     /** The tooltip on what the selector finds: a tooltip's text is only drawn on hover. */
@@ -75,27 +75,24 @@ describe('the snapshot picker above the sidebar', () => {
     return { fixture, api, navigate, element, openList, tooltip };
   }
 
-  const menu = () => document.querySelector('.snapshot-list') as HTMLElement;
+  const menu = () => document.querySelector<HTMLElement>('.snapshot-list')!;
   const deleteButton = (name: string) =>
-    menu().querySelector(
-      `button[aria-label="Delete the snapshot of ${name}"]`,
-    ) as HTMLButtonElement;
+    menu().querySelector<HTMLButtonElement>(`button[aria-label="Delete the snapshot of ${name}"]`)!;
 
   afterEach(() => document.querySelectorAll('.cdk-overlay-container').forEach((o) => o.remove()));
 
   it('says so when its list failed to load, and loads it on Try again', async () => {
     // Step 98: the list failed once, as while the API is starting, and the picker stayed greyed out, saying nothing.
     const { fixture, element } = await render(true, 'snapshot-2', [desert, development], 1);
-    const snackBar = () =>
-      document.querySelector('.mat-mdc-snack-bar-container') as HTMLElement | null;
+    const snackBar = () => document.querySelector<HTMLElement>('.mat-mdc-snack-bar-container');
 
     expect(snackBar()?.textContent).toContain("The snapshots couldn't be loaded");
-    expect((element.querySelector('button.current') as HTMLButtonElement).disabled).toBe(true);
+    expect(element.querySelector<HTMLButtonElement>('button.current')!.disabled).toBe(true);
 
-    (snackBar()!.querySelector('button') as HTMLButtonElement).click();
+    snackBar()!.querySelector<HTMLButtonElement>('button')!.click();
     await fixture.whenStable();
 
-    expect((element.querySelector('button.current') as HTMLButtonElement).disabled).toBe(false);
+    expect(element.querySelector<HTMLButtonElement>('button.current')!.disabled).toBe(false);
     expect(element.querySelector('button.current')?.textContent).toContain('Desert Start');
   });
 
@@ -173,7 +170,7 @@ describe('the snapshot picker above the sidebar', () => {
 
   it('opens the map of a save once it is imported', async () => {
     const { fixture, api, navigate, element } = await render(true);
-    const input = element.querySelector('input[type="file"]') as HTMLInputElement;
+    const input = element.querySelector<HTMLInputElement>('input[type="file"]')!;
     const file = new File(['save'], 'Desert Start.sav');
     Object.defineProperty(input, 'files', { value: { 0: file, length: 1, item: () => file } });
 
@@ -187,7 +184,7 @@ describe('the snapshot picker above the sidebar', () => {
   it('says there are no snapshots yet, and how to make one, before any is imported', async () => {
     const { element, tooltip } = await render(true, null, []);
 
-    expect((element.querySelector('button.current') as HTMLButtonElement).disabled).toBe(true);
+    expect(element.querySelector<HTMLButtonElement>('button.current')!.disabled).toBe(true);
     // On what holds the button: a disabled button takes no pointer, so shows no tooltip of its own.
     expect(tooltip('.current-holder')).toContain('No snapshots yet');
     expect(tooltip('.current-holder')).toContain('import');

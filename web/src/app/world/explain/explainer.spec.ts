@@ -127,6 +127,7 @@ describe('explaining a held-back machine, kept beside every page', () => {
       label: 'Info',
       icon: 'info',
       order: 0,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- never drawn here; only Angular makes a real one
       template: {} as TemplateRef<unknown>,
     });
     sidebar.add({
@@ -134,6 +135,7 @@ describe('explaining a held-back machine, kept beside every page', () => {
       label: 'Explanation',
       icon: 'lightbulb',
       order: 9,
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- never drawn here; only Angular makes a real one
       template: {} as TemplateRef<unknown>,
     });
     sidebar.collapsed.set(true);

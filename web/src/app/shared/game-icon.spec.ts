@@ -29,7 +29,8 @@ describe("the game's icon beside a name", () => {
     const fixture = TestBed.createComponent(GameIcon);
     for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
     await fixture.whenStable();
-    return (fixture.nativeElement as HTMLElement).querySelector('img');
+    const element: HTMLElement = fixture.nativeElement;
+    return element.querySelector('img');
   }
 
   it('shows the icon of an item, as decoration beside its name', async () => {

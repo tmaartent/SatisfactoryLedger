@@ -94,9 +94,9 @@ export async function inView(page: Page, selector: string): Promise<void> {
   expect(box!.x + box!.width).toBeLessThanOrEqual(size.width);
   expect(box!.y + box!.height).toBeLessThanOrEqual(size.height);
   const touched = await page.evaluate(
-    ([selector, x, y]) => {
-      const hit = document.elementFromPoint(x as number, y as number);
-      return !!hit && !!hit.closest(selector as string);
+    ([selector, x, y]: readonly [string, number, number]) => {
+      const hit = document.elementFromPoint(x, y);
+      return !!hit && !!hit.closest(selector);
     },
     [selector, box!.x + box!.width / 2, box!.y + box!.height / 2] as const,
   );
@@ -114,10 +114,10 @@ async function reachable(
   y: number,
 ): Promise<{ x: number; y: number }> {
   const top = await page.evaluate(
-    ([selector, x, y]) => {
-      const element = document.querySelector(selector as string)!;
-      for (let at = y as number; at >= 0; at -= 4) {
-        const hit = document.elementFromPoint(x as number, at);
+    ([selector, x, y]: readonly [string, number, number]) => {
+      const element = document.querySelector(selector)!;
+      for (let at = y; at >= 0; at -= 4) {
+        const hit = document.elementFromPoint(x, at);
         if (hit && (hit === element || element.contains(hit))) return at;
       }
       return null;

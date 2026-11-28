@@ -15,6 +15,7 @@ import { ArrangementPage } from './arrangement-page';
 beforeEach(() => {
   const nothing: unknown = new Proxy(() => nothing, { get: () => nothing });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- a stand-in, not a context
     nothing as CanvasRenderingContext2D,
   );
   // Nor does it lay anything out, so nothing is ever resized: an observer that never calls back.
@@ -138,10 +139,10 @@ describe('the optimal arrangement', () => {
     const sidebar = TestBed.createComponent(Sidebar);
     await fixture.whenStable();
     await sidebar.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    const element: HTMLElement = fixture.nativeElement;
     /** A drag over the map with a key held, shift or ctrl, from one point to another down its diagonal. */
     const drag = async (key: 'shiftKey' | 'ctrlKey', from: number, to: number) => {
-      const map = element.querySelector('.leaflet-container') as HTMLElement;
+      const map = element.querySelector<HTMLElement>('.leaflet-container')!;
       const at = (type: string, x: number) =>
         new MouseEvent(type, { bubbles: true, [key]: true, button: 0, clientX: x, clientY: x });
       map.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, [key]: true, button: 0 }));
@@ -153,7 +154,7 @@ describe('the optimal arrangement', () => {
     };
     /** On a touch screen: the select button on, a finger's drag, and one of the choices offered once let go. */
     const select = async (from: number, to: number, choice: string) => {
-      const map = element.querySelector('.leaflet-container') as HTMLElement;
+      const map = element.querySelector<HTMLElement>('.leaflet-container')!;
       const pointer = (type: string, x: number) =>
         new PointerEvent(type, {
           bubbles: true,
@@ -162,7 +163,7 @@ describe('the optimal arrangement', () => {
           clientX: x,
           clientY: x,
         });
-      const button = element.querySelector('button.area-select') as HTMLButtonElement;
+      const button = element.querySelector<HTMLButtonElement>('button.area-select')!;
       if (button.getAttribute('aria-pressed') !== 'true') button.click();
       fixture.detectChanges();
       map.dispatchEvent(pointer('pointerdown', from));
@@ -174,11 +175,12 @@ describe('the optimal arrangement', () => {
       await fixture.whenStable();
       return offered.map((b) => b.textContent?.trim());
     };
+    const tabs: HTMLElement = sidebar.nativeElement;
     return {
       fixture,
       sidebar,
       element,
-      tabs: sidebar.nativeElement as HTMLElement,
+      tabs,
       drag,
       select,
       api: api!,
@@ -186,9 +188,9 @@ describe('the optimal arrangement', () => {
   }
 
   const arrange = (within: HTMLElement) =>
-    [...within.querySelectorAll('button')].find((button) =>
+    [...within.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
       button.textContent?.includes('Arrange'),
-    ) as HTMLButtonElement | undefined;
+    );
 
   it("lays the game's map picture under its map, as the world map does", async () => {
     const { element } = await render();
@@ -238,7 +240,7 @@ describe('the optimal arrangement', () => {
       // only selected after Reset.
       const { element, fixture, select } = await render();
       await select(10, 200, 'Area');
-      const button = element.querySelector('button.area-select') as HTMLButtonElement;
+      const button = element.querySelector<HTMLButtonElement>('button.area-select')!;
       expect(button.getAttribute('aria-pressed')).toBe('true');
 
       arrange(element)!.click();
@@ -301,7 +303,7 @@ describe('the optimal arrangement', () => {
   it('arranges with the settings of their tab, also while the tab is closed', async () => {
     const { element, tabs, fixture, drag, api } = await render();
     await drag('shiftKey', 10, 200);
-    (tabs.querySelector('button[aria-label="Collapse the sidebar"]') as HTMLButtonElement).click();
+    tabs.querySelector<HTMLButtonElement>('button[aria-label="Collapse the sidebar"]')!.click();
     await fixture.whenStable();
 
     arrange(element)!.click();
@@ -321,11 +323,11 @@ describe('the optimal arrangement', () => {
 
   describe("the area's factories (asked 2026-11-25: what lights up couldn't be told)", () => {
     async function openFactories(rendered: Awaited<ReturnType<typeof render>>) {
-      (
-        rendered.tabs.querySelector('.rail button[aria-label="Factories"]') as HTMLButtonElement
-      ).click();
+      rendered.tabs
+        .querySelector<HTMLButtonElement>('.rail button[aria-label="Factories"]')!
+        .click();
       await rendered.sidebar.whenStable();
-      return rendered.tabs.querySelector('section.tab[aria-label="Factories"]') as HTMLElement;
+      return rendered.tabs.querySelector<HTMLElement>('section.tab[aria-label="Factories"]')!;
     }
 
     it('lists them in a Factories tab', async () => {
@@ -343,7 +345,7 @@ describe('the optimal arrangement', () => {
     it('picks one from the list, as a click on it on the map does, and lets go on a second', async () => {
       const rendered = await render(aroundRubber);
       const tab = await openFactories(rendered);
-      const rubber = () => tab.querySelector('button.factory') as HTMLButtonElement;
+      const rubber = () => tab.querySelector<HTMLButtonElement>('button.factory')!;
 
       rubber().click();
       await rendered.fixture.whenStable();
@@ -366,7 +368,7 @@ describe('the optimal arrangement', () => {
       expect(named()).toEqual([]);
 
       const tab = await openFactories(rendered);
-      (tab.querySelector('button.factory') as HTMLButtonElement).click();
+      tab.querySelector<HTMLButtonElement>('button.factory')!.click();
       await rendered.fixture.whenStable();
 
       expect(named()).toEqual(['Rubber']);

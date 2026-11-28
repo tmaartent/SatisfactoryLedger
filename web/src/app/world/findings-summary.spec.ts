@@ -19,11 +19,11 @@ async function render(selectable: boolean, shown: ShownStatus | null = null, bot
   const asked: (ShownStatus | null)[] = [];
   fixture.componentInstance.show.subscribe((status) => asked.push(status));
   await fixture.whenStable();
-  const element = fixture.nativeElement as HTMLElement;
+  const element: HTMLElement = fixture.nativeElement;
   const card = (label: string, group = 0) =>
-    [...element.querySelectorAll('.summary')[group].querySelectorAll('mat-card')].find((c) =>
-      c.textContent?.includes(label),
-    ) as HTMLElement;
+    [...element.querySelectorAll('.summary')[group].querySelectorAll<HTMLElement>('mat-card')].find(
+      (c) => c.textContent?.includes(label),
+    )!;
   return { fixture, asked, card };
 }
 
@@ -75,7 +75,9 @@ describe('the overview of the findings', () => {
   it('has no bottleneck row where it is not given a count', async () => {
     const { fixture } = await render(true);
 
-    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.summary')).toHaveLength(2);
+    const element: HTMLElement = fixture.nativeElement;
+
+    expect(element.querySelectorAll('.summary')).toHaveLength(2);
   });
 
   it('offers no count to click where nothing shows them', async () => {

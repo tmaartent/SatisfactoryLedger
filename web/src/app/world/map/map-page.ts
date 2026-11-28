@@ -232,9 +232,10 @@ export class MapPage {
   private readonly footprints = computed(
     () =>
       new Map(
-        (loaded(this.world)?.footprints ?? []).map(
-          (footprint) => [footprint.id, footprint] as [string, FootprintDocument],
-        ),
+        (loaded(this.world)?.footprints ?? []).map((footprint): [string, FootprintDocument] => [
+          footprint.id,
+          footprint,
+        ]),
       ),
   );
   private readonly factoryMachines = computed(() => {
@@ -264,7 +265,7 @@ export class MapPage {
   });
 
   protected readonly legend = (
-    ['none', 'starved', 'outputBlocked', 'noRecipe', 'unknown'] as MachineStatus[]
+    ['none', 'starved', 'outputBlocked', 'noRecipe', 'unknown'] satisfies MachineStatus[]
   ).map((status) => ({
     status,
     label: statusLabels[status],
@@ -359,7 +360,7 @@ export class MapPage {
       if (!this.fitting) this.lastFit = null;
     });
     this.map.on('moveend', () => (this.fitting = false));
-    this.map.on('zoomanim', (event) => sizeNodes((event as L.ZoomAnimEvent).zoom));
+    this.map.on('zoomanim', (event: L.ZoomAnimEvent) => sizeNodes(event.zoom));
     this.map.on('zoom', () => sizeNodes());
     // The map picture first, so everything else lies over it.
     this.artLayer.addTo(this.map);

@@ -29,7 +29,7 @@ describe('the sidebar', () => {
   async function render() {
     const fixture = TestBed.createComponent(Page);
     await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    const element: HTMLElement = fixture.nativeElement;
     const icons = () => [...element.querySelectorAll<HTMLButtonElement>('.rail button')];
     const content = () => element.querySelector('app-sidebar .content')?.textContent;
     return { fixture, element, icons, content };
@@ -53,7 +53,7 @@ describe('the sidebar', () => {
   it("heads the open tab with its icon and title, to tell it from the tab's content", async () => {
     const { element } = await render();
 
-    const header = element.querySelector('app-sidebar .tab header') as HTMLElement;
+    const header = element.querySelector<HTMLElement>('app-sidebar .tab header')!;
     expect(header.querySelector('mat-icon')?.textContent?.trim()).toBe('info');
     expect(header.querySelector('h2')?.textContent?.trim()).toBe('Info');
   });
@@ -104,7 +104,7 @@ describe('the sidebar', () => {
       element: HTMLElement,
       down: number,
     ) {
-      const handle = element.querySelector('app-sidebar .handle') as HTMLElement;
+      const handle = element.querySelector<HTMLElement>('app-sidebar .handle')!;
       handle.dispatchEvent(new MouseEvent('pointerdown', { clientY: 300, bubbles: true }));
       handle.dispatchEvent(new MouseEvent('pointerup', { clientY: 300 + down, bubbles: true }));
       await fixture.whenStable();
@@ -112,7 +112,7 @@ describe('the sidebar', () => {
 
     it('stands at half height at first, and at full height once its handle is swiped up', async () => {
       const { fixture, element } = await render();
-      const tab = () => element.querySelector('app-sidebar .tab') as HTMLElement;
+      const tab = () => element.querySelector<HTMLElement>('app-sidebar .tab')!;
       expect(tab().classList).not.toContain('full');
 
       await swipe(fixture, element, -100);

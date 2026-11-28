@@ -56,7 +56,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await TestBed.inject(Router).navigateByUrl(url);
     await fixture.whenStable();
-    const element = fixture.nativeElement as HTMLElement;
+    const element: HTMLElement = fixture.nativeElement;
     return { fixture, element, sidebar: () => element.querySelector('.shell > app-sidebar') };
   }
 

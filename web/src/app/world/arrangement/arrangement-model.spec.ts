@@ -158,7 +158,7 @@ describe('optimal arrangement', () => {
     const leg = (
       from: string,
       to: string,
-      item = 'Desc_Rubber_C',
+      item: string | null = 'Desc_Rubber_C',
       more: { injection?: boolean; overflow?: boolean } = {},
     ) => ({ from, to, item, injection: false, overflow: false, ...more });
     const platform = leg('platform', 'heat sinks');
@@ -218,10 +218,7 @@ describe('optimal arrangement', () => {
     });
 
     it('trace nothing back for a belt from before what it carries was kept', () => {
-      const old = [
-        leg('a', 'b', null as unknown as string),
-        leg('c', 'a', null as unknown as string),
-      ];
+      const old = [leg('a', 'b', null), leg('c', 'a', null)];
       expect([...suppliedBelts(old, new Set(['b']))]).toEqual([old[0]]);
     });
   });
@@ -611,14 +608,14 @@ describe('optimal arrangement', () => {
       item: (item: string) =>
         ({ Desc_OreCopper_C: 'Copper Ore', Desc_Water_C: 'Water' })[item] ?? item,
       building: (className: string) =>
-        (
-          ({
+        new Map(
+          Object.entries({
             Build_MinerMk3_C: 'Miner Mk.3',
             Build_WaterPump_C: 'Water Extractor',
             Build_SmelterMk1_C: 'Smelter',
             Build_DroneStation_C: 'Drone Port',
-          }) as Record<string, string>
-        )[className] ?? className,
+          }),
+        ).get(className) ?? className,
       extractorForm: (className: string) =>
         ({ Build_MinerMk3_C: 'solid' as const, Build_WaterPump_C: 'fluid' as const })[className] ??
         null,
@@ -719,13 +716,13 @@ describe('optimal arrangement', () => {
     const names = {
       item: (item: string) => ({ Desc_Stone_C: 'Limestone', Desc_Water_C: 'Water' })[item] ?? item,
       building: (className: string) =>
-        (
-          ({
+        new Map(
+          Object.entries({
             Build_MinerMk2_C: 'Miner Mk.2',
             Build_WaterPump_C: 'Water Extractor',
             Build_SmelterMk1_C: 'Smelter',
-          }) as Record<string, string>
-        )[className] ?? className,
+          }),
+        ).get(className) ?? className,
       extractorForm: (className: string) =>
         ({ Build_MinerMk2_C: 'solid' as const, Build_WaterPump_C: 'fluid' as const })[className] ??
         null,

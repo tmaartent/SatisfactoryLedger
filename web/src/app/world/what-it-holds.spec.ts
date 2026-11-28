@@ -15,7 +15,8 @@ describe('what a snapshot holds', () => {
     });
     await fixture.whenStable();
 
-    const rows = [...(fixture.nativeElement as HTMLElement).querySelectorAll('li')].map((row) =>
+    const element: HTMLElement = fixture.nativeElement;
+    const rows = [...element.querySelectorAll('li')].map((row) =>
       (row.textContent ?? '').replace(/\s+/g, ' ').trim(),
     );
     expect(rows).toEqual([

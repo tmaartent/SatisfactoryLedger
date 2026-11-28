@@ -30,7 +30,7 @@ async function factoriesOfTheWorld(
 ): Promise<{ own: string[]; others: { id: string; name: string }[] }> {
   const answer = await request.get(`/api/v1/world/factories?world=${world}`);
   expect(answer.ok()).toBe(true);
-  const factories = (await answer.json()) as { id: string; name: string }[];
+  const factories: { id: string; name: string }[] = await answer.json();
   return {
     own: factories.filter((candidate) => candidate.name === name).map(({ id }) => id),
     others: factories.filter((candidate) => candidate.name !== name),
@@ -52,7 +52,8 @@ test.beforeAll(async ({ request }) => {
   // A new database knows no buildings or recipes yet: the import needs them (BR-W10). One that has a Catalog keeps it.
   const items = await request.get('/api/v1/catalog/items');
   expect(items.ok()).toBe(true);
-  if (((await items.json()) as unknown[]).length > 0) return;
+  const known: unknown[] = await items.json();
+  if (known.length > 0) return;
   const imported = await request.post('/api/v1/catalog/imports', {
     multipart: {
       gameVersion: 'test',
@@ -106,7 +107,8 @@ test('a save imported, a factory of it defined in 3D shows what it makes on its 
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     const answer = await saved;
     expect(answer.status(), await answer.text()).toBe(201);
-    factory = ((await answer.json()) as { id: string }).id;
+    const created: { id: string } = await answer.json();
+    factory = created.id;
   });
 
   await test.step('its page shows what it makes', async () => {
