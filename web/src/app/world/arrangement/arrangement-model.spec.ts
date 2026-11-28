@@ -678,6 +678,20 @@ describe('optimal arrangement', () => {
       });
     });
 
+    it("marks a fluid truck station with the map's dark dot, as a station", () => {
+      const fromTruckStation = {
+        ...fromMiner,
+        from: 'Persistent_Level:PersistentLevel.Build_FluidTruckStation_C_2147000002',
+        item: 'Desc_Water_C',
+        perMinute: 120,
+        pipe: true,
+      };
+      expect(spotMark(fromTruckStation, factories, names)).toMatchObject({
+        kind: 'station',
+        colour: '#37474f',
+      });
+    });
+
     it("marks a machine of a factory outside the area in that factory's colour, by its name", () => {
       // Step 108: a factory outside the area is reached at its machine nearest the factory it feeds.
       expect(spotMark({ ...fromMiner, from: caterium }, factories, names)).toEqual({
