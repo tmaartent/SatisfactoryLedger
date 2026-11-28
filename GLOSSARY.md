@@ -178,7 +178,7 @@ A factory being defined or edited and not saved yet: the machines chosen so far,
 _Avoid_: factory definition for the unsaved one (a definition is what's stored)
 
 **Factories in a snapshot**:
-A world's stored factories matched in one of its snapshots all at once: per factory its machines found or missing, whether it's traceable there and its members, and who owns each machine (BR-W5, BR-W11).
+A world's stored factories matched in one of its snapshots all at once: per factory its machines found or missing, whether it's traceable there and its members, and who owns each machine (BR-W5, BR-W11). It also holds what every factory's handovers read from the whole snapshot: its sinks, its end consumers and each buildable's class, read once.
 
 **Missing Machine**:
 A factory's machine that isn't in a snapshot, not even rebuilt: no machine of its class stands within a metre that no other factory has by its id or, being older, as its own rebuilt machine (BR-W11).

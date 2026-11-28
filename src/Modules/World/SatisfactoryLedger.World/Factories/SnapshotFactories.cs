@@ -1,21 +1,29 @@
 using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Tracing;
+using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
 
 namespace SatisfactoryLedger.World.Factories;
 
 /// <summary>
 /// Factories in a snapshot: every stored factory of a world matched in one of its snapshots, in one pass (BR-W11). Each
-/// one's machines found or missing, whether it's traceable, its members, and who owns each machine (BR-W5).
+/// one's machines found or missing, whether it's traceable, its members, and who owns each machine (BR-W5); and the
+/// snapshot-wide parts every factory's handovers read (BR-A18), read once per snapshot.
 /// </summary>
 internal sealed class SnapshotFactories
 {
     private readonly Lazy<WorldGraph> world;
+    private readonly Lazy<HashSet<BuildableId>> sinks;
+    private readonly Lazy<HashSet<BuildableId>> endConsumers;
+    private readonly Lazy<Dictionary<BuildableId, string>> buildingOf;
     private readonly Dictionary<Guid, TracedFactory> byId;
 
-    private SnapshotFactories(Lazy<WorldGraph> world, List<TracedFactory> factories, Dictionary<BuildableId, Guid> owners)
+    private SnapshotFactories(SnapshotDocument snapshot, Lazy<WorldGraph> world, List<TracedFactory> factories, Dictionary<BuildableId, Guid> owners)
     {
         this.world = world;
+        sinks = new(() => IdsOf(snapshot, BuildableKind.Sink));
+        endConsumers = new(() => IdsOf(snapshot, BuildableKind.EndConsumer));
+        buildingOf = new(() => snapshot.Buildables.ToDictionary(buildable => BuildableId.Of(buildable.Id), buildable => buildable.ClassName));
         Factories = factories;
         Owners = owners;
         byId = [];
@@ -27,6 +35,15 @@ internal sealed class SnapshotFactories
 
     /// <summary>The snapshot's world graph: built the first time it's read, then kept.</summary>
     public WorldGraph World => world.Value;
+
+    /// <summary>The snapshot's sinks: what reaches one is sunk in a factory's handovers (BR-A18). Read once, the first time it's asked.</summary>
+    public IReadOnlySet<BuildableId> Sinks => sinks.Value;
+
+    /// <summary>The snapshot's end consumers: what reaches one is shown by building in a factory's handovers (BR-A18). Read once, the first time it's asked.</summary>
+    public IReadOnlySet<BuildableId> EndConsumers => endConsumers.Value;
+
+    /// <summary>Each of the snapshot's buildables' class, by its id: how the handovers name a building. Read once, the first time it's asked.</summary>
+    public IReadOnlyDictionary<BuildableId, string> BuildingOf => buildingOf.Value;
 
     /// <summary>The factories in the order given.</summary>
     public IReadOnlyList<TracedFactory> Factories { get; }
@@ -65,9 +82,12 @@ internal sealed class SnapshotFactories
             traced.Add(new TracedFactory(factory, match, factory.ToDefinition(match), world, fluids, owners));
         }
 
-        return new SnapshotFactories(world, traced, owners);
+        return new SnapshotFactories(snapshot, world, traced, owners);
     }
 
     /// <summary>The factory with this id; null when it isn't one of them.</summary>
     public TracedFactory? Find(Guid id) => byId.GetValueOrDefault(id);
+
+    private static HashSet<BuildableId> IdsOf(SnapshotDocument snapshot, BuildableKind kind) =>
+        [.. snapshot.Buildables.Where(buildable => buildable.BuildableKind == kind).Select(buildable => BuildableId.Of(buildable.Id))];
 }
