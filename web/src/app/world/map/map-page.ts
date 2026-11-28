@@ -43,7 +43,7 @@ import { nodeKey, nodeKinds, Purities, shownNodes } from './node-filter';
 import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
-import { runSummary } from '../arrangement/arrangement-model';
+import { runSummary } from '../arrangement/run-settings';
 import { AreaDrag, AreaSelection, ctrlOrCommand } from './area-selection';
 import { Area } from '../area/area-model';
 import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';

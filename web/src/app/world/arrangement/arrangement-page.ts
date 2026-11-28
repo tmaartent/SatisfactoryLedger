@@ -70,11 +70,7 @@ import {
   beltTooltip,
   factoryTooltip,
   joinedWays,
-  ceilingHeights,
-  ceilingMetres,
-  foundations,
   mapBounds,
-  metres,
   lineJoints,
   crossingMarks,
   placedMachines,
@@ -85,9 +81,6 @@ import {
   spotNames,
   wayMark,
   pickedAlone,
-  SolverTime,
-  solverTime,
-  solverTimeOf,
   areaFromQuery,
   PickedConnections,
   relationsOf,
@@ -102,6 +95,15 @@ import {
   halfway,
   stationClasses,
 } from './arrangement-model';
+import {
+  SolverTime,
+  ceilingHeights,
+  ceilingMetres,
+  foundations,
+  metres,
+  solverTime,
+  solverTimeOf,
+} from './run-settings';
 import { loaded } from '../../shared/loaded';
 
 /** What stays where it is and takes its plots: the stations' classes, as the arrangement counts them. */
