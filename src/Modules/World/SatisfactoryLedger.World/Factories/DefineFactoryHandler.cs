@@ -82,7 +82,7 @@ internal sealed class DefineFactoryHandler(WorldDbContext db)
     private static DefineFactoryOutcome.NotMachines? WithMachines(StoredFactory factory, IEnumerable<string> ids, SnapshotDocument latest)
     {
         Dictionary<string, BuildableDocument> machines = latest.Buildables
-            .Where(latest.IsMachineOrGenerator)
+            .Where(buildable => buildable.IsMachineOrGenerator)
             .ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         List<string> distinct = [.. ids.Distinct(StringComparer.Ordinal)];
         string[] notMachines = [.. distinct.Where(id => !machines.ContainsKey(id))];

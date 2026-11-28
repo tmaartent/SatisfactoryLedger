@@ -56,7 +56,7 @@ internal static class FactoryTraces
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
         List<BuildableId> chosen = [.. machines
             .Distinct(StringComparer.Ordinal)
-            .Where(id => buildables.TryGetValue(id, out BuildableDocument? buildable) && snapshot.IsMachineOrGenerator(buildable))
+            .Where(id => buildables.TryGetValue(id, out BuildableDocument? buildable) && buildable.IsMachineOrGenerator)
             .Select(BuildableId.Of)];
         if (chosen.Count == 0)
         {
