@@ -1052,10 +1052,10 @@ export class ArrangementPage {
           .addTo(this.beltLayer);
     }
 
-    // Drawn unfaded on the map, as before step 132; in 3D they fade with their belt.
     for (const crossing of floor.crossings)
       L.marker(at(crossing.at), {
         icon: L.divIcon({ html: '×', className: 'crossing-mark', iconSize: [16, 16] }),
+        opacity: crossing.faded ? 0.25 : 1,
       })
         .bindTooltip(crossing.tooltip)
         .addTo(this.beltLayer);
@@ -1080,8 +1080,9 @@ export class ArrangementPage {
       L.polygon(shape, {
         color: '#111111',
         weight: 1,
+        opacity: joint.faded ? 0.25 : 1,
         fillColor: joint.colour,
-        fillOpacity: 1,
+        fillOpacity: joint.faded ? 0.25 : 1,
       })
         .bindTooltip(joint.tooltip)
         .addTo(this.beltLayer);

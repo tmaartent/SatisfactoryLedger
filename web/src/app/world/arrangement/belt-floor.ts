@@ -120,14 +120,14 @@ export interface JointMark {
   tooltip: string;
   /** Half a foundation from it, pointing the way the items go; none up in a factory. */
   arrows: ReturnType<typeof jointArrows>;
-  /** Faded with its belt in 3D; the map has always drawn it unfaded (asked of the owner, step 132). */
+  /** Faded with its belt, on the map and in 3D (decided 2026-11-28), and in 3D on a level not picked. */
   faded: boolean;
   hidden: boolean;
 }
 
 /** Where a routed belt crosses another as a last resort (step 102): an amber mark, to check in the game. */
 export type CrossingOnFloor = Omit<CrossingMark, 'level'> & {
-  /** Faded with its belt in 3D; the map has always drawn it unfaded (asked of the owner, step 132). */
+  /** Faded with its belt, on the map and in 3D (decided 2026-11-28), and in 3D on a level not picked. */
   faded: boolean;
   hidden: boolean;
 };

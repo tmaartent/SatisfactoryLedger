@@ -410,7 +410,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
       ]);
     });
 
-    it('fade with their belt, and in 3D are hidden without its run on a level picked', () => {
+    it('fade with their belt on the map as in 3D, and in 3D are hidden without its run on a level picked', () => {
       expect(floor(new Set(['foundry']))[0].faded).toBe(true);
       expect(floor(nothingPicked, new Set([0]))[0].hidden).toBe(true);
     });
@@ -449,7 +449,7 @@ describe('what the belt floor shows, flat and in 3D', () => {
       ]);
     });
 
-    it('fade with their belt, and in 3D on a level not picked', () => {
+    it('fade with their belt on the map as in 3D, and in 3D on a level not picked', () => {
       expect(floor(new Set(['foundry']))[0].faded).toBe(true);
       expect(floor(nothingPicked, new Set([0]))[0]).toMatchObject({ faded: true, hidden: false });
     });
