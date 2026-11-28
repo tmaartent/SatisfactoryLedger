@@ -44,6 +44,20 @@ Step 1 of card C of the architecture review of 2026-11-28 (`docs/architecture/re
 - **`kindOf` carries each page's own conditions:** the world map draws nothing before it has a snapshot id, and the arrangement draws nothing over a run shown, nor a part kept out before there's an area. They stay in the pages, since they're about what each page allows, not about choosing an area.
 - **`spotNames` takes the catalog's names and `ownerOf`**, rather than the page passing the whole `NodeNames` object. The local is `nodeNames`, so it doesn't shadow the function.
 - **The arrangement model's `areaBetween` test is deleted, not moved**: the chooser's spec asserts the same conversion through the chooser's interface (replace, don't layer).
-- **Card C's Status line** names the step and branch for step 1; the PR goes in once it's opened.
+- **Card C's Status line** names the step, branch and PR #85 for step 1.
+
+## Review fixes
+
+From `/code-review` of the step, in one `refactor(web):` commit; no behaviour changed.
+
+- **`AreaDrag.drawing` is read-only** (`asReadonly()`, primer: *`signal.asReadonly()`*). The arrangement page's `reset()` wrote `null` into it; it now calls the chooser's `letGo()`. Like a getter without a setter in Java, with one method to change the state.
+- **`ctrlOrCommand(press)`**, exported by the chooser module: both pages' `kindOf` asked `press.ctrlKey || press.metaKey`.
+- **The world map opens an area in one place**, a private `open(page, area)`, which the `drawn` callback and `openSelected` both call.
+- **The `selected` alias is gone** from the world map: the template and `openSelected` read `selection.drawn()`.
+- **The chooser's spec** takes each map and its container out after its test (`removeMap`, then the element), and *draws nothing for a press without the key, and the map pans* became two tests, *pans the map for a press without the key* and *chooses nothing for a drag without the key*.
+- **Wording:** the module comment wraps at 120 characters, and the arrangement page says a too-small drag is a tap, as the module does.
+- **Kept:** `AreaSelection.drawn()` in centimetres (see *Choices to overrule*), and the world map's drag kind `'3d'`.
+
+**Test runs after the fixes:** web 499 passed (42 files); lint, typecheck and build clean; e2e on recorded answers 261 passed, 48 skipped.
 
 **Files:** `web/src/app/world/map/area-selection.ts`, `area-selection.spec.ts` (new); `web/src/app/world/map/map-page.ts`; `web/src/app/world/arrangement/arrangement-page.ts`, `arrangement-model.ts`, `arrangement-model.spec.ts`, `belt-floor-3d.ts`; `docs/guide/primer.md`; `docs/architecture/reviews/2026-11-28.md`; this log.
