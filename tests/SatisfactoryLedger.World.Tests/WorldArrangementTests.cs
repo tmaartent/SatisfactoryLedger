@@ -1,7 +1,11 @@
+using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Arrangement;
+using SatisfactoryLedger.World.Contracts.Analysis;
 using SatisfactoryLedger.World.Contracts.Arrangement;
+using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Arrangement;
 using SatisfactoryLedger.World.Factories;
+using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
 
 using static SatisfactoryLedger.World.Tests.TestWorldSnapshot;
@@ -326,6 +330,57 @@ public class WorldArrangementTests
         (ArrangementProblem problem, _) = Arranged(null, Smelting);
 
         Assert.Contains(problem.Fixed, place => place.Id.Contains("Build_TrainDockingStation_C", StringComparison.Ordinal) && place.Blocks);
+    }
+
+    /// <summary>
+    /// packager → pipe → fluid truck station, 50 metres apart: the packager unpacks turbofuel, and the station loads
+    /// the 20 m³ a minute that reach it.
+    /// </summary>
+    private static MadeArrangement TurbofuelToAFluidTruckStation()
+    {
+        static BuildableId Saved(string name) => BuildableId.Of(Id(name));
+        var saved = new SavedWorld(
+            new SaveInfo("Fluid truck station", 517554, new DateTime(2026, 11, 28, 0, 0, 0, DateTimeKind.Utc)),
+            [
+                new SavedMachine(Saved("packager"), "Build_Packager_C", "Recipe_UnpackageTurboFuel_C", ClockSpeed.Percent(100), 1)
+                {
+                    Position = new SavedPosition(0, 0, 0),
+                },
+                new SavedLogistics(Saved("pipe"), "Build_Pipeline_C", LogisticsKind.Pipe),
+                new SavedConsumer(Saved("station"), "Build_FluidTruckStation_C") { Position = new SavedPosition(5000, 0, 0) },
+            ],
+            [new Connection(Saved("packager"), Saved("pipe")), new Connection(Saved("pipe"), Saved("station"))],
+            []);
+        SnapshotDocument snapshot = SnapshotDocument.FromJson(SnapshotDocument.Create(saved, TestWorldSnapshot.Catalog).ToJson());
+        AnalysisDocument analysis = new TestAnalysis().Running(Id("packager")).Into(Id("pipe"), "Desc_LiquidTurboFuel_C", 20).Build();
+        StoredFactory unpacking = new()
+        {
+            Id = Guid.CreateVersion7(),
+            World = "Fluid truck station",
+            Name = "Unpacking",
+            Machines = [StoredMachine.From(snapshot.Buildables.Single(buildable => buildable.Id == Id("packager")))],
+        };
+        return WorldArrangement.Of(
+            snapshot,
+            analysis,
+            [unpacking],
+            new ArrangementSettings(null, PlotWidthMetres: 16, PlotDepthMetres: 16, RoadXMetres: 8, RoadYMetres: 8, Together: 0, SpotWeight: 0.5, CeilingMetres: 32, []));
+    }
+
+    [Fact]
+    public void A_fluid_truck_station_in_the_area_blocks_its_plots()
+    {
+        MadeArrangement made = TurbofuelToAFluidTruckStation();
+
+        Assert.Contains(made.Problem.Fixed, place => place.Id == Id("station") && place.Blocks);
+    }
+
+    [Fact]
+    public void A_fluid_truck_station_a_factory_sends_fluid_to_is_a_spot_its_pipe_goes_down_to()
+    {
+        MadeArrangement made = TurbofuelToAFluidTruckStation();
+
+        Assert.True(made.Spots.ContainsKey(Id("station")));
     }
 
     [Fact]
