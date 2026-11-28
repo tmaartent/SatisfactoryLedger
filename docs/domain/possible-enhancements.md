@@ -148,3 +148,18 @@ Generators are assumed to run at full power (ADR-0021). In the game they throttl
 - **three.js in the web app** (npm `three`, with its `OrbitControls`), so an ADR. One coordinate rule to keep: the game is left-handed with z up, three.js right-handed with y up. Swapping y and z fixes both and keeps north at the top when looking down. Each building is turned by its yaw in game coordinates first, then converted.
 - The prototype's code is in [`docs/prototypes/factory-3d/`](../prototypes/factory-3d/README.md): boxes from 8 corners each, Hermite curves sampled into tubes, a perspective camera with orbit controls.
 
+## Testing
+
+### Mutation tests with Stryker, for .NET and Angular
+*Raised 2026-11-26.*
+
+**What:** run mutation tests over both halves of the code: [Stryker.NET](https://stryker-mutator.io/docs/stryker-net/introduction/) over the C# modules, and [StrykerJS](https://stryker-mutator.io/docs/stryker-js/introduction/) over the Angular app in `web/`. Stryker changes the production code in small ways (a `<` becomes `<=`, a condition is negated, a statement removed) and runs the tests against each change; a change no test notices is a surviving mutant.
+
+**Why:** coverage says which lines the tests run, not whether they'd notice a mistake on them. The domain is full of edge rules (share = min(limit, level), full versus arriving, utilisation bounds) where an off-by-one or a flipped comparison is exactly the bug that matters. A mutation score per module shows which rules are tested by assertion and which only by execution.
+
+**What it would take:**
+- **.NET:** `dotnet-stryker` as a local tool (`dotnet new tool-manifest`, then `dotnet tool install dotnet-stryker`), run per test project against the project it tests. Start with the `*.Domain` projects, where tests are fast and in-process; the solver and the Testcontainers tests are slow per mutant and may need to be left out or run with a narrower `--mutate` filter.
+- **Angular:** `@stryker-mutator/core` with the runner that matches `web/`'s test setup (the Vitest runner if the tests run on Vitest), configured in a `stryker.config.*` in `web/`.
+- **Which versions:** check the installed Stryker.NET and StrykerJS releases support the solution's .NET version, the `.slnx` format, and the web app's Angular and test-runner versions before configuring them.
+- **How it's used:** a script or CI job that's run on demand rather than on every build, since a full run takes much longer than the test suite. A threshold (`break`) only once the first scores are known and the owner picks one.
+
