@@ -81,6 +81,14 @@ describe('what of the page the sidebar covers, its bar and its open tab, closed 
     expect(coveredBySidebar(map)).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
   });
 
+  it("is nothing when the bar and the tab together leave too little to show anything in: there's nothing to centre on", () => {
+    // Each leaves 200 of the 300 across; both together only 100.
+    const map = { left: 0, top: 0, right: 300, bottom: 600 };
+    sidebar(new DOMRect(0, 0, 100, 600), new DOMRect(200, 0, 100, 600));
+
+    expect(coveredBySidebar(map)).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
+  });
+
   it('is nothing on a page without the sidebar', () => {
     expect(coveredBySidebar(phoneMap)).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
   });
