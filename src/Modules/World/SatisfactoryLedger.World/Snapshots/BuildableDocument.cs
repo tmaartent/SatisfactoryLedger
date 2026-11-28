@@ -49,8 +49,9 @@ internal sealed record BuildableDocument(
     /// A generator (BR-A8): it burns fuel, and the Catalog copied at import knows its burn rate. Geothermal burns
     /// nothing; a snapshot from before generators were copied (version 7) knows none.
     /// </summary>
-    public bool IsGenerator(IEnumerable<GeneratorDocument> copied) =>
-        BuildableKind == BuildableKind.Generator && copied.Any(generator => generator.Id == ClassName);
+    /// <param name="burnRateCopied">Whether the Catalog copied at import has a generator of a class: its burn rate.</param>
+    public bool IsGenerator(Func<string, bool> burnRateCopied) =>
+        BuildableKind == BuildableKind.Generator && burnRateCopied(ClassName);
 
     /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
@@ -113,7 +114,7 @@ internal sealed record BuildableDocument(
             {
                 InputStock = InputStockOf(),
                 Inventory = TakesLeftoversOnly ? catalog.Depot : InventoryOf(catalog),
-                IsGenerator = IsGenerator(catalog.Generators.Values),
+                IsGenerator = IsGenerator(catalog.Generators.ContainsKey),
             },
             BuildableDocumentRole.Logistics => new Logistics(
                 id,
