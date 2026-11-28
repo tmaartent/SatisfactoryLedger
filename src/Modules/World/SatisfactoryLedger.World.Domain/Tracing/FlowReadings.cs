@@ -61,7 +61,7 @@ public sealed class FlowReadings(
     /// its stock alike. Nothing when the analysis has no state for it.
     /// </summary>
     public double Takes(BuildableId id, ItemId item) =>
-        (Machine(id)?.Utilisation ?? 0) * (world.Find(id)?.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0);
+        (Machine(id)?.Utilisation ?? 0) * (world.Find(id)?.DemandOf(item).ToDouble() ?? 0);
 
     /// <summary>
     /// What reaches a buildable of an item over its lines now, per minute: what the logistics that end at it carry, not
@@ -71,7 +71,7 @@ public sealed class FlowReadings(
     public double Reaching(BuildableId id, ItemId item)
     {
         List<Logistics> lines = [.. world.Upstream(id).OfType<Logistics>()];
-        bool shared = world.Find(id) is MachineBuilding or Consumer { Generation: not null }
+        bool shared = world.Find(id) is MachineBuilding or Consumer { BurnsKnownFuel: true }
             && lines.Exists(line => line.Kind is LogisticsKind.PipeNetwork or LogisticsKind.PipeJunction && world.Downstream(line.Id).Skip(1).Any());
         return shared ? Takes(id, item) : lines.Sum(line => Carries(line.Id, item));
     }
@@ -84,7 +84,7 @@ public sealed class FlowReadings(
     public double Into(BuildableId id, ItemId item) => world.Find(id) switch
     {
         Logistics => Carries(id, item),
-        MachineBuilding or Consumer { Generation: not null } => Takes(id, item),
+        MachineBuilding or Consumer { BurnsKnownFuel: true } => Takes(id, item),
         _ => Reaching(id, item),
     };
 
@@ -98,13 +98,13 @@ public sealed class FlowReadings(
         Logistics => Carries(id, item),
         Provider { Offer: { } offer } when offer.Item == item => offer.PerMinute.ToDouble() - Spare(id, item),
         Provider => Delivered(id, item),
-        { } other => (Machine(id)?.Utilisation ?? 0) * (other.Production.GetValueOrDefault(item)?.ToDouble() ?? 0),
+        { } other => (Machine(id)?.Utilisation ?? 0) * other.ProductionOf(item).ToDouble(),
         null => 0,
     };
 
     /// <summary>What a machine or generator would make more of an item at 100%, per minute: what it leaves unmade now.</summary>
     public double MakesMore(BuildableId id, ItemId item) =>
-        (1 - (Machine(id)?.Utilisation ?? 0)) * (world.Find(id)?.Production.GetValueOrDefault(item)?.ToDouble() ?? 0);
+        (1 - (Machine(id)?.Utilisation ?? 0)) * (world.Find(id)?.ProductionOf(item).ToDouble() ?? 0);
 
     private IReadOnlyDictionary<ItemId, double> Carrying(BuildableId id, HashSet<BuildableId> passed) => world.Find(id) switch
     {

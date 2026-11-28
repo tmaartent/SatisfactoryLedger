@@ -10,6 +10,7 @@ public abstract class Buildable
 {
     private protected static readonly IReadOnlyDictionary<ItemId, Rate> NoRates = new Dictionary<ItemId, Rate>();
     private protected static readonly IReadOnlySet<ItemId> NoItems = new HashSet<ItemId>();
+    private static readonly IReadOnlyDictionary<ItemId, decimal> NoStock = new Dictionary<ItemId, decimal>();
 
     private IReadOnlySet<ItemId>? _produces;
 
@@ -20,6 +21,12 @@ public abstract class Buildable
     }
 
     public BuildableId Id { get; }
+
+    /// <summary>
+    /// What it holds of its inputs, per item (fluids in m³), at save time: a machine its ingredients, a generator its
+    /// fuel; empty for the others. A stock that lasts counts as supplied (BR-A17).
+    /// </summary>
+    public IReadOnlyDictionary<ItemId, decimal> InputStock { get; init; } = NoStock;
 
     /// <summary>
     /// Per input item, what it asks per minute at 100%, when that's known: a machine its recipe (BR-A1), a generator
@@ -34,8 +41,23 @@ public abstract class Buildable
     /// <summary>The items it takes in, whether or not their rate is known: a truck station its fuel.</summary>
     public abstract IReadOnlySet<ItemId> Consumes { get; }
 
+    /// <summary>What it asks of <paramref name="item"/> per minute at 100% (see <see cref="Demand"/>); zero when none is known.</summary>
+    public Rate DemandOf(ItemId item) => Demand.GetValueOrDefault(item) ?? Rate.Zero;
+
+    /// <summary>What it makes of <paramref name="item"/> per minute at 100% (see <see cref="Production"/>); zero when none.</summary>
+    public Rate ProductionOf(ItemId item) => Production.GetValueOrDefault(item) ?? Rate.Zero;
+
     /// <summary>The items it makes.</summary>
     public IReadOnlySet<ItemId> Produces => _produces ??= Production.Keys.ToHashSet();
+
+    /// <summary>Whether it makes <paramref name="item"/>: a machine its recipe's products, a generator its waste when some leaves it.</summary>
+    public bool Makes(ItemId item) => Produces.Contains(item);
+
+    /// <summary>
+    /// Whether it takes <paramref name="item"/> at the end of a line: what it <see cref="Consumes"/>, so a machine its
+    /// recipe's inputs and a generator burning a known fuel its fuel and water.
+    /// </summary>
+    public virtual bool Takes(ItemId item) => Consumes.Contains(item);
 
     public override string ToString() => $"{GetType().Name} {Id}";
 

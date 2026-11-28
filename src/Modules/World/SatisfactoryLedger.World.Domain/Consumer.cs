@@ -32,11 +32,6 @@ public sealed class Consumer(
     public FuelBurn FuelBurn { get; } = fuelBurn ?? new FuelBurn.NotKnown();
 
     /// <summary>
-    /// For a generator: the fuel it holds at save time, per item. A stock that lasts counts as supplied (BR-A17).
-    /// </summary>
-    public IReadOnlyDictionary<ItemId, decimal> InputStock { get; init; } = new Dictionary<ItemId, decimal>();
-
-    /// <summary>
     /// Whether it's a power generator, whatever it burns: a factory can have it as one of its machines (BR-W2). The
     /// others (sinks, uploaders, stations) never belong to a factory (BR-W8).
     /// </summary>
@@ -44,6 +39,12 @@ public sealed class Consumer(
 
     /// <summary>Null for a sink, an uploader, a station, or a generator whose fuel isn't known: it takes everything.</summary>
     public Generation? Generation { get; } = generation;
+
+    /// <summary>
+    /// Whether it's a generator burning a known fuel, so its rates are known (BR-A8): the flow and the readings count it
+    /// as a machine. Unlike <see cref="IsGenerator"/>, which is the role, whatever it burns.
+    /// </summary>
+    public bool BurnsKnownFuel => Generation is not null;
 
     /// <summary>
     /// Its inventory, when the Catalog knows its size: at the end of a line it takes an item only while that fits
@@ -67,6 +68,12 @@ public sealed class Consumer(
     /// </summary>
     public override IReadOnlySet<ItemId> Consumes { get; } =
         generation is { } fuelled ? Needs(fuelled).Keys.ToHashSet() : Fuelled(burns ?? NoItems, fuelBurn);
+
+    /// <summary>
+    /// A generator burning a known fuel takes only what it burns (decided 2026-11-28); a sink, an uploader, a station
+    /// that loads and a generator whose fuel isn't known take every item.
+    /// </summary>
+    public override bool Takes(ItemId item) => !BurnsKnownFuel || base.Takes(item);
 
     private static Dictionary<ItemId, Rate> Needs(Generation generation)
     {

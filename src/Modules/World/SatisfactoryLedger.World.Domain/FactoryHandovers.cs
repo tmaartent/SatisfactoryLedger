@@ -111,19 +111,7 @@ public sealed class FactoryHandovers
         }
 
         // At 100%, what its machines take of it less what its own machines make of it: what it needs from outside.
-        Dictionary<ItemId, double> atFullSpeed = [];
-        foreach (Buildable member in members.Machines.Select(id => world.Find(id)).OfType<Buildable>())
-        {
-            foreach ((ItemId item, Rate rate) in member.Demand.Where(input => now.ContainsKey(input.Key)))
-            {
-                atFullSpeed[item] = atFullSpeed.GetValueOrDefault(item) + rate.ToDouble();
-            }
-
-            foreach ((ItemId item, Rate rate) in member.Production.Where(product => now.ContainsKey(product.Key)))
-            {
-                atFullSpeed[item] = atFullSpeed.GetValueOrDefault(item) - rate.ToDouble();
-            }
-        }
+        Dictionary<ItemId, double> atFullSpeed = AtFullSpeed(world, members, now, member => member.Demand, member => member.Production);
 
         return
         [
@@ -236,7 +224,7 @@ public sealed class FactoryHandovers
             to[key] = to.GetValueOrDefault(key) + perMinute;
 
             // What this factory brings its receivers: what reaches one that asks for the item, a drone port too.
-            if (world.Find(end)?.Demand.GetValueOrDefault(item) is { } asks && asks > Rate.Zero)
+            if (world.Find(end) is { } receiver && receiver.DemandOf(item) > Rate.Zero)
             {
                 brings[item] = brings.GetValueOrDefault(item) + perMinute;
             }
@@ -245,32 +233,20 @@ public sealed class FactoryHandovers
         // At 100%, what its machines make of it less what its own machines take of it (decided 2026-11-11): a loop
         // that makes rubber and takes some back for its plastic only lets the rest leave. Only what leaves: a product
         // its own machines take all of, such as gas unpacked for its blenders, isn't output.
-        Dictionary<ItemId, double> atFullSpeed = [];
-        foreach (Buildable member in members.Machines.Select(id => world.Find(id)).OfType<Buildable>())
-        {
-            foreach ((ItemId item, Rate rate) in member.Production.Where(product => now.ContainsKey(product.Key)))
-            {
-                atFullSpeed[item] = atFullSpeed.GetValueOrDefault(item) + rate.ToDouble();
-            }
+        Dictionary<ItemId, double> atFullSpeed = AtFullSpeed(world, members, now, member => member.Production, member => member.Demand);
 
-            foreach ((ItemId item, Rate rate) in member.Demand.Where(input => now.ContainsKey(input.Key)))
-            {
-                atFullSpeed[item] = atFullSpeed.GetValueOrDefault(item) - rate.ToDouble();
-            }
-        }
-
-        // What an output blocked producer would make at 100% but can't get out.
+        // What an output blocked producer would make more at 100% but can't get out.
         Dictionary<ItemId, double> cannotLeave = [];
         foreach (Buildable producer in members.Producers.Select(id => world.Find(id)).OfType<Buildable>())
         {
-            if (readings.Machine(producer.Id) is not { Limit: MachineLimit.OutputBlocked } state)
+            if (readings.Machine(producer.Id) is not { Limit: MachineLimit.OutputBlocked })
             {
                 continue;
             }
 
-            foreach ((ItemId item, Rate rate) in producer.Production.Where(product => now.ContainsKey(product.Key)))
+            foreach (ItemId item in producer.Production.Keys.Where(now.ContainsKey))
             {
-                cannotLeave[item] = cannotLeave.GetValueOrDefault(item) + (rate.ToDouble() * (1 - state.Utilisation));
+                cannotLeave[item] = cannotLeave.GetValueOrDefault(item) + readings.MakesMore(producer.Id, item);
             }
         }
 
@@ -280,8 +256,8 @@ public sealed class FactoryHandovers
             {
                 Dictionary<Destination, double> to = destinations.GetValueOrDefault(item) ?? [];
                 List<Buildable> receivers = [.. Receivers(world, startsOf[item])];
-                double need = receivers.Aggregate(Rate.Zero, (sum, receiver) => sum + Asks(receiver, item)).ToDouble();
-                double get = receivers.Where(receiver => Asks(receiver, item) > Rate.Zero).Sum(receiver => readings.Into(receiver.Id, item));
+                double need = receivers.Aggregate(Rate.Zero, (sum, receiver) => sum + receiver.DemandOf(item)).ToDouble();
+                double get = receivers.Where(receiver => receiver.DemandOf(item) > Rate.Zero).Sum(receiver => readings.Into(receiver.Id, item));
                 return new OutgoingItem(
                     item,
                     now[item],
@@ -311,11 +287,33 @@ public sealed class FactoryHandovers
     }
 
     /// <summary>
-    /// What a receiver asks for of an item at 100%: its <see cref="Buildable.Demand"/>. A machine what its recipe asks for
-    /// at its clock speed, a generator its fuel or water, a drone port the fuel its drones burn; sinks, stations and
-    /// containers ask for nothing in particular.
+    /// At 100%, per item that crosses the factory's handovers, what its machines' <paramref name="adding"/> rates come to
+    /// less their <paramref name="takingOff"/> rates: demand less production for what it needs from outside, production
+    /// less demand for what it lets leave. Each machine adds, then takes off, in that order.
     /// </summary>
-    private static Rate Asks(Buildable receiver, ItemId item) => receiver.Demand.GetValueOrDefault(item) ?? Rate.Zero;
+    private static Dictionary<ItemId, double> AtFullSpeed(
+        WorldGraph world,
+        FactoryMembers members,
+        Dictionary<ItemId, double> crossing,
+        Func<Buildable, IReadOnlyDictionary<ItemId, Rate>> adding,
+        Func<Buildable, IReadOnlyDictionary<ItemId, Rate>> takingOff)
+    {
+        Dictionary<ItemId, double> net = [];
+        foreach (Buildable member in members.Machines.Select(id => world.Find(id)).OfType<Buildable>())
+        {
+            foreach ((ItemId item, Rate rate) in adding(member).Where(entry => crossing.ContainsKey(entry.Key)))
+            {
+                net[item] = net.GetValueOrDefault(item) + rate.ToDouble();
+            }
+
+            foreach ((ItemId item, Rate rate) in takingOff(member).Where(entry => crossing.ContainsKey(entry.Key)))
+            {
+                net[item] = net.GetValueOrDefault(item) - rate.ToDouble();
+            }
+        }
+
+        return net;
+    }
 
     /// <summary>
     /// The machines and consumers the lines from <paramref name="from"/> reach through logistics, each once, however

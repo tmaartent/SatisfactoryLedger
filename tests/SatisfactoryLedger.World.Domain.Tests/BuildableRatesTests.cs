@@ -90,6 +90,54 @@ public class BuildableRatesTests
     }
 
     [Fact]
+    public void A_generator_makes_its_waste_only_when_some_leaves_it()
+    {
+        Buildable leaving = new Consumer(Id, generation: new Generation(
+            Items.UraniumFuelRod, Rate.PerMinute(0.2m), Items.Water, Rate.PerMinute(240), Items.UraniumWaste, Rate.PerMinute(10)));
+        Buildable leavingNone = new Consumer(Id, generation: new Generation(
+            Items.UraniumFuelRod, Rate.PerMinute(0.2m), Items.Water, Rate.PerMinute(240), Items.UraniumWaste, Rate.Zero));
+
+        Assert.True(leaving.Makes(Items.UraniumWaste));
+        Assert.False(leavingNone.Makes(Items.UraniumWaste));
+    }
+
+    [Fact]
+    public void A_generator_burning_a_known_fuel_takes_only_its_fuel_and_its_water()
+    {
+        Buildable generator = new Consumer(Id, generation: new Generation(
+            Items.UraniumFuelRod, Rate.PerMinute(0.2m), Items.Water, Rate.PerMinute(240), Items.UraniumWaste, Rate.PerMinute(10)));
+
+        Assert.True(generator.Takes(Items.UraniumFuelRod));
+        Assert.True(generator.Takes(Items.Water));
+        Assert.False(generator.Takes(Items.IronPlate));
+    }
+
+    [Fact]
+    public void A_consumer_without_known_generation_takes_every_item()
+    {
+        Buildable sink = new Consumer(Id);
+        Buildable generator = new Consumer(Id) { IsGenerator = true };
+        Buildable port = new Consumer(Id, new HashSet<ItemId> { Items.Battery }, fuelBurn: new FuelBurn.Known(Rate.PerMinute(2)));
+
+        Assert.True(sink.Takes(Items.IronPlate));
+        Assert.True(generator.Takes(Items.IronPlate));
+        Assert.True(port.Takes(Items.IronPlate));
+    }
+
+    [Fact]
+    public void A_generator_holds_its_fuel_as_input_stock_and_a_belt_holds_none()
+    {
+        Buildable generator = new Consumer(Id, generation: new Generation(Items.Coal, Rate.PerMinute(15), Items.Water, Rate.Zero, null, Rate.Zero))
+        {
+            InputStock = new Dictionary<ItemId, decimal> { [Items.Coal] = 50 },
+        };
+        Buildable belt = new Logistics(Id, LogisticsKind.Belt, Rate.PerMinute(60));
+
+        Assert.Equal(new Dictionary<ItemId, decimal> { [Items.Coal] = 50 }, generator.InputStock);
+        Assert.Empty(belt.InputStock);
+    }
+
+    [Fact]
     public void A_generator_whose_fuel_is_not_known_asks_and_makes_nothing_in_particular()
     {
         Buildable generator = new Consumer(Id) { IsGenerator = true };

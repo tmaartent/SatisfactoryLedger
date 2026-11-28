@@ -151,7 +151,7 @@ public static class ShortageTrace
 
             if (fullSpeed.Count > 0)
             {
-                starts.Add(new TraceStart(TraceCause.TooFewProducers, item, fullSpeed, here, fullSpeed.Sum(id => AtFullSpeed(world.Find(id)!, item))));
+                starts.Add(new TraceStart(TraceCause.TooFewProducers, item, fullSpeed, here, fullSpeed.Sum(id => world.Find(id)!.ProductionOf(item).ToDouble())));
             }
 
             if (atLimit.Count > 0)
@@ -168,12 +168,9 @@ public static class ShortageTrace
         // What a starved machine or generator lacks of an item per minute: what it asks at its clock speed less the share it gets.
         double Missing(BuildableId id, ItemId item) =>
             world.Find(id) is { } starved && readings.Machine(id) is { } reading
-                ? Math.Round((starved.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0) * (1 - reading.StarvedOf.GetValueOrDefault(item, 1)), 6)
+                ? Math.Round(starved.DemandOf(item).ToDouble() * (1 - reading.StarvedOf.GetValueOrDefault(item, 1)), 6)
                 : 0;
     }
-
-    /// <summary>What a producer makes of an item at full speed, per minute.</summary>
-    private static double AtFullSpeed(Buildable producer, ItemId item) => producer.Production.GetValueOrDefault(item)?.ToDouble() ?? 0;
 
     /// <summary>
     /// The lines into some machines, followed upstream through logistics for one item, to where they start: the
@@ -253,22 +250,18 @@ public static class ShortageTrace
                     }
 
                     return brings;
-                case Machine machine:
-                    if (machine.Produces.Count == 0)
-                    {
-                        WithoutRecipe.Add(id);
-                    }
-
-                    return Source(machine.Produces.Contains(_item));
-                // A generator makes its waste only when some leaves it at its rate.
-                case Consumer { Generation: not null } generator:
-                    return Source(generator.Produces.Contains(_item));
+                case Machine { Produces.Count: 0 }:
+                    WithoutRecipe.Add(id);
+                    return false;
                 // A station could unload anything: it brings the item only if the analysis has it deliver some.
                 case Provider provider:
                     return Source(
                         provider.Offer?.Item == _item
                         || (!provider.IsStation && provider.Stock.ContainsKey(_item))
                         || _readings.Delivered(id, _item) > TraceStarts.Tolerance);
+                // A machine its recipe's products; a generator its waste, only when some leaves it at its rate.
+                case { } producer:
+                    return Source(producer.Makes(_item));
                 default:
                     return false;
             }

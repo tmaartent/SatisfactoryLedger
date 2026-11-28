@@ -20,11 +20,6 @@ public sealed class Machine : Buildable
     }
 
     /// <summary>
-    /// What it holds of its inputs, per item (fluids in m³), at save time. A stock that lasts counts as supplied (BR-A17).
-    /// </summary>
-    public IReadOnlyDictionary<ItemId, decimal> InputStock { get; init; } = new Dictionary<ItemId, decimal>();
-
-    /// <summary>
     /// What waits to leave it, per item (fluids in m³), at save time; null when the save says nothing about it (BR-A7).
     /// </summary>
     public IReadOnlyDictionary<ItemId, decimal>? OutputStock { get; init; }

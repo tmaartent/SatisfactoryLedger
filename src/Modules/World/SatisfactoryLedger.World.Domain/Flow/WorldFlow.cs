@@ -89,7 +89,7 @@ public static class WorldFlow
         Provider provider => new FlowUnknownSource(
             provider.Id, Count(provider.Stock), Carries.Anything, provider.Burns, MostFuel(provider.FuelBurn), provider.Inventory, cargo.GetValueOrDefault(provider.Id)),
         // BR-A8: a generator burning a known fuel takes what it burns and makes its waste, like a machine.
-        Consumer { Generation: not null } generator => new FlowMachine(
+        Consumer { BurnsKnownFuel: true } generator => new FlowMachine(
             generator.Id, PerMinute(generator.Demand), PerMinute(generator.Production), Stocked(generator.Demand, generator.InputStock)),
         Consumer consumer => new FlowSink(consumer.Id, consumer.Burns, consumer.TakesLeftoversOnly, MostFuel(consumer.FuelBurn), Evidenced(consumer.Inventory, consumer.Id, world)),
         Logistics { Kind: LogisticsKind.Splitter or LogisticsKind.PipeJunction or LogisticsKind.PipeNetwork } splitter =>

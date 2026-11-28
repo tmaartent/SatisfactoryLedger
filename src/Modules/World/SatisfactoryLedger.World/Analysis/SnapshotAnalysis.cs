@@ -221,12 +221,7 @@ internal static class SnapshotAnalysis
     private static (string? Item, double? Minutes) OnStock(WorldGraph world, FlowReadings readings, MachineStateDocument state)
     {
         Buildable? running = world.Find(BuildableId.Of(state.Id));
-        IReadOnlyDictionary<ItemId, decimal> stock = running switch
-        {
-            Machine machine => machine.InputStock,
-            Consumer { Generation: not null } generator => generator.InputStock,
-            _ => new Dictionary<ItemId, decimal>(),
-        };
+        IReadOnlyDictionary<ItemId, decimal> stock = running?.InputStock ?? new Dictionary<ItemId, decimal>();
         IReadOnlyDictionary<ItemId, SharedKernel.Rate> demand = running?.Demand ?? new Dictionary<ItemId, SharedKernel.Rate>();
 
         (string? Item, double? Minutes) first = (null, null);

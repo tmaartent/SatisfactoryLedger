@@ -100,7 +100,7 @@ public static class BlockageTrace
 
                         break;
                     case MachineLimit.Starved:
-                        starts.Add(new TraceStart(TraceCause.ConsumerStarved, item, [consumer], here, Takes(world.Find(consumer)!, item)) { ShortOf = reading.StarvedOf });
+                        starts.Add(new TraceStart(TraceCause.ConsumerStarved, item, [consumer], here, world.Find(consumer)!.DemandOf(item).ToDouble()) { ShortOf = reading.StarvedOf });
                         break;
                     default:
                         fullSpeed.Add(consumer);
@@ -135,7 +135,7 @@ public static class BlockageTrace
                 }
             }
 
-            double taken = fullSpeed.Sum(id => Takes(world.Find(id)!, item));
+            double taken = fullSpeed.Sum(id => world.Find(id)!.DemandOf(item).ToDouble());
             starts.Add(TraceStarts.Matters(others.Values.Sum(), taken)
                 ? new TraceStart(TraceCause.SuppliedByOthers, item, fullSpeed, here, taken) { Others = TraceStarts.Rounded(others) }
                 : new TraceStart(TraceCause.TooFewConsumers, item, fullSpeed, here, taken));
@@ -144,12 +144,9 @@ public static class BlockageTrace
         // What a blocked machine or generator can't get away of an item per minute: what it makes at its clock speed less the share that leaves.
         double CannotLeave(BuildableId id, ItemId item) =>
             world.Find(id) is { } blocked && readings.Machine(id) is { } reading
-                ? Math.Round((blocked.Production.GetValueOrDefault(item)?.ToDouble() ?? 0) * (1 - reading.BlockedOn.GetValueOrDefault(item, 1)), 6)
+                ? Math.Round(blocked.ProductionOf(item).ToDouble() * (1 - reading.BlockedOn.GetValueOrDefault(item, 1)), 6)
                 : 0;
     }
-
-    /// <summary>What a consumer takes of an item at full speed, per minute; 0 when that isn't known (a sink takes all).</summary>
-    private static double Takes(Buildable consumer, ItemId item) => consumer.Demand.GetValueOrDefault(item)?.ToDouble() ?? 0;
 
     /// <summary>
     /// The lines out of some machines, followed downstream through logistics for one item, to where they end: the
@@ -256,19 +253,15 @@ public static class BlockageTrace
                 case Provider { FuelBurn: FuelBurn.NoDroneRefuels } port when port.Burns.Contains(_item):
                     NoDroneRefuels.Add(id);
                     return true;
-                case Machine machine when machine.Consumes.Contains(_item) || machine.Consumes.Count == 0:
+                // A machine with no recipe: its reading says so.
+                case Machine { Consumes.Count: 0 }:
                     Consumers.Add(id);
                     return true;
-                case Consumer { Generation: not null } generator when generator.Consumes.Contains(_item):
-                    Consumers.Add(id);
-                    return true;
-                case Consumer { Generation: not null }:
-                    // A generator burning a known fuel takes only what it burns, as a machine (decided 2026-11-28).
-                    Nowhere.Add(id);
-                    return true;
-                case Consumer { Inventory: { } inventory }:
+                case Consumer { BurnsKnownFuel: false, Inventory: { } inventory }:
                     return Store(inventory);
-                case Consumer:
+                // A machine its recipe's inputs, a generator burning a known fuel what it burns (decided 2026-11-28);
+                // the other consumers every item.
+                case (Machine or Consumer) and { } taker when taker.Takes(_item):
                     Consumers.Add(id);
                     return true;
                 default:
