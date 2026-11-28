@@ -41,7 +41,7 @@
       <mat-icon>{{ selection.selecting() ? 'close' : 'highlight_alt' }}</mat-icon>
     </button>
   }
-  @if (selected()) {
+  @if (selection.drawn()) {
     <div class="area-choices">
       <button mat-flat-button type="button" (click)="openSelected('area')">
         <mat-icon>view_in_ar</mat-icon> 3D

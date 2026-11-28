@@ -44,7 +44,8 @@ import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { runSummary } from '../arrangement/arrangement-model';
-import { AreaDrag, AreaSelection } from './area-selection';
+import { AreaDrag, AreaSelection, ctrlOrCommand } from './area-selection';
+import { Area } from '../area/area-model';
 import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
 import {
   MachineStatus,
@@ -186,13 +187,10 @@ export class MapPage {
     kindOf: (press) => {
       if (!this.id()) return null;
       if (press.shiftKey) return '3d';
-      return press.ctrlKey || press.metaKey ? 'arrangement' : null;
+      return ctrlOrCommand(press) ? 'arrangement' : null;
     },
     style: (kind) => ({ color: dragColours[kind], weight: 2, fillOpacity: 0.1 }),
-    drawn: (kind, area) => {
-      const page = kind === 'arrangement' ? 'arrangement' : 'area';
-      void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
-    },
+    drawn: (kind, area) => this.open(kind === 'arrangement' ? 'arrangement' : 'area', area),
   });
   /**
    * Drawing a rectangle, to open in 3D (shift held) or to arrange its factories (ctrl held): the map stops panning, and
@@ -205,8 +203,6 @@ export class MapPage {
     weight: 2,
     fillOpacity: 0.1,
   });
-  /** The area selected, once let go: to open in 3D or to arrange. */
-  protected readonly selected = this.selection.drawn;
 
   private readonly statuses = computed(() => machineStatuses(loaded(this.analysis)?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
@@ -441,9 +437,14 @@ export class MapPage {
 
   /** Opens the area selected: in 3D, or in the optimal arrangement. */
   protected openSelected(page: 'area' | 'arrangement'): void {
-    const area = this.selected();
+    const area = this.selection.drawn();
     if (!area) return;
     this.selection.toggle();
+    this.open(page, area);
+  }
+
+  /** Opens an area of the snapshot: in 3D, or in the optimal arrangement. */
+  private open(page: 'area' | 'arrangement', area: Area): void {
     void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
   }
 

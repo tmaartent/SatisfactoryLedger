@@ -1,6 +1,18 @@
 import * as L from 'leaflet';
 import { Area } from '../area/area-model';
 import { AreaDrag, AreaSelection } from './area-selection';
+import { removeMap } from './remove-map';
+
+/** The maps a test put in the page, taken out after it. */
+const maps: L.Map[] = [];
+
+afterEach(() => {
+  for (const map of maps.splice(0)) {
+    const container = map.getContainer();
+    removeMap(map);
+    container.remove();
+  }
+});
 
 /**
  * A map in the page at zoom 0, so a point on the screen is a metre on the map: (10, 20) on the screen is x 1000 cm,
@@ -10,6 +22,7 @@ function mapOnPage(): L.Map {
   const container = document.createElement('div');
   document.body.append(container);
   const map = L.map(container, { crs: L.CRS.Simple }).setView([0, 0], 0);
+  maps.push(map);
   return map;
 }
 
@@ -75,13 +88,20 @@ describe('choosing an area with a mouse, by a drag with a key held', () => {
     expect(map.dragging.enabled()).toBe(true);
   });
 
-  it('draws nothing for a press without the key, and the map pans', () => {
-    const { map, chosen, areaDrag } = chooser(200);
+  it('pans the map for a press without the key', () => {
+    const { map, areaDrag } = chooser(200);
+
+    map.getContainer().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+
+    expect(areaDrag.drawing()).toBeNull();
+    expect(map.dragging.enabled()).toBe(true);
+  });
+
+  it('chooses nothing for a drag without the key', () => {
+    const { map, chosen } = chooser(200);
     const container = map.getContainer();
 
     container.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }));
-    expect(areaDrag.drawing()).toBeNull();
-    expect(map.dragging.enabled()).toBe(true);
     container.dispatchEvent(
       new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: 10, clientY: 10 }),
     );

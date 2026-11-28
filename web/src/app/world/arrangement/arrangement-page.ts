@@ -45,7 +45,7 @@ import { BeltFloor3d } from './belt-floor-3d';
 import { CatalogNames } from '../../shared/catalog-names';
 import { previewFactory } from '../../api/fn/world/preview-factory';
 import { MapConveyor } from '../../api/models/map-conveyor';
-import { AreaDrag, AreaSelection } from '../map/area-selection';
+import { AreaDrag, AreaSelection, ctrlOrCommand } from '../map/area-selection';
 import { buildingShape } from '../map/building-shape';
 import { holdToExtent } from '../map/hold-to-extent';
 import { MapArt } from '../map/map-art';
@@ -107,7 +107,7 @@ import { loaded } from '../../shared/loaded';
 /** What stays where it is and takes its plots: the stations' classes, as the arrangement counts them. */
 /** How far out the map zooms without a map picture to hold it to. */
 const LeastZoom = -4;
-/** The least a side of an area drawn, in the game's centimetres: a smaller drag is a click. */
+/** The least a side of an area drawn, in the game's centimetres: a smaller drag is a tap. */
 const SmallestArea = 1000;
 
 /** The area to arrange: blue, as the rectangle drawn with ctrl on the world map (asked 2026-11-24). */
@@ -193,7 +193,7 @@ export class ArrangementPage {
     kindOf: (press) => {
       if (!this.canSelect()) return null;
       if (press.shiftKey) return 'area';
-      return (press.ctrlKey || press.metaKey) && this.area() ? 'exclusion' : null;
+      return ctrlOrCommand(press) && this.area() ? 'exclusion' : null;
     },
     style: (kind) => (kind === 'area' ? areaStyle : exclusionStyle),
     drawn: (kind, area) => this.use(kind, area),
@@ -225,7 +225,7 @@ export class ArrangementPage {
 
   /** Back to the start: no area, no exclusions, no run shown; the settings stay. */
   protected reset(): void {
-    this.drawing.set(null);
+    this.areaDrag.letGo();
     this.selected.set(null);
     this.area.set(null);
     this.exclusions.set([]);

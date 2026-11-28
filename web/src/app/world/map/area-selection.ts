@@ -6,7 +6,8 @@ import { fromMapPoint } from './map-model';
 /**
  * Selecting an area on a touch screen, with no keys to hold (asked 2026-11-24, ADR-0033): a button turns it on; the map
  * stops panning, and a one-finger drag draws a rectangle instead. Letting go keeps it, for the page to offer what to do
- * with it; a drag shorter than the page's minimum a side, as a tap, lets go of it. The world map's and the optimal arrangement's.
+ * with it; a drag shorter than the page's minimum a side, as a tap, lets go of it. The world map's and the optimal
+ * arrangement's.
  *
  * By pointer events: a finger moving fires no mouse events, which drawing with a key held listens to. A second finger,
  * as in a pinch, draws nothing.
@@ -92,10 +93,16 @@ export interface AreaDragOptions<K extends string> {
  * off in time. The page turns Leaflet's own shift-drag, zooming to a box, off.
  */
 export class AreaDrag<K extends string> {
+  private readonly current = signal<K | null>(null);
   /** What a drag on the map draws now; null while not drawing, and the map pans. */
-  readonly drawing = signal<K | null>(null);
+  readonly drawing = this.current.asReadonly();
 
   constructor(private readonly options: AreaDragOptions<K>) {}
+
+  /** Lets go of what a drag would draw, as the page starts over. */
+  letGo(): void {
+    this.current.set(null);
+  }
 
   /** Listens on the map, once it's made. */
   attach(map: L.Map): void {
@@ -108,7 +115,7 @@ export class AreaDrag<K extends string> {
       (event) => {
         const kind = this.options.kindOf(event);
         if (!kind || event.button !== 0) return;
-        this.drawing.set(kind);
+        this.current.set(kind);
         map.dragging.disable();
       },
       { capture: true },
@@ -143,9 +150,14 @@ export class AreaDrag<K extends string> {
 
   /** Stops drawing: the map pans again on a drag. */
   private stop(map: L.Map): void {
-    this.drawing.set(null);
+    this.current.set(null);
     map.dragging.enable();
   }
+}
+
+/** Whether a press holds ctrl, or ⌘ on a Mac: the key both pages' choosers take for their second kind of area. */
+export function ctrlOrCommand(press: PointerEvent): boolean {
+  return press.ctrlKey || press.metaKey;
 }
 
 /**
