@@ -29,7 +29,7 @@ internal static class PipeHeadLifts
         HashSet<string> carryingGas = CarryingGas(snapshot);
         List<PipePiece> pieces =
         [
-            .. snapshot.Buildables.Where(IsPiece).Where(buildable => buildable.Curve is { Count: > 0 } || buildable.Position is not null)
+            .. snapshot.Buildables.Where(buildable => buildable.IsPipePiece).Where(buildable => buildable.Curve is { Count: > 0 } || buildable.Position is not null)
                 .Select(buildable => new PipePiece(
                     BuildableId.Of(buildable.Id),
                     TopOf(buildable),
@@ -86,9 +86,6 @@ internal static class PipeHeadLifts
         HashSet<string> holdingGas = [.. snapshot.Buildables.Where(piece => piece.Contents?.Keys.Any(gases.Contains) == true).Select(piece => piece.Id)];
         return [.. snapshot.PipeNetworks().Where(network => network.Overlaps(holdingGas)).SelectMany(network => network)];
     }
-
-    private static bool IsPiece(BuildableDocument buildable) =>
-        buildable.Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction or LogisticsKind.FluidBuffer;
 
     /// <summary>A pipe's highest point of its curve; a pump's, junction's or buffer's where it stands.</summary>
     private static double TopOf(BuildableDocument piece) =>

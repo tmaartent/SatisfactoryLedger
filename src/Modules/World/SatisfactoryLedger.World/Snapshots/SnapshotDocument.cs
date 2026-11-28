@@ -134,7 +134,7 @@ internal sealed record SnapshotDocument(
         HashSet<string> seen = new(StringComparer.Ordinal);
         List<IReadOnlySet<string>> networks = [];
         IEnumerable<string> pieces = Buildables
-            .Where(buildable => buildable.Kind is LogisticsKind.Pipe or LogisticsKind.PipeJunction or LogisticsKind.FluidBuffer)
+            .Where(buildable => buildable.IsPipePiece)
             .Select(buildable => buildable.Id);
         foreach (string start in pieces.Concat(touching.Select(piece => piece.Key)))
         {

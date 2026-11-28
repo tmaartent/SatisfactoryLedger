@@ -59,7 +59,8 @@ internal static class PipeFlows
         Dictionary<string, string> hubOf = [];
         foreach ((string edge, string hub) in hubNextTo)
         {
-            // The first edge found of a network names its hub.
+            // The first edge found of a network names its hub. This relies on a Dictionary enumerating in insertion order
+            // (the order of the connections), which holds while nothing is removed but isn't promised (primer).
             if (!hubOf.ContainsKey(edge) && networkOf.TryGetValue(edge, out IReadOnlySet<string>? network))
             {
                 foreach (string piece in network)

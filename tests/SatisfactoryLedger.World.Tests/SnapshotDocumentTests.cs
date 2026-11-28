@@ -453,8 +453,15 @@ public class SnapshotDocumentTests
 
     // ---- BR-A6: the pipe networks of a snapshot ---------------------------------------------------------------------------
 
+    /// <summary>A pipe piece of the kind, with a class of that kind.</summary>
     private static BuildableDocument Piece(string id, LogisticsKind kind = LogisticsKind.Pipe) =>
-        new(id, BuildableDocumentRole.Logistics, "Build_Pipeline_C", Kind: kind);
+        new(id, BuildableDocumentRole.Logistics, kind switch
+        {
+            LogisticsKind.Pipe => "Build_Pipeline_C",
+            LogisticsKind.PipeJunction => "Build_PipelineJunction_Cross_C",
+            LogisticsKind.FluidBuffer => "Build_PipeStorageTank_C",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "not a pipe piece"),
+        }, Kind: kind);
 
     private static SnapshotDocument OfPipes(IReadOnlyList<BuildableDocument> buildables, params (string A, string B)[] links) =>
         new(SnapshotDocument.CurrentVersion, buildables, [], [], [], [], [], [], [], [],
@@ -485,13 +492,17 @@ public class SnapshotDocumentTests
     [Fact]
     public void A_pipe_touching_nothing_is_a_network_of_its_own()
     {
-        SnapshotDocument snapshot = OfPipes(
-            [
-                Piece("a1"), Piece("a2"), Piece("alone"), Piece("buffer", LogisticsKind.FluidBuffer),
-                new BuildableDocument("belt", BuildableDocumentRole.Logistics, "Build_ConveyorBeltMk1_C", Kind: LogisticsKind.Belt),
-            ],
-            ("a1", "a2"));
+        SnapshotDocument snapshot = OfPipes([Piece("a1"), Piece("a2"), Piece("alone"), Piece("buffer", LogisticsKind.FluidBuffer)], ("a1", "a2"));
 
         Assert.Equal(["a1 a2", "alone", "buffer"], Networks(snapshot));
+    }
+
+    [Fact]
+    public void A_belt_is_in_no_pipe_network()
+    {
+        SnapshotDocument snapshot = OfPipes(
+            [Piece("pipe"), new BuildableDocument("belt", BuildableDocumentRole.Logistics, "Build_ConveyorBeltMk1_C", Kind: LogisticsKind.Belt)]);
+
+        Assert.Equal(["pipe"], Networks(snapshot));
     }
 }
