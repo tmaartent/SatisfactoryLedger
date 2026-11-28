@@ -102,38 +102,44 @@ public class BuildableRatesTests
     }
 
     [Fact]
-    public void A_generator_burning_a_known_fuel_takes_only_its_fuel_and_its_water()
+    public void A_generator_burning_a_known_fuel_accepts_only_its_fuel_and_its_water()
     {
         Buildable generator = new Consumer(Id, generation: new Generation(
             Items.UraniumFuelRod, Rate.PerMinute(0.2m), Items.Water, Rate.PerMinute(240), Items.UraniumWaste, Rate.PerMinute(10)));
 
-        Assert.True(generator.Takes(Items.UraniumFuelRod));
-        Assert.True(generator.Takes(Items.Water));
-        Assert.False(generator.Takes(Items.IronPlate));
+        Assert.True(generator.Accepts(Items.UraniumFuelRod));
+        Assert.True(generator.Accepts(Items.Water));
+        Assert.False(generator.Accepts(Items.IronPlate));
     }
 
     [Fact]
-    public void A_consumer_without_known_generation_takes_every_item()
+    public void A_consumer_without_known_generation_accepts_every_item()
     {
         Buildable sink = new Consumer(Id);
         Buildable generator = new Consumer(Id) { IsGenerator = true };
         Buildable port = new Consumer(Id, new HashSet<ItemId> { Items.Battery }, fuelBurn: new FuelBurn.Known(Rate.PerMinute(2)));
 
-        Assert.True(sink.Takes(Items.IronPlate));
-        Assert.True(generator.Takes(Items.IronPlate));
-        Assert.True(port.Takes(Items.IronPlate));
+        Assert.True(sink.Accepts(Items.IronPlate));
+        Assert.True(generator.Accepts(Items.IronPlate));
+        Assert.True(port.Accepts(Items.IronPlate));
     }
 
     [Fact]
-    public void A_generator_holds_its_fuel_as_input_stock_and_a_belt_holds_none()
+    public void A_generator_holds_its_fuel_as_input_stock()
     {
         Buildable generator = new Consumer(Id, generation: new Generation(Items.Coal, Rate.PerMinute(15), Items.Water, Rate.Zero, null, Rate.Zero))
         {
             InputStock = new Dictionary<ItemId, decimal> { [Items.Coal] = 50 },
         };
-        Buildable belt = new Logistics(Id, LogisticsKind.Belt, Rate.PerMinute(60));
 
         Assert.Equal(new Dictionary<ItemId, decimal> { [Items.Coal] = 50 }, generator.InputStock);
+    }
+
+    [Fact]
+    public void A_belt_holds_no_input_stock()
+    {
+        Buildable belt = new Logistics(Id, LogisticsKind.Belt, Rate.PerMinute(60));
+
         Assert.Empty(belt.InputStock);
     }
 

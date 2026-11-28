@@ -70,10 +70,10 @@ public sealed class Consumer(
         generation is { } fuelled ? Needs(fuelled).Keys.ToHashSet() : Fuelled(burns ?? NoItems, fuelBurn);
 
     /// <summary>
-    /// A generator burning a known fuel takes only what it burns (decided 2026-11-28); a sink, an uploader, a station
-    /// that loads and a generator whose fuel isn't known take every item.
+    /// A generator burning a known fuel accepts only what it burns (decided 2026-11-28); a sink, an uploader, a station
+    /// that loads and a generator whose fuel isn't known accept every item.
     /// </summary>
-    public override bool Takes(ItemId item) => !BurnsKnownFuel || base.Takes(item);
+    public override bool Accepts(ItemId item) => !BurnsKnownFuel || base.Accepts(item);
 
     private static Dictionary<ItemId, Rate> Needs(Generation generation)
     {

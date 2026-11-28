@@ -261,7 +261,7 @@ public static class BlockageTrace
                     return Store(inventory);
                 // A machine its recipe's inputs, a generator burning a known fuel what it burns (decided 2026-11-28);
                 // the other consumers every item.
-                case (Machine or Consumer) and { } taker when taker.Takes(_item):
+                case (Machine or Consumer) and { } receiver when receiver.Accepts(_item):
                     Consumers.Add(id);
                     return true;
                 default:

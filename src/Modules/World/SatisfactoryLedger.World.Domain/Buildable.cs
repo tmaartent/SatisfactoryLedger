@@ -54,10 +54,10 @@ public abstract class Buildable
     public bool Makes(ItemId item) => Produces.Contains(item);
 
     /// <summary>
-    /// Whether it takes <paramref name="item"/> at the end of a line: what it <see cref="Consumes"/>, so a machine its
+    /// Whether it accepts <paramref name="item"/> at the end of a line: what it <see cref="Consumes"/>, so a machine its
     /// recipe's inputs and a generator burning a known fuel its fuel and water.
     /// </summary>
-    public virtual bool Takes(ItemId item) => Consumes.Contains(item);
+    public virtual bool Accepts(ItemId item) => Consumes.Contains(item);
 
     public override string ToString() => $"{GetType().Name} {Id}";
 
