@@ -67,7 +67,7 @@ import { disposeGeometry, ScreenPoint, Stage } from '../stage/stage';
 import { SidebarTab } from '../../sidebar/sidebar-tab';
 import { SidebarTabs } from '../../sidebar/sidebar-tabs';
 import { framingDistance, pointsToFrame } from './framing';
-import { coveredSides } from '../map/visible-part';
+import { coveredBySidebar } from '../map/visible-part';
 import { Explainer } from '../explain/explainer';
 import { FactoryDeletion } from '../factory-deletion';
 import { FactoryDraft, ownDraftOrThePages } from '../factory-draft';
@@ -870,7 +870,8 @@ export class AreaPage {
 
   /**
    * The part of the stage in sight, from its top: inside the window, below the toolbar, which the page scrolls under, and
-   * clear of the sidebar where it lies over the stage, as the bar of tabs and the sheet do on a phone.
+   * clear of the sidebar where it lies over the stage (decided 2026-11-28): the bar of tabs and the sheet on a phone, the
+   * open tab on a tablet.
    */
   private seenRange(stage: HTMLElement): SeenRange {
     const rect = stage.getBoundingClientRect();
@@ -881,10 +882,7 @@ export class AreaPage {
       top: Math.max(rect.top, toolbar),
       bottom: Math.min(rect.bottom, window.innerHeight),
     };
-    const covered = coveredSides(
-      shown,
-      document.querySelector('app-sidebar')?.getBoundingClientRect() ?? null,
-    );
+    const covered = coveredBySidebar(shown);
     return {
       top: shown.top + covered.top - rect.top,
       bottom: shown.bottom - covered.bottom - rect.top,

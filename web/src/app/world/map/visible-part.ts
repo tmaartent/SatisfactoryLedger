@@ -48,3 +48,18 @@ export function coveredSides(map: ScreenBox, tab: ScreenBox | null): Sides {
   const [w, h] = left(best);
   return w < least || h < least ? none : best;
 }
+
+/**
+ * How much of each side of a part of the page the sidebar covers, as the browser has laid it out (decided
+ * 2026-11-28): whatever of it lies over the page, closed or open. Its own box, the rail or, on a phone, the bar of
+ * tabs and the snapshot picker along the bottom with the sheet above them; and the open tab, which on a narrow screen
+ * lies over the page outside that box. One read for the area page and the world map.
+ */
+export function coveredBySidebar(page: ScreenBox): Sides {
+  const sidebar = document.querySelector('app-sidebar');
+  const covered = [sidebar, sidebar?.querySelector('.tab')]
+    .filter((element) => element != null)
+    .map((element) => coveredSides(page, element.getBoundingClientRect()));
+  const most = (side: keyof Sides) => Math.max(0, ...covered.map((sides) => sides[side]));
+  return { top: most('top'), right: most('right'), bottom: most('bottom'), left: most('left') };
+}
