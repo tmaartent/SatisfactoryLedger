@@ -120,7 +120,7 @@ internal static class SnapshotAnalysis
             .Where(machine => buildables[machine.Id].Role == BuildableDocumentRole.Consumer && buildables[machine.Id].Fuel is not null && isMachine(machine.Id))];
         // A generator whose fuel isn't known isn't simulated (BR-A15); the summary still counts it.
         int fuelUnknown = snapshot.Buildables.Count(buildable =>
-            buildable.Role == BuildableDocumentRole.Consumer && buildable.Fuel is null && snapshot.IsMachineOrGenerator(buildable) && isMachine(buildable.Id));
+            buildable.IsGenerator && buildable.Fuel is null && isMachine(buildable.Id));
         return new AnalysisResponse(
             unsettled.Count == 0,
             new AnalysisSummary(

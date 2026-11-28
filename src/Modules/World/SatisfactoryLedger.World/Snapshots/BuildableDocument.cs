@@ -46,12 +46,15 @@ internal sealed record BuildableDocument(
     public BuildableKind BuildableKind => GameClasses.KindOf(ClassName);
 
     /// <summary>
-    /// A generator (BR-A8): it burns fuel, and the Catalog copied at import knows its burn rate. Geothermal burns
-    /// nothing; a snapshot from before generators were copied (version 7) knows none.
+    /// A generator (BR-A8): it burns fuel. Geothermal burns nothing. By its kind alone: snapshots from before generators
+    /// were copied (version 7) aren't supported (decided 2026-11-28).
     /// </summary>
-    /// <param name="burnRateCopied">Whether the Catalog copied at import has a generator of a class: its burn rate.</param>
-    public bool IsGenerator(Func<string, bool> burnRateCopied) =>
-        BuildableKind == BuildableKind.Generator && burnRateCopied(ClassName);
+    [JsonIgnore]
+    public bool IsGenerator => BuildableKind == BuildableKind.Generator;
+
+    /// <summary>What a factory's machines can be (BR-W2): a machine, or a generator (decided 2026-11-11). Sinks, uploaders and stations can't.</summary>
+    [JsonIgnore]
+    public bool IsMachineOrGenerator => Role == BuildableDocumentRole.Machine || IsGenerator;
 
     /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
@@ -114,7 +117,7 @@ internal sealed record BuildableDocument(
             {
                 InputStock = InputStockOf(),
                 Inventory = TakesLeftoversOnly ? catalog.Depot : InventoryOf(catalog),
-                IsGenerator = IsGenerator(catalog.Generators.ContainsKey),
+                IsGenerator = IsGenerator,
             },
             BuildableDocumentRole.Logistics => new Logistics(
                 id,
