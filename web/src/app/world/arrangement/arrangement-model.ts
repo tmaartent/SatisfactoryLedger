@@ -7,6 +7,7 @@ import { WorldRectangle } from '../../api/models/world-rectangle';
 import { perMinute } from '../../shared/display';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { buildingBoxes } from '../area/area-model';
+import { CatalogNames } from '../../shared/catalog-names';
 import { toMapPoint } from '../map/map-model';
 
 /** A rectangle of the world as two opposite corners on the map, as the map places buildings. */
@@ -370,6 +371,23 @@ interface NodeNames {
   extractorForm: (className: string) => 'solid' | 'fluid' | null;
   fluidColour: (item: string) => string | null;
   ownerOf: (machine: string) => { name: string; colour: string } | undefined;
+}
+
+/**
+ * The names a spot's mark reads, from the catalog's names and the factory a machine belongs to: one for both views of
+ * the belt floor, the flat one and the one in 3D, so a spot goes by the same name in each.
+ */
+export function spotNames(
+  catalog: Pick<CatalogNames, 'item' | 'building' | 'extractorForm' | 'fluidColour'>,
+  ownerOf: NodeNames['ownerOf'],
+): NodeNames {
+  return {
+    item: (item) => catalog.item(item),
+    building: (className) => catalog.building(className),
+    extractorForm: (className) => catalog.extractorForm(className),
+    fluidColour: (item) => catalog.fluidColour(item),
+    ownerOf,
+  };
 }
 
 /**

@@ -42,6 +42,7 @@ import {
   jointColours,
   SourceKind,
   spotMark,
+  spotNames,
   wayMark,
   wayHeight,
 } from './arrangement-model';
@@ -288,15 +289,9 @@ export class BeltFloor3d {
     // lines in the colour of the factory they serve, at their heights as built from where they come in on the floor
     // (asked 2026-11-23); flat in runs from before heights were kept.
     const arranged = new Set(arrangement.factories.map((factory) => factory.factoryId));
-    const spotNames = {
-      item: (item: string) => this.names.item(item),
-      building: (name: string) => this.names.building(name),
-      extractorForm: (name: string) => this.names.extractorForm(name),
-      fluidColour: (item: string) => this.names.fluidColour(item),
-      ownerOf: this.ownerOf(),
-    };
+    const nodeNames = spotNames(this.names, this.ownerOf());
     for (const spot of arrangement.ways ?? [])
-      for (const way of joinedWays([spot], arrangement.belts, arranged, spotNames)) {
+      for (const way of joinedWays([spot], arrangement.belts, arranged, nodeNames)) {
         const line = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints(
             [...way.points, ...way.links.flatMap((link) => [...[...link].reverse(), ...link])].map(
@@ -320,7 +315,7 @@ export class BeltFloor3d {
         this.content.add(line);
 
         // At a miner or extractor, its drum, as inside the area (asked 2026-11-19); elsewhere a dot (asked 2026-11-25).
-        const mark = wayMark(spot, arrangement.belts, spotNames);
+        const mark = wayMark(spot, arrangement.belts, nodeNames);
         if (mark) {
           const drum = this.mark(mark, middle);
           // At the height the way starts at, as built.
@@ -391,7 +386,7 @@ export class BeltFloor3d {
     // miner red, an extractor in the colour of its fluid; lit from within, as the splitters and mergers. Where it starts
     // or ends at a station, a drone port or machines, a dot in the colour the map gives it (asked 2026-11-25).
     for (const belt of arrangement.belts) {
-      const mark = spotMark(belt, arranged, spotNames);
+      const mark = spotMark(belt, arranged, nodeNames);
       if (!mark) continue;
       const [at, level] =
         mark.end === 'start'

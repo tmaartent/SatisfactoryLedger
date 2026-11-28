@@ -82,6 +82,7 @@ import {
   relatedFactories,
   jointColours,
   spotMark,
+  spotNames,
   wayMark,
   pickedAlone,
   SolverTime,
@@ -962,13 +963,7 @@ export class ArrangementPage {
     const factories = new Set(arrangement.factories.map((factory) => factory.factoryId));
     // Spots whose existing belt comes into the area: the yellow circle stands where it comes in, drawn with the way.
     const comingIn = new Set(arrangement.ways.map((way) => way.spotId));
-    const spotNames = {
-      item: (item: string) => this.names.item(item),
-      building: (name: string) => this.names.building(name),
-      extractorForm: (name: string) => this.names.extractorForm(name),
-      fluidColour: (item: string) => this.names.fluidColour(item),
-      ownerOf: this.ownerOf(),
-    };
+    const nodeNames = spotNames(this.names, this.ownerOf());
     const shown = suppliedBelts(arrangement.belts, focused);
     for (const belt of arrangement.belts) {
       const picked = focused.size > 0 && shown.has(belt);
@@ -997,7 +992,7 @@ export class ArrangementPage {
         ...(belt.startsOnBelt ? [] : [line[0]]),
         ...(belt.endsOnBelt ? [] : [line[line.length - 1]]),
       ];
-      const mark = spotMark(belt, factories, spotNames);
+      const mark = spotMark(belt, factories, nodeNames);
       for (const lift of lifts) {
         const atSpot = lift === spot;
         if (atSpot && mark?.kind === 'station')
@@ -1052,7 +1047,7 @@ export class ArrangementPage {
     // its circle, as inside the area (asked 2026-11-19). With factories picked, those lit with the belts joining them, so
     // a source outside the area shows where the line starts (step 106).
     for (const spot of arrangement.ways)
-      for (const way of joinedWays([spot], arrangement.belts, factories, spotNames)) {
+      for (const way of joinedWays([spot], arrangement.belts, factories, nodeNames)) {
         const colour = factoryColour(traces, way.factory) ?? '#e0e0e0';
         const dimmed = !way.joining.some((belt) => shown.has(belt));
         const weight = focused.size > 0 && !dimmed ? 3 : 1.5;
@@ -1086,7 +1081,7 @@ export class ArrangementPage {
           opacity: dimmed ? 0.25 : 1,
           interactive: false,
         }).addTo(this.beltLayer);
-        const mark = wayMark(spot, arrangement.belts, spotNames);
+        const mark = wayMark(spot, arrangement.belts, nodeNames);
         if (mark)
           L.circleMarker(toMapPoint({ ...mark.at, z: 0 }), {
             radius: 5,
