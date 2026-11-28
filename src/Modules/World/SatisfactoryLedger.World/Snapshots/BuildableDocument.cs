@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using SatisfactoryLedger.SharedKernel;
 using SatisfactoryLedger.World.Domain;
@@ -40,6 +41,21 @@ internal sealed record BuildableDocument(
     int? LooseEnds = null,
     string? PumpsInto = null)
 {
+    /// <summary>What it does in the analysis, as the save-file adapter decides it from its class: derived on read, not stored.</summary>
+    [JsonIgnore]
+    public BuildableKind BuildableKind => GameClasses.KindOf(ClassName);
+
+    /// <summary>
+    /// A generator (BR-A8): it burns fuel. Geothermal burns nothing. By its kind alone: snapshots from before generators
+    /// were copied (version 7) aren't supported (decided 2026-11-28).
+    /// </summary>
+    [JsonIgnore]
+    public bool IsGenerator => BuildableKind == BuildableKind.Generator;
+
+    /// <summary>What a factory's machines can be (BR-W2): a machine, or a generator (decided 2026-11-11). Sinks, uploaders and stations can't.</summary>
+    [JsonIgnore]
+    public bool IsMachineOrGenerator => Role == BuildableDocumentRole.Machine || IsGenerator;
+
     /// <param name="fluids">The fluids the Catalog knows: the save counts them in litres in a machine, the snapshot in cubic metres.</param>
     public static BuildableDocument From(SavedBuildable saved, IReadOnlySet<string> fluids) => FromKind(saved) with
     {
@@ -101,7 +117,7 @@ internal sealed record BuildableDocument(
             {
                 InputStock = InputStockOf(),
                 Inventory = TakesLeftoversOnly ? catalog.Depot : InventoryOf(catalog),
-                IsGenerator = catalog.Generators.ContainsKey(ClassName),
+                IsGenerator = IsGenerator,
             },
             BuildableDocumentRole.Logistics => new Logistics(
                 id,

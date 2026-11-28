@@ -18,36 +18,37 @@ internal static class GameClasses
         "Build_OilPump_C", "Build_WaterPump_C", "Build_FrackingExtractor_C",
     ];
 
-    /// <summary>Generators that burn fuel (BR-A8): the Catalog knows their burn rates. Geothermal burns nothing.</summary>
-    private static readonly HashSet<string> Generators =
-    [
-        "Build_GeneratorCoal_C", "Build_GeneratorFuel_C", "Build_GeneratorNuclear_C", "Build_GeneratorBiomass_Automated_C",
-    ];
-
-    public static bool IsGenerator(string className) => Generators.Contains(className);
-
-    /// <summary>A dimensional depot uploader: takes only what's left over (BR-A8).</summary>
-    public static bool IsUploader(string className) => className == "Build_CentralStorage_C";
-
-    private static readonly HashSet<string> Consumers =
-    [
-        "Build_ResourceSink_C", "Build_CentralStorage_C",
-        "Build_GeneratorCoal_C", "Build_GeneratorFuel_C", "Build_GeneratorNuclear_C",
-        "Build_GeneratorBiomass_Automated_C", "Build_AlienPowerBuilding_C", "Build_Portal_C",
-    ];
-
     /// <summary>
-    /// Stations, with the inventory that holds what they unload. Whether one unloads or loads, its ports decide
-    /// (BR-W1, BR-W8): a drone port keeps what drones brought apart from what it sends and its fuel.
+    /// What each class does in the analysis (decided 2026-11-28): the one place a class name decides it. Belts, lifts
+    /// and pipes go by their logistics kind; every other class is <see cref="BuildableKind.Other"/>.
     /// </summary>
-    private static readonly Dictionary<string, string> Stations = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, BuildableKind> Kinds = new(StringComparer.Ordinal)
     {
-        ["Build_TrainDockingStation_C"] = "inventory",
-        ["Build_TrainDockingStationLiquid_C"] = "inventory",
-        ["Build_TruckStation_C"] = "inventory",
-        ["Build_FluidTruckStation_C"] = "inventory",
-        ["Build_DroneStation_C"] = "OutputInventory",
+        ["Build_ResourceSink_C"] = BuildableKind.Sink,
+        ["Build_Portal_C"] = BuildableKind.EndConsumer,
+        ["Build_AlienPowerBuilding_C"] = BuildableKind.EndConsumer,
+        ["Build_CentralStorage_C"] = BuildableKind.Uploader,
+        ["Build_TrainDockingStation_C"] = BuildableKind.Station,
+        ["Build_TrainDockingStationLiquid_C"] = BuildableKind.Station,
+        ["Build_TruckStation_C"] = BuildableKind.Station,
+        ["Build_FluidTruckStation_C"] = BuildableKind.Station,
+        ["Build_DroneStation_C"] = BuildableKind.Station,
+        // Generators that burn fuel (BR-A8): the Catalog knows their burn rates. Geothermal burns nothing.
+        ["Build_GeneratorCoal_C"] = BuildableKind.Generator,
+        ["Build_GeneratorFuel_C"] = BuildableKind.Generator,
+        ["Build_GeneratorNuclear_C"] = BuildableKind.Generator,
+        ["Build_GeneratorBiomass_Automated_C"] = BuildableKind.Generator,
     };
+
+    /// <summary>What a class does in the analysis: what every reader past this adapter asks instead of its name.</summary>
+    public static BuildableKind KindOf(string className) =>
+        Kinds.TryGetValue(className, out BuildableKind kind) ? kind
+        : TryLogisticsKindOf(className) switch
+        {
+            LogisticsKind.Belt or LogisticsKind.Lift => BuildableKind.BeltOrLift,
+            LogisticsKind.Pipe => BuildableKind.Pipe,
+            _ => BuildableKind.Other,
+        };
 
     /// <summary>Known, in the item network, but not modelled yet. None at the moment.</summary>
     private static readonly HashSet<string> Unsupported = [];
@@ -67,12 +68,13 @@ internal static class GameClasses
             return BuildableRole.Provider;
         }
 
-        if (Consumers.Contains(className))
+        BuildableKind kind = KindOf(className);
+        if (kind is BuildableKind.Sink or BuildableKind.EndConsumer or BuildableKind.Uploader or BuildableKind.Generator)
         {
             return BuildableRole.Consumer;
         }
 
-        if (Stations.ContainsKey(className))
+        if (kind == BuildableKind.Station)
         {
             return BuildableRole.Station;
         }
@@ -87,10 +89,12 @@ internal static class GameClasses
 
     /// <summary>
     /// The inventory component that holds what a buildable can supply: a station's cargo, a storage container's content.
-    /// Null for everything else. Fluid buffers keep their fluid elsewhere, and it isn't read yet.
+    /// Null for everything else. Fluid buffers keep their fluid elsewhere, and it isn't read yet. Whether a station
+    /// unloads or loads, its ports decide (BR-W1, BR-W8): a drone port keeps what drones brought apart from what it sends
+    /// and its fuel.
     /// </summary>
     public static string? StockInventoryOf(string className) =>
-        Stations.TryGetValue(className, out string? inventory) ? inventory
+        KindOf(className) == BuildableKind.Station ? (IsDronePort(className) ? "OutputInventory" : "inventory")
         : className.StartsWith("Build_StorageContainer", StringComparison.Ordinal) ? "StorageInventory"
         : null;
 

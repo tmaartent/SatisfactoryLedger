@@ -68,6 +68,7 @@ public static class SaveFileReader
             var id = BuildableId.Of(actor.ObjectReference.PathName);
             List<(string Path, string Port, string? LinkedTo)> ports = PortsOf(actor, byPath);
             BuildableRole role = GameClasses.RoleOf(className);
+            BuildableKind kind = GameClasses.KindOf(className);
             bool linked = ports.Any(port => port.LinkedTo is not null);
             // Only for stations: an unknown building may have ports the adapter can't give a direction.
             bool unloads = role is BuildableRole.Station
@@ -91,10 +92,10 @@ public static class SaveFileReader
                 {
                     // BR-A8: a generator burns the fuel in it; the save names it, and leaves it out when the slot is empty.
                     Fuel = ShortNameOrNull(ObjectPath(actor, "mCurrentFuelClass")),
-                    ClockSpeed = GameClasses.IsGenerator(className) ? ClockSpeedOf(actor) : null,
-                    TakesLeftoversOnly = GameClasses.IsUploader(className),
+                    ClockSpeed = kind == BuildableKind.Generator ? ClockSpeedOf(actor) : null,
+                    TakesLeftoversOnly = kind == BuildableKind.Uploader,
                     // BR-A17: what it holds of its fuel; a stock that lasts counts as supplied.
-                    FuelContents = GameClasses.IsGenerator(className) ? InventoryOf(actor, "mFuelInventory", byPath) : null,
+                    FuelContents = kind == BuildableKind.Generator ? InventoryOf(actor, "mFuelInventory", byPath) : null,
                 },
                 // BR-W1, BR-W8: belts leaving a station's outputs make it unload; belts into its inputs only, load.
                 BuildableRole.Station when unloads => new SavedProvider(id, className, Node: null, ClockSpeed.Percent(100))

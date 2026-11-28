@@ -356,10 +356,11 @@ const stationColour = '#37474f';
 const undefinedColour = '#90a4ae';
 
 /** The stations and drone ports, which a belt goes down to at their spot, as the arrangement counts them. */
-const stationClasses = new Set([
+export const stationClasses: ReadonlySet<string> = new Set([
   'Build_TrainDockingStation_C',
   'Build_TrainDockingStationLiquid_C',
   'Build_TruckStation_C',
+  'Build_FluidTruckStation_C',
   'Build_DroneStation_C',
 ]);
 

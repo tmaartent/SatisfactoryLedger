@@ -27,6 +27,7 @@ public class GameClassesTests
     [InlineData("Build_TrainDockingStation_C")]
     [InlineData("Build_TrainDockingStationLiquid_C")]
     [InlineData("Build_TruckStation_C")]
+    [InlineData("Build_FluidTruckStation_C")]
     [InlineData("Build_DroneStation_C")]
     public void Platforms_drone_ports_and_truck_stations_are_stations(string className)
     {
@@ -98,10 +99,33 @@ public class GameClassesTests
         Assert.Equal(Enum.Parse<Port>(expected), GameClasses.DirectionOf("FGPipeConnectionFactory", className));
     }
 
-    [Fact]
-    public void A_dimensional_depot_uploader_takes_only_what_is_left_over()
+    // What a buildable does in the analysis, decided here once (decided 2026-11-28): every reader asks the kind.
+    [Theory]
+    [InlineData("Build_ResourceSink_C", "Sink")]
+    [InlineData("Build_Portal_C", "EndConsumer")]
+    [InlineData("Build_AlienPowerBuilding_C", "EndConsumer")]
+    [InlineData("Build_CentralStorage_C", "Uploader")]
+    [InlineData("Build_TrainDockingStation_C", "Station")]
+    [InlineData("Build_TrainDockingStationLiquid_C", "Station")]
+    [InlineData("Build_TruckStation_C", "Station")]
+    [InlineData("Build_FluidTruckStation_C", "Station")]
+    [InlineData("Build_DroneStation_C", "Station")]
+    [InlineData("Build_GeneratorCoal_C", "Generator")]
+    [InlineData("Build_GeneratorFuel_C", "Generator")]
+    [InlineData("Build_GeneratorNuclear_C", "Generator")]
+    [InlineData("Build_GeneratorBiomass_Automated_C", "Generator")]
+    // Geothermal burns nothing (BR-A8): no generator.
+    [InlineData("Build_GeneratorGeoThermal_C", "Other")]
+    [InlineData("Build_ConveyorBeltMk6_C", "BeltOrLift")]
+    [InlineData("Build_ConveyorLiftMk1_C", "BeltOrLift")]
+    [InlineData("Build_Pipeline_C", "Pipe")]
+    [InlineData("Build_PipelineMK2_NoIndicator_C", "Pipe")]
+    // A pipe support carries nothing, though its name starts like a pipe's.
+    [InlineData("Build_PipelineSupport_C", "Other")]
+    [InlineData("Build_SmelterMk1_C", "Other")]
+    [InlineData("Build_StorageContainerMk2_C", "Other")]
+    public void Each_class_has_its_kind(string className, string kind)
     {
-        Assert.True(GameClasses.IsUploader("Build_CentralStorage_C"));
-        Assert.False(GameClasses.IsUploader("Build_ResourceSink_C"));
+        Assert.Equal(Enum.Parse<BuildableKind>(kind), GameClasses.KindOf(className));
     }
 }

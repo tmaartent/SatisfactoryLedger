@@ -5,6 +5,7 @@ using SatisfactoryLedger.World.Domain;
 using SatisfactoryLedger.World.Domain.Arrangement;
 using SatisfactoryLedger.World.Domain.Tracing;
 using SatisfactoryLedger.World.Factories;
+using SatisfactoryLedger.World.SaveFile;
 using SatisfactoryLedger.World.Snapshots;
 
 namespace SatisfactoryLedger.World.Arrangement;
@@ -36,11 +37,6 @@ namespace SatisfactoryLedger.World.Arrangement;
 /// </summary>
 internal static class WorldArrangement
 {
-    /// <summary>What stays where it is and takes its space: the stations' classes.</summary>
-    private static readonly HashSet<string> Stations = new(
-        ["Build_TrainDockingStation_C", "Build_TrainDockingStationLiquid_C", "Build_TruckStation_C", "Build_DroneStation_C"],
-        StringComparer.Ordinal);
-
     public static MadeArrangement Of(
         SnapshotDocument snapshot, AnalysisDocument analysis, IReadOnlyList<StoredFactory> factories, ArrangementSettings settings) =>
         Make(snapshot, analysis, factories, settings);
@@ -273,7 +269,7 @@ internal static class WorldArrangement
         }
 
         // Every station keeps its plots, whether or not it feeds a factory.
-        foreach (BuildableDocument station in snapshot.Buildables.Where(buildable => Stations.Contains(buildable.ClassName) && buildable.Position is not null))
+        foreach (BuildableDocument station in snapshot.Buildables.Where(buildable => buildable.BuildableKind == BuildableKind.Station && buildable.Position is not null))
         {
             fixedPlaces[station.Id] = new FixedPlace(station.Id, grid.PlotsTouching([.. Outline(station, footprints)]), Blocks: true);
         }
@@ -412,7 +408,7 @@ internal static class WorldArrangement
 
         // A node's extractor, or a station or drone port: what a belt may go down to at its spot.
         bool IsSpot(string id) => world.Find(BuildableId.Of(id)) is Provider || IsStation(id);
-        bool IsStation(string id) => buildables.GetValueOrDefault(id) is { } building && Stations.Contains(building.ClassName);
+        bool IsStation(string id) => buildables.GetValueOrDefault(id) is { BuildableKind: BuildableKind.Station };
     }
 
     /// <summary>Whether an outline's middle is inside the area.</summary>
@@ -469,9 +465,8 @@ internal static class WorldArrangement
     /// <summary>The top belt's and the top pipe's capacity per minute among the tiers the snapshot knows.</summary>
     private static (double Belt, double Pipe) TopCapacities(SnapshotDocument snapshot)
     {
-        static bool IsPipe(TransportTierDocument tier) => tier.Id.Contains("Pipeline", StringComparison.Ordinal);
-        double belt = snapshot.TransportTiers.Where(tier => !IsPipe(tier)).Select(tier => (double)tier.CapacityPerMinute).DefaultIfEmpty(1200).Max();
-        double pipe = snapshot.TransportTiers.Where(IsPipe).Select(tier => (double)tier.CapacityPerMinute).DefaultIfEmpty(600).Max();
+        double belt = snapshot.TransportTiers.Where(tier => tier.BuildableKind == BuildableKind.BeltOrLift).Select(tier => (double)tier.CapacityPerMinute).DefaultIfEmpty(1200).Max();
+        double pipe = snapshot.TransportTiers.Where(tier => tier.BuildableKind == BuildableKind.Pipe).Select(tier => (double)tier.CapacityPerMinute).DefaultIfEmpty(600).Max();
         return (belt, pipe);
     }
 }

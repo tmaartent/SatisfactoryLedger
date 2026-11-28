@@ -19,6 +19,9 @@ A production machine type that runs a recipe: Smelter, Constructor, Assembler, R
 **Transport Tier**:
 A belt or lift (Mk.1–Mk.6), or a pipe (Mk.1–Mk.2 and their *clean* variants), with its maximum throughput. A lift carries as much as the belt of its mark, a clean pipeline as much as the pipeline of its mark.
 
+**Belt or lift / Pipe** (of a transport tier):
+What a tier carries: a belt or lift solids, a pipe fluids. A link between factories is weighed by the top tier of the one its item needs (BR-O1).
+
 **Resource Node**:
 A spot on the map where a resource can be extracted, with its **purity** and position, named as the game and the save name it (ADR-0015). A resource well's satellite nodes are resource nodes of their own kind.
 
@@ -91,14 +94,24 @@ A building that brings items into the network from outside: an extractor, or a t
 **Consumer**:
 A building that takes items out of the network: an AWESOME Sink, the dimensional depot uploader, a generator, a station that loads. Never part of a factory (BR-W8), except a generator chosen as one of its machines (BR-W2).
 
+**Sink**:
+A consumer where what reaches it leaves the network for good: in a factory's handovers it counts as **sunk** (BR-A18). The AWESOME Sink is the game's.
+
+**End Consumer**:
+A consumer that takes items to run and gives nothing back to the network; in a factory's handovers what reaches it is shown by building (BR-A18).
+_Avoid_: uses up, consumer by building
+
+**Uploader**:
+A consumer that takes only what the line's other consumers leave (BR-A8), and stores it: the dimensional depot uploader.
+
 **Generator**:
-A consumer that makes power by burning a fuel: coal, fuel, biomass or nuclear (ADR-0021). With a known fuel it takes its **burn rate**, water if it needs any, and leaves its **byproduct** (BR-A8); as one of a factory's machines, its **power** counts as the factory's (BR-A15).
+A consumer that makes power by burning a fuel, and whose burn rate the Catalog knows (ADR-0021, BR-A8); one that burns nothing, as geothermal, isn't one. Defined once: it's what can be one of a factory's machines (BR-W2) and what has known rates in the flow. With a known fuel it takes its **burn rate**, water if it needs any, and leaves its **byproduct** (BR-A8); as one of a factory's machines, its **power** counts as the factory's (BR-A15).
 
 **Burn rate**:
 How much fuel a generator burns a minute at full power: its power ÷ the fuel's energy, × 60. For a drone port, what the drones refuelling there burn a minute, from their latest trips (BR-A16).
 
 **Station**:
-A train platform, fluid platform, drone port or truck station. Belts leaving its outputs make it unload, as a provider of unknown rate; belts into its inputs make it load, as a consumer (BR-W1, BR-W8).
+A building vehicles load and unload at. Belts or pipes leaving its outputs make it unload, as a provider of unknown rate; belts or pipes into its inputs make it load, as a consumer (BR-W1, BR-W8). In an arrangement it stays where it is, keeping its plots, and it's a spot its belts or pipes go down to (BR-O1, BR-O2).
 
 **Logistics**:
 Everything that moves items between buildings without changing them: belts, lifts, pipes, splitters, mergers, storage containers, fluid buffers. A belt, lift or pipe has a **capacity** from its tier.
@@ -198,7 +211,7 @@ What crosses a factory's inputs and outputs, per item: on the inputs, what arriv
 Where some of what a factory takes in comes from: another factory, machines of no factory, a building on its own, or nowhere (BR-A19). *Comes from* on the factory page.
 
 **Destination** (of an output):
-Where some of a factory's output ends up: another factory, machines of no factory, an AWESOME Sink, a consumer by building, storage and stations, or nowhere (BR-A18).
+Where some of a factory's output ends up: another factory, machines of no factory, a sink, an end consumer, storage and stations, or nowhere (BR-A18).
 
 **Receivers' Need**:
 What the machines and generators a factory's outputs reach would take of an item at 100%, from whatever source (BR-A18).
