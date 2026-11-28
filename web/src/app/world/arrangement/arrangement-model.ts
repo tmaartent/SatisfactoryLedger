@@ -7,7 +7,7 @@ import { WorldRectangle } from '../../api/models/world-rectangle';
 import { perMinute } from '../../shared/display';
 import { FootprintDocument } from '../../api/models/footprint-document';
 import { buildingBoxes } from '../area/area-model';
-import { fromMapPoint, toMapPoint } from '../map/map-model';
+import { toMapPoint } from '../map/map-model';
 
 /** A rectangle of the world as two opposite corners on the map, as the map places buildings. */
 export function mapBounds(rectangle: WorldRectangle): [[number, number], [number, number]] {
@@ -168,17 +168,6 @@ export function areaFromQuery(
   if (corners.some((corner) => !Number.isFinite(corner))) return null;
   const [cx0, cy0, cx1, cy1] = corners;
   return { x0: cx0, y0: cy0, x1: cx1, y1: cy1 };
-}
-
-/** The area to arrange from two corners dragged on the map, in the game's centimetres, whichever way it was dragged. */
-export function areaBetween(a: [number, number], b: [number, number]): WorldRectangle {
-  const [p, q] = [fromMapPoint(a[0], a[1]), fromMapPoint(b[0], b[1])];
-  return {
-    x0: Math.min(p.x, q.x),
-    y0: Math.min(p.y, q.y),
-    x1: Math.max(p.x, q.x),
-    y1: Math.max(p.y, q.y),
-  };
 }
 
 /** A foundation is 8 by 8 metres: players lay out plots and roads in foundations. */

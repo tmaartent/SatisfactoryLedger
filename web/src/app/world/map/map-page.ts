@@ -44,8 +44,7 @@ import { CatalogNames } from '../../shared/catalog-names';
 import { perMinute, percent, positionInMetres } from '../../shared/display';
 import { problemMessage, whenAnalysed } from '../../shared/problem';
 import { runSummary } from '../arrangement/arrangement-model';
-import { Area, areaBetween } from '../area/area-model';
-import { AreaSelection } from './area-selection';
+import { AreaDrag, AreaSelection } from './area-selection';
 import { OutlinedFactory, factoryColour, machineOwners } from '../area/factory-outlines';
 import {
   MachineStatus,
@@ -58,7 +57,6 @@ import {
   describePipeFlow,
   shortOfHeadLift,
   escapeHtml,
-  fromMapPoint,
   locate,
   buildingsShown,
   iconTag,
@@ -88,6 +86,8 @@ const GridStep = 1000;
 const GridExtent = { from: -5000, to: 5000 };
 /** How far out the map zooms without the map picture: the whole grid. */
 const MinZoom = -4;
+/** The least a side of an area drawn to open, in the game's centimetres: a smaller drag is a click. */
+const SmallestArea = 200;
 
 /**
  * The world map of a snapshot: its machines by how they run, its belts and pipes as built with the bottlenecks red,
@@ -177,23 +177,36 @@ export class MapPage {
   /** Whether the legend is unfolded: on a phone it's folded behind a button, as it covers the map (asked 2026-11-24). */
   protected readonly legendOpen = signal(false);
   /**
+   * A drag with a key held draws a rectangle, and letting go opens what's inside it: with shift, in 3D (asked
+   * 2026-11-23, as defining a factory in 3D does; it was a button); with ctrl (or ⌘ on a Mac), in the optimal
+   * arrangement (asked 2026-11-23). Down to 200 cm a side: smaller is a click.
+   */
+  private readonly areaDrag = new AreaDrag<'3d' | 'arrangement'>({
+    minimum: SmallestArea,
+    kindOf: (press) => {
+      if (!this.id()) return null;
+      if (press.shiftKey) return '3d';
+      return press.ctrlKey || press.metaKey ? 'arrangement' : null;
+    },
+    style: (kind) => ({ color: dragColours[kind], weight: 2, fillOpacity: 0.1 }),
+    drawn: (kind, area) => {
+      const page = kind === 'arrangement' ? 'arrangement' : 'area';
+      void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
+    },
+  });
+  /**
    * Drawing a rectangle, to open in 3D (shift held) or to arrange its factories (ctrl held): the map stops panning, and
    * a drag draws instead. Null while not drawing.
    */
-  protected readonly drawing = signal<'3d' | 'arrangement' | null>(null);
+  protected readonly drawing = this.areaDrag.drawing;
   /** Selecting an area on a touch screen, with no keys to hold (asked 2026-11-24, ADR-0033). */
-  protected readonly selection = new AreaSelection(
-    ({ from, to }) => {
-      const area = toArea(from, to);
-      return area.x1 - area.x0 >= 200 && area.y1 - area.y0 >= 200;
-    },
-    { color: '#ffeb3b', weight: 2, fillOpacity: 0.1 },
-  );
-  /** The area selected, once let go: to open in 3D or to arrange. */
-  protected readonly selected = computed(() => {
-    const drawn = this.selection.drawn();
-    return drawn ? toArea(drawn.from, drawn.to) : null;
+  protected readonly selection = new AreaSelection(SmallestArea, {
+    color: '#ffeb3b',
+    weight: 2,
+    fillOpacity: 0.1,
   });
+  /** The area selected, once let go: to open in 3D or to arrange. */
+  protected readonly selected = this.selection.drawn;
 
   private readonly statuses = computed(() => machineStatuses(loaded(this.analysis)?.machines));
   /** Generators burning a known fuel, by id (BR-A15): coloured by how they run, like machines. */
@@ -332,7 +345,7 @@ export class MapPage {
       crs: L.CRS.Simple,
       preferCanvas: true,
       minZoom: MinZoom,
-      // Shift and drag draws an area to see in 3D (listenForArea), not a box to zoom to.
+      // Shift and drag draws an area to see in 3D (areaDrag), not a box to zoom to.
       boxZoom: false,
       maxZoom: 3,
       zoomSnap: 0.25,
@@ -373,7 +386,7 @@ export class MapPage {
     this.focusLayer.addTo(this.map);
     this.map.setView([0, 0], -3);
     sizeNodes();
-    this.listenForArea(this.map);
+    this.areaDrag.attach(this.map);
     this.selection.attach(this.map);
     this.map.on('mousemove', (event: L.LeafletMouseEvent) =>
       this.pointer.set(
@@ -432,68 +445,6 @@ export class MapPage {
     if (!area) return;
     this.selection.toggle();
     void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
-  }
-
-  /** Stops drawing an area: the map pans again on a drag. */
-  private stopDrawing(): void {
-    this.drawing.set(null);
-    this.map?.dragging.enable();
-  }
-
-  /**
-   * A drag with a key held draws a rectangle, and letting go opens what's inside it: with shift, in 3D (asked
-   * 2026-11-23, as defining a factory in 3D does; it was a button); with ctrl (or ⌘ on a Mac), in the optimal
-   * arrangement (asked 2026-11-23). The map listens in the capture phase, so it hears the press before Leaflet's panning
-   * does, and can switch the panning off in time. Leaflet's own shift-drag, zooming to a box, is off.
-   */
-  private listenForArea(map: L.Map): void {
-    let start: L.LatLng | null = null;
-    let rectangle: L.Rectangle | null = null;
-    // What the drag opens, kept from its start: letting go ends drawing before Leaflet's mouseup comes.
-    let opens: '3d' | 'arrangement' | null = null;
-    map.getContainer().addEventListener(
-      'pointerdown',
-      (event) => {
-        const kind = event.shiftKey ? '3d' : event.ctrlKey || event.metaKey ? 'arrangement' : null;
-        if (!this.id() || !kind || event.button !== 0) return;
-        this.drawing.set(kind);
-        map.dragging.disable();
-      },
-      { capture: true },
-    );
-    // However the press ends, panning comes back: a press on a resource node's pin never reaches the map's mousedown.
-    map.getContainer().addEventListener('pointerup', () => {
-      if (this.drawing()) this.stopDrawing();
-    });
-    map.on('mousedown', (event: L.LeafletMouseEvent) => {
-      const kind = this.drawing();
-      if (!kind) return;
-      opens = kind;
-      start = event.latlng;
-      rectangle = L.rectangle(L.latLngBounds(start, start), {
-        color: dragColours[kind],
-        weight: 2,
-        fillOpacity: 0.1,
-        interactive: false,
-      }).addTo(map);
-    });
-    map.on('mousemove', (event: L.LeafletMouseEvent) => {
-      if (start && rectangle) rectangle.setBounds(L.latLngBounds(start, event.latlng));
-    });
-    map.on('mouseup', (event: L.LeafletMouseEvent) => {
-      if (!start) return;
-      const area = areaBetween(
-        fromMapPoint(start.lat, start.lng),
-        fromMapPoint(event.latlng.lat, event.latlng.lng),
-      );
-      const page = opens === 'arrangement' ? 'arrangement' : 'area';
-      rectangle?.remove();
-      [start, rectangle, opens] = [null, null, null];
-      this.stopDrawing();
-      // A click without a drag draws nothing.
-      if (area.x1 - area.x0 < 200 || area.y1 - area.y0 < 200) return;
-      void this.router.navigate(['/snapshots', this.id(), page], { queryParams: area });
-    });
   }
 
   /** A building as the ground it covers, or a dot without a footprint: as the optimal arrangement draws it (buildingShape). */
@@ -994,11 +945,6 @@ export class MapPage {
     this.fitted = true;
     this.shapes.get(id)?.openTooltip(point);
   }
-}
-
-/** The area between two corners on the map, in the world's centimetres. */
-function toArea(from: L.LatLng, to: L.LatLng): Area {
-  return areaBetween(fromMapPoint(from.lat, from.lng), fromMapPoint(to.lat, to.lng));
 }
 
 /** A touch screen: nothing hovers, as the stylesheets ask with `@media (hover: none)`. */

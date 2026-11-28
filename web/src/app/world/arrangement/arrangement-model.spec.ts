@@ -1,6 +1,5 @@
 import { ArrangementSummary } from '../../api/models/arrangement-summary';
 import {
-  areaBetween,
   beltLevels,
   jointArrows,
   floorDistance,
@@ -362,11 +361,6 @@ describe('optimal arrangement', () => {
 
   it('says nothing is saved when nothing was to save', () => {
     expect(saving(0, 0)).toBe('—');
-  });
-
-  it('makes the area to arrange from two corners dragged on the map, whichever way', () => {
-    // Map points are [-y, x] in metres: from (x 30 m, y 10 m) to (x 10 m, y 40 m).
-    expect(areaBetween([-10, 30], [-40, 10])).toEqual({ x0: 1000, y0: 1000, x1: 3000, y1: 4000 });
   });
 
   it('gives the ceiling of the belt floor in foundation heights of 4 metres', () => {
