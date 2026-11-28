@@ -51,7 +51,7 @@ internal static class SnapshotAnalysis
             id => members.Suppliers.Contains(BuildableId.Of(id)),
             // A drone port is never part of a factory (BR-W1, BR-W8); a generator is, when chosen as one of its machines.
             wholeWorld: false);
-        FactoryHandovers handovers = SnapshotHandovers.Of(snapshot, inSnapshot, traced, readings);
+        FactoryHandovers handovers = SnapshotHandovers.Of(inSnapshot, traced, readings);
         Dictionary<Guid, string> names = SnapshotHandovers.NamesOf(factory, factories);
 
         return new FactoryAnalysisResponse(

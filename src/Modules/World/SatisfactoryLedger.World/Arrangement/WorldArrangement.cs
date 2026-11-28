@@ -181,7 +181,7 @@ internal static class WorldArrangement
 
             // The sources of what the factory takes in, with the machines they start at. Rounded as the factory page
             // shows them, and left out when they round to nothing, as when the arrangement read the page's inputs (#54).
-            foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(snapshot, inSnapshot, factory, readings).Inputs)
+            foreach (IncomingItem input in readings is null ? [] : SnapshotHandovers.Of(inSnapshot, factory, readings).Inputs)
             {
                 string item = input.Item.Id;
                 foreach ((IncomingSource source, double perMinute) in SnapshotAnalysis.Shown(input.Sources, source => source.PerMinute))
