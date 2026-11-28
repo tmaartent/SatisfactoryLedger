@@ -196,6 +196,21 @@ public class BlockageTraceTests
     }
 
     [Fact]
+    public void A_generator_that_does_not_burn_the_item_is_nowhere_for_it_to_go()
+    {
+        // The coal plant burns coal and water: the plates reach it, but it takes none of them, as a machine wouldn't.
+        WorldGraph world = new TestWorld()
+            .Machine("plates", Items.IronIngot, 30, Items.IronPlate, 20).Belt("to plant").Generator("coal plant", Items.Coal, 15, Items.Water, 45)
+            .Connect("plates", "to plant", "coal plant").Build();
+        FlowReadings readings = new TestReadings().Blocked("plates", Items.IronPlate, 0).Running("coal plant").Build(world);
+
+        TraceStart start = Assert.Single(BlockageTrace.From(world, readings, Ids("plates")));
+
+        Assert.Equal((TraceCause.NowhereToGo, Items.IronPlate), (start.Cause, start.Item));
+        Assert.Equal(Ids("coal plant"), start.At);
+    }
+
+    [Fact]
     public void Too_few_consumers_counts_the_fuel_a_drone_port_burns()
     {
         WorldGraph world = new TestWorld()

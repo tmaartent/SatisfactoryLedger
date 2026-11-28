@@ -205,4 +205,35 @@ public class ShortageTraceTests
 
         Assert.Equal(7.5, Assert.Single(start.Path).PerMinute);
     }
+
+    [Fact]
+    public void A_generator_that_leaves_none_of_its_waste_is_not_where_the_waste_comes_from()
+    {
+        // The plant's fuel names a waste, but none of it leaves at its rate; iron plates stand in for what the waste becomes.
+        WorldGraph world = new TestWorld()
+            .Generator("plant", Items.UraniumFuelRod, 0.2m, Items.Water, 240, Items.UraniumWaste, 0).Belt("waste")
+            .Machine("reprocessor", Items.UraniumWaste, 10, Items.IronPlate, 1)
+            .Connect("plant", "waste", "reprocessor").Build();
+        FlowReadings readings = new TestReadings().Running("plant").Starved("reprocessor", Items.UraniumWaste, 0).Build(world);
+
+        TraceStart start = Single(ShortageTrace.From(world, readings, Ids("reprocessor")));
+
+        Assert.Equal(TraceCause.NothingBringsIt, start.Cause);
+        Assert.DoesNotContain(BuildableId.Of("plant"), start.At);
+    }
+
+    [Fact]
+    public void A_generator_that_leaves_its_waste_is_where_the_waste_comes_from()
+    {
+        WorldGraph world = new TestWorld()
+            .Generator("plant", Items.UraniumFuelRod, 0.2m, Items.Water, 240, Items.UraniumWaste, 10).Belt("waste")
+            .Machine("reprocessor", Items.UraniumWaste, 20, Items.IronPlate, 1)
+            .Connect("plant", "waste", "reprocessor").Build();
+        FlowReadings readings = new TestReadings().Running("plant").Starved("reprocessor", Items.UraniumWaste, 0.5).Into("waste", Items.UraniumWaste, 10).Build(world);
+
+        TraceStart start = Single(ShortageTrace.From(world, readings, Ids("reprocessor")));
+
+        Assert.Equal(TraceCause.TooFewProducers, start.Cause);
+        Assert.Equal(Ids("plant"), start.At);
+    }
 }
