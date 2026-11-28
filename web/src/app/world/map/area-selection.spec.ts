@@ -3,8 +3,8 @@ import { Area } from '../area/area-model';
 import { AreaDrag, AreaSelection } from './area-selection';
 
 /**
- * A map in the page at zoom 0, so a point on the screen is a metre on the map: (10, 20) on the screen is 1000 cm east,
- * 2000 cm south.
+ * A map in the page at zoom 0, so a point on the screen is a metre on the map: (10, 20) on the screen is x 1000 cm,
+ * y 2000 cm in the game's units.
  */
 function mapOnPage(): L.Map {
   const container = document.createElement('div');
