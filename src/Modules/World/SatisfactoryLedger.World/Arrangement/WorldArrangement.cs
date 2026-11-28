@@ -38,7 +38,7 @@ internal static class WorldArrangement
 {
     /// <summary>What stays where it is and takes its space: the stations' classes.</summary>
     private static readonly HashSet<string> Stations = new(
-        ["Build_TrainDockingStation_C", "Build_TrainDockingStationLiquid_C", "Build_TruckStation_C", "Build_DroneStation_C"],
+        ["Build_TrainDockingStation_C", "Build_TrainDockingStationLiquid_C", "Build_TruckStation_C", "Build_FluidTruckStation_C", "Build_DroneStation_C"],
         StringComparer.Ordinal);
 
     public static MadeArrangement Of(
