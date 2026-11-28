@@ -91,10 +91,10 @@ public static class SaveFileReader
                 {
                     // BR-A8: a generator burns the fuel in it; the save names it, and leaves it out when the slot is empty.
                     Fuel = ShortNameOrNull(ObjectPath(actor, "mCurrentFuelClass")),
-                    ClockSpeed = GameClasses.IsGenerator(className) ? ClockSpeedOf(actor) : null,
-                    TakesLeftoversOnly = GameClasses.IsUploader(className),
+                    ClockSpeed = GameClasses.KindOf(className) == BuildableKind.Generator ? ClockSpeedOf(actor) : null,
+                    TakesLeftoversOnly = GameClasses.KindOf(className) == BuildableKind.Uploader,
                     // BR-A17: what it holds of its fuel; a stock that lasts counts as supplied.
-                    FuelContents = GameClasses.IsGenerator(className) ? InventoryOf(actor, "mFuelInventory", byPath) : null,
+                    FuelContents = GameClasses.KindOf(className) == BuildableKind.Generator ? InventoryOf(actor, "mFuelInventory", byPath) : null,
                 },
                 // BR-W1, BR-W8: belts leaving a station's outputs make it unload; belts into its inputs only, load.
                 BuildableRole.Station when unloads => new SavedProvider(id, className, Node: null, ClockSpeed.Percent(100))
