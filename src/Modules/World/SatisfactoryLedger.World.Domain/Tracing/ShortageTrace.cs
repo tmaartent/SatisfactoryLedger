@@ -260,8 +260,9 @@ public static class ShortageTrace
                     }
 
                     return Source(machine.Produces.Contains(_item));
-                case Consumer { Generation.Byproduct: { } waste }:
-                    return Source(waste == _item);
+                // A generator makes its waste only when some leaves it at its rate.
+                case Consumer { Generation: not null } generator:
+                    return Source(generator.Produces.Contains(_item));
                 // A station could unload anything: it brings the item only if the analysis has it deliver some.
                 case Provider provider:
                     return Source(
