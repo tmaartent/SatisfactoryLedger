@@ -40,11 +40,36 @@ describe('factories in the 3D view', () => {
       ]);
     });
 
+    it('comes with the other factories that have the machine, by name', () => {
+      const owned = (factoryId: string, name: string) => ({
+        factoryId,
+        name,
+        machines: [{ id: 'smelter', owner: 'f1' }],
+      });
+
+      const smelter = machineOwners([
+        owned('f1', 'Iron plates'),
+        owned('f2', 'Smelting'),
+        owned('f3', 'Alloys'),
+      ]).get('smelter');
+
+      expect(smelter?.alsoIn.map((f) => f.name)).toEqual(['Alloys', 'Smelting']);
+    });
+
+    it('is never guessed: a trace naming an owner that has no such machine is an error', () => {
+      const plates = {
+        ...factory('f1', 'Iron plates'),
+        machines: [{ id: 'smelter', owner: 'gone' }],
+      };
+
+      expect(() => machineOwners([plates])).toThrow();
+    });
+
     it('is none for a machine no factory has', () => {
       expect(machineOwners([plates]).get('assembler')).toBeUndefined();
     });
 
-    it('is the one the world says, for a machine stored in more than one factory from before a machine had one at most', () => {
+    it('is the oldest, as the trace says, for a machine stored in more than one factory from before a machine had one at most', () => {
       const smelting = factory('f3', 'Smelting', 'smelter');
       const plates = {
         ...factory('f1', 'Iron plates', 'smelter', 'constructor'),

@@ -34,7 +34,8 @@ internal static class FactoryTraces
                     true,
                     [
                         .. members.Machines
-                            .Select(id => new MachineSummary(id.Id, buildables[id.Id].ClassName, buildables[id.Id].Recipe, inSnapshot.Owners[id]))
+                            .Select(id => (Machine: buildables[id.Id], Owner: inSnapshot.Owners[id]))
+                            .Select(found => new MachineSummary(found.Machine.Id, found.Machine.ClassName, found.Machine.Recipe, found.Owner))
                             .OrderBy(machine => machine.Id, StringComparer.Ordinal)
                     ],
                     members.Logistics.Count,

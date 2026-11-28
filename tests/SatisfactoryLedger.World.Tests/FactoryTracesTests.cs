@@ -42,7 +42,16 @@ public class FactoryTracesTests
         IReadOnlyList<FactoryTrace> traces = FactoryTraces.TraceAll(Document, [younger, oldest]);
 
         Assert.All(traces, trace => Assert.Equal(oldest.Id, trace.Machines.Single(machine => machine.Id == SmelterA).Owner));
-        Assert.Equal(oldest.Id, traces.Single(trace => trace.FactoryId == oldest.Id).Machines.Single(machine => machine.Id == SmelterB).Owner);
+    }
+
+    [Fact]
+    public void A_machine_only_one_factory_has_is_owned_by_that_factory()
+    {
+        StoredFactory plates = IronPlates();
+
+        FactoryTrace trace = Trace(Document, plates);
+
+        Assert.All(trace.Machines, machine => Assert.Equal(plates.Id, machine.Owner));
     }
 
     [Fact]

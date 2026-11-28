@@ -773,7 +773,10 @@ describe('the world map of a snapshot', () => {
   describe("a factory's building tapped on a touch screen", () => {
     // The Rubber factory owns the smelter.
     const owning = [
-      { ...factory('f-1', 'Rubber'), machines: [{ id: 'smelter-1' } as MachineSummary] },
+      {
+        ...factory('f-1', 'Rubber'),
+        machines: [{ id: 'smelter-1', owner: 'f-1' } as MachineSummary],
+      },
       factory('f-2', 'Plastic'),
     ];
     // A media query list as the browser gives it: Material's breakpoints listen to it too.

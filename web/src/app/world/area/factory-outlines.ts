@@ -37,31 +37,49 @@ function outlined(
   }));
 }
 
-/** Who a machine belongs to: its owner, and the other factories stored with it from before BR-W5, to show the overlap. */
+/**
+ * Who a machine belongs to: its owner, and the other factories stored with it from before BR-W5, by name, to show
+ * the overlap.
+ */
 export interface MachineOwner {
   owner: OutlinedFactory;
   alsoIn: OutlinedFactory[];
 }
 
-/** The owner of each machine some factory has, by machine id, as the back end says (BR-W5). */
+/**
+ * The owner of each machine some factory has, by machine id, as the trace says (BR-W5). The owner is always one of the
+ * factories that list the machine; a trace that names another is a bug, so it throws rather than guess.
+ */
 export function machineOwners(factories: readonly TracedFactory[]): Map<string, MachineOwner> {
   const outlinedFactories = outlined(factories);
   const byId = new Map(
     outlinedFactories.map(({ machines: _, ...factory }) => [factory.factoryId, factory]),
   );
+  const ownerOf = (machine: { id: string; owner: string }) => {
+    const owner = byId.get(machine.owner);
+    if (!owner)
+      throw new Error(`The owner ${machine.owner} of ${machine.id} isn't among the factories`);
+    return owner;
+  };
   const owners = new Map<string, MachineOwner>();
   for (const { machines, ...factory } of outlinedFactories) {
     for (const machine of machines) {
-      const owner = owners.get(machine.id) ?? {
-        owner: byId.get(machine.owner) ?? factory,
-        alsoIn: [],
-      };
+      const owner = owners.get(machine.id) ?? { owner: ownerOf(machine), alsoIn: [] };
       if (factory.factoryId !== owner.owner.factoryId) owner.alsoIn.push(factory);
       owners.set(machine.id, owner);
     }
   }
+  for (const { alsoIn } of owners.values()) alsoIn.sort(byName);
   return owners;
 }
+
+/** The factories a machine is in: its owner first, then the others by name. */
+export function factoriesOf({ owner, alsoIn }: MachineOwner): OutlinedFactory[] {
+  return [owner, ...alsoIn];
+}
+
+const byName = (one: { name: string }, other: { name: string }) =>
+  one.name.localeCompare(other.name);
 
 /** The factories with at least one machine among the buildings in the area, by name, for the legend. */
 export function factoriesInArea(
@@ -71,7 +89,7 @@ export function factoriesInArea(
   return outlined(factories)
     .filter((factory) => factory.machines.some((machine) => inArea.has(machine.id)))
     .map(({ machines: _, ...factory }) => factory)
-    .sort((one, other) => one.name.localeCompare(other.name));
+    .sort(byName);
 }
 
 /** The colour a factory's machines are outlined in, for the map's highlight; undefined when the world has no such factory. */
@@ -92,9 +110,7 @@ export function blockedMachines(
 ): Set<string> {
   return new Set(
     [...owners]
-      .filter(([, { owner, alsoIn }]) =>
-        [owner, ...alsoIn].some((factory) => factory.factoryId !== editing),
-      )
+      .filter(([, owner]) => factoriesOf(owner).some((factory) => factory.factoryId !== editing))
       .map(([id]) => id),
   );
 }

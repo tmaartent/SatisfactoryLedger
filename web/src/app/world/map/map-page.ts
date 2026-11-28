@@ -252,7 +252,7 @@ export class MapPage {
   private readonly highlighted = computed(
     () => buildingsShown(loaded(this.analysis), this.shownStatus()) ?? this.factoryMachines(),
   );
-  /** The factories each machine is in, with their colour: the same edges as in 3D. */
+  /** Who each machine belongs to, with the owner's colour: the same edges as in 3D. */
   private readonly owners = computed(() => machineOwners(loaded(this.factories) ?? []));
   /** The factories to choose from, by name, each with the colour its machines are outlined in. */
   protected readonly factoryOptions = computed(() => {
