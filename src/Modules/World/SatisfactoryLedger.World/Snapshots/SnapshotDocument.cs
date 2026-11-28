@@ -176,7 +176,8 @@ internal sealed record SnapshotDocument(
     /// 2026-11-11). Sinks, uploaders and stations can't.
     /// </summary>
     public bool IsMachineOrGenerator(BuildableDocument buildable) =>
-        buildable.Role == BuildableDocumentRole.Machine || buildable.IsGenerator(Generators ?? []);
+        buildable.Role == BuildableDocumentRole.Machine
+        || buildable.IsGenerator(className => (Generators ?? []).Any(generator => generator.Id == className));
 
     /// <summary>The world as a graph the domain can trace and analyse, with the rates the Catalog gave at import.</summary>
     public WorldGraph ToWorldGraph()
