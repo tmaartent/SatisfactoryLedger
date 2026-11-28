@@ -58,12 +58,8 @@ export interface FactoryMark {
 export interface BeltMark {
   /** Where it runs: its corners, heights, levels and lifts. */
   belt: RoutedBeltResponse;
+  /** Its factory's colour; between two, the one it leaves, on the map and in 3D (decided 2026-11-28). */
   colour: string;
-  /**
-   * Its colour in 3D: a belt between two factories in the colour of the one it goes to, where the map gives it the
-   * colour of the one it comes from (as it was before step 132; asked of the owner).
-   */
-  colourIn3d: string;
   tooltip: string;
   /** Drawn wider: it supplies a factory picked, or one picked makes it. */
   standsOut: boolean;
@@ -248,7 +244,6 @@ function beltMark(floor: Floor, belt: RoutedBeltResponse): BeltMark {
   return {
     belt,
     colour,
-    colourIn3d: colourOf(arranged.has(belt.to) ? belt.to : belt.from) ?? '#e0e0e0',
     tooltip: beltTooltip(belt, names.item),
     standsOut: focused.size > 0 && !faded,
     faded,

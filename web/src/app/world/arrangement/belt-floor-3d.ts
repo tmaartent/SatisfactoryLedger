@@ -373,7 +373,7 @@ export class BeltFloor3d {
 
     // The belts and pipes: each straight stretch a piece of its own, a flat box for a belt and a cylinder for a pipe,
     // with a joint at every corner; one mesh per belt and level, so pointing finds it and levels can be shown one by one.
-    floor.belts.forEach(({ belt, colourIn3d, tooltip }, i) => {
+    floor.belts.forEach(({ belt, colour, tooltip }, i) => {
       const stretches = beltStretches3d(belt, middle, ceilingMetres, arranged);
       const byLevel = new Map<number, THREE.BufferGeometry[]>();
       stretches.forEach(({ from, to, level }, j) => {
@@ -387,10 +387,7 @@ export class BeltFloor3d {
       const opacity = belt.pipe ? 0.75 : 1;
       for (const [level, geometries] of byLevel) {
         if (geometries.length === 0) continue;
-        const mesh = new THREE.Mesh(
-          mergeGeometries(geometries),
-          this.material(colourIn3d, opacity),
-        );
+        const mesh = new THREE.Mesh(mergeGeometries(geometries), this.material(colour, opacity));
         geometries.forEach((geometry) => geometry.dispose());
         mesh.userData['tooltip'] = tooltip;
         mesh.userData['belt'] = true;

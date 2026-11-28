@@ -205,7 +205,8 @@ describe('what the belt floor shows, flat and in 3D', () => {
       ]);
     });
 
-    it('between two factories, are flat in the colour of the one they come from and in 3D of the one they go to', () => {
+    it('between two factories, are in the colour of the one they leave, one colour for the map and 3D', () => {
+      // Decided by the owner, 2026-11-28: 3D gave them the colour of the factory they go to.
       const [, between] = beltFloor({
         arrangement: arrangement(),
         colourOf,
@@ -213,7 +214,20 @@ describe('what the belt floor shows, flat and in 3D', () => {
         focused: nothingPicked,
       }).belts;
 
-      expect([between.colour, between.colourIn3d]).toEqual(['#ff8a65', '#4db6ac']);
+      expect(between).toEqual({
+        belt: ingots,
+        colour: '#ff8a65',
+        tooltip: 'Iron Ingot · 240/min · level 1',
+        standsOut: false,
+        faded: false,
+        hidden: false,
+        fadedOn: expect.any(Function),
+        spot: null,
+        lifts: [
+          { at: { x: 2000, y: 0 }, colour: '#ff8a65', spot: null, ring: false },
+          { at: { x: 2000, y: 3000 }, colour: '#ff8a65', spot: null, ring: false },
+        ],
+      });
     });
 
     it('in 3D with levels picked, are hidden without a run on one, and faded on the levels not picked', () => {
