@@ -278,7 +278,7 @@ export type SourceKind = 'miner' | 'extractor' | 'station' | 'factory' | 'undefi
  * The catalog's names, with what extractors take and fluids' colours, and the factory a machine belongs to, with its
  * colour on the map: what a mark at a line's end needs.
  */
-interface NodeNames {
+export interface NodeNames {
   item: (item: string) => string;
   building: (className: string) => string;
   extractorForm: (className: string) => 'solid' | 'fluid' | null;
