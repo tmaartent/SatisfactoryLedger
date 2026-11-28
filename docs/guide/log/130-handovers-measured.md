@@ -1,10 +1,10 @@
-# Step 130 Â· The handovers measured, and their snapshot-wide parts read once
+# Step 130 · The handovers measured, and their snapshot-wide parts read once
 
 Card E of the architecture review of 2026-11-28 (`docs/architecture/reviews/2026-11-28.md`), spec #79. Measure first; change the code only if the per-factory handovers take more than about 0.5 s of making an arrangement problem (the owner's threshold, 2026-11-28). They took about 4.8 s, so the change was made. Branch `perf/handovers-per-snapshot`.
 
 ## Measured
 
-As step 120 did: curl against the running AppHost, world "Desert Start Cleaned" (72 factories, snapshot `01a21822-â€¦`), `GET /internal/world/arrangements/{run}/problem` for the whole world with default settings. A temporary `Stopwatch` around each factory's `SnapshotHandovers.Of(...).Inputs` in `WorldArrangement.Make` added up the handovers, a second one timed all of `Make`; neither was committed. Each factory's members were read before the handovers' stopwatch started, since `Make` needs them anyway. One run was made for it with `POST â€¦/snapshots/{id}/arrangements` (run `01a22260-bdab-7280-8cb3-22d85e6c2c2b`, approved by the owner). One warm-up call first, then three counted.
+As step 120 did: curl against the running AppHost, world "Desert Start Cleaned" (72 factories, snapshot `01a21822-…`), `GET /internal/world/arrangements/{run}/problem` for the whole world with default settings. A temporary `Stopwatch` around each factory's `SnapshotHandovers.Of(...).Inputs` in `WorldArrangement.Make` added up the handovers, a second one timed all of `Make`; neither was committed. Each factory's members were read before the handovers' stopwatch started, since `Make` needs them anyway. One run was made for it with `POST …/snapshots/{id}/arrangements` (run `01a22260-bdab-7280-8cb3-22d85e6c2c2b`, approved by the owner). One warm-up call first, then three counted.
 
 | Code | Handovers (s) | All of `Make` (s) | curl, with loading the snapshot (s) |
 |---|---|---|---|
@@ -26,7 +26,7 @@ Step 120's 8.4 to 8.9 s for the same call is now about 5.5 s. Card D and #84 (pi
   - `SnapshotFactories` gains the three properties above.
   - `SnapshotHandovers.Of` loses its `SnapshotDocument` parameter: everything it read from the snapshot now comes from `SnapshotFactories`. Its two callers, `WorldArrangement.Make` and `SnapshotAnalysis` (the factory page), drop one argument.
   - The handovers' domain interface, `FactoryHandovers.Of`, doesn't change (the spec's decision).
-- **Deletion test:** delete the three properties and every factory's handovers scan all of the snapshot's buildables three times again, 72 Ã— 3 scans of some 42,000 buildables for the owner's world. They earn their keep. `SnapshotHandovers` stays: it's the one place that puts a factory and its snapshot together for `FactoryHandovers`, for both callers.
+- **Deletion test:** delete the three properties and every factory's handovers scan all of the snapshot's buildables three times again, 72 × 3 scans of some 42,000 buildables for the owner's world. They earn their keep. `SnapshotHandovers` stays: it's the one place that puts a factory and its snapshot together for `FactoryHandovers`, for both callers.
 - **Glossary:** **Factories in a snapshot** now names what it holds for the handovers. No new term.
 
 ## How it was built
@@ -41,8 +41,8 @@ No new seam (the spec says so: the change changes no behaviour). The guards were
 |---|---|
 | **A `Lazy<T>` whose function reads a constructor parameter**: `sinks = new(() => IdsOf(snapshot, BuildableKind.Sink));` in the constructor. The lambda captures `snapshot`, so the object keeps the snapshot alive as long as one of the three hasn't been read. A field initialiser couldn't do it: it can't see constructor parameters (a primary constructor's can). | `Suppliers.memoize(() -> idsOf(snapshot, SINK))` in a Java constructor; the capture keeps `snapshot` reachable the same way. |
 | **`IReadOnlySet<T>` over a `HashSet<T>`**: the property `public IReadOnlySet<BuildableId> Sinks => sinks.Value;` hands out the set without `Add`. The private `IdsOf` returns `HashSet<T>`, which CA1859 asks of private members. | Java's `Collections.unmodifiableSet(...)` wraps it; .NET's read-only interface is a view of the same object, with no wrapper. |
-| **`Stopwatch`**, temporarily: `Start()` and `Stop()` around each factory's call add up in `Elapsed`. Primer: *Backend â†’ `Stopwatch` for a quick timing*. | Guava's `Stopwatch`, or `System.nanoTime()` differences; `performance.now()`. |
-| **Aspire's data volume is named after the AppHost's path**: run from a git worktree, the AppHost got a new, empty Postgres, without the owner's world. The measurement was taken in the main checkout. Primer: *Backend â†’ `WithDataVolume()` is named after the AppHost's path*. | Docker Compose names volumes after the project directory the same way. |
+| **`Stopwatch`**, temporarily: `Start()` and `Stop()` around each factory's call add up in `Elapsed`. Primer: *Backend → `Stopwatch` for a quick timing*. | Guava's `Stopwatch`, or `System.nanoTime()` differences; `performance.now()`. |
+| **Aspire's data volume is named after the AppHost's path**: run from a git worktree, the AppHost got a new, empty Postgres, without the owner's world. The measurement was taken in the main checkout. Primer: *Backend → `WithDataVolume()` is named after the AppHost's path*. | Docker Compose names volumes after the project directory the same way. |
 
 ## Choices to overrule
 
