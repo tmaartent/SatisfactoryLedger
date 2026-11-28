@@ -199,8 +199,8 @@
         @if (clickedMachine(); as building) {
           <p class="clicked">
             <app-game-icon [of]="building.className" />{{ names.building(building.className) }}
-            @if (selectedOwners().length > 0) {
-              <span class="muted"> · already in {{ selectedOwners()[0].name }}</span>
+            @if (selectedOwner(); as owned) {
+              <span class="muted"> · already in {{ owned.owner.name }}</span>
             }
           </p>
         }

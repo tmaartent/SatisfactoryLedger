@@ -392,7 +392,7 @@ export class ArrangementPage {
    */
   protected readonly ownerOf = computed(() => {
     const owners = machineOwners(loaded(this.factories) ?? []);
-    return (machine: string) => owners.get(machine)?.[0];
+    return (machine: string) => owners.get(machine)?.owner;
   });
   /** The factories picked in the side bar or on the map: they, their belts and the factories linked to them stand out. */
   protected readonly focused = signal<ReadonlySet<string>>(new Set());
@@ -717,7 +717,7 @@ export class ArrangementPage {
     const owners = machineOwners(traces);
     const picking = this.focused().size > 0;
     const picked = loaded(this.connectedParts) ?? new Map<string, PickedConnections>();
-    const { factories, parts } = relationsOf(picked, (id) => owners.get(id)?.[0]?.factoryId);
+    const { factories, parts } = relationsOf(picked, (id) => owners.get(id)?.owner?.factoryId);
     const colourOf = (factoryId: string) => factoryColour(traces, factoryId) ?? '#90a4ae';
     const footprints = new Map(world.footprints.map((footprint) => [footprint.id, footprint]));
     const named = (className: string) => this.names.building(className);
@@ -777,7 +777,7 @@ export class ArrangementPage {
       ...world.machines,
       ...world.consumers.filter((consumer) => owners.has(consumer.id)),
     ]) {
-      const owner = owners.get(machine.id)?.[0];
+      const owner = owners.get(machine.id)?.owner;
       points.push(toMapPoint(machine.position));
       const supplied = owner ? factories.get(owner.factoryId) : undefined;
       const fades = picking && !supplied;
@@ -837,7 +837,7 @@ export class ArrangementPage {
       return relatedFactories(focused, arrangement.links) ?? focused;
     const owners = machineOwners(loaded(this.factories) ?? []);
     const picked = loaded(this.connectedParts) ?? new Map<string, PickedConnections>();
-    const { factories } = relationsOf(picked, (id) => owners.get(id)?.[0]?.factoryId);
+    const { factories } = relationsOf(picked, (id) => owners.get(id)?.owner?.factoryId);
     return new Set([...focused, ...factories.keys()]);
   });
 

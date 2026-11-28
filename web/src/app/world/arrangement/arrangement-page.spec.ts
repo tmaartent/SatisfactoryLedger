@@ -85,7 +85,7 @@ const rubber = {
   factoryId: 'f-1',
   name: 'Rubber',
   traceable: true,
-  machines: [{ id: 'm-1', className: 'Build_ConstructorMk1_C', recipe: null }],
+  machines: [{ id: 'm-1', className: 'Build_ConstructorMk1_C', recipe: null, owner: 'f-1' }],
   inputs: [],
   outputs: [],
   missing: [],

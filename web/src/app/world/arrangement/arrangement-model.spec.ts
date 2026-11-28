@@ -50,10 +50,10 @@ import {
 describe('optimal arrangement', () => {
   describe('the factories in the area, as the Factories tab lists and the map names them', () => {
     const owners = new Map([
-      ['s-1', [{ factoryId: 'steel', name: 'Steel Beams', colour: '#fff' }]],
-      ['s-2', [{ factoryId: 'steel', name: 'Steel Beams', colour: '#fff' }]],
-      ['w-1', [{ factoryId: 'wire', name: 'Wire', colour: '#fff' }]],
-      ['far', [{ factoryId: 'far', name: 'Far Away', colour: '#fff' }]],
+      ['s-1', { owner: { factoryId: 'steel', name: 'Steel Beams', colour: '#fff' } }],
+      ['s-2', { owner: { factoryId: 'steel', name: 'Steel Beams', colour: '#fff' } }],
+      ['w-1', { owner: { factoryId: 'wire', name: 'Wire', colour: '#fff' } }],
+      ['far', { owner: { factoryId: 'far', name: 'Far Away', colour: '#fff' } }],
     ]);
     const at = (id: string, x: number, y: number) => ({ id, position: { x, y, z: 0 } });
     const machines = [

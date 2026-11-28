@@ -111,7 +111,11 @@ describe('a factory draft', () => {
     });
 
     it('stores the factory edited under its own id', async () => {
-      const rubber: TracedFactory = { factoryId: 'f-1', name: 'Rubber', machines: [{ id: 'm-1' }] };
+      const rubber: TracedFactory = {
+        factoryId: 'f-1',
+        name: 'Rubber',
+        machines: [{ id: 'm-1', owner: 'f-1' }],
+      };
       const { draft: d, api } = draft(
         [rubber],
         answering(() => Promise.resolve(stored)),
@@ -224,9 +228,16 @@ describe('a factory draft', () => {
     const rubber: TracedFactory = {
       factoryId: 'f-1',
       name: 'Rubber',
-      machines: [{ id: 'm-1' }, { id: 'm-2' }],
+      machines: [
+        { id: 'm-1', owner: 'f-1' },
+        { id: 'm-2', owner: 'f-1' },
+      ],
     };
-    const plastic: TracedFactory = { factoryId: 'f-2', name: 'Plastic', machines: [{ id: 'm-3' }] };
+    const plastic: TracedFactory = {
+      factoryId: 'f-2',
+      name: 'Plastic',
+      machines: [{ id: 'm-3', owner: 'f-2' }],
+    };
 
     it("can't be chosen in a new factory", () => {
       const { draft: d } = draft([rubber, plastic]);

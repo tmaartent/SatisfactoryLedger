@@ -22,7 +22,7 @@ internal sealed class FactoryTools(LedgerClient ledger, SnapshotChoice snapshots
         CancellationToken cancellationToken = default)
     {
         SnapshotSummaryResponse snapshot = await snapshots.ChooseAsync(snapshotId, cancellationToken);
-        return [.. (await ledger.GetFactoriesAsync(snapshot.Id, cancellationToken)).Select(f => new FactoryAnswer(f.FactoryId, f.Name, f.Traceable, f.Machines.Count))];
+        return [.. (await FactoriesByNameAsync(snapshot.Id, cancellationToken)).Select(f => new FactoryAnswer(f.FactoryId, f.Name, f.Traceable, f.Machines.Count))];
     }
 
     [McpServerTool(Name = "get_factory_findings", ReadOnly = true, Idempotent = true, OpenWorld = false)]
@@ -35,7 +35,7 @@ internal sealed class FactoryTools(LedgerClient ledger, SnapshotChoice snapshots
         CancellationToken cancellationToken = default)
     {
         SnapshotSummaryResponse snapshot = await snapshots.ChooseAsync(snapshotId, cancellationToken);
-        IReadOnlyList<FactoryTrace> factories = await ledger.GetFactoriesAsync(snapshot.Id, cancellationToken);
+        IReadOnlyList<FactoryTrace> factories = await FactoriesByNameAsync(snapshot.Id, cancellationToken);
         string wanted = factory.Trim();
         FactoryTrace chosen = factories.FirstOrDefault(f => f.FactoryId == wanted || string.Equals(f.Name, wanted, StringComparison.OrdinalIgnoreCase))
             ?? throw new McpException(factories.Count == 0
@@ -54,4 +54,8 @@ internal sealed class FactoryTools(LedgerClient ledger, SnapshotChoice snapshots
             analysis.Power,
             MachineFacts.BelowFullSpeed(analysis.Machines, game, FactoryGroups));
     }
+
+    /// <summary>The world's factories, by name: the ledger gives them oldest first, an order only the web's colours use.</summary>
+    private async Task<IReadOnlyList<FactoryTrace>> FactoriesByNameAsync(string snapshotId, CancellationToken cancellationToken) =>
+        [.. (await ledger.GetFactoriesAsync(snapshotId, cancellationToken)).OrderBy(factory => factory.Name, StringComparer.CurrentCulture)];
 }

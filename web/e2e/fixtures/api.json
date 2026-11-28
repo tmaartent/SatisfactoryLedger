@@ -15639,17 +15639,20 @@
             {
               "id": "Persistent_Level:PersistentLevel.Build_ConstructorMk1_C_2147291547",
               "className": "Build_ConstructorMk1_C",
-              "recipe": "Recipe_IronPlate_C"
+              "recipe": "Recipe_IronPlate_C",
+              "owner": "01a20ff2-5bfd-700d-bd8f-8ca41c7e9a61"
             },
             {
               "id": "Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2147301226",
               "className": "Build_SmelterMk1_C",
-              "recipe": "Recipe_IngotIron_C"
+              "recipe": "Recipe_IngotIron_C",
+              "owner": "01a20ff2-5bfd-700d-bd8f-8ca41c7e9a61"
             },
             {
               "id": "Persistent_Level:PersistentLevel.Build_SmelterMk1_C_2147301500",
               "className": "Build_SmelterMk1_C",
-              "recipe": "Recipe_IngotIron_C"
+              "recipe": "Recipe_IngotIron_C",
+              "owner": "01a20ff2-5bfd-700d-bd8f-8ca41c7e9a61"
             }
           ],
           "logistics": 15,

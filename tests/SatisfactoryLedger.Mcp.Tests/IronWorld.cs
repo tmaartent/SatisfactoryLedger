@@ -167,7 +167,7 @@ internal static class IronWorld
 
     /// <summary>A plate constructor of the factory, as its trace names it.</summary>
     private static object PlateMachine(string id) =>
-        new { id, className = "Build_ConstructorMk1_C", recipe = "Recipe_IronPlate_C" };
+        new { id, className = "Build_ConstructorMk1_C", recipe = "Recipe_IronPlate_C", owner = PlateFactory };
 
     private static object Snapshot(string id, string savedAt, string analysis) => new
     {

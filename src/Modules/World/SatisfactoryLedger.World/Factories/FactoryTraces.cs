@@ -14,9 +14,11 @@ internal static class FactoryTraces
     {
         Dictionary<string, BuildableDocument> buildables = snapshot.Buildables.ToDictionary(buildable => buildable.Id, StringComparer.Ordinal);
 
+        SnapshotFactories inSnapshot = SnapshotFactories.Of(snapshot, factories);
+
         return
         [
-            .. SnapshotFactories.Of(snapshot, factories).Factories.Select(traced =>
+            .. inSnapshot.Factories.Select(traced =>
             {
                 StoredFactory factory = traced.Factory;
                 List<BuildableReference> missing = [.. traced.Missing.Select(machine => new BuildableReference(machine.Id, machine.ClassName))];
@@ -32,8 +34,8 @@ internal static class FactoryTraces
                     true,
                     [
                         .. members.Machines
-                            .Select(id => buildables[id.Id])
-                            .Select(machine => new MachineSummary(machine.Id, machine.ClassName, machine.Recipe))
+                            .Select(id => (Machine: buildables[id.Id], Owner: inSnapshot.Owners[id]))
+                            .Select(found => new MachineSummary(found.Machine.Id, found.Machine.ClassName, found.Machine.Recipe, found.Owner))
                             .OrderBy(machine => machine.Id, StringComparer.Ordinal)
                     ],
                     members.Logistics.Count,
