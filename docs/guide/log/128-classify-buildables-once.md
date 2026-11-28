@@ -1,0 +1,45 @@
+# Step 128 · Classify buildables once, in the save-file adapter; the fluid truck station in the arrangement
+
+Card D of the architecture review of 2026-11-28 (`docs/architecture/reviews/2026-11-28.md`), spec #78, grilled 2026-11-28. A fix first, then a refactor that changes no behaviour, then the glossary.
+
+## Design
+
+- **Domain rule (owner, 2026-11-28):** a fluid truck station is a station in the arrangement. It keeps its plots whether or not it feeds a factory, and a pipe may go down to it. Now in BR-O1. The kinds and their names are the owner's too; "end consumer" was chosen over "uses up".
+- **Module:** the save-file adapter, `World.SaveFile`, owns "what kind of buildable is this". It publishes one answer, `GameClasses.KindOf(className)`, returning a `BuildableKind`: `Sink`, `EndConsumer`, `Uploader`, `Station`, `Generator`, `BeltOrLift`, `Pipe`, or `Other`. Its interface widens by that one method and the enum. `IsGenerator` and `IsUploader` are gone from it. `RoleOf` and `StockInventoryOf` now ask the table instead of keeping their own sets.
+- **Derived on read, not stored.** `BuildableDocument.BuildableKind` and `TransportTierDocument.BuildableKind` are computed properties with `[JsonIgnore]`, so the stored JSON stays as it was. No snapshot version bump (ADR-0016), and every snapshot already imported gets the fix.
+- **Who asks it now:**
+  - the arrangement's stations and spots (`WorldArrangement`, which had four station classes of its own) and its top belt and pipe capacities (it had `Contains("Pipeline")`);
+  - the handovers' sinks and end consumers (`SnapshotHandovers`, which had `SinkClass` and `UsesUp`);
+  - the save-file reader's generator and uploader checks.
+- **A generator, defined once:** `BuildableDocument.IsGenerator(copied)`: its kind is `Generator`, and the Catalog copied at import knows its burn rate (BR-A8). `SnapshotDocument.IsMachineOrGenerator` (BR-W2) and `ToBuildable`'s `Consumer.IsGenerator` both ask it. They had been a list search and a dictionary key check.
+- **What stays:** a class name used as a *key* into a table copied from the Catalog (footprints, transport tiers, extractors, generators' rates, storages) or shown (findings, traces). The handovers still get the id → class name map, for display (card E may change that).
+- **Deletion test:** delete `KindOf` and the class-name sets come back in four files, as they were, and they can drift apart again. That drift is what left the fluid truck station out. The table earns its keep.
+
+## How it was built
+
+1. **Fix, red first:** a small world in `WorldArrangementTests`, with a packager unpacking turbofuel into a pipe to a fluid truck station 50 metres away. `A_fluid_truck_station_in_the_area_blocks_its_plots` found no fixed place at all. `A_fluid_truck_station_a_factory_sends_fluid_to_is_a_spot_its_pipe_goes_down_to` found no spot. One more class name in `WorldArrangement.Stations` made both green. That's the `fix(world):` commit, with the old shape of the code.
+2. **Refactor:** `GameClassesTests.Each_class_has_its_kind` is the agreed seam, one row per class and its kind, plus geothermal, a pipe support and a few others that are `Other`. It was red until `KindOf` existed. Then every classifying use was moved onto the kind, and `WorldArrangement.Stations` was deleted. `A_dimensional_depot_uploader_takes_only_what_is_left_over` is replaced by the table's `Uploader` row. The fluid truck station also got a row in `Platforms_drone_ports_and_truck_stations_are_stations`.
+3. **Guards, unchanged:** the snapshot-document, handovers, arrangement, snapshot-analysis and simulation suites. The test worlds' stored analyses were not regenerated, and they didn't change.
+
+**Test runs:** .NET 1369 passed (integration tests included, Docker running); the stored analyses unchanged.
+
+## .NET points
+
+| Here | In Java |
+|---|---|
+| **`[JsonIgnore]` on a computed property** (`BuildableDocument.BuildableKind`): System.Text.Json writes every public getter, so without it every stored buildable would gain a field. | Jackson does the same with a `getX()`, and `@JsonIgnore` on it is the same fix. |
+| **`=>` rather than `{ get; } = …`** for a value derived from another property of a record. `with { ClassName = … }` copies fields and doesn't run initialisers, so a stored kind would go stale on the copy. | Java records have no `with`; a wither calls the canonical constructor, which would recompute it. |
+| **`is { BuildableKind: BuildableKind.Station }`** on `GetValueOrDefault(id)`: the property pattern is the null check too. | `Optional.ofNullable(map.get(id)).map(…).filter(…).isPresent()`, or two conditions. |
+| **A property named after its type** (`BuildableKind BuildableKind`): the compiler reads a type where it expects one and a member where it expects one. | Java keeps types and members in separate namespaces anyway; a getter `getBuildableKind()` never clashes. |
+| **`internal` enum in a `[Theory]`**: a public test method can't take it (CS0051), so the rows pass its name as a string and `Enum.Parse` it. | JUnit 5's `@EnumSource` / `@CsvSource` take a package-private enum without complaint. |
+
+## Choices to overrule
+
+- **A generator is the kind *and* the Catalog copy knowing it.** The kind alone would make a generator in a snapshot older than version 7 (whose Catalog copy has no generators) one of a factory's possible machines. That's a behaviour change, so it was left out of the refactor. The glossary's definition ("burns fuel, and the Catalog knows its burn rate") says both.
+- **One enum for both questions:** what a buildable is, and what a transport tier carries (`BeltOrLift`, `Pipe`). Pumps and valves are `Pipe` too, since their logistics kind is. Only the tiers ask that.
+- **`Other`** is the name for every class none of the kinds covers.
+- **The kind is a property on the two documents** (`BuildableDocument`, `TransportTierDocument`), not a lookup kept on `SnapshotDocument`. It's a dictionary lookup each time it's asked, and it can't go stale.
+- **BR-O1** now lists the stations by name, the fluid truck station among them.
+- **The review's Status line for card D** names the step and branch; the PR number goes in once it's opened.
+
+**Files:** `World.SaveFile/BuildableKind.cs` (new), `GameClasses.cs`, `SaveFileReader.cs`; `World/Snapshots/BuildableDocument.cs`, `SnapshotDocument.cs`, `TransportTierDocument.cs`; `World/Arrangement/WorldArrangement.cs`; `World/Analysis/SnapshotHandovers.cs`; `tests/SatisfactoryLedger.World.Tests/WorldArrangementTests.cs`, `tests/SatisfactoryLedger.World.SaveFile.Tests/GameClassesTests.cs`; `GLOSSARY.md`; `docs/domain/business-rules.md`; `docs/guide/primer.md`; `docs/architecture/reviews/2026-11-28.md`; this log.
