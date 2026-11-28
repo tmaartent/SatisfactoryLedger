@@ -60,3 +60,15 @@ From the code review of PR #82.
 |---|---|
 | **A method group as the predicate** (`IsGenerator(catalog.Generators.ContainsKey)`): the dictionary's own `ContainsKey` is the `Func<string, bool>`, no lambda (see the primer's *Method groups as delegates*). Taking a predicate rather than a collection lets each caller keep its own lookup. | Java's `IsGenerator(catalog.generators()::containsKey)` into a `Predicate<String>`. |
 | **`export const stationClasses: ReadonlySet<string>`**: the page imports the model's set, typed read-only, so neither file can `add` to the other's list. | TypeScript only; a Java `Set.of(...)` is immutable at run time, `ReadonlySet` only at compile time. |
+
+## The owner's decision on generators
+
+Decided 2026-11-28, after the review: snapshots from before version 7 don't need to be supported, so **a generator is its kind alone**. Choice 1 under *Choices* and review fix 3 are undone:
+
+- `BuildableDocument.IsGenerator` is a property again, `BuildableKind == Generator`, with no predicate. `Consumer.IsGenerator` is set from it.
+- `IsMachineOrGenerator` (BR-W2) moved from `SnapshotDocument` to `BuildableDocument`: it no longer needs the snapshot's Catalog copy, only the buildable. The five callers ask the buildable; the map and the analysis summary, which also checked the role, now just ask `IsGenerator`.
+- The Catalog copy still gives a generator its **rates** (`GenerationOf`); a generator whose fuel it doesn't know still has none (BR-A15).
+
+| .NET / C# | Java / Spring |
+|---|---|
+| **Moving a method to the data it reads** (`snapshot.IsMachineOrGenerator(buildable)` → `buildable.IsMachineOrGenerator`): a method group like `.Where(snapshot.IsMachineOrGenerator)` becomes a lambda, `.Where(buildable => buildable.IsMachineOrGenerator)`, because a property isn't a method group. | `filter(snapshot::isMachineOrGenerator)` → `filter(BuildableDocument::isMachineOrGenerator)`. Java's unbound method reference keeps it point-free; C# has no unbound form for a property. |
